@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
-    "worker": "tsx scripts/worker.ts"
+    "worker": "tsx scripts/worker.ts",
+    "worker:once": "tsx scripts/worker.ts --once"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
