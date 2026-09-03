@@ -614,6 +614,10 @@ export interface Database {
         Args: { p_limit?: number; p_offset?: number; p_max_age_hours?: number };
         Returns: WaveRow[];
       };
+      rising_creators: {
+        Args: { p_limit?: number; p_offset?: number; p_window_hours?: number };
+        Returns: ProfileRow[];
+      };
       wave_trending_score: {
         Args: {
           p_play_count: number;

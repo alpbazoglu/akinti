@@ -83,15 +83,18 @@ export const updateWaveSchema = z
   })
   .refine((value) => Object.keys(value).length > 0, { message: "Nothing to update" });
 
+/** Mirrors the `comments_body_len` CHECK constraint (migration 05) exactly. */
+export const COMMENT_MAX_LENGTH = 1000;
+
 export const createCommentSchema = z.object({
   wave_id: uuidSchema,
-  body: z.string().trim().min(1, "Say something").max(1000),
+  body: z.string().trim().min(1, "Say something").max(COMMENT_MAX_LENGTH),
   parent_comment_id: uuidSchema.nullable().default(null),
 });
 
 export const updateCommentSchema = z.object({
   comment_id: uuidSchema,
-  body: z.string().trim().min(1).max(1000),
+  body: z.string().trim().min(1).max(COMMENT_MAX_LENGTH),
 });
 
 export const saveWaveSchema = z.object({ waveId: uuidSchema });

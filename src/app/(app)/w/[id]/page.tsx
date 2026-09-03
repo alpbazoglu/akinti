@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AudioLines, Handshake } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
+import { CommentsSection } from "@/components/comments";
 import { Badge, EmptyState } from "@/components/ui";
 import { WaveCardContainer, type WaveCardContainerWave } from "@/components/wave";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
@@ -20,6 +21,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { cn, timeAgo } from "@/lib/ui";
 import type { Collaborator, CollaboratorStatus, Profile, Wave } from "@/types/domain";
 
+import { getCommentPermissionState, loadComments } from "./interactions";
 import { ProcessingBanner } from "./ProcessingBanner";
 import { WaveOwnerMenu } from "./WaveOwnerMenu";
 
@@ -68,15 +70,27 @@ export default async function WavePage({ params }: WavePageProps) {
     return <UnavailableState />;
   }
 
-  const [asset, creator, allCollaborators, directDuets, hasSaved, canRequestDuetResult] =
-    await Promise.all([
-      getAudioAssetById(db, wave.audioAssetId),
-      getProfileById(db, wave.creatorId),
-      listWaveCollaborators(db, wave.id),
-      listDirectDuets(db, wave.id, { limit: 12 }),
-      viewer ? isWaveSaved(db, viewer.id, wave.id) : Promise.resolve(false),
-      db.rpc("can_request_duet", { p_wave_id: wave.id }),
-    ]);
+  const [
+    asset,
+    creator,
+    allCollaborators,
+    directDuets,
+    hasSaved,
+    canRequestDuetResult,
+    commentsResult,
+    commentPermission,
+  ] = await Promise.all([
+    getAudioAssetById(db, wave.audioAssetId),
+    getProfileById(db, wave.creatorId),
+    listWaveCollaborators(db, wave.id),
+    listDirectDuets(db, wave.id, { limit: 12 }),
+    viewer ? isWaveSaved(db, viewer.id, wave.id) : Promise.resolve(false),
+    db.rpc("can_request_duet", { p_wave_id: wave.id }),
+    loadComments(wave.id, null),
+    getCommentPermissionState(wave.id),
+  ]);
+  const initialComments =
+    commentsResult.ok && commentsResult.data ? commentsResult.data : { items: [], nextCursor: null };
 
   if (!asset || !creator) {
     // Data integrity edge case (a Wave with no readable creator/asset) —
@@ -154,6 +168,14 @@ export default async function WavePage({ params }: WavePageProps) {
         />
 
         <WaveCardContainer wave={cardWave} />
+
+        <CommentsSection
+          waveId={wave.id}
+          waveCreatorId={wave.creatorId}
+          initialComments={initialComments}
+          initialPermission={commentPermission}
+          initialCommentCount={wave.counts.comments}
+        />
 
         {(parentWave || originalWave) && (
           <DuetLineage

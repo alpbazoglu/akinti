@@ -248,6 +248,141 @@ export async function searchWaves(db: Db, query: string, limit?: number, offset 
   return rows.map(toWave);
 }
 
+/** Explore → Original (spec s10): `content_origin = 'original'`, mirrors `waves_original_content_published_idx` (migration 18). */
+export async function listOriginalWaves(db: Db, params: CursorParams = {}): Promise<Page<Wave>> {
+  const limit = clampLimit(params.limit);
+  let query = db
+    .from("waves")
+    .select("*")
+    .eq("visibility", "everyone")
+    .eq("content_origin", "original")
+    .is("deleted_at", null)
+    .order("published_at", { ascending: false })
+    .limit(limit + 1);
+  if (params.cursor) {
+    query = query.lt("published_at", params.cursor);
+  }
+  const result = await query;
+  const rows = unwrap("listOriginalWaves", { data: result.data ?? [], error: result.error });
+  const page = buildPage(rows, limit, (r) => r.published_at);
+  return { items: page.items.map(toWave), nextCursor: page.nextCursor };
+}
+
+/**
+ * Explore → Voices / Compositions (spec s10): a tag overlap over `waves.tags`
+ * (indexed by `waves_tags_idx`, migration 04). `tags` is free-form up to 8
+ * entries per Wave (`src/lib/validation/waves.ts`), but `CreateWaveForm` only
+ * ever offers `WAVE_CATEGORY_OPTIONS` (`src/lib/audio/createDraft.ts`),
+ * lower-cased on write — so matching against that fixed, lower-cased
+ * vocabulary is exhaustive in practice. The exact split lives in
+ * `src/lib/feed/categories.ts` (`VOICE_TAGS`/`COMPOSITION_TAGS`) and is
+ * documented in `docs/ARCHITECTURE.md`.
+ */
+export async function listWavesByTags(
+  db: Db,
+  tags: readonly string[],
+  params: CursorParams = {},
+): Promise<Page<Wave>> {
+  const limit = clampLimit(params.limit);
+  if (tags.length === 0) {
+    return { items: [], nextCursor: null };
+  }
+  let query = db
+    .from("waves")
+    .select("*")
+    .eq("visibility", "everyone")
+    .is("deleted_at", null)
+    .overlaps("tags", tags as string[])
+    .order("published_at", { ascending: false })
+    .limit(limit + 1);
+  if (params.cursor) {
+    query = query.lt("published_at", params.cursor);
+  }
+  const result = await query;
+  const rows = unwrap("listWavesByTags", { data: result.data ?? [], error: result.error });
+  const page = buildPage(rows, limit, (r) => r.published_at);
+  return { items: page.items.map(toWave), nextCursor: page.nextCursor };
+}
+
+/** A page of a specific creator set's Waves, newest first. Used to compose Explore → Rising from `getRisingCreators`. */
+export async function listWavesByCreatorIds(
+  db: Db,
+  creatorIds: string[],
+  params: CursorParams = {},
+): Promise<Page<Wave>> {
+  const limit = clampLimit(params.limit);
+  if (creatorIds.length === 0) {
+    return { items: [], nextCursor: null };
+  }
+  let query = db
+    .from("waves")
+    .select("*")
+    .in("creator_id", creatorIds)
+    .eq("visibility", "everyone")
+    .is("deleted_at", null)
+    .order("published_at", { ascending: false })
+    .limit(limit + 1);
+  if (params.cursor) {
+    query = query.lt("published_at", params.cursor);
+  }
+  const result = await query;
+  const rows = unwrap("listWavesByCreatorIds", { data: result.data ?? [], error: result.error });
+  const page = buildPage(rows, limit, (r) => r.published_at);
+  return { items: page.items.map(toWave), nextCursor: page.nextCursor };
+}
+
+/**
+ * Accepted collaborators for a batch of Waves in one query, keyed by Wave id
+ * — used to hydrate a feed page's cards without an N+1 per card (spec s35).
+ */
+export async function listCollaboratorsForWaves(
+  db: Db,
+  waveIds: string[],
+): Promise<Map<string, Collaborator[]>> {
+  const byWave = new Map<string, Collaborator[]>();
+  if (waveIds.length === 0) {
+    return byWave;
+  }
+  const result = await db
+    .from("wave_collaborators")
+    .select("*")
+    .in("wave_id", waveIds)
+    .eq("status", "accepted")
+    .order("created_at", { ascending: true });
+  const rows = unwrap("listCollaboratorsForWaves", { data: result.data ?? [], error: result.error });
+  for (const row of rows) {
+    const collaborator = toCollaborator(row);
+    const list = byWave.get(collaborator.waveId);
+    if (list) {
+      list.push(collaborator);
+    } else {
+      byWave.set(collaborator.waveId, [collaborator]);
+    }
+  }
+  return byWave;
+}
+
+/**
+ * Which of `waveIds` the viewer has saved, in one query — hydrates a feed
+ * page's `isSaved` state without an N+1 per card (spec s35). `saves` has no
+ * dedicated domain file this stage owns (`src/lib/db/saves.ts` belongs to the
+ * interactions agent); this is a direct, minimal read of the same table,
+ * mirroring how `notifications/actions.ts` reads `wave_collaborators`
+ * directly for the same reason.
+ */
+export async function listSavedWaveIds(db: Db, viewerId: string, waveIds: string[]): Promise<Set<string>> {
+  if (waveIds.length === 0) {
+    return new Set();
+  }
+  const result = await db
+    .from("saves")
+    .select("wave_id")
+    .eq("profile_id", viewerId)
+    .in("wave_id", waveIds);
+  const rows = unwrap("listSavedWaveIds", { data: result.data ?? [], error: result.error });
+  return new Set(rows.map((r) => r.wave_id));
+}
+
 /* ------------------------------------------------------------------------ */
 /* Writes                                                                    */
 /* ------------------------------------------------------------------------ */

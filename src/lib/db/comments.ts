@@ -5,11 +5,23 @@
  */
 
 import type { CreateCommentInput, UpdateCommentInput } from "@/lib/validation/waves";
-import type { Comment, Page } from "@/types/domain";
+import type { Comment, Page, Wave } from "@/types/domain";
 
-import { toComment } from "./mappers";
+import { toComment, toWave } from "./mappers";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap } from "./types";
+import { buildPage, clampLimit, unwrap, unwrapMaybe } from "./types";
+
+/** A single comment by id, or `null` if it doesn't exist / RLS hides it. */
+export async function getCommentById(db: Db, commentId: string): Promise<Comment | null> {
+  const result = await db
+    .from("comments")
+    .select("*")
+    .eq("id", commentId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  const row = unwrapMaybe("getCommentById", result);
+  return row ? toComment(row) : null;
+}
 
 export async function createComment(
   db: Db,
@@ -96,4 +108,55 @@ export async function listCommentReplies(
   const rows = unwrap("listCommentReplies", { data: result.data ?? [], error: result.error });
   const page = buildPage(rows, limit, (r) => r.created_at);
   return { items: page.items.map(toComment), nextCursor: page.nextCursor };
+}
+
+/**
+ * Profile → Content → "Commented Waves" (spec §25): the Waves `authorId` has
+ * left a comment on, most-recently-commented first. Paginates over the
+ * caller's own comments (RLS `comments_select` — `can_view_wave` — already
+ * hides anything the caller can no longer see) and dedupes by Wave within the
+ * page, mirroring `listSavedWaves`'s two-step shape (`saves.ts`). A Wave
+ * commented on more than once still only appears once per page; its position
+ * reflects the most recent of those comments.
+ */
+export async function listCommentedWaves(
+  db: Db,
+  authorId: string,
+  params: { limit?: number; cursor?: string | null } = {},
+): Promise<Page<Wave>> {
+  const limit = clampLimit(params.limit);
+  let query = db
+    .from("comments")
+    .select("wave_id, created_at")
+    .eq("author_id", authorId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(limit + 1);
+  if (params.cursor) {
+    query = query.lt("created_at", params.cursor);
+  }
+  const result = await query;
+  const rows = unwrap("listCommentedWaves", { data: result.data ?? [], error: result.error });
+  const page = buildPage(rows, limit, (r) => r.created_at);
+
+  const seen = new Set<string>();
+  const orderedWaveIds: string[] = [];
+  for (const row of page.items) {
+    if (!seen.has(row.wave_id)) {
+      seen.add(row.wave_id);
+      orderedWaveIds.push(row.wave_id);
+    }
+  }
+  if (orderedWaveIds.length === 0) {
+    return { items: [], nextCursor: page.nextCursor };
+  }
+
+  const wavesResult = await db.from("waves").select("*").in("id", orderedWaveIds).is("deleted_at", null);
+  const waveRows = unwrap("listCommentedWaves:waves", {
+    data: wavesResult.data ?? [],
+    error: wavesResult.error,
+  });
+  const byId = new Map(waveRows.map((w) => [w.id, toWave(w)]));
+  const items = orderedWaveIds.map((id) => byId.get(id)).filter((w): w is Wave => w !== undefined);
+  return { items, nextCursor: page.nextCursor };
 }

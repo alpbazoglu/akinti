@@ -9,6 +9,7 @@ export const routes = {
   /* App */
   home: () => "/",
   explore: () => "/explore",
+  search: (q?: string) => (q && q.trim().length > 0 ? `/search?q=${enc(q.trim())}` : "/search"),
   create: () => "/create",
   notifications: () => "/notifications",
   messages: () => "/messages",
@@ -17,7 +18,15 @@ export const routes = {
   profileFollowers: (username: string) => `/u/${enc(username)}/followers`,
   profileFollowing: (username: string) => `/u/${enc(username)}/following`,
   wave: (waveId: string) => `/w/${enc(waveId)}`,
+  /** Owned by the Duet stage/agent — Stage 8 only links here (spec §14 "Request a Duet"). */
+  waveDuet: (waveId: string) => `/w/${enc(waveId)}/duet`,
+  waveComments: (waveId: string) => `/w/${enc(waveId)}#comments`,
   messageNew: (to: string) => `/messages/new?to=${enc(to)}`,
+
+  /* Duets (§15) */
+  duets: () => "/duets",
+  duetRecord: (waveId: string, requestId: string) =>
+    `/w/${enc(waveId)}/duet/record?request=${enc(requestId)}`,
 
   /* Settings (§25) */
   settings: () => "/settings",
@@ -26,6 +35,10 @@ export const routes = {
   settingsAppearance: () => "/settings/appearance",
   settingsNotifications: () => "/settings/notifications",
   settingsContent: () => "/settings/content",
+  settingsContentSaved: () => "/settings/content/saved",
+  settingsContentCommented: () => "/settings/content/commented",
+  settingsContentWaves: () => "/settings/content/waves",
+  settingsContentDuets: () => "/settings/content/duets",
   settingsAudio: () => "/settings/audio",
   settingsSafety: () => "/settings/safety",
   settingsFollowRequests: () => "/settings/follow-requests",
@@ -63,6 +76,7 @@ const PUBLIC_EXACT_ROUTES: readonly Href[] = [
   routes.forgotPassword(),
   routes.resetPassword(),
   routes.explore(),
+  routes.search(),
   // The Stage 1 component gallery: static UI only, no user data, useful
   // without an account.
   "/kit",
