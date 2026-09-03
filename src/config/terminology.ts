@@ -57,6 +57,17 @@ export const TERMS = {
   unfollow: "Unfollow",
   followers: "Followers",
   following: "Following",
+  followRequested: "Requested",
+  followBack: "Follow back",
+
+  /* Profile actions */
+  message: "Message",
+  shareProfile: "Share profile",
+  editProfile: "Edit profile",
+  block: "Block",
+  unblock: "Unblock",
+  report: "Report",
+  reported: "Reported",
 
   /* Creation types */
   recorded: "Recorded",

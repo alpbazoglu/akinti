@@ -58,8 +58,48 @@ export const respondToFollowRequestSchema = z.object({
 
 export const blockSchema = z.object({ blockedId: uuidSchema });
 
+/** Settings → Account (spec §25): identity fields only, no theme/privacy. */
+export const updateAccountSchema = z.object({
+  username: usernameSchema,
+  display_name: z
+    .string()
+    .trim()
+    .max(50)
+    .nullable()
+    .optional()
+    .transform((value) => (value ? value : null)),
+  bio: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .optional()
+    .transform((value) => (value ? value : null)),
+});
+
+/** A resized-in-the-browser avatar's public storage URL (spec §25/§33). */
+export const updateAvatarSchema = z.object({
+  avatar_url: z.string().url().max(1000),
+});
+
+/** Settings → Privacy (spec §25): every account-level permission default. */
+export const updatePrivacySchema = z.object({
+  privacy: z.enum(PROFILE_PRIVACIES),
+  message_permission: z.enum(PERMISSION_AUDIENCES),
+  duet_permission: z.enum(PERMISSION_AUDIENCES),
+  comment_permission: z.enum(COMMENT_AUDIENCES),
+  default_wave_visibility: z.enum(WAVE_VISIBILITIES),
+});
+
+/** Settings → Appearance (spec §21/§25): curated theme presets only. */
+export const updateAppearanceSchema = profileThemeSchema;
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CompleteOnboardingInput = z.infer<typeof completeOnboardingSchema>;
 export type FollowInput = z.infer<typeof followSchema>;
 export type RespondToFollowRequestInput = z.infer<typeof respondToFollowRequestSchema>;
 export type BlockInput = z.infer<typeof blockSchema>;
+export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;
+export type UpdateAvatarInput = z.infer<typeof updateAvatarSchema>;
+export type UpdatePrivacyInput = z.infer<typeof updatePrivacySchema>;
+export type UpdateAppearanceInput = z.infer<typeof updateAppearanceSchema>;

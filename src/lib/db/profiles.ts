@@ -75,14 +75,27 @@ export async function completeOnboarding(
   return toProfile(unwrap("completeOnboarding", result));
 }
 
-/** True when `username` is free. Checked client-side for fast feedback; the
- *  unique index on `profiles.username` is the actual authority. */
-export async function isUsernameAvailable(db: Db, username: string): Promise<boolean> {
-  const result = await db
+/**
+ * True when `username` is free. Checked client-side for fast feedback; the
+ * unique index on `profiles.username` is the actual authority.
+ *
+ * `excludeProfileId` lets an existing account re-submit its own current
+ * username (e.g. saving the Account settings form without changing it)
+ * without the check reporting a collision against itself.
+ */
+export async function isUsernameAvailable(
+  db: Db,
+  username: string,
+  excludeProfileId?: string,
+): Promise<boolean> {
+  let query = db
     .from("profiles")
     .select("id")
-    .eq("username", username.trim().toLowerCase())
-    .maybeSingle();
+    .eq("username", username.trim().toLowerCase());
+  if (excludeProfileId) {
+    query = query.neq("id", excludeProfileId);
+  }
+  const result = await query.maybeSingle();
   const row = unwrapMaybe("isUsernameAvailable", result);
   return row === null;
 }
@@ -105,6 +118,18 @@ export async function listSuggestedCreators(db: Db, viewerId: string, limit = 6)
     .limit(clampLimit(limit));
   const rows = unwrap("listSuggestedCreators", { data: result.data ?? [], error: result.error });
   return rows.map(toProfile);
+}
+
+/**
+ * Whether the caller may see `profileId`'s *content* (Waves, follower list) —
+ * stricter than `profiles_select`'s identity-card visibility, since a
+ * private account's Waves stay locked until the caller is an accepted
+ * follower (spec s21). Thin wrapper over `can_view_profile_content`
+ * (migration 10), the single source of truth RLS itself uses.
+ */
+export async function canViewProfileContent(db: Db, profileId: string): Promise<boolean> {
+  const result = await db.rpc("can_view_profile_content", { p_profile_id: profileId });
+  return unwrap("canViewProfileContent", result);
 }
 
 /** Deterministic trigram search over username + display name (spec s24). */

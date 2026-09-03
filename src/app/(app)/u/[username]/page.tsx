@@ -1,8 +1,17 @@
-import { User } from "lucide-react";
+import { UserX } from "lucide-react";
 
-import { TERMS } from "@/config/terminology";
-
-import { PlaceholderPage } from "../../_components/PlaceholderPage";
+import { PageHeader } from "@/components/layout";
+import { LockedContent, ProfileHeader, ProfileTabs } from "@/components/profile";
+import { EmptyState } from "@/components/ui";
+import type { WaveCardWave } from "@/components/wave";
+import { getCurrentUser } from "@/lib/auth/server";
+import { getFollowStatus, isFollowing } from "@/lib/db/follows";
+import { canViewProfileContent, getProfileByUsername } from "@/lib/db/profiles";
+import { listProfileDuetCards, listProfileWaveCards, type ProfileWaveCard } from "@/lib/db/profileWaves";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { PermissionAudience, Profile, Wave } from "@/types/domain";
 
 interface ProfilePageProps {
   params: Promise<{ username: string }>;
@@ -13,17 +22,121 @@ export async function generateMetadata({ params }: ProfilePageProps) {
   return { title: `@${username}` };
 }
 
-/** Creator profile with Waves and Duets tabs (spec 21). */
+/** Best-effort UI hint only — `can_request_duet` (server-side) is the real gate. */
+function resolveCanRequestDuet(
+  wave: Wave,
+  profile: Profile,
+  isSelf: boolean,
+  viewerId: string | null,
+): boolean {
+  if (isSelf || !viewerId) return false;
+  const audience: PermissionAudience = wave.duetPermission ?? profile.permissions.duet;
+  return audience !== "nobody";
+}
+
+function toWaveCardWave(
+  card: ProfileWaveCard,
+  creator: { username: string; displayName: string | null; avatarUrl: string | null },
+  canRequestDuet: boolean,
+): WaveCardWave {
+  return {
+    id: card.wave.id,
+    title: card.wave.title,
+    description: card.wave.description ?? undefined,
+    createdAt: card.wave.publishedAt,
+    creator: {
+      username: creator.username,
+      displayName: creator.displayName ?? undefined,
+      avatarUrl: creator.avatarUrl,
+    },
+    collaborators: card.collaborators,
+    creationType: card.wave.creationType,
+    audioUrl: card.audioUrl,
+    peaks: card.peaks,
+    duration: card.durationMs ? card.durationMs / 1000 : undefined,
+    metrics: card.wave.counts,
+    canRequestDuet,
+  };
+}
+
+/** Public profile (spec §21): header, theming, Follow/Message/Share/Block/Report, Waves/Duets tabs. */
 export default async function ProfilePage({ params }: ProfilePageProps) {
   const { username } = await params;
 
+  if (!isSupabaseConfigured()) {
+    return (
+      <>
+        <PageHeader title={`@${username}`} />
+        <EmptyState
+          title="Backend not configured"
+          description="NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. Profiles are unavailable until this environment is connected to a Supabase project."
+        />
+      </>
+    );
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const viewerUser = await getCurrentUser();
+  const profile = await getProfileByUsername(supabase, username);
+
+  // Not found, or hidden by `can_view_profile` — indistinguishable on purpose
+  // (a private/blocked account's existence is never confirmed to a caller
+  // who cannot see it, spec §21/§26).
+  if (!profile) {
+    return (
+      <>
+        <PageHeader title={`@${username}`} />
+        <EmptyState
+          icon={<UserX className="size-6" />}
+          title="Profile unavailable"
+          description="This profile doesn't exist, or isn't available to you."
+        />
+      </>
+    );
+  }
+
+  const isSelf = viewerUser?.id === profile.id;
+  const [followStatus, followsViewer, canSeeContent] = await Promise.all([
+    !isSelf && viewerUser ? getFollowStatus(supabase, viewerUser.id, profile.id) : Promise.resolve(null),
+    !isSelf && viewerUser ? isFollowing(supabase, profile.id, viewerUser.id) : Promise.resolve(false),
+    isSelf ? Promise.resolve(true) : canViewProfileContent(supabase, profile.id),
+  ]);
+
+  let waveCards: WaveCardWave[] = [];
+  let duetCards: WaveCardWave[] = [];
+
+  if (canSeeContent) {
+    const admin = createAdminClient();
+    const creator = { username: profile.username, displayName: profile.displayName, avatarUrl: profile.avatarUrl };
+    const [wavesPage, duetsPage] = await Promise.all([
+      listProfileWaveCards(supabase, admin, profile.id),
+      listProfileDuetCards(supabase, admin, profile.id),
+    ]);
+    waveCards = wavesPage.items.map((card) =>
+      toWaveCardWave(card, creator, resolveCanRequestDuet(card.wave, profile, isSelf, viewerUser?.id ?? null)),
+    );
+    duetCards = duetsPage.items.map((card) =>
+      toWaveCardWave(card, creator, resolveCanRequestDuet(card.wave, profile, isSelf, viewerUser?.id ?? null)),
+    );
+  }
+
   return (
-    <PlaceholderPage
-      title={`@${username}`}
-      description={`${TERMS.waves}, ${TERMS.duets}, ${TERMS.followers} and ${TERMS.following}.`}
-      icon={<User className="size-6" />}
-      emptyTitle={`No ${TERMS.waves} yet`}
-      emptyDescription={`Profiles arrive with the profile stage. Visibility is enforced server-side: a private profile is never readable by guessing this URL.`}
-    />
+    <>
+      <ProfileHeader
+        profile={profile}
+        viewer={{
+          isSelf,
+          isSignedIn: viewerUser !== null,
+          followStatus,
+          followsViewer,
+          isBlockedByViewer: false, // reaching this page at all rules out the viewer having blocked them (can_view_profile hides it)
+        }}
+      />
+      {canSeeContent ? (
+        <ProfileTabs waves={waveCards} duets={duetCards} isSelf={isSelf} username={profile.username} />
+      ) : (
+        <LockedContent username={profile.username} requested={followStatus === "pending"} />
+      )}
+    </>
   );
 }

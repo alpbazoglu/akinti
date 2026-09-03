@@ -14,16 +14,21 @@ export const routes = {
   messages: () => "/messages",
   conversation: (conversationId: string) => `/messages/${enc(conversationId)}`,
   profile: (username: string) => `/u/${enc(username)}`,
+  profileFollowers: (username: string) => `/u/${enc(username)}/followers`,
+  profileFollowing: (username: string) => `/u/${enc(username)}/following`,
   wave: (waveId: string) => `/w/${enc(waveId)}`,
+  messageNew: (to: string) => `/messages/new?to=${enc(to)}`,
 
   /* Settings (§25) */
   settings: () => "/settings",
   settingsAccount: () => "/settings/account",
   settingsPrivacy: () => "/settings/privacy",
+  settingsAppearance: () => "/settings/appearance",
   settingsNotifications: () => "/settings/notifications",
   settingsContent: () => "/settings/content",
   settingsAudio: () => "/settings/audio",
   settingsSafety: () => "/settings/safety",
+  settingsFollowRequests: () => "/settings/follow-requests",
 
   /* Auth & onboarding */
   login: (next?: string) => withNext("/login", next),
@@ -97,6 +102,12 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     label: "Privacy",
     description: "Profile visibility, messaging, Duet Requests, default Wave visibility.",
     href: routes.settingsPrivacy(),
+  },
+  {
+    key: "appearance",
+    label: "Appearance",
+    description: "Profile background, pattern and accent color.",
+    href: routes.settingsAppearance(),
   },
   {
     key: "notifications",
