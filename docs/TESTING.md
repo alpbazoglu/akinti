@@ -17,6 +17,31 @@ npm run typecheck   # tsc --noEmit — must pass before either
 npm run lint        # eslint — must pass before either
 ```
 
+## Auth (`src/lib/auth/**`, `src/app/(auth)/**`, `src/proxy.ts`)
+
+Unit tests: `src/lib/validation/auth.test.ts` (every Zod schema — valid input,
+boundary lengths, invalid enums/formats) and `src/lib/auth/errors.test.ts`
+(`mapAuthError` — every mapped Supabase code resolves to English, an
+unmapped code/message falls back to a generic message, a raw Postgres/Supabase
+error string is never echoed back to the client).
+
+**`e2e/auth.spec.ts`** covers the full signup → onboarding → logout → login
+loop (spec §46) plus the route protection matrix (anonymous browsing
+`/explore`, Home redirecting an anonymous visitor to `/login?next=`, a
+signed-in visitor bouncing off `/login` back to Home). It needs a real
+Supabase project it can actually create accounts against — there is no
+`.env.local` in most development environments here (`NEXT_PUBLIC_SUPABASE_URL`
+etc. are unset by design; see `AGENTS.md`), so this spec is **excluded from
+the Playwright run entirely** via `testIgnore` in `playwright.config.ts`
+unless `E2E_SUPABASE=1` is set — never via `test.skip`, which would report as
+a passing, exercised test. To actually run it: point `.env.local` at a
+throwaway Supabase project with `enable_confirmations = false` (see
+`supabase/config.toml`) and run:
+
+```
+E2E_SUPABASE=1 npm run e2e
+```
+
 ## What this layer is responsible for verifying
 
 **Migrations — validated by manual review, not by running Supabase
@@ -124,7 +149,7 @@ must stay usable on small screens.
 | Private content / Duet security scenarios | this layer (DB) + UI (flows) | schema-level guarantees in place; needs integration tests once Docker/hosted Supabase is reachable |
 | Worker (`scripts/worker.ts`) behavior incl. missing-ffmpeg path | this layer | smoke-tested manually (`--once`); no automated test harness yet |
 | Recording/upload UI, playback UI, responsive layout | UI/audio agent | out of scope here |
-| Critical end-to-end scenario (full user journey) | both, via Playwright | not yet automated |
+| Critical end-to-end scenario (full user journey) | both, via Playwright | signup→onboarding→logout→login automated (`e2e/auth.spec.ts`, gated on `E2E_SUPABASE`); the Wave/Duet/messaging legs are not yet automated |
 
 ## Known gap
 

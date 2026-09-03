@@ -24,12 +24,14 @@ for the two subsystems with the most design weight.
 Next 16 renamed `middleware.ts` → **`proxy.ts`**, and `cookies()` is now
 **async**. Both matter here:
 
-- `src/proxy.ts` exports `proxy(request)` (not `middleware`). Its only job is
-  refreshing the Supabase session cookie via `updateSession()` in
+- `src/proxy.ts` exports `proxy(request)` (not `middleware`). Its job is
+  refreshing the Supabase session cookie AND applying the route protection
+  matrix (redirect unauthenticated/not-onboarded visitors away from
+  protected routes) — both via `updateSession()` in
   `src/lib/supabase/middleware.ts`. It is NOT an authorization boundary —
-  proxy code can run on a CDN edge and must never be trusted for access
-  control. Every real authorization decision lives in Postgres RLS
-  (`SECURITY.md`) and is re-checked in server code.
+  proxy code can run on a CDN edge, so every protected page independently
+  re-checks with `requireUser`/`requireOnboarded` (`src/lib/auth/server.ts`).
+  Every real authorization decision lives in Postgres RLS (`SECURITY.md`).
 - `src/lib/supabase/server.ts` awaits `cookies()` before constructing a
   client, and creates a **new client per request** — Supabase server clients
   are not safe to cache across requests.
@@ -45,8 +47,14 @@ src/lib/audio/**       wavesurfer/MediaRecorder integration              (UI age
 src/lib/ui/**          Design tokens, primitives                         (UI agent)
 src/config/**          App-level config (not Supabase)                   (UI agent)
 ------------------------------------------------------------------------------------
+src/lib/auth/**        Auth domain API (server reads, redirects,         (auth agent)
+                        AuthProvider/useCurrentUser, error mapping)
+src/app/(auth)/**      Login/signup/password-reset/onboarding routes     (auth agent)
+                        and their Server Actions
+src/app/auth/callback  PKCE code exchange route handler                 (auth agent)
+------------------------------------------------------------------------------------
 src/lib/supabase/**    Supabase client factories + config                (this layer)
-src/proxy.ts           Session refresh only                              (this layer)
+src/proxy.ts           Session refresh + route protection matrix         (this layer/auth agent)
 src/types/database.ts  Hand-written Database type (mirrors migrations)   (this layer)
 src/types/domain.ts    App-level domain types (camelCase)                (this layer)
 src/lib/db/**          Typed query helpers, one file per domain area     (this layer)
@@ -108,6 +116,40 @@ time-decayed weighted score — no ML in v1 (spec §10). It's a standalone SQL
 function specifically so a real recommender can replace it later without any
 call site changing; `src/lib/db/waves.ts#listTrendingWaves` calls the
 `trending_waves` RPC wrapper, not the scoring function directly.
+
+## Auth module (spec §8, §32 — Stage 2)
+
+`src/lib/auth/` is deliberately split into two files that are never barreled
+together:
+
+- `server.ts` — `getSession`, `getCurrentUser`, `getCurrentProfile`,
+  `getCurrentUserWithProfile`, `requireUser`, `requireOnboarded`. Imports
+  `next/headers` (via `src/lib/supabase/server.ts`), so it must only ever be
+  imported from a Server Component, Server Action or Route Handler.
+- `AuthProvider.tsx` (+ `index.ts`) — the client-safe half: `<AuthProvider>`
+  and `useCurrentUser()`. `index.ts` re-exports only this file plus
+  `errors.ts`/`types.ts` — never `server.ts` — so a client component
+  importing `@/lib/auth` can never accidentally pull `next/headers` into the
+  browser bundle. This mirrors `src/lib/supabase`, which has no barrel for
+  the same reason.
+
+`AuthProvider` is hydrated once, in `src/app/layout.tsx`
+(`getCurrentUserWithProfile()`) → `src/app/providers.tsx`, so the first
+client render already knows who's signed in — no signed-out flash before
+`onAuthStateChange` catches up.
+
+Auth Server Actions (`src/app/(auth)/actions.ts`,
+`src/app/(auth)/onboarding/actions.ts`) all return
+`{ ok, fieldErrors?, formError?, message? }` (`src/lib/auth/types.ts`) and
+never throw to the client; `mapAuthError` (`src/lib/auth/errors.ts`)
+translates Supabase Auth error codes to English so a raw backend message
+never reaches a form. Full route protection matrix and the password
+reset/confirmation flow: `SECURITY.md`.
+
+Onboarding (`src/app/(auth)/onboarding/`) writes to `profiles.interests`
+and `profiles.onboarded_at` — both already part of the `profiles` table
+(migration 02, `identity_and_social_graph`), so Stage 2 needed no new
+migration for it.
 
 ## Search
 

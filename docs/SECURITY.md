@@ -6,6 +6,87 @@ re-checks the same predicates for good error messages and to avoid needless
 round-trips, but a policy hidden in the UI only is never treated as
 enforcement anywhere in this codebase.
 
+## Authentication (spec §8, §32)
+
+Supabase Auth (email/password; OAuth-ready via `src/app/auth/callback/route.ts`),
+sessions carried in cookies through `@supabase/ssr`. The signup trigger
+(`handle_new_user`, migration 02) creates the `profiles` row synchronously, so
+there is never a signed-in user with no profile.
+
+**Server API — `src/lib/auth/server.ts`** (Server Components/Actions/Route
+Handlers only; never imported from a client component):
+
+- `getSession()` — the raw, cookie-trusting session. Fast, NOT verified —
+  never use it for an authorization decision.
+- `getCurrentUser()` — the signed-in user, verified against the auth server
+  via `getUser()`. `null` when signed out **or when Supabase isn't
+  configured** — every caller degrades to the signed-out UI rather than
+  throwing (`isSupabaseConfigured()`, `src/lib/supabase/config.ts`).
+- `getCurrentProfile()` / `getCurrentUserWithProfile()` — the above plus the
+  mapped `profiles` row.
+- `requireUser(nextPath?)` — redirects to `/login?next=<nextPath>` if signed
+  out; otherwise returns the verified user.
+- `requireOnboarded(nextPath?)` — `requireUser` plus a redirect to
+  `/onboarding` if `profiles.onboarded_at` is still null. `/onboarding` itself
+  must never call this (it would redirect to itself).
+
+**Client API — `src/lib/auth/AuthProvider.tsx`**: `<AuthProvider>` (mounted
+once in `src/app/providers.tsx`, hydrated from `getCurrentUserWithProfile()`
+in the root layout so first paint never flashes signed-out) and
+`useCurrentUser()`, kept live via `supabase.auth.onAuthStateChange`.
+
+**Server Actions — `src/app/(auth)/actions.ts`** (`signUp`, `signIn`,
+`signOut`, `requestPasswordReset`, `updatePassword`) and
+**`src/app/(auth)/onboarding/actions.ts`** (`completeOnboarding`,
+`followSuggestedCreator`) never throw to the client — every action returns
+`{ ok, fieldErrors?, formError?, message? }` (`src/lib/auth/types.ts`).
+Supabase Auth error codes are translated to English by `mapAuthError`
+(`src/lib/auth/errors.ts`) — a raw Supabase/Postgres error string is never
+forwarded to a form.
+
+### Route protection matrix
+
+Enforced twice: `src/proxy.ts` (via `updateSession`,
+`src/lib/supabase/middleware.ts`) redirects as a UX convenience at the edge;
+every protected Server Component independently calls
+`requireUser`/`requireOnboarded` as defense-in-depth. **Neither is the
+authorization boundary** — that is Postgres RLS, below. Public routes are the
+single list in `isPublicRoute` (`src/config/routes.ts`); everything else is
+protected.
+
+| Visitor state | Public route (`/explore`, `/w/[id]`, `/u/[username]`, `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/*`, `/kit`) | Protected route (`/`, `/create`, `/messages*`, `/notifications`, `/settings*`) |
+|---|---|---|
+| Anonymous | renders normally | → `/login?next=<path>` |
+| Signed in, not onboarded | renders normally | → `/onboarding` (except `/onboarding` itself) |
+| Signed in, onboarded | renders normally | renders normally |
+| Signed in, visiting `/login` or `/signup` | — | → `/` (checked before the public-route rule) |
+
+Onboarding is skippable at every step (spec §8) — "not onboarded" only means
+`profiles.onboarded_at is null`; the onboarding wizard's global "Skip for
+now" always finishes it (sets `onboarded_at`, possibly with defaults) rather
+than leaving a dead end a user could get stuck behind.
+
+### Password reset / email confirmation
+
+Both flows share `src/app/auth/callback/route.ts` (PKCE code exchange,
+allow-listed in `supabase/config.toml`'s `additional_redirect_urls`):
+`requestPasswordReset` points `redirectTo` at
+`/auth/callback?next=/reset-password`; `signUp`'s `emailRedirectTo` points at
+`/auth/callback?next=/onboarding`. A failed/expired exchange redirects to
+`/login?error=callback_failed` rather than rendering a raw error. `next` is
+always sanitized to a same-origin relative path (`sanitizeNextPath`) before
+being used in a redirect, to rule out an open-redirect via a crafted `next`
+value.
+
+### Never a fake login (spec §44 rule 9)
+
+`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` are unset in this
+environment (`AGENTS.md`). Every auth surface checks `isSupabaseConfigured()`
+first and renders an explicit "Backend not configured" state — sign-in,
+sign-up, password reset and onboarding never simulate success, and
+`getCurrentUser()`/`getSession()` return `null` rather than throwing so the
+rest of the app degrades to its normal signed-out UI instead of crashing.
+
 ## Authorization model
 
 **Single source of truth: the predicate functions in migration 10**
