@@ -1,0 +1,92 @@
+-- Rollback for 20260903121200_row_level_security.sql
+--
+-- WARNING: this leaves every table readable/writable by anyone holding an anon
+-- key. Only run it in local development, and only as part of a full teardown.
+
+drop policy if exists reports_insert_own on public.reports;
+drop policy if exists reports_select_own on public.reports;
+drop policy if exists notifications_delete_own on public.notifications;
+drop policy if exists notifications_update_own on public.notifications;
+drop policy if exists notifications_select_own on public.notifications;
+drop policy if exists messages_update_own on public.messages;
+drop policy if exists messages_insert on public.messages;
+drop policy if exists messages_select on public.messages;
+drop policy if exists conversation_members_delete_own on public.conversation_members;
+drop policy if exists conversation_members_update_own on public.conversation_members;
+drop policy if exists conversation_members_insert on public.conversation_members;
+drop policy if exists conversation_members_select on public.conversation_members;
+drop policy if exists conversations_update on public.conversations;
+drop policy if exists conversations_insert on public.conversations;
+drop policy if exists conversations_select on public.conversations;
+drop policy if exists duet_requests_update on public.duet_requests;
+drop policy if exists duet_requests_insert on public.duet_requests;
+drop policy if exists duet_requests_select on public.duet_requests;
+drop policy if exists wave_listens_select on public.wave_listens;
+drop policy if exists shares_insert_own on public.shares;
+drop policy if exists shares_select on public.shares;
+drop policy if exists saves_delete_own on public.saves;
+drop policy if exists saves_insert_own on public.saves;
+drop policy if exists saves_select_own on public.saves;
+drop policy if exists comments_delete on public.comments;
+drop policy if exists comments_update on public.comments;
+drop policy if exists comments_insert on public.comments;
+drop policy if exists comments_select on public.comments;
+drop policy if exists wave_collaborators_delete on public.wave_collaborators;
+drop policy if exists wave_collaborators_update on public.wave_collaborators;
+drop policy if exists wave_collaborators_insert on public.wave_collaborators;
+drop policy if exists wave_collaborators_select on public.wave_collaborators;
+drop policy if exists waves_delete_own on public.waves;
+drop policy if exists waves_update_own on public.waves;
+drop policy if exists waves_insert_own on public.waves;
+drop policy if exists waves_select on public.waves;
+drop policy if exists audio_jobs_select_own on public.audio_processing_jobs;
+drop policy if exists audio_assets_delete_own on public.audio_assets;
+drop policy if exists audio_assets_update_own on public.audio_assets;
+drop policy if exists audio_assets_insert_own on public.audio_assets;
+drop policy if exists audio_assets_select on public.audio_assets;
+drop policy if exists blocks_delete_own on public.blocks;
+drop policy if exists blocks_insert_own on public.blocks;
+drop policy if exists blocks_select_own on public.blocks;
+drop policy if exists follows_delete on public.follows;
+drop policy if exists follows_update on public.follows;
+drop policy if exists follows_insert on public.follows;
+drop policy if exists follows_select on public.follows;
+drop policy if exists profiles_update_own on public.profiles;
+drop policy if exists profiles_select on public.profiles;
+
+alter table public.reports               disable row level security;
+alter table public.notifications         disable row level security;
+alter table public.messages              disable row level security;
+alter table public.conversation_members  disable row level security;
+alter table public.conversations         disable row level security;
+alter table public.duet_requests         disable row level security;
+alter table public.wave_listens          disable row level security;
+alter table public.play_events           disable row level security;
+alter table public.shares                disable row level security;
+alter table public.saves                 disable row level security;
+alter table public.comments              disable row level security;
+alter table public.wave_collaborators    disable row level security;
+alter table public.waves                 disable row level security;
+alter table public.audio_processing_jobs disable row level security;
+alter table public.audio_assets          disable row level security;
+alter table public.blocks                disable row level security;
+alter table public.follows               disable row level security;
+alter table public.profiles              disable row level security;
+
+drop trigger if exists reports_guard on public.reports;
+drop trigger if exists messages_guard_insert on public.messages;
+drop trigger if exists duet_requests_guard on public.duet_requests;
+drop trigger if exists waves_guard_update on public.waves;
+drop trigger if exists waves_guard_insert on public.waves;
+drop trigger if exists audio_assets_guard_update on public.audio_assets;
+drop trigger if exists blocks_after_insert on public.blocks;
+drop trigger if exists follows_before_insert on public.follows;
+
+drop function if exists public.reports_guard();
+drop function if exists public.messages_guard_insert();
+drop function if exists public.duet_requests_guard();
+drop function if exists public.waves_guard_update();
+drop function if exists public.waves_guard_insert();
+drop function if exists public.audio_assets_guard_update();
+drop function if exists public.blocks_after_insert();
+drop function if exists public.follows_before_insert();

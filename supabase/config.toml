@@ -1,0 +1,66 @@
+# AKINTI — local Supabase CLI configuration.
+# Only the settings that differ meaningfully from the CLI defaults are listed;
+# everything else falls back to the CLI's built-in defaults.
+
+project_id = "akinti"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+# `extensions` must stay on the search path: pg_trgm's `%` operator and
+# similarity() are used by search_profiles()/search_waves().
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = true
+# Development seed only. See the banner at the top of seed.sql.
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[local_smtp]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+# Matches the `audio` bucket limit set in migration 13.
+file_size_limit = "100MiB"
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000/auth/callback"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+# Local development only — never disable confirmations in a hosted project.
+enable_confirmations = false
+
+# Not used by AKINTI: background audio work runs in scripts/worker.ts, not in
+# an edge function. Disabled so `supabase start` comes up faster.
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false
