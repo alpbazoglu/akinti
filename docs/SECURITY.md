@@ -236,6 +236,71 @@ or `src/lib/db/**`. If a future change reintroduces a Like-shaped feature, it
 is a deliberate product decision requiring a spec change, not a small
 add-on — flag it to the product owner rather than building it quietly.
 
+## Profiles & privacy (spec §21, §25, §26 — Stage 3)
+
+Who can see what on a profile is two separate questions with two separate
+predicates (migration 10), and the UI/app layer never conflates them:
+
+- **Identity card** (`can_view_profile`): avatar, username, display name.
+  Visible to anyone **unless a block exists in either direction** — a
+  private account is still findable and follow-requestable, since hiding
+  the identity card entirely would make private accounts undiscoverable.
+- **Content** (`can_view_profile_content`): Waves, Duets, follower/following
+  lists. Visible to the owner, to everyone if the account is public, and to
+  an **accepted** follower if it's private. `/u/[username]` (the profile
+  page), `/u/[username]/followers` and `/u/[username]/following` all check
+  this before rendering a list — the app-layer `canViewProfileContent`
+  wrapper (`src/lib/db/profiles.ts`) calls the same RPC RLS uses, so a page
+  can never show a locked list that a direct query would have hidden.
+
+| Viewer | Public profile | Private profile, not following | Private profile, accepted follower | Blocked (either direction) |
+|---|---|---|---|---|
+| Identity card | visible | visible | visible | **hidden** — indistinguishable from "doesn't exist" |
+| Waves / Duets tabs | visible | locked (`LockedContent`) | visible | n/a (identity already hidden) |
+| Follower / following lists | visible | locked | visible | n/a |
+| Follow | Follow → accepted | Follow → **pending** request | already following | denied server-side (`follows_insert`) |
+
+**Blocked-either-way is a 404, not an error.** Because `can_view_profile`
+folds both directions of `is_blocked_between` into one check,
+`getProfileByUsername` simply returns `null` for a blocked account — the
+profile page renders the same "Profile unavailable" empty state it would
+for a username that never existed (`src/app/(app)/u/[username]/page.tsx`).
+This is deliberate: confirming "this account exists but blocked you" is
+itself a leak.
+
+**A blocker's own blocked-list is the one place identity-card visibility is
+intentionally bypassed**, and only for the blocker looking at their own
+list: `blocks_select_own` RLS already proves the caller may know these ids
+are blocked (`blocker_id = auth.uid()`); `listBlockedProfilesWithIdentity`
+(`src/lib/db/blocks.ts`) then uses the admin client *only* to fetch basic
+identity for ids that read already authorized, never to discover a block
+relationship the caller didn't already have. `can_view_profile` special-casing
+"viewer is the blocker" would remove the need for this and is flagged to the
+schema owner as a follow-up (out of scope for this stage — no migration was
+written for it here).
+
+**Follow requests.** `follows_before_insert` (migration 12) decides
+`pending` vs `accepted` server-side purely from the target's `privacy`
+column — the client never sets `status`. Accepting/declining
+(`respondToFollowRequest`) is restricted to the followee by
+`follows_update`'s `using (followee_id = auth.uid())`; cancelling a
+still-pending request is just `unfollowProfile` (delete), allowed to either
+party by `follows_delete`.
+
+**Appearance is a closed set of presets, not a color field**
+(`src/lib/ui/profileTheme.ts`): every background/accent pairing is run
+through the same WCAG AA contrast check (`meetsAA`, ≥4.5:1) the theme
+module's own tests assert for every enum value, so there is no
+theme-configuration path that can ship unreadable text. Gradients and
+patterns are decorative overlays on the banner strip only — no product copy
+is ever rendered directly on top of one.
+
+**Reports** filed against a profile (`submitProfileReport`,
+`src/app/(app)/u/[username]/actions.ts`) go through the same `reports`
+table and `reports_guard` trigger as every other report target: always
+inserted `status = 'open'`, never auto-actioned, resolution fields
+forced to `null` for a client-submitted insert.
+
 ## Security test scenarios to keep passing (spec §46)
 
 ```
@@ -245,4 +310,8 @@ Private Wave, reached via a share link                       → still gated by 
 Private Wave, reached via search/Explore/Home feed queries   → never appears (RLS-filtered)
 Blocked user attempts to message/comment/duet-request         → DENIED, in both directions
 Blocked user attempts a direct API call bypassing the UI      → DENIED (RLS + guard triggers, not just hidden buttons)
+Private profile, viewer not an accepted follower               → identity card visible, Waves/followers locked
+Blocked account (either direction), profile page visited       → "Profile unavailable", same as a nonexistent username
+Follow request to a private account                            → status starts `pending`, never client-settable
+Non-followee attempts to accept/decline a follow request        → DENIED (`follows_update` RLS)
 ```
