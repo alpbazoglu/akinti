@@ -12,6 +12,9 @@
  *  - `mix_duet`       — server-side Duet mixdown (spec s15): lay the new take
  *    against the original reference at its recorded offset and render one
  *    combined file. Client-side mixing is never trusted as the final result.
+ *    The offset/EQ filter-graph construction is a pure function
+ *    (`src/lib/duet/ffmpegChain.ts`), unit tested there — this file only adds
+ *    process spawning and storage I/O around it.
  *
  * This is the chosen background-job mechanism for AKINTI: a Postgres-backed
  * queue plus this worker process, not a managed queue or Edge Function (see
@@ -21,8 +24,14 @@
  * message. This worker NEVER marks a job "done" without having actually
  * produced and uploaded a processed file (spec s19/s44: never fake success).
  *
- * Run with:   npx tsx scripts/worker.ts            (loops forever)
- *             npx tsx scripts/worker.ts --once      (drains the queue once, exits)
+ * Run with:   npx tsx scripts/worker.ts              (loops forever)
+ *             npx tsx scripts/worker.ts --once        (drains the queue once, exits)
+ *             npx tsx scripts/worker.ts --dry-run      (prints the ffmpeg command each
+ *                                                        currently-pending job would run,
+ *                                                        without executing ffmpeg or
+ *                                                        touching the queue/storage — useful
+ *                                                        to sanity-check a job's filter graph
+ *                                                        on a machine with no ffmpeg installed)
  *
  * Env (see .env.example): NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
  * SUPABASE_SERVICE_ROLE_KEY. Optional: FFMPEG_PATH, FFPROBE_PATH,
@@ -36,6 +45,12 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import {
+  buildDuetMixFilterComplex,
+  buildProcessAudioFilterChain,
+  parseMixDuetJobPayload,
+  type AdvancedEqPayload,
+} from "@/lib/duet/ffmpegChain";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AUDIO_BUCKET, audioProcessedPath } from "@/lib/supabase/config";
@@ -50,6 +65,8 @@ const FFMPEG_BIN = process.env.FFMPEG_PATH ?? "ffmpeg";
 const FFPROBE_BIN = process.env.FFPROBE_PATH ?? "ffprobe";
 const POLL_INTERVAL_MS = Number(process.env.WORKER_POLL_INTERVAL_MS ?? 5000);
 const CLAIM_BATCH_SIZE = Number(process.env.WORKER_BATCH_SIZE ?? 3);
+/** `--dry-run`: print planned ffmpeg commands, execute nothing, mutate no queue state. */
+const DRY_RUN = process.argv.includes("--dry-run");
 /** Run stalled-job / expired-request maintenance roughly once a minute. */
 const MAINTENANCE_EVERY_N_EMPTY_POLLS = Math.max(1, Math.round(60_000 / POLL_INTERVAL_MS));
 /** How many peak buckets a waveform is downsampled to, regardless of duration. */
@@ -134,6 +151,13 @@ function checkBinaryAvailable(bin: string): Promise<boolean> {
     proc.on("error", () => resolve(false));
     proc.on("close", (code) => resolve(code === 0));
   });
+}
+
+/** Human-readable rendering of an ffmpeg invocation for `--dry-run` output — never actually executed. */
+function formatFfmpegCommand(args: readonly string[]): string {
+  return ["ffmpeg", ...args]
+    .map((arg) => (/\s/.test(arg) ? JSON.stringify(arg) : arg))
+    .join(" ");
 }
 
 function runFfmpeg(args: string[]): Promise<void> {
@@ -321,15 +345,20 @@ async function runProcessAudioJob(
     throw new Error(`audio asset ${job.audio_asset_id} not found: ${assetError?.message ?? ""}`);
   }
 
-  const payload = (job.payload ?? {}) as { preset?: AudioEnhancementPreset };
+  const payload = (job.payload ?? {}) as {
+    preset?: AudioEnhancementPreset;
+    advanced_eq?: AdvancedEqPayload | null;
+  };
   const preset = payload.preset ?? asset.enhancement_preset ?? "natural";
-  const filterChain = PRESET_FILTERS[preset] ?? PRESET_FILTERS.natural;
+  const basePresetFilter = PRESET_FILTERS[preset] ?? PRESET_FILTERS.natural;
+  // Advanced EQ (spec §19) rides in every job's payload but, until now, was
+  // never applied — `buildProcessAudioFilterChain` (src/lib/duet/ffmpegChain.ts)
+  // chains it after the preset filter for both process_audio and mix_duet jobs.
+  const filterChain = buildProcessAudioFilterChain(basePresetFilter, payload.advanced_eq ?? null);
 
   const inputPath = path.join(tmpDir, `input${extensionOf(asset.original_path)}`);
-  await downloadToFile(admin, asset.original_path, inputPath);
-
   const outputPath = path.join(tmpDir, "output.m4a");
-  await runFfmpeg([
+  const ffmpegArgs = [
     "-hide_banner",
     "-loglevel",
     "error",
@@ -343,7 +372,17 @@ async function runProcessAudioJob(
     "-b:a",
     "160k",
     outputPath,
-  ]);
+  ];
+
+  if (DRY_RUN) {
+    console.log(`[worker] (dry-run) process_audio job ${job.id} — asset ${asset.id}`);
+    console.log(`[worker] (dry-run)   source: ${asset.original_path}`);
+    console.log(`[worker] (dry-run)   command: ${formatFfmpegCommand(ffmpegArgs)}`);
+    return;
+  }
+
+  await downloadToFile(admin, asset.original_path, inputPath);
+  await runFfmpeg(ffmpegArgs);
 
   const [durationMs, peaks] = await Promise.all([probeDurationMs(outputPath), extractPeaks(outputPath)]);
 
@@ -355,56 +394,73 @@ async function runProcessAudioJob(
     p_processed_path: processedPath,
     p_peaks: peaks as unknown as Json,
     p_duration_ms: durationMs,
-    p_result: { preset, filter: filterChain } as Json,
+    p_result: {
+      preset,
+      filter: filterChain,
+      advanced_eq_applied: Boolean(payload.advanced_eq),
+    } as Json,
   });
   if (completeError) {
     throw new Error(`complete_audio_job failed: ${completeError.message}`);
   }
 }
 
+/**
+ * Server-side Duet mixdown (spec §15, §19, §34). Inputs: `0` = reference
+ * (the original Wave's audio), `1` = contribution (the new take) — must
+ * match the input order `buildDuetMixFilterComplex` assumes.
+ *
+ * The job payload is written by `enqueueDuetMixJob`
+ * (`src/lib/db/duets.ts`), whose shape is `{ preset, reference_asset_id,
+ * offset_ms, advanced_eq }`. The older `enqueueDuetMix` helper in
+ * `src/lib/db/audioAssets.ts` produces the same first three fields without
+ * `advanced_eq`; `parseMixDuetJobPayload` treats a missing `advanced_eq` as
+ * `null` so either caller's payload is accepted.
+ */
 async function runMixDuetJob(
   admin: SupabaseAdminClient,
   job: AudioProcessingJobRow,
   tmpDir: string,
 ): Promise<void> {
-  const payload = (job.payload ?? {}) as {
-    preset?: AudioEnhancementPreset;
-    reference_asset_id?: string;
-    offset_ms?: number;
-  };
-  if (!payload.reference_asset_id || typeof payload.offset_ms !== "number") {
+  const payload = parseMixDuetJobPayload(job.payload);
+  if (!payload) {
     throw new Error(
       "mix_duet job payload is missing reference_asset_id/offset_ms " +
-        "(see enqueueDuetMix in src/lib/db/audioAssets.ts)",
+        "(see enqueueDuetMixJob in src/lib/db/duets.ts)",
     );
   }
 
   const [{ data: newTake, error: newTakeError }, { data: reference, error: refError }] = await Promise.all([
     admin.from("audio_assets").select("*").eq("id", job.audio_asset_id).single(),
-    admin.from("audio_assets").select("*").eq("id", payload.reference_asset_id).single(),
+    admin.from("audio_assets").select("*").eq("id", payload.referenceAssetId).single(),
   ]);
   if (newTakeError || !newTake) {
     throw new Error(`new-take audio asset ${job.audio_asset_id} not found: ${newTakeError?.message ?? ""}`);
   }
   if (refError || !reference) {
-    throw new Error(`reference audio asset ${payload.reference_asset_id} not found: ${refError?.message ?? ""}`);
+    throw new Error(`reference audio asset ${payload.referenceAssetId} not found: ${refError?.message ?? ""}`);
   }
 
   // Prefer the reference's already-normalized processed file when it exists.
   const referenceStoragePath = reference.processed_path ?? reference.original_path;
   const referenceInputPath = path.join(tmpDir, `reference${extensionOf(referenceStoragePath)}`);
   const newTakeInputPath = path.join(tmpDir, `newtake${extensionOf(newTake.original_path)}`);
-  await Promise.all([
-    downloadToFile(admin, referenceStoragePath, referenceInputPath),
-    downloadToFile(admin, newTake.original_path, newTakeInputPath),
-  ]);
 
   const preset = payload.preset ?? "studio";
-  const filterChain = PRESET_FILTERS[preset] ?? PRESET_FILTERS.studio;
-  const offsetMs = Math.max(0, Math.round(payload.offset_ms));
+  const presetFilter = PRESET_FILTERS[preset] ?? PRESET_FILTERS.studio;
+  // Sign handling (spec §15 flag): a negative offset means the contribution
+  // was recorded to start BEFORE the reference. `adelay` only accepts a
+  // non-negative value, so `buildDuetMixFilterComplex` resolves the sign by
+  // choosing which stem gets delayed — never by passing a negative number to
+  // `adelay` (see the file-header note in src/lib/duet/ffmpegChain.ts).
+  const chain = buildDuetMixFilterComplex({
+    offsetMs: payload.offsetMs,
+    presetFilter,
+    advancedEq: payload.advancedEq,
+  });
 
   const outputPath = path.join(tmpDir, "mixed.m4a");
-  await runFfmpeg([
+  const ffmpegArgs = [
     "-hide_banner",
     "-loglevel",
     "error",
@@ -414,25 +470,44 @@ async function runMixDuetJob(
     "-i",
     newTakeInputPath,
     "-filter_complex",
-    // Delay the new take by its recorded offset (all channels alike, since we
-    // don't know the channel count ahead of time), then mix down to one bed
-    // and run it through the requested enhancement preset.
-    `[1:a]adelay=${offsetMs}:all=1[delayed];[0:a][delayed]amix=inputs=2:duration=longest:dropout_transition=2,${filterChain}[mixed]`,
+    chain.filterComplex,
     "-map",
-    "[mixed]",
+    chain.outputMap,
     "-c:a",
     "aac",
     "-b:a",
     "192k",
     outputPath,
+  ];
+
+  if (DRY_RUN) {
+    console.log(
+      `[worker] (dry-run) mix_duet job ${job.id} — contribution asset ${newTake.id} against reference ${reference.id}`,
+    );
+    console.log(`[worker] (dry-run)   reference source: ${referenceStoragePath}`);
+    console.log(`[worker] (dry-run)   contribution source: ${newTake.original_path}`);
+    console.log(
+      `[worker] (dry-run)   offset_ms=${payload.offsetMs} -> ` +
+        `contributionDelayMs=${chain.contributionDelayMs} referenceDelayMs=${chain.referenceDelayMs}`,
+    );
+    console.log(`[worker] (dry-run)   command: ${formatFfmpegCommand(ffmpegArgs)}`);
+    return;
+  }
+
+  await Promise.all([
+    downloadToFile(admin, referenceStoragePath, referenceInputPath),
+    downloadToFile(admin, newTake.original_path, newTakeInputPath),
   ]);
+  await runFfmpeg(ffmpegArgs);
 
   const [durationMs, peaks] = await Promise.all([probeDurationMs(outputPath), extractPeaks(outputPath)]);
 
   // The mixed file becomes the new take's processed audio — that is the
   // asset the finished Duet Wave references (spec s15: a Duet references the
   // parent's audio, it never duplicates it; the new take's own asset row
-  // becomes the rendered, combined result).
+  // becomes the rendered, combined result). Both stems' original files are
+  // left untouched in storage — nothing here deletes `newTake.original_path`
+  // or either of the reference's files.
   const processedPath = audioProcessedPath(newTake.owner_id, newTake.id, "m4a");
   await uploadFile(admin, processedPath, outputPath, "audio/mp4");
 
@@ -444,8 +519,11 @@ async function runMixDuetJob(
     p_result: {
       preset,
       mixed: true,
-      offset_ms: offsetMs,
+      offset_ms: payload.offsetMs,
       reference_asset_id: reference.id,
+      contribution_delay_ms: chain.contributionDelayMs,
+      reference_delay_ms: chain.referenceDelayMs,
+      advanced_eq_applied: Boolean(payload.advancedEq),
     } as Json,
   });
   if (completeError) {
@@ -470,10 +548,38 @@ async function claimJobs(
   return data ?? [];
 }
 
+/**
+ * Read-only preview of the next runnable jobs, for `--dry-run`. Deliberately
+ * NOT `claim_audio_jobs` — that RPC mutates `status`/`attempts`/`locked_*`,
+ * which a preview tool must never do to a live queue. Mirrors the same
+ * ordering (`priority, run_after, id`) so the preview matches what the real
+ * claim would pick up next.
+ */
+async function peekPendingJobs(
+  admin: SupabaseAdminClient,
+  limit: number,
+): Promise<AudioProcessingJobRow[]> {
+  const { data, error } = await admin
+    .from("audio_processing_jobs")
+    .select("*")
+    .eq("status", "pending")
+    .lte("run_after", new Date().toISOString())
+    .order("priority", { ascending: true })
+    .order("run_after", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(limit);
+  if (error) {
+    console.error("[worker] (dry-run) failed to read pending jobs:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 async function processJob(admin: SupabaseAdminClient, job: AudioProcessingJobRow): Promise<void> {
   const tmpDir = await mkdtemp(path.join(tmpdir(), "akinti-audio-"));
   console.log(
-    `[worker] job ${job.id} (${job.job_type}) claimed — attempt ${job.attempts}/${job.max_attempts}`,
+    `[worker] job ${job.id} (${job.job_type}) ${DRY_RUN ? "previewing" : "claimed"} — ` +
+      `attempt ${job.attempts}/${job.max_attempts}`,
   );
   try {
     if (job.job_type === "process_audio") {
@@ -483,10 +589,16 @@ async function processJob(admin: SupabaseAdminClient, job: AudioProcessingJobRow
     } else {
       throw new Error(`unknown job_type "${job.job_type as string}"`);
     }
-    console.log(`[worker] job ${job.id} done`);
+    if (!DRY_RUN) {
+      console.log(`[worker] job ${job.id} done`);
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[worker] job ${job.id} FAILED: ${message}`);
+    if (DRY_RUN) {
+      // Never touches the queue in dry-run mode — the error is only printed.
+      return;
+    }
     const { error: failError } = await admin.rpc("fail_audio_job", {
       p_job_id: job.id,
       p_error: message.slice(0, 2000),
@@ -539,7 +651,33 @@ async function main(): Promise<void> {
 
   const workerId = `worker-${process.pid}-${randomUUID().slice(0, 8)}`;
   const once = process.argv.includes("--once");
-  console.log(`[worker] starting ${workerId}${once ? " (--once)" : ""}`);
+  console.log(`[worker] starting ${workerId}${once ? " (--once)" : ""}${DRY_RUN ? " (--dry-run)" : ""}`);
+
+  // Fails fast and loudly if Supabase env vars are missing — unlike ffmpeg,
+  // there is no useful degraded mode without database/storage access.
+  const admin = createAdminClient();
+
+  if (DRY_RUN) {
+    // Deliberately skips the ffmpeg/ffprobe availability check below — the
+    // whole point of --dry-run is to inspect planned commands on a machine
+    // that may not have ffmpeg installed at all, and it never calls
+    // runFfmpeg/probeDurationMs/extractPeaks (each job handler returns before
+    // reaching them when DRY_RUN is set).
+    console.log(
+      "[worker] --dry-run: printing the ffmpeg command each currently-pending job would run, " +
+        "without executing ffmpeg or mutating the queue/storage",
+    );
+    const jobs = await peekPendingJobs(admin, CLAIM_BATCH_SIZE);
+    if (jobs.length === 0) {
+      console.log("[worker] (dry-run) no pending jobs to preview");
+    } else {
+      for (const job of jobs) {
+        await processJob(admin, job);
+      }
+    }
+    console.log("[worker] dry run complete");
+    return;
+  }
 
   const [ffmpegOk, ffprobeOk] = await Promise.all([
     checkBinaryAvailable(FFMPEG_BIN),
@@ -552,10 +690,6 @@ async function main(): Promise<void> {
         "— it will never fake a successful result. Install ffmpeg: https://ffmpeg.org/download.html",
     );
   }
-
-  // Fails fast and loudly if Supabase env vars are missing — unlike ffmpeg,
-  // there is no useful degraded mode without database/storage access.
-  const admin = createAdminClient();
 
   let emptyPolls = 0;
   while (!shuttingDown) {
