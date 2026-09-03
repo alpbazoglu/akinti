@@ -197,3 +197,62 @@ migration 10 (`can_message`, `is_conversation_member`, `can_view_wave`,
   isn't deleted), but shows "You can't reply to this conversation" and
   disables the composer; `messages_guard_insert` (migration 12) enforces the
   same rule against a direct API call, not just the UI.
+
+## Interactions — Comments, Saves, Shares (spec §14, §25, §26, §38, §39, §43 — Stage 8)
+
+No Likes anywhere (spec §3.4) — Plays/Replays already cover the "this
+resonated" signal (§13); Comments/Saves/Shares are the only other social
+counters.
+
+- **Comments** are flat with one optional reply level
+  (`comments.parent_comment_id`, enforced again by
+  `comments_enforce_shallow_threading` even if a caller got the shape wrong).
+  `src/app/(app)/w/[id]/interactions.ts` holds every comment/save/share
+  Server Action (`loadComments`, `loadReplies`, `createComment`,
+  `deleteComment`, `reportComment`, `saveWave`, `unsaveWave`, `recordShare`)
+  — kept separate from the Stage 5 `actions.ts` (owner Edit/Delete) rather
+  than merged into it. `src/components/comments/CommentsSection.tsx` is the
+  `/w/[id]#comments` section: server-rendered first page, client "Load more"
+  cursor pagination, replies expanded on demand per root comment.
+- **Comment permission** (everyone / followers / nobody, resolved
+  Wave-override-then-profile-default exactly like `can_comment_on_wave`,
+  migration 10) disables the composer with an honest, specific reason —
+  "@creator has turned off comments", "Only followers of @creator can
+  comment", "Sign in to comment" — computed by
+  `getCommentPermissionState`. The RPC is the actual gate; the reason text is
+  just an explanation of what it will say no to.
+- **Voice comments were considered and dropped for v1**: the `comments`
+  table (migration 05) has no audio-asset column, so comments are text-only,
+  capped at `COMMENT_MAX_LENGTH` (1000, mirroring the `comments_body_len`
+  CHECK constraint) — see "Open issues" below for the schema change that
+  would add it.
+- **Saves** toggle optimistically (`src/lib/interactions/saveReducer.ts`): a
+  tap flips `isSaved`/the visible count immediately, then rolls back on a
+  server rejection — `WaveCardContainer` is the only place this fires, never
+  from render.
+- **Shares** (`ShareSheet`, `src/components/share/`) never leak a private
+  Wave: every channel points at `routes.wave(waveId)`, never the audio's
+  signed URL, so opening a shared link still runs through `can_view_wave()`/
+  RLS like any other read. Copy link and the platform-native share sheet
+  (`navigator.share`, where available) record a `shares` row via
+  `recordShare`; "Send in a message" reuses the messaging stage's
+  `shareWaveToConversation`/`loadMoreConversations`
+  (`src/app/(app)/messages/actions.ts`), which records its own `shares` row
+  as part of sending the `wave_share` message — never double-recorded.
+- **Profile → Settings → Content** (spec §25) ships all four tabs — Saved,
+  Commented, Waves, Duets — as separate routes
+  (`/settings/content/{saved,commented,waves,duets}`) sharing one paginated
+  list component (`ContentWaveList`) over `src/lib/interactions/contentLists.ts`,
+  which hydrates a bare `Wave` page into full `WaveCardContainer` cards
+  (signed playback URL resolved lazily on first play, not pre-signed) so
+  Save/Share/Comment/Request-a-Duet all work directly from Settings.
+- **Analytics** (spec §40): `wave_saved`/`wave_unsaved`/`wave_shared`/
+  `comment_created`/`comment_deleted` fire only from the click/submit handler
+  that already knows the server action succeeded — mirroring how
+  `playTracker.ts` fires Play/Replay events — never from a render path.
+- **Open issue — no comment rate limit at the database layer** (spec §39):
+  unlike Play/Replay event recording, there is no `comments`-side throttle in
+  migration 11/12 today. If added, the natural shape is a `rate_limits`-style
+  check inside a `comments_guard_insert` trigger (mirroring
+  `messages_guard_insert`), not application code, so it can't be bypassed by
+  a direct API call.

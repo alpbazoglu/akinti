@@ -10,11 +10,20 @@
  * instead of asserting on `console.debug` output.
  */
 
-export type AnalyticsEventName = "wave_play_started" | "wave_play_completed" | "wave_replayed";
+export type AnalyticsEventName =
+  | "wave_play_started"
+  | "wave_play_completed"
+  | "wave_replayed"
+  | "wave_saved"
+  | "wave_unsaved"
+  | "wave_shared"
+  | "comment_created"
+  | "comment_deleted";
 
 export interface AnalyticsEvent {
   readonly name: AnalyticsEventName;
   readonly waveId: string;
+  /** Play/Replay events carry a session id; interaction events (save/share/comment) don't have one — `"n/a"` keeps the shape uniform without lying about a session that doesn't exist. */
   readonly sessionId: string;
   readonly at: number;
 }

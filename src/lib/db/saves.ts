@@ -35,6 +35,20 @@ export async function isWaveSaved(db: Db, profileId: string, waveId: string): Pr
   return unwrapMaybe("isWaveSaved", result) !== null;
 }
 
+/** Batch form of `isWaveSaved`, for hydrating a page of Wave cards (spec §25 Content tabs) without one round trip per card. */
+export async function getSavedWaveIds(db: Db, profileId: string, waveIds: readonly string[]): Promise<Set<string>> {
+  if (waveIds.length === 0) {
+    return new Set();
+  }
+  const result = await db
+    .from("saves")
+    .select("wave_id")
+    .eq("profile_id", profileId)
+    .in("wave_id", waveIds as string[]);
+  const rows = unwrap("getSavedWaveIds", { data: result.data ?? [], error: result.error });
+  return new Set(rows.map((r) => r.wave_id));
+}
+
 /** Profile → Saved (spec s14/s25). Two-step: save rows, then their Waves. */
 export async function listSavedWaves(
   db: Db,

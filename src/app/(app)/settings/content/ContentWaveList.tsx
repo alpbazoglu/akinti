@@ -1,0 +1,76 @@
+"use client";
+
+import { useState, useTransition, type ReactNode } from "react";
+
+import { WaveCardContainer } from "@/components/wave";
+import { Button, EmptyState } from "@/components/ui";
+import { mergePageById, type ContentWaveCard } from "@/lib/interactions";
+
+import type { ContentListResult } from "./actions";
+
+export interface ContentWaveListProps {
+  initialItems: ContentWaveCard[];
+  initialCursor: string | null;
+  loadMore: (cursor: string | null) => Promise<ContentListResult>;
+  emptyIcon?: ReactNode;
+  emptyTitle: string;
+  emptyDescription: string;
+}
+
+/**
+ * The shared list behind all four Content tabs (spec §25: Saved, Commented,
+ * Waves, Duets) — server-rendered first page, client "Load more" cursor
+ * pagination, each Wave rendered as a full `WaveCardContainer` so Save/Share/
+ * Comment/Request-a-Duet all work directly from Settings.
+ */
+export function ContentWaveList({
+  initialItems,
+  initialCursor,
+  loadMore,
+  emptyIcon,
+  emptyTitle,
+  emptyDescription,
+}: ContentWaveListProps) {
+  const [items, setItems] = useState(initialItems);
+  const [cursor, setCursor] = useState(initialCursor);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const handleLoadMore = () => {
+    if (!cursor) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await loadMore(cursor);
+      if (!result.ok || !result.data) {
+        setError(result.error ?? "Could not load more. Try again.");
+        return;
+      }
+      setItems((current) => mergePageById(current, result.data!.items));
+      setCursor(result.data.nextCursor);
+    });
+  };
+
+  if (items.length === 0) {
+    return <EmptyState size="sm" icon={emptyIcon} title={emptyTitle} description={emptyDescription} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {items.map((item) => (
+        <WaveCardContainer key={item.id} wave={item} />
+      ))}
+
+      {error ? (
+        <p role="alert" className="text-center text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
+
+      {cursor ? (
+        <Button variant="secondary" size="sm" loading={isPending} onClick={handleLoadMore} className="self-center">
+          Load more
+        </Button>
+      ) : null}
+    </div>
+  );
+}
