@@ -87,6 +87,26 @@ export async function isUsernameAvailable(db: Db, username: string): Promise<boo
   return row === null;
 }
 
+/**
+ * A handful of public profiles to suggest during onboarding step 4 (spec
+ * s8). Deliberately simple — most-followed public accounts, excluding the
+ * viewer — matching the "deterministic, explainable" ranking philosophy the
+ * spec asks for everywhere else (spec s10) rather than reaching for anything
+ * ML-shaped this early.
+ */
+export async function listSuggestedCreators(db: Db, viewerId: string, limit = 6): Promise<Profile[]> {
+  const result = await db
+    .from("profiles")
+    .select("*")
+    .eq("privacy", "public")
+    .neq("id", viewerId)
+    .order("follower_count", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(clampLimit(limit));
+  const rows = unwrap("listSuggestedCreators", { data: result.data ?? [], error: result.error });
+  return rows.map(toProfile);
+}
+
 /** Deterministic trigram search over username + display name (spec s24). */
 export async function searchProfiles(
   db: Db,

@@ -155,6 +155,37 @@ export const METRICS: readonly MetricMeta[] = [
 /* Site metadata                                                       */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Onboarding interests (spec §8 step 3)                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Curated interest tags offered during onboarding, seeding Explore ranking
+ * (spec §10). Free text is deliberately not allowed — `profiles.interests`
+ * stays a small, consistent vocabulary rather than an open tag field.
+ */
+export const SUGGESTED_INTERESTS: readonly string[] = [
+  "Singing",
+  "Rap",
+  "Spoken word",
+  "Production",
+  "Songwriting",
+  "Storytelling",
+  "Comedy",
+  "Podcasting",
+  "Voice acting",
+  "Beatboxing",
+  "Instrumentals",
+  "ASMR",
+  "Interviews",
+  "Poetry",
+  "Sound design",
+  "Freestyle",
+];
+
+export const MIN_ONBOARDING_INTERESTS = 3;
+export const MAX_ONBOARDING_INTERESTS = 5;
+
 export const SITE = {
   name: BRAND,
   title: `${BRAND} — ${BRAND_TAGLINE}`,
