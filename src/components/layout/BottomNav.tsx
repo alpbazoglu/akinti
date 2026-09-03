@@ -6,13 +6,15 @@ import { usePathname } from "next/navigation";
 import { isActiveRoute, routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
+import { useUnreadNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
 
 import { BOTTOM_NAV_ITEMS } from "./navItems";
 
 export interface BottomNavProps {
-  /** Unread counts keyed by nav item, e.g. `{ notifications: 3 }`. */
+  /** Unread counts keyed by nav item, e.g. `{ notifications: 3 }`. Overrides
+   * the live notifications badge when the `notifications` key is provided. */
   badges?: Partial<Record<string, number>>;
   className?: string;
 }
@@ -25,6 +27,7 @@ export interface BottomNavProps {
 export function BottomNav({ badges, className }: BottomNavProps) {
   const pathname = usePathname();
   const { profile } = useCurrentUser();
+  const { count: unreadNotifications } = useUnreadNotifications(profile?.id ?? null);
 
   return (
     <nav
@@ -46,7 +49,8 @@ export function BottomNav({ badges, className }: BottomNavProps) {
               : item.href;
           const active = isActiveRoute(pathname, href);
           const Icon = item.icon;
-          const badge = badges?.[item.key] ?? 0;
+          const badge =
+            badges?.[item.key] ?? (item.key === "notifications" ? unreadNotifications : 0);
 
           if (item.emphasis) {
             return (

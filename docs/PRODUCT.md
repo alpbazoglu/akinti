@@ -86,6 +86,43 @@ collaborators, and counters (plays, replays, comments, saves, shares, duets).
 See `DATABASE.md` for the exact schema and `docs/DUET_SPEC.md` for the Duet
 tree shape.
 
+## Notifications (spec §23, §38, §44)
+
+Fourteen types, driven entirely by `public.push_notification` (migration 08)
+— there is no client insert path:
+
+| Type                   | Copy                                             | Links to             |
+| ---------------------- | ------------------------------------------------- | --------------------- |
+| `follow`                | "X started following you"                        | X's profile           |
+| `follow_request`        | "X asked to follow you" (Accept/Decline inline)   | X's profile           |
+| `comment`                | "X commented on your Wave"                       | the Wave              |
+| `comment_reply`          | "X replied to your comment"                       | the Wave              |
+| `save`                   | "X saved your Wave"                               | the Wave              |
+| `share`                  | "X shared your Wave"                              | the Wave              |
+| `duet_request`           | "X requested a Duet with your Wave" (Accept/Decline link to the Wave for now) | the Wave |
+| `duet_accepted`          | "X accepted your Duet Request"                    | the Wave              |
+| `duet_declined`          | "X declined your Duet Request"                    | the Wave              |
+| `duet_published`         | "X published a Duet using your Wave"              | the new Duet Wave     |
+| `collaborator_invite`    | "X invited you to collaborate on a Wave" (Accept/Decline inline) | the Wave |
+| `collaborator_accepted`  | "X accepted your collaborator invite"             | the Wave              |
+| `message`                | "X sent you a message"                            | the conversation      |
+| `system`                 | generic AKINTI update, no actor                   | `/notifications`      |
+
+**No Like notifications** — the type enum has no `like` value and never will.
+
+**Grouping:** while a group stays unread, a new matching event bumps `count`
+and refreshes the actor in place (`group_key`, e.g. `save:<waveId>`) instead
+of creating a new row — "Ada and 2 others saved your Wave". Once the group is
+read, the next matching event resets it to a fresh unread row with `count =
+1`. This collapse happens entirely in Postgres; the app only ever reads
+already-grouped rows.
+
+**Unread badge:** server-rendered initial count, kept live client-side via a
+single shared Supabase Realtime subscription per user (`postgres_changes` on
+`notifications`), falling back to polling if Realtime doesn't confirm.
+Requires `notifications` to be added to the `supabase_realtime` publication
+(not yet migrated — see the Stage 11 report for the exact SQL).
+
 ## Success metrics (spec §28) — product health, not creator analytics
 
 - **Activation:** % of new users publishing a first Wave within 7 days.

@@ -7,6 +7,7 @@ import { AudioLines, Plus, Settings } from "lucide-react";
 import { isActiveRoute, routes } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
+import { useUnreadNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
 
@@ -14,7 +15,8 @@ import { SIDE_NAV_ITEMS } from "./navItems";
 import { UserMenu } from "./UserMenu";
 
 export interface SideNavProps {
-  /** Unread counts keyed by nav item, e.g. `{ messages: 2 }`. */
+  /** Unread counts keyed by nav item, e.g. `{ messages: 2 }`. Overrides the
+   * live notifications badge when the `notifications` key is provided. */
   badges?: Partial<Record<string, number>>;
   className?: string;
 }
@@ -26,6 +28,7 @@ export interface SideNavProps {
 export function SideNav({ badges, className }: SideNavProps) {
   const pathname = usePathname();
   const { profile } = useCurrentUser();
+  const { count: unreadNotifications } = useUnreadNotifications(profile?.id ?? null);
 
   return (
     <div
@@ -56,7 +59,8 @@ export function SideNav({ badges, className }: SideNavProps) {
                 : item.href;
             const active = isActiveRoute(pathname, href);
             const Icon = item.icon;
-            const badge = badges?.[item.key] ?? 0;
+            const badge =
+              badges?.[item.key] ?? (item.key === "notifications" ? unreadNotifications : 0);
 
             return (
               <li key={item.key}>

@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AudioLines, MessageCircle, Search } from "lucide-react";
+import { AudioLines, Bell, MessageCircle, Search } from "lucide-react";
 
 import { routes } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
+import { useCurrentUser } from "@/lib/auth";
+import { useUnreadNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
 
@@ -16,6 +18,10 @@ export interface TopBarProps {
   title?: string;
   /** Unread Messages count; Messages is not in the mobile bottom bar. */
   unreadMessages?: number;
+  /** Unread notifications count. Defaults to the live count when omitted —
+   * Bottom Nav already carries a Notifications tab, so this exists mainly for
+   * surfaces that render `TopBar` without `BottomNav`. */
+  unreadNotifications?: number;
   /** Extra trailing controls, e.g. an overflow menu. */
   actions?: ReactNode;
   /** Show the Search entry point. */
@@ -30,10 +36,15 @@ export interface TopBarProps {
 export function TopBar({
   title,
   unreadMessages = 0,
+  unreadNotifications,
   actions,
   showSearch = true,
   className,
 }: TopBarProps) {
+  const { profile } = useCurrentUser();
+  const { count: liveUnreadNotifications } = useUnreadNotifications(profile?.id ?? null);
+  const notificationsBadge = unreadNotifications ?? liveUnreadNotifications;
+
   return (
     <header
       className={cn(
@@ -70,6 +81,25 @@ export function TopBar({
             <Search className="size-5" aria-hidden="true" />
           </Link>
         ) : null}
+
+        <Link
+          href={routes.notifications()}
+          aria-label={TERMS.notifications}
+          className={cn(
+            "relative inline-flex size-10 items-center justify-center rounded-full text-fg-muted",
+            "transition-colors hover:bg-surface-muted hover:text-fg",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          )}
+        >
+          <Bell className="size-5" aria-hidden="true" />
+          {notificationsBadge > 0 ? (
+            <CountBadge
+              count={notificationsBadge}
+              label="unread notifications"
+              className="absolute top-1 right-1"
+            />
+          ) : null}
+        </Link>
 
         <Link
           href={routes.messages()}
