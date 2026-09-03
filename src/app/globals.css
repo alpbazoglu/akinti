@@ -1,26 +1,360 @@
 @import "tailwindcss";
 
+/* =====================================================================
+   AKINTI design tokens
+   ---------------------------------------------------------------------
+   Direction: minimalist, premium, calm, audio-centric. One accent colour.
+   The waveform is the visual motif; everything else stays quiet.
+   No glassmorphism, no gradient washes, no decorative noise.
+   All colours meet WCAG AA against their intended background.
+   ===================================================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* Surfaces */
+  --akinti-bg: #fbfbfc;
+  --akinti-surface: #ffffff;
+  --akinti-surface-raised: #ffffff;
+  --akinti-surface-muted: #f2f3f5;
+  --akinti-surface-inset: #eceef1;
+  --akinti-overlay: rgb(12 16 22 / 0.45);
+
+  /* Lines */
+  --akinti-border: #e3e5ea;
+  --akinti-border-strong: #cfd3da;
+
+  /* Text */
+  --akinti-fg: #0f1216;
+  --akinti-fg-muted: #4e555f;
+  --akinti-fg-subtle: #6b727c;
+  --akinti-fg-on-accent: #ffffff;
+
+  /* Accent: a single deep teal, the "water" of a Wave */
+  --akinti-accent: #0e7c86;
+  --akinti-accent-hover: #0b6a73;
+  --akinti-accent-active: #095960;
+  --akinti-accent-soft: #e4f2f3;
+  --akinti-accent-soft-fg: #0a5a62;
+
+  /* Status */
+  --akinti-danger: #b42318;
+  --akinti-danger-hover: #971c12;
+  --akinti-danger-soft: #fdeceb;
+  --akinti-danger-soft-fg: #8f1c12;
+  --akinti-success: #0a7b4b;
+  --akinti-success-soft: #e6f4ee;
+  --akinti-warning: #9a5b06;
+  --akinti-warning-soft: #fdf1e0;
+
+  /* Waveform */
+  --akinti-wave-track: #c9ced6;
+  --akinti-wave-progress: var(--akinti-accent);
+  --akinti-wave-cursor: #0f1216;
+
+  /* Focus */
+  --akinti-ring: #0e7c86;
+
+  /* Radii */
+  --akinti-radius-xs: 0.25rem;
+  --akinti-radius-sm: 0.375rem;
+  --akinti-radius-md: 0.625rem;
+  --akinti-radius-lg: 0.875rem;
+  --akinti-radius-xl: 1.25rem;
+  --akinti-radius-2xl: 1.75rem;
+
+  /* Elevation: restrained, never glassy */
+  --akinti-shadow-xs: 0 1px 2px rgb(15 18 22 / 0.05);
+  --akinti-shadow-sm: 0 1px 3px rgb(15 18 22 / 0.07), 0 1px 2px rgb(15 18 22 / 0.04);
+  --akinti-shadow-md: 0 4px 12px rgb(15 18 22 / 0.08), 0 1px 3px rgb(15 18 22 / 0.05);
+  --akinti-shadow-lg: 0 16px 40px rgb(15 18 22 / 0.14), 0 2px 8px rgb(15 18 22 / 0.06);
+
+  /* Layout */
+  --akinti-bottom-nav-h: 3.75rem;
+  --akinti-top-bar-h: 3.5rem;
+  --akinti-side-nav-w: 15rem;
+  --akinti-content-max: 40rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* System dark, unless the reader pinned light */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --akinti-bg: #0a0c0f;
+    --akinti-surface: #111419;
+    --akinti-surface-raised: #161a20;
+    --akinti-surface-muted: #171b21;
+    --akinti-surface-inset: #1d222a;
+    --akinti-overlay: rgb(3 5 8 / 0.66);
+
+    --akinti-border: #232830;
+    --akinti-border-strong: #353c46;
+
+    --akinti-fg: #eceef1;
+    --akinti-fg-muted: #a9b1bc;
+    --akinti-fg-subtle: #838b96;
+    --akinti-fg-on-accent: #04171a;
+
+    --akinti-accent: #34c3ce;
+    --akinti-accent-hover: #55d2db;
+    --akinti-accent-active: #71dce3;
+    --akinti-accent-soft: #10282c;
+    --akinti-accent-soft-fg: #7cdde5;
+
+    --akinti-danger: #ff8078;
+    --akinti-danger-hover: #ff9b95;
+    --akinti-danger-soft: #2c1513;
+    --akinti-danger-soft-fg: #ffa9a3;
+    --akinti-success: #4cc38a;
+    --akinti-success-soft: #10241b;
+    --akinti-warning: #e0a458;
+    --akinti-warning-soft: #2a2013;
+
+    --akinti-wave-track: #363d47;
+    --akinti-wave-progress: var(--akinti-accent);
+    --akinti-wave-cursor: #eceef1;
+
+    --akinti-ring: #34c3ce;
+
+    --akinti-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.5);
+    --akinti-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.55), 0 1px 2px rgb(0 0 0 / 0.4);
+    --akinti-shadow-md: 0 4px 12px rgb(0 0 0 / 0.55), 0 1px 3px rgb(0 0 0 / 0.4);
+    --akinti-shadow-lg: 0 16px 40px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.45);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Explicit dark, regardless of system preference */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --akinti-bg: #0a0c0f;
+  --akinti-surface: #111419;
+  --akinti-surface-raised: #161a20;
+  --akinti-surface-muted: #171b21;
+  --akinti-surface-inset: #1d222a;
+  --akinti-overlay: rgb(3 5 8 / 0.66);
+
+  --akinti-border: #232830;
+  --akinti-border-strong: #353c46;
+
+  --akinti-fg: #eceef1;
+  --akinti-fg-muted: #a9b1bc;
+  --akinti-fg-subtle: #838b96;
+  --akinti-fg-on-accent: #04171a;
+
+  --akinti-accent: #34c3ce;
+  --akinti-accent-hover: #55d2db;
+  --akinti-accent-active: #71dce3;
+  --akinti-accent-soft: #10282c;
+  --akinti-accent-soft-fg: #7cdde5;
+
+  --akinti-danger: #ff8078;
+  --akinti-danger-hover: #ff9b95;
+  --akinti-danger-soft: #2c1513;
+  --akinti-danger-soft-fg: #ffa9a3;
+  --akinti-success: #4cc38a;
+  --akinti-success-soft: #10241b;
+  --akinti-warning: #e0a458;
+  --akinti-warning-soft: #2a2013;
+
+  --akinti-wave-track: #363d47;
+  --akinti-wave-progress: var(--akinti-accent);
+  --akinti-wave-cursor: #eceef1;
+
+  --akinti-ring: #34c3ce;
+
+  --akinti-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.5);
+  --akinti-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.55), 0 1px 2px rgb(0 0 0 / 0.4);
+  --akinti-shadow-md: 0 4px 12px rgb(0 0 0 / 0.55), 0 1px 3px rgb(0 0 0 / 0.4);
+  --akinti-shadow-lg: 0 16px 40px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.45);
+}
+
+/* `dark:` utilities follow the same resolution order as the tokens above. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+  &:where(:root[data-theme="dark"], :root[data-theme="dark"] *) {
+    @slot;
+  }
+}
+
+/* =====================================================================
+   Tailwind theme mapping
+   ===================================================================== */
+
+@theme inline {
+  --color-bg: var(--akinti-bg);
+  --color-surface: var(--akinti-surface);
+  --color-surface-raised: var(--akinti-surface-raised);
+  --color-surface-muted: var(--akinti-surface-muted);
+  --color-surface-inset: var(--akinti-surface-inset);
+  --color-overlay: var(--akinti-overlay);
+
+  --color-border: var(--akinti-border);
+  --color-border-strong: var(--akinti-border-strong);
+
+  --color-fg: var(--akinti-fg);
+  --color-fg-muted: var(--akinti-fg-muted);
+  --color-fg-subtle: var(--akinti-fg-subtle);
+  --color-fg-on-accent: var(--akinti-fg-on-accent);
+
+  --color-accent: var(--akinti-accent);
+  --color-accent-hover: var(--akinti-accent-hover);
+  --color-accent-active: var(--akinti-accent-active);
+  --color-accent-soft: var(--akinti-accent-soft);
+  --color-accent-soft-fg: var(--akinti-accent-soft-fg);
+
+  --color-danger: var(--akinti-danger);
+  --color-danger-hover: var(--akinti-danger-hover);
+  --color-danger-soft: var(--akinti-danger-soft);
+  --color-danger-soft-fg: var(--akinti-danger-soft-fg);
+  --color-success: var(--akinti-success);
+  --color-success-soft: var(--akinti-success-soft);
+  --color-warning: var(--akinti-warning);
+  --color-warning-soft: var(--akinti-warning-soft);
+
+  --color-wave-track: var(--akinti-wave-track);
+  --color-wave-progress: var(--akinti-wave-progress);
+  --color-wave-cursor: var(--akinti-wave-cursor);
+
+  --color-ring: var(--akinti-ring);
+
+  --radius-xs: var(--akinti-radius-xs);
+  --radius-sm: var(--akinti-radius-sm);
+  --radius-md: var(--akinti-radius-md);
+  --radius-lg: var(--akinti-radius-lg);
+  --radius-xl: var(--akinti-radius-xl);
+  --radius-2xl: var(--akinti-radius-2xl);
+
+  --shadow-xs: var(--akinti-shadow-xs);
+  --shadow-sm: var(--akinti-shadow-sm);
+  --shadow-md: var(--akinti-shadow-md);
+  --shadow-lg: var(--akinti-shadow-lg);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+
+  --spacing-bottom-nav: var(--akinti-bottom-nav-h);
+  --spacing-top-bar: var(--akinti-top-bar-h);
+  --spacing-side-nav: var(--akinti-side-nav-w);
+  --spacing-content: var(--akinti-content-max);
+}
+
+/* =====================================================================
+   Base
+   ===================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--akinti-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--akinti-bg);
+    color: var(--akinti-fg);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* One consistent, always-visible focus treatment. */
+  :focus-visible {
+    outline: 2px solid var(--akinti-ring);
+    outline-offset: 2px;
+    border-radius: var(--akinti-radius-xs);
+  }
+
+  ::selection {
+    background-color: var(--akinti-accent-soft);
+    color: var(--akinti-accent-soft-fg);
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+@layer utilities {
+  /* Skip link, visible only on focus. */
+  .akinti-skip-link {
+    position: absolute;
+    left: 0.75rem;
+    top: 0.75rem;
+    z-index: 100;
+    transform: translateY(-200%);
+    transition: transform 150ms ease;
+  }
+  .akinti-skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
+  .akinti-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* =====================================================================
+   Motion: respect the reader's preference (spec section 29)
+   ===================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes akinti-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes akinti-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes akinti-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes akinti-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
