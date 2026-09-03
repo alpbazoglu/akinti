@@ -1,24 +1,43 @@
-import { MessageCircle } from "lucide-react";
-
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
-
-import { PlaceholderPage } from "../_components/PlaceholderPage";
+import { listConversations } from "@/lib/db/conversations";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/layout";
+import { ErrorState } from "@/components/ui";
+import { MessagesView } from "@/components/messages";
+import type { ConversationSummary, Page } from "@/types/domain";
 
 export const metadata = { title: TERMS.messages };
 
-/** Messages: conversations, audio messages and Duet communication (spec 22). */
+/** `/messages`: the conversation inbox (spec §22 deliverable 1). */
 export default async function MessagesPage() {
-  await requireUser(routes.messages());
+  const user = await requireUser(routes.messages());
+  const supabase = await createServerSupabaseClient();
+
+  let initial: Page<ConversationSummary> | null = null;
+  let loadError: string | null = null;
+  try {
+    initial = await listConversations(supabase, user.id, { limit: 20 });
+  } catch (error) {
+    loadError = error instanceof Error ? error.message : "Something went wrong.";
+  }
 
   return (
-    <PlaceholderPage
-      title={TERMS.messages}
-      description="Private conversations, audio messages and Duet coordination."
-      icon={<MessageCircle className="size-6" />}
-      emptyTitle="No conversations yet"
-      emptyDescription="Audio messages are private. They are never Waves, and they never appear in a feed or in Explore."
-    />
+    <>
+      <PageHeader
+        title={TERMS.messages}
+        description="Private conversations, audio messages and Duet coordination."
+      />
+      {loadError || !initial ? (
+        <ErrorState description={loadError ?? "We could not load your messages right now."} />
+      ) : (
+        <MessagesView
+          viewerId={user.id}
+          initialItems={initial.items}
+          initialCursor={initial.nextCursor}
+        />
+      )}
+    </>
   );
 }

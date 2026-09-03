@@ -148,3 +148,52 @@ For every feature decision, ask: does this make the experience more
 
 If a proposed feature doesn't serve one of the above, it probably doesn't
 belong in v1.
+
+## Messaging (spec §14, §15, §22, §26 — Stage 10)
+
+Conversations, text messages, audio messages, Wave shares and Duet Request
+communication — all built on the `conversations` / `conversation_members` /
+`messages` schema from migration 07, gated end-to-end by the predicates in
+migration 10 (`can_message`, `is_conversation_member`, `can_view_wave`,
+`is_blocked_between`).
+
+- **`/messages`** — the inbox: other member, last-message preview by kind
+  (plain text / "🎙 Audio message" / "Wave shared" / "Duet Request"),
+  relative timestamp, unread badge, name search over what's loaded, cursor
+  pagination.
+- **`/messages/new?to=<username>`** — resolves or creates the 1:1 thread,
+  respecting the target's `message_permission` (everyone / followers /
+  people I follow / nobody) via `can_message`; an unreachable account (blocked
+  either direction, or permission denied) renders a clear "can't start this
+  conversation" state rather than a broken thread — spec §21/§26 deliberately
+  make a block indistinguishable from a permission denial here, so neither
+  party learns which one it was.
+- **`/messages/[id]`** — the thread: day separators, grouped bubbles (same
+  sender, ≤5 minutes apart), a "Read" line under the viewer's last message
+  once the other member's `last_read_at` catches up, and a composer for text
+  or an audio message (record in a Sheet, preview, send).
+- **Audio messages are never Waves** (spec §22): no title, no visibility, no
+  feed/Explore appearance, and no enhancement/waveform processing job —
+  `createMessageAudioTicket`/`finalizeMessageAudio`
+  (`src/app/(app)/messages/actions.ts`) register the `audio_assets` row and
+  verify the uploaded bytes' magic numbers server-side exactly like a Wave
+  upload does, then mark the asset `ready` directly instead of enqueueing the
+  Wave pipeline. Playback is the same signed-URL path as any private audio
+  (`GET /api/audio/[assetId]/url`).
+- **Sharing a Wave into a conversation** (spec §14) inserts a `wave_share`
+  message plus a best-effort `shares` row (`channel: "message"`). The card
+  shown in the thread only ever renders a Wave the recipient is independently
+  allowed to see — sharing never widens a Wave's visibility, the same rule
+  that governs a copied link.
+- **Duet Request messages** are render-only here: `duet_request` kind
+  messages show a pending/accepted/declined/cancelled/expired status pill and
+  link to the Wave. Creating a request is the Duet stage's job.
+- **Realtime:** one shared `postgres_changes` channel per open thread
+  (`messages`, filtered by `conversation_id`) plus a `conversation_members`
+  listener for the other member's read receipt, both with a polling
+  fallback. A separate, per-user shared channel drives the unread-messages
+  badge in `TopBar`/`SideNav`, mirroring the notifications badge.
+- **Blocking** (spec §26): a blocked-either-way conversation still opens (it
+  isn't deleted), but shows "You can't reply to this conversation" and
+  disables the composer; `messages_guard_insert` (migration 12) enforces the
+  same rule against a direct API call, not just the UI.

@@ -301,6 +301,65 @@ table and `reports_guard` trigger as every other report target: always
 inserted `status = 'open'`, never auto-actioned, resolution fields
 forced to `null` for a client-submitted insert.
 
+## Messaging privacy (spec §14, §22, §26 — Stage 10)
+
+Who can message whom is one predicate, checked on every write, not just at
+"start a conversation" time: **`can_message(target)`** (migration 10) is
+`false` whenever the caller and target are the same account, a block exists
+in either direction (`is_blocked_between`), or the target's
+`profiles.message_permission` (everyone / followers / people I follow /
+nobody) doesn't admit the caller. `startConversation`
+(`src/app/(app)/messages/actions.ts`) checks it for an honest UI error;
+`get_or_create_direct_conversation` (migration 10) re-checks it unconditionally
+before opening/reusing a thread; `messages_guard_insert` (migration 12)
+re-checks blocks between the sender and every other member on **every single
+message send**, not only the first — so a message permission tightened or a
+block placed mid-conversation takes effect immediately, even if the two
+already share a thread.
+
+**Blocking a conversation, not deleting it.** Blocking severs `follows` and
+cancels pending `duet_requests` (see "Blocking" above) but does **not**
+delete `conversations`/`conversation_members`/`messages` rows. A
+blocked-either-way thread still opens — the app shows "You can't reply to
+this conversation" and disables the composer client-side, and
+`messages_guard_insert` denies the insert server-side regardless, so a direct
+API call cannot bypass the disabled button. The other member's identity
+(avatar/username) still needs to render in that now-locked thread even though
+`can_view_profile` hides it symmetrically once blocked; `resolveOtherProfile`
+(`src/app/(app)/messages/[id]/page.tsx`) falls back to the admin client for
+that one lookup, on the same reasoning as `listBlockedProfilesWithIdentity`
+(`src/lib/db/blocks.ts`): the viewer is already provably a member of this
+exact conversation (RLS `is_conversation_member` gated the read that got them
+here), so this supplies identity for an id they're already authorized to
+know about — it never discovers a block relationship or a wider profile they
+didn't already have access to.
+
+**Audio messages are private, never Waves** (spec §22). They carry no title,
+no visibility setting, no comment/duet permissions, and are excluded from
+every feed/Explore/search query by construction (those all query `waves`,
+which an audio message never touches). Access to the underlying
+`audio_assets` row is granted by `can_view_audio_asset` (migration 10) two
+ways: the asset's owner, or a member of a conversation containing a message
+that references it — so a recipient can play a voice message but a stranger
+who guesses the asset id cannot. Message audio never runs the Wave
+enhancement/processing pipeline (`createMessageAudioTicket`/
+`finalizeMessageAudio` mark the asset `ready` directly after a server-side
+magic-byte check, the same check `finalizeUpload` uses for Waves) — no
+enqueued job means no code path that could accidentally attach message audio
+to a Wave or a public waveform.
+
+**Sharing a Wave into a conversation never widens its visibility** (spec
+§14). `shareWaveToConversation` re-checks `can_view_wave` before inserting
+the `wave_share` message, and the message itself only stores the Wave's id —
+the recipient's own `/w/[id]` visit re-runs `can_view_wave` from scratch. A
+Wave made private after being shared stops rendering in the message card
+(`WaveShareCard` shows "not available") for anyone who wasn't already
+independently authorized to see it.
+
+**Reporting a message** (spec §26) goes through the same `reports` table and
+`reports_guard` trigger as every other target type — always filed `open`,
+never auto-actioned, resolution fields forced to `null` on a client insert.
+
 ## Security test scenarios to keep passing (spec §46)
 
 ```
@@ -314,4 +373,7 @@ Private profile, viewer not an accepted follower               → identity card
 Blocked account (either direction), profile page visited       → "Profile unavailable", same as a nonexistent username
 Follow request to a private account                            → status starts `pending`, never client-settable
 Non-followee attempts to accept/decline a follow request        → DENIED (`follows_update` RLS)
+Blocked user sends a message via direct API call, bypassing UI → DENIED (`messages_guard_insert`, even in an existing thread)
+Audio message asset id guessed by a non-member                 → ACCESS DENIED (`can_view_audio_asset`)
+Wave made private after being shared into a conversation       → message card no longer resolves it, `/w/[id]` denies directly
 ```

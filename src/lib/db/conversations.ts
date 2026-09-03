@@ -200,3 +200,57 @@ export async function getConversationById(db: Db, conversationId: string): Promi
   const row = unwrapMaybe("getConversationById", result);
   return row ? toConversation(row) : null;
 }
+
+/**
+ * Total unread messages across every conversation the caller belongs to —
+ * the badge count for `TopBar`/`SideNav` (spec §7: Messages needs an unread
+ * badge even though it isn't in the 5-slot bottom bar).
+ *
+ * Two queries rather than `listConversations`' per-conversation N+1: fetch
+ * every membership (conversation id + that conversation's own
+ * `last_read_at`), then one bounded fetch of the caller's recent incoming
+ * messages, counted client-side against each message's own conversation
+ * threshold (a per-row correlated comparison Postgrest can't express as a
+ * single filter). The `limit` bounds cost for a very chatty inbox; undercounting
+ * past that many unread messages is an acceptable badge tradeoff — a person
+ * with over 300 unread messages in view already sees "conversation has
+ * unread" state on every affected row in the list itself.
+ */
+export async function countUnreadMessages(db: Db, viewerId: string): Promise<number> {
+  const membershipResult = await db
+    .from("conversation_members")
+    .select("conversation_id, last_read_at")
+    .eq("profile_id", viewerId);
+  const memberships = unwrap("countUnreadMessages:memberships", {
+    data: membershipResult.data ?? [],
+    error: membershipResult.error,
+  });
+  if (memberships.length === 0) {
+    return 0;
+  }
+
+  const lastReadByConversation = new Map(memberships.map((m) => [m.conversation_id, m.last_read_at]));
+  const conversationIds = memberships.map((m) => m.conversation_id);
+
+  const messagesResult = await db
+    .from("messages")
+    .select("conversation_id, created_at")
+    .in("conversation_id", conversationIds)
+    .neq("sender_id", viewerId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(300);
+  const rows = unwrap("countUnreadMessages:messages", {
+    data: messagesResult.data ?? [],
+    error: messagesResult.error,
+  });
+
+  let count = 0;
+  for (const row of rows) {
+    const lastReadAt = lastReadByConversation.get(row.conversation_id) ?? null;
+    if (!lastReadAt || row.created_at > lastReadAt) {
+      count += 1;
+    }
+  }
+  return count;
+}
