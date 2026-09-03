@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { isActiveRoute } from "@/config/routes";
+import { isActiveRoute, routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { useCurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
 
@@ -23,6 +24,7 @@ export interface BottomNavProps {
  */
 export function BottomNav({ badges, className }: BottomNavProps) {
   const pathname = usePathname();
+  const { profile } = useCurrentUser();
 
   return (
     <nav
@@ -34,7 +36,15 @@ export function BottomNav({ badges, className }: BottomNavProps) {
     >
       <ul className="flex h-[var(--akinti-bottom-nav-h)] items-stretch">
         {BOTTOM_NAV_ITEMS.map((item) => {
-          const active = isActiveRoute(pathname, item.href);
+          // Same resolution as `SideNav`: the nav item table has no notion of
+          // who's signed in, so the real "Profile" destination is decided here.
+          const href =
+            item.key === "profile"
+              ? profile
+                ? routes.profile(profile.username)
+                : routes.login(pathname)
+              : item.href;
+          const active = isActiveRoute(pathname, href);
           const Icon = item.icon;
           const badge = badges?.[item.key] ?? 0;
 
@@ -42,7 +52,7 @@ export function BottomNav({ badges, className }: BottomNavProps) {
             return (
               <li key={item.key} className="flex flex-1 items-center justify-center">
                 <Link
-                  href={item.href}
+                  href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "-mt-5 inline-flex size-14 items-center justify-center rounded-full",
@@ -63,7 +73,7 @@ export function BottomNav({ badges, className }: BottomNavProps) {
           return (
             <li key={item.key} className="flex-1">
               <Link
-                href={item.href}
+                href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex h-full flex-col items-center justify-center gap-1",

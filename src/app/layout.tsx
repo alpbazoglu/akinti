@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { BRAND_DESCRIPTION, SITE } from "@/config/terminology";
+import { getCurrentUserWithProfile } from "@/lib/auth/server";
 
 import { Providers } from "./providers";
 import "./globals.css";
@@ -48,7 +49,9 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const { user, profile } = await getCurrentUserWithProfile();
+
   return (
     <html
       lang={SITE.locale}
@@ -56,7 +59,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <body className="min-h-full">
-        <Providers>{children}</Providers>
+        <Providers initialUser={user} initialProfile={profile}>
+          {children}
+        </Providers>
       </body>
     </html>
   );

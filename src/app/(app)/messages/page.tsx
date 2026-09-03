@@ -1,13 +1,17 @@
 import { MessageCircle } from "lucide-react";
 
+import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { requireUser } from "@/lib/auth/server";
 
 import { PlaceholderPage } from "../_components/PlaceholderPage";
 
 export const metadata = { title: TERMS.messages };
 
 /** Messages: conversations, audio messages and Duet communication (spec 22). */
-export default function MessagesPage() {
+export default async function MessagesPage() {
+  await requireUser(routes.messages());
+
   return (
     <PlaceholderPage
       title={TERMS.messages}

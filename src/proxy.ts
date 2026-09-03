@@ -9,10 +9,12 @@ import { updateSession } from "@/lib/supabase/middleware";
  * Next 16 (see `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`).
  * The exported function must be named `proxy` or be the default export.
  *
- * Scope is deliberately narrow: refresh the Supabase session and nothing else.
- * Authorization decisions belong in the database (RLS) and in server code, not
- * here — proxy code can be deployed to a CDN edge and must not be treated as a
- * security boundary.
+ * Scope is deliberately narrow: refresh the Supabase session and apply the
+ * route protection matrix (spec §8/§32 — see `updateSession` in
+ * `src/lib/supabase/middleware.ts`). That redirect is a UX convenience, never
+ * the authorization boundary — proxy code can be deployed to a CDN edge and
+ * every protected page independently re-checks via `requireUser`/
+ * `requireOnboarded`. The actual authority is the database (RLS).
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   return updateSession(request);

@@ -9,6 +9,8 @@ import { BRAND, TERMS } from "@/config/terminology";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
 
+import { UserMenu } from "./UserMenu";
+
 export interface TopBarProps {
   /** Page title. Falls back to the wordmark when omitted. */
   title?: string;
@@ -87,6 +89,8 @@ export function TopBar({
             />
           ) : null}
         </Link>
+
+        <UserMenu size="sm" />
 
         {actions}
       </div>

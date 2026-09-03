@@ -26,14 +26,56 @@ export const routes = {
   settingsSafety: () => "/settings/safety",
 
   /* Auth & onboarding */
-  login: () => "/login",
+  login: (next?: string) => withNext("/login", next),
   signup: () => "/signup",
-  onboarding: () => "/onboarding",
+  forgotPassword: () => "/forgot-password",
+  resetPassword: () => "/reset-password",
+  authCallback: () => "/auth/callback",
+  onboarding: (next?: string) => withNext("/onboarding", next),
 } as const;
+
+function withNext(path: string, next: string | undefined): string {
+  if (!next || next === path) {
+    return path;
+  }
+  return `${path}?next=${enc(next)}`;
+}
 
 export type RouteBuilders = typeof routes;
 export type RouteName = keyof RouteBuilders;
 export type Href = string;
+
+/**
+ * Routes reachable without a session (spec §8 — browsing is not gated).
+ * Everything else is enforced by `src/proxy.ts` and, per page, by
+ * `requireUser`/`requireOnboarded` (`src/lib/auth/server.ts`) as
+ * defense-in-depth: the proxy redirect is a UX convenience, never the actual
+ * authorization boundary (that's Postgres RLS — see `docs/SECURITY.md`).
+ */
+const PUBLIC_EXACT_ROUTES: readonly Href[] = [
+  routes.login(),
+  routes.signup(),
+  routes.forgotPassword(),
+  routes.resetPassword(),
+  routes.explore(),
+  // The Stage 1 component gallery: static UI only, no user data, useful
+  // without an account.
+  "/kit",
+];
+
+/** Prefix-matched public routes: OAuth/callback plumbing and public content. */
+const PUBLIC_ROUTE_PREFIXES: readonly Href[] = [
+  "/auth/", // /auth/callback and any future OAuth provider routes
+  "/w/", // Wave detail — visibility is enforced server-side, not by gating the route
+  "/u/", // Profile pages — same
+];
+
+export function isPublicRoute(pathname: string): boolean {
+  if (PUBLIC_EXACT_ROUTES.includes(pathname)) {
+    return true;
+  }
+  return PUBLIC_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
 
 /** Settings sub-navigation, in display order. */
 export interface SettingsSection {

@@ -1,12 +1,16 @@
 import { Settings } from "lucide-react";
 
+import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { requireUser } from "@/lib/auth/server";
 
 import { PlaceholderPage } from "../../_components/PlaceholderPage";
 
 export const metadata = { title: `Safety · ${TERMS.settings}` };
 
-export default function SafetySettingsPage() {
+export default async function SafetySettingsPage() {
+  await requireUser(routes.settingsSafety());
+
   return (
     <PlaceholderPage
       title="Safety"

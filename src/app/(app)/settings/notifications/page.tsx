@@ -1,12 +1,16 @@
 import { Settings } from "lucide-react";
 
+import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { requireUser } from "@/lib/auth/server";
 
 import { PlaceholderPage } from "../../_components/PlaceholderPage";
 
 export const metadata = { title: `Notifications · ${TERMS.settings}` };
 
-export default function NotificationsSettingsPage() {
+export default async function NotificationsSettingsPage() {
+  await requireUser(routes.settingsNotifications());
+
   return (
     <PlaceholderPage
       title="Notifications"

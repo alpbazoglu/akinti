@@ -1,12 +1,16 @@
 import { Settings } from "lucide-react";
 
+import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { requireUser } from "@/lib/auth/server";
 
 import { PlaceholderPage } from "../../_components/PlaceholderPage";
 
 export const metadata = { title: `Content · ${TERMS.settings}` };
 
-export default function ContentSettingsPage() {
+export default async function ContentSettingsPage() {
+  await requireUser(routes.settingsContent());
+
   return (
     <PlaceholderPage
       title="Content"

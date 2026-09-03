@@ -6,10 +6,12 @@ import { AudioLines, Plus, Settings } from "lucide-react";
 
 import { isActiveRoute, routes } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
+import { useCurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
 
 import { SIDE_NAV_ITEMS } from "./navItems";
+import { UserMenu } from "./UserMenu";
 
 export interface SideNavProps {
   /** Unread counts keyed by nav item, e.g. `{ messages: 2 }`. */
@@ -23,6 +25,7 @@ export interface SideNavProps {
  */
 export function SideNav({ badges, className }: SideNavProps) {
   const pathname = usePathname();
+  const { profile } = useCurrentUser();
 
   return (
     <div
@@ -43,14 +46,22 @@ export function SideNav({ badges, className }: SideNavProps) {
       <nav aria-label="Primary" className="flex-1">
         <ul className="flex flex-col gap-0.5">
           {SIDE_NAV_ITEMS.map((item) => {
-            const active = isActiveRoute(pathname, item.href);
+            // The nav item table has no way to know who's signed in — resolve
+            // the real destination here instead of leaving the "me" placeholder.
+            const href =
+              item.key === "profile"
+                ? profile
+                  ? routes.profile(profile.username)
+                  : routes.login(pathname)
+                : item.href;
+            const active = isActiveRoute(pathname, href);
             const Icon = item.icon;
             const badge = badges?.[item.key] ?? 0;
 
             return (
               <li key={item.key}>
                 <Link
-                  href={item.href}
+                  href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
@@ -73,6 +84,7 @@ export function SideNav({ badges, className }: SideNavProps) {
       </nav>
 
       <div className="flex flex-col gap-2">
+        <UserMenu className="mb-1 self-start" />
         <Link
           href={routes.create()}
           className={cn(

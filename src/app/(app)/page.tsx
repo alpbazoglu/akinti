@@ -3,13 +3,16 @@ import Link from "next/link";
 
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { requireUser } from "@/lib/auth/server";
 
 import { PlaceholderPage } from "./_components/PlaceholderPage";
 
 export const metadata = { title: TERMS.home };
 
 /** Home: the personalised feed of Waves from creators you follow (spec 9). */
-export default function HomePage() {
+export default async function HomePage() {
+  await requireUser(routes.home());
+
   return (
     <PlaceholderPage
       title={TERMS.home}

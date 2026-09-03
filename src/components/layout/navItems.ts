@@ -37,7 +37,10 @@ export const BOTTOM_NAV_ITEMS: readonly NavItem[] = [
     href: routes.notifications(),
     icon: Bell,
   },
-  { key: "profile", label: TERMS.profile, href: routes.profile("me"), icon: User },
+  // `SideNav`/`BottomNav` resolve this to the signed-in user's real profile
+  // (or `/login` when signed out) at render time — this default is only used
+  // if some future consumer renders the table without that override.
+  { key: "profile", label: TERMS.profile, href: routes.login(), icon: User },
 ];
 
 /** Desktop rail: the bottom-bar items plus Messages as its own destination. */
@@ -51,5 +54,8 @@ export const SIDE_NAV_ITEMS: readonly NavItem[] = [
     icon: Bell,
   },
   { key: "messages", label: TERMS.messages, href: routes.messages(), icon: MessageCircle },
-  { key: "profile", label: TERMS.profile, href: routes.profile("me"), icon: User },
+  // `SideNav`/`BottomNav` resolve this to the signed-in user's real profile
+  // (or `/login` when signed out) at render time — this default is only used
+  // if some future consumer renders the table without that override.
+  { key: "profile", label: TERMS.profile, href: routes.login(), icon: User },
 ];

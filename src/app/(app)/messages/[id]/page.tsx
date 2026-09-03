@@ -1,6 +1,8 @@
 import { MessageCircle } from "lucide-react";
 
+import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { requireUser } from "@/lib/auth/server";
 
 import { PlaceholderPage } from "../../_components/PlaceholderPage";
 
@@ -16,6 +18,7 @@ export async function generateMetadata({ params }: ConversationPageProps) {
 /** A single conversation thread. */
 export default async function ConversationPage({ params }: ConversationPageProps) {
   const { id } = await params;
+  await requireUser(routes.conversation(id));
 
   return (
     <PlaceholderPage

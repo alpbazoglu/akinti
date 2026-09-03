@@ -1,12 +1,16 @@
 import { Settings } from "lucide-react";
 
+import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { requireUser } from "@/lib/auth/server";
 
 import { PlaceholderPage } from "../../_components/PlaceholderPage";
 
 export const metadata = { title: `Privacy · ${TERMS.settings}` };
 
-export default function PrivacySettingsPage() {
+export default async function PrivacySettingsPage() {
+  await requireUser(routes.settingsPrivacy());
+
   return (
     <PlaceholderPage
       title="Privacy"

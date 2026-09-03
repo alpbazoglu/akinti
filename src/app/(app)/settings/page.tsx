@@ -2,13 +2,16 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
-import { SETTINGS_SECTIONS } from "@/config/routes";
+import { SETTINGS_SECTIONS, routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { requireUser } from "@/lib/auth/server";
 
 export const metadata = { title: TERMS.settings };
 
 /** Settings index (spec 25). */
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  await requireUser(routes.settings());
+
   return (
     <>
       <PageHeader title={TERMS.settings} description="Account, privacy, notifications, content, audio and safety." />

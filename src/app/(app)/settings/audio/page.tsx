@@ -1,12 +1,16 @@
 import { Settings } from "lucide-react";
 
+import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import { requireUser } from "@/lib/auth/server";
 
 import { PlaceholderPage } from "../../_components/PlaceholderPage";
 
 export const metadata = { title: `Audio · ${TERMS.settings}` };
 
-export default function AudioSettingsPage() {
+export default async function AudioSettingsPage() {
+  await requireUser(routes.settingsAudio());
+
   return (
     <PlaceholderPage
       title="Audio"
