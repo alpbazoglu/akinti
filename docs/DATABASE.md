@@ -23,6 +23,9 @@ instructions: `supabase/README.md`.
 | 12 | `row_level_security` | Write guards, RLS enabled + policies on every table, grants |
 | 13 | `storage` | `audio` (private) and `avatars` (public) buckets + object policies |
 | 14 | `search` | trigram indexes, `search_profiles`, `search_waves`, `wave_trending_score`, `trending_waves` |
+| 15 | `audio_asset_column_security` | Security fix: revokes table-level `SELECT` on `audio_assets` from `anon`/`authenticated` and re-grants it scoped to every column except `original_path`/`processed_path` (spec §33) — see "Storage security" in `AUDIO_ARCHITECTURE.md` |
+| 16 | `realtime_publication` | Adds `notifications`, `messages`, `audio_assets` to the `supabase_realtime` publication (guarded, idempotent) |
+| 17 | `profile_visibility_blocker_exception` | Fix: `can_view_profile()` was symmetric on blocks, which also hid a blocked account's identity from the person who blocked them; now directional — the blocker keeps visibility, the blocked party still does not |
 
 ## Entities
 
@@ -91,6 +94,14 @@ the next event resets the group to a fresh unread notification with
 `search_profiles`/`search_waves`. Callers use the RPCs, never raw `ILIKE`
 queries, so the implementation can change without touching call sites.
 
+**`audio_assets.original_path`/`processed_path` are column-locked, not just
+RLS-gated.** Table-level `SELECT` on `audio_assets` implicitly covers every
+column, so RLS alone (migration 12) was not enough to keep the two raw
+storage keys out of a direct PostgREST query — migration 15 revokes
+table-level `SELECT` from `anon`/`authenticated` and re-grants it scoped to
+every column except those two. Full write-up: "Storage security" in
+`AUDIO_ARCHITECTURE.md`.
+
 ## Indexes worth knowing about
 
 `waves(creator_id, published_at desc) where deleted_at is null` (profile/feed
@@ -109,6 +120,31 @@ and `waves.title`/`description`.
 `audience_allows`, `can_message`, `is_conversation_member`. RLS policies
 (migration 12) and application code both call these — they are the *only*
 place a visibility rule is written down. Full write-up: `SECURITY.md`.
+
+**Migration 17 exception:** `can_view_profile()` is the one predicate that is
+*not* symmetric on blocks. It originally denied identity-card visibility
+whenever `is_blocked_between()` was true in either direction — which also
+hid a blocked account's own username/avatar from the person who blocked
+them, breaking anything rendering a "Blocked accounts" list.
+`src/lib/db/profiles.ts`'s blocking neighbor, `src/lib/db/blocks.ts`
+(profiles agent-owned), worked around this with an admin-client lookup
+(`listBlockedProfilesWithIdentity`) before the fix shipped; that workaround
+can be simplified back to a normal RLS-scoped read now that
+`can_view_profile()` itself lets the blocker see who they blocked. Every
+other blocked-pair predicate (`is_blocked_between`, `can_view_wave`,
+`can_message`, `can_comment_on_wave`, `can_request_duet`,
+`can_view_profile_content`, ...) is untouched and stays fully symmetric.
+
+## Realtime
+
+Three tables are in the `supabase_realtime` publication as of migration 16
+(`notifications`, `messages`, `audio_assets`) — everything else is outside
+it by default, since Supabase Realtime only streams `postgres_changes` for
+tables explicitly added. `audio_assets` is provisioned for a future
+Realtime-driven "Processing" banner but is not actually subscribed to today:
+the current Wave-detail implementation polls `processing_status` instead
+(simpler for a state that only changes a few times over a couple of
+minutes) — see "Processing state" in `AUDIO_ARCHITECTURE.md`.
 
 ## Applying migrations
 

@@ -19,6 +19,73 @@ execution-time limits unsuitable for audio processing (spec §30), and the UI
 must show real `pending / processing / ready / failed` state, never a fake
 instant "done" (spec §19).
 
+## Upload sequence (spec §18, §36, §38)
+
+Three Server Actions in `src/app/(app)/create/actions.ts`, driven by
+`CreateFlow.tsx`'s `runPublish`, each with its own real loading/error state
+and a retry that resumes from the top rather than re-running everything:
+
+```
+1. createUploadTicket({ mimeType, sizeBytes, durationMs, creationType, enhancementPreset })
+     → validates limits from src/lib/supabase/config.ts
+     → inserts audio_assets (processing_status defaults to 'pending' — there
+       is no separate "uploading" database state; the client alone tracks
+       upload progress, since nothing about the row changes while bytes move)
+     → mints a signed UPLOAD url (createSignedUploadUrl) for
+       audioOriginalPath(ownerId, assetId, extension) in the private `audio`
+       bucket, using the caller's OWN client (the storage INSERT policy
+       already scopes it to this owner — no admin client needed here)
+
+2. Client PUTs the blob straight to that signed URL —
+   supabase.storage.from('audio').uploadToSignedUrl(path, token, blob, ...)
+     — never through a Vercel function; the file goes straight to storage.
+
+3. finalizeUpload(assetId, advancedEq?)
+     → re-downloads the head bytes (Range: bytes=0-63) via the ADMIN client
+       and a short-lived signed URL, independent of anything the browser claimed
+     → sniffAudioKind() — the exact same pure, isomorphic function
+       validateFile() uses client-side (src/lib/audio/validateFile.ts has no
+       "use client" directive and no DOM-only API, so it needed no porting to
+       run server-side) — this call is the actual security boundary (spec §18:
+       "never trust client-provided MIME types alone")
+     → on a recognised format: enqueueAudioProcessing() (the owner's own
+       client — enqueue_audio_job() re-checks ownership itself)
+     → on an unrecognised format: markAudioAssetFailed() (admin client;
+       processing_status/processing_error are server-owned columns no
+       ordinary client may set — see "Storage security" below) and returns
+       ok: false with an honest reason, never a fake success
+
+4. publishWave({ assetId, title, ..., collaboratorUsernames, categories })
+     → verifies the caller owns the asset and it did not fail processing
+     → createWave() (categories ride on the existing waves.tags column — no
+       separate "categories" column exists)
+     → invites each collaborator by username (spec §16: invites, never
+       memberships — an unknown/blocked username is skipped, not a publish
+       failure)
+     → client redirects to /w/[id] on success
+```
+
+Publishing is allowed while the asset is still `pending`/`processing` —
+`mintPlaybackUrl` already falls back to the original file, so there is no
+reason to block on the worker. Publishing over a `failed` asset is rejected
+with the stored `processing_error`.
+
+### Processing state on the Wave detail page
+
+`ProcessingBanner` (`src/app/(app)/w/[id]/ProcessingBanner.tsx`) shows an
+honest "still processing" or "failed" state while `processing_status !==
+'ready'`. **Chosen mechanism: polling, not Realtime** — a plain
+`setInterval` re-read of `processing_status`/`processing_error` through the
+ordinary RLS-scoped browser client every 4 seconds, using exactly the
+column grants "Storage security" below already provides. This was simpler
+than standing up a `postgres_changes` subscription (connect/reconnect/
+cleanup lifecycle) for a state that only changes a handful of times over a
+couple of minutes. `public.audio_assets` was nonetheless added to the
+`supabase_realtime` publication in migration
+`20260903121600_realtime_publication.sql` (alongside `notifications` and
+`messages`, needed by other stages) so a future pass can switch this one
+component to push-based updates without another migration.
+
 ## Background job queue — the chosen design
 
 **Postgres-backed job table (`audio_processing_jobs`) + a standalone worker
@@ -138,20 +205,70 @@ Analytics events (spec §40): `wave_play_started`, `wave_play_completed`,
 from a single guarded handler, never from render logic, to avoid duplicate
 counting on rerender.
 
+### Client tracker (`src/lib/metrics/playTracker.ts`)
+
+Subscribes to the global `PlaybackStore`'s `onProgress`/`onEnded` events —
+never per-Wave-card logic — and decides only WHEN it is worth asking the
+server, never WHAT counts:
+
+- Accumulates `listened_ms` from consecutive `currentTime` deltas, dropping
+  any single jump bigger than 2 seconds (a seek or a loop-back) so a seek
+  never masquerades as elapsed listening.
+- Calls `reportPlayback()` (`src/lib/metrics/actions.ts`, wrapping
+  `record_play_event`) exactly twice per listen at most: once the moment
+  `listened_ms` first crosses `playQualifyingMs(durationMs)` (mirroring
+  `play_qualifying_ms()` exactly), and once more at 90%/`ended`. This is
+  deliberate, not an oversight — reporting on every `timeupdate` tick would
+  hit the server's 5-second debounce constantly for no benefit.
+- `wave_play_started`/`wave_replayed` fire only when the RPC's response says
+  `counted_play`/`counted_replay` — both are already "fires once" signals
+  from the SQL function itself (true only on the exact transition), so the
+  client does not need its own long-lived "already counted" bookkeeping for
+  either. `wave_play_completed` is the one client-decided event (the RPC's
+  jsonb response has no `completed` field to key off), guarded per listen
+  occurrence instead.
+- **Module-level guard against rerender double-firing:** `attach(store)` is
+  idempotent per `PlaybackStore` instance (a `WeakSet`). `usePlayTracker()`
+  is safe to call from every mounted `WaveCardContainer` in a feed — only
+  the very first call ever subscribes, because the store itself is already
+  an app-wide singleton (`PlaybackProvider`), so this guarantees exactly one
+  listener per playback event, ever, no matter how many cards are on screen.
+- **Anonymous session id:** `record_play_event`'s `p_session_id` param
+  exists specifically to key `wave_listens.listener_key` as `s:<session>`
+  for signed-out listeners (the RPC supports it, so no threshold logic had
+  to be skipped) — `src/lib/metrics/sessionId.ts` keeps a random id in a
+  1-year cookie and reuses it across visits. A value is always sent, signed
+  in or not, since `playbackReportSchema` requires ≥8 characters and the RPC
+  simply ignores it once `auth.uid()` is present.
+- **Analytics sink:** `src/lib/metrics/analyticsSink.ts` is a minimal,
+  swappable seam (`console.debug` in development by default) — no
+  third-party analytics backend is wired into this stage, since faking a
+  destination for these events would itself be the kind of "looks done but
+  isn't" the spec explicitly rules out. `setAnalyticsSink()` is where a real
+  backend (or the save/share/comment/follow/duet events §40 also lists)
+  plugs in later.
+
 ## Signed-URL strategy for private audio (spec §33)
 
 The `audio` bucket is **private**, with no listener SELECT policy on
 `storage.objects` at all — only the owner can sign their own object directly.
 Every other listener gets audio exclusively through:
 
-`mintSignedAudioUrl` / `mintPlaybackUrl` (`src/lib/db/audioAssets.ts`):
+`mintSignedAudioUrl` / `mintPlaybackUrl` (`src/lib/db/audioAssets.ts`), used
+by the only route that ever hands a browser a playable URL: `GET
+/api/audio/[assetId]/url` (`src/app/api/audio/[assetId]/url/route.ts`).
 
-1. Read the `audio_assets` row using the **caller's own RLS-scoped client**.
-   The `audio_assets_select` policy calls `can_view_audio_asset()`, so this
-   step alone throws `NotFoundError` for anyone who shouldn't see it —
-   authorization and "does it exist" are deliberately indistinguishable here.
-2. Only after that succeeds, mint the URL with the **admin (service role)
-   client** — required because the caller may not be the object's owner.
+1. Authorize using the **caller's own RLS-scoped client**, but WITHOUT
+   selecting the row at all — call the `can_view_audio_asset()` RPC (`security
+   definer`, so it needs no column privilege of its own) and throw
+   `NotFoundError` if it returns false. Authorization and "does it exist" are
+   deliberately indistinguishable here, and the route handler always answers
+   with **404, never 403** for exactly that reason — a 403 would itself leak
+   that a private asset exists.
+2. Only after that succeeds, read `original_path`/`processed_path` and mint
+   the URL with the **admin (service role) client** — required both because
+   the caller may not be the object's owner AND because, as of migration 15
+   below, no non-service-role client can even select those two columns.
 3. TTL: **10 minutes** (`SIGNED_AUDIO_URL_TTL_SECONDS`) — long enough to
    start and finish a typical Wave and survive a seek or brief network drop;
    short enough that a leaked URL is worthless almost immediately. Longer
@@ -162,15 +279,64 @@ Every other listener gets audio exclusively through:
    until processing catches up.
 
 Raw storage paths are never sent to a client outside these two functions.
+The route response is always `Cache-Control: private, no-store`.
+
+### Storage security — column-level lockdown (spec §33, migration 15)
+
+**The bug, and the fix.** Migration 12 granted TABLE-level `SELECT` on
+`public.audio_assets` to `anon`/`authenticated`, gated only by the
+`audio_assets_select` RLS policy (`can_view_audio_asset()`). Table-level
+`SELECT` implicitly covers every column — including `original_path` and
+`processed_path`, the raw storage keys — so anyone who could view a Wave
+could also read its audio asset's raw storage paths directly through
+PostgREST (`GET /audio_assets?select=original_path,processed_path`), even
+though no application code ever intentionally requested those columns. That
+directly contradicted this document's own "raw storage paths are never sent
+to a client" claim above.
+
+Migration `20260903121500_audio_asset_column_security.sql` fixes it. The
+subtlety: **Postgres column-level `GRANT`/`REVOKE` cannot restrict a role
+that already holds table-level `SELECT`** — column grants only ever *add*
+access for a role that lacks the table-level privilege; a bare column
+`REVOKE` while the table-level grant survives is a silent no-op. So the fix
+revokes table-level `SELECT` on `audio_assets` entirely from
+`anon`/`authenticated`, then re-grants `SELECT` scoped to an explicit column
+list that excludes the two path columns. Every other column (processing
+status, peaks, duration, mime type, ...) stays directly readable — the
+"Processing" banner and waveform/duration rendering still work with no extra
+round trip.
+
+Application-side, `src/lib/db/audioAssets.ts` mirrors this split:
+
+- `getAudioAssetById(db, assetId)` — the caller's own client, the safe
+  column list only. Always returns `originalPath: ""` / a redacted
+  `processedPath`; suitable for status/UI reads, never for playback.
+- `getAudioAssetPathsPrivileged(admin, assetId)` (internal) — the admin
+  client, `original_path`/`processed_path` only. Called exclusively from
+  `mintSignedAudioUrl`/`mintPlaybackUrl`, after `assertCanViewAudioAsset`.
+- `createAudioAsset` and `updateAudioAssetPreset` request the safe column
+  list on their `.select()` too (an authenticated client, even the row's own
+  owner, cannot select the path columns back) and reconstruct
+  `originalPath` from what the caller already just wrote, rather than
+  re-reading it.
+- `markAudioAssetFailed(admin, assetId, reason)` — the one legitimate,
+  service-role-only exception to `audio_assets`'s hand-written `Update` type
+  (`src/types/database.ts`), which otherwise omits every processing column
+  on purpose. Used by `finalizeUpload` when the server-side magic-byte check
+  rejects an upload before any processing job exists.
+
+See `docs/DATABASE.md` for the migration list and `supabase/migrations/down/`
+for the rollback (which deliberately re-opens this hole — documented there).
 
 ## Client capture (spec §17, §18, §19, §20)
 
 Everything below lives under `src/lib/audio/`, `src/components/audio/` and
 `src/components/create/`. It is client infrastructure only — no server
-actions, no Supabase calls. It produces a typed `CreateWaveDraft` (see
-`src/lib/audio/createDraft.ts`) and hands it to an injected `onSubmit`; a
-later agent wires that to `enqueue_audio_job()` and the storage upload
-described above.
+actions, no Supabase calls of its own. It produces a typed `CreateWaveDraft`
+(see `src/lib/audio/createDraft.ts`) and hands it to an injected `onSubmit`;
+`CreateFlow.tsx`'s `runPublish` is that seam, now wired to the real
+`createUploadTicket` → upload → `finalizeUpload` → `publishWave` sequence
+above (`src/app/(app)/create/actions.ts`).
 
 ### Recording (spec §17)
 
@@ -243,11 +409,11 @@ calls `store.pause()` before playing, to hold the one-at-a-time rule against
 the rest of the app.
 
 `src/app/(app)/create/CreateFlow.tsx` sequences Record/Upload → preview →
-enhance → details → Publish. `CreateWaveForm`'s `onSubmit` is the one seam a
-server-side agent needs to replace — see the hand-off contract in that file's
-header comment and in `createDraft.ts`. Until that seam exists, pressing
-Publish renders an inline `ErrorState` ("Publishing is not connected yet")
-instead of a fake success toast (spec §38, §44).
+enhance → details → Publish. `CreateWaveForm`'s `onSubmit` calls
+`CreateFlow.tsx`'s `runPublish`, which drives the real ticket → upload →
+finalize → publish sequence documented in "Upload sequence" above, with a
+distinct loading phase shown for each step and a retry that resumes from the
+top on failure — never a fake success toast (spec §38, §44).
 
 ## Duet mixdown
 

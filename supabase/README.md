@@ -9,7 +9,7 @@ Schema map and design decisions: `../docs/DATABASE.md`,
 ```
 supabase/
   config.toml           Local Supabase CLI config (ports, auth, storage limits)
-  migrations/*.sql       14 timestamped migrations, apply in filename order
+  migrations/*.sql       17 timestamped migrations, apply in filename order
   migrations/down/*.sql  One rollback file per migration, apply in REVERSE order
   seed.sql               Dev-only seed data (see the banner at its top)
 ```
@@ -48,7 +48,7 @@ supabase db reset
 
 Open the Supabase Studio SQL editor for your project and paste/run each file
 in `migrations/` **in filename order** (`20260903120100_...` through
-`20260903121400_...`). Do not skip a file — several later migrations close a
+`20260903121700_...`). Do not skip a file — several later migrations close a
 circular foreign key or add a trigger that an earlier migration's comments
 call out explicitly (e.g. migration 06 adds the `waves.duet_request_id` FK
 that migration 04 leaves pending).
