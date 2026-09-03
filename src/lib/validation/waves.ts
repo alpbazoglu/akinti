@@ -28,6 +28,33 @@ export const createWaveSchema = z.object({
   tags: tagsSchema.default([]),
 });
 
+const usernameListSchema = z
+  .array(z.string().trim().toLowerCase().min(1).max(30))
+  .max(8)
+  .default([]);
+
+/**
+ * `publishWave` Server Action input — the server-side counterpart of
+ * `CreateWaveDraft` (`src/lib/audio/createDraft.ts`). `assetId` replaces
+ * `audio_asset_id` naming to match the rest of the create-flow action
+ * signatures; `categories` maps onto the existing `waves.tags` column (no
+ * separate "categories" column exists — see docs/DATABASE.md).
+ * `collaboratorUsernames` are invites, never memberships (spec §16): each is
+ * resolved and invited independently by `publishWave`, and an unknown/
+ * blocked username is skipped rather than failing the whole publish.
+ */
+export const publishWaveSchema = z.object({
+  assetId: uuidSchema,
+  title: titleSchema,
+  description: descriptionSchema.optional(),
+  creationType: z.enum(["recorded", "uploaded"]),
+  visibility: z.enum(WAVE_VISIBILITIES).default("everyone"),
+  commentPermission: z.enum(COMMENT_AUDIENCES).nullable().default(null),
+  duetPermission: z.enum(PERMISSION_AUDIENCES).nullable().default(null),
+  collaboratorUsernames: usernameListSchema,
+  categories: tagsSchema.default([]),
+});
+
 /** Publishing the Wave that comes out of a Duet. */
 export const createDuetWaveSchema = z.object({
   audio_asset_id: uuidSchema,
@@ -97,6 +124,7 @@ export const playbackReportSchema = z.object({
 });
 
 export type CreateWaveInput = z.infer<typeof createWaveSchema>;
+export type PublishWaveInput = z.infer<typeof publishWaveSchema>;
 export type CreateDuetWaveInput = z.infer<typeof createDuetWaveSchema>;
 export type UpdateWaveInput = z.infer<typeof updateWaveSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;

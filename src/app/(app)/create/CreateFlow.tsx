@@ -5,22 +5,17 @@
  *
  * Steps: Record | Upload -> preview -> enhance -> details -> Publish.
  *
- * HAND-OFF CONTRACT for the server-side agent: `CreateWaveForm` (see
- * `src/components/create/CreateWaveForm.tsx`) calls its `onSubmit` prop with
- * a fully assembled, fully typed `CreateWaveDraft` (see
- * `src/lib/audio/createDraft.ts`) the moment the user presses Publish.
- * `handlePublish` below is the ONLY seam that needs to change: upload
- * `draft.audio.blob` to the private `audio` bucket, create the
- * `audio_assets` + `waves` rows, and `enqueue_audio_job()` passing
- * `draft.audio.enhancementPreset` (and `draft.audio.advancedEq`, if that
- * should ride along as job payload). Nothing else in this file, or in any
- * component it renders, makes a server action or Supabase call — until the
- * seam is wired, Publish surfaces an honest inline notice instead of a fake
- * success state (spec §38, §44: never pretend a feature works when it only
- * mocked).
+ * `CreateWaveForm` (see `src/components/create/CreateWaveForm.tsx`) calls
+ * its `onSubmit` prop with a fully assembled, fully typed `CreateWaveDraft`
+ * (see `src/lib/audio/createDraft.ts`) the moment the user presses Publish.
+ * `runPublish` below drives the real server sequence — ticket -> upload ->
+ * finalize -> publish -> redirect (`./actions.ts`) — with a real phase for
+ * each step and a retry that resumes from the top on failure (spec §38,
+ * §44: no fake success, no silent failure).
  */
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Mic, Upload as UploadIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
@@ -34,7 +29,13 @@ import {
   type EnhancementPresetId,
   type RecorderResult,
 } from "@/lib/audio";
+import { AUDIO_BUCKET } from "@/lib/supabase/config";
+import { createClient } from "@/lib/supabase/client";
+import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
+import type { CreateWaveDraft } from "@/lib/audio/createDraft";
+
+import { createUploadTicket, finalizeUpload, publishWave } from "./actions";
 
 const PREVIEW_PEAK_BUCKETS = 72;
 const TAB_ID_PREFIX = "create-capture";
@@ -50,14 +51,25 @@ interface CapturedAudio {
   readonly sourceFileName: string | null;
 }
 
+type PublishPhase = "idle" | "uploading" | "finalizing" | "publishing" | "error";
+
+const PHASE_LABEL: Record<Exclude<PublishPhase, "idle" | "error">, string> = {
+  uploading: "Uploading your Wave…",
+  finalizing: "Verifying your upload…",
+  publishing: "Publishing…",
+};
+
 export function CreateFlow() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("capture");
   const [captureMode, setCaptureMode] = useState<CaptureMode>("record");
   const [captured, setCaptured] = useState<CapturedAudio | null>(null);
   const [previewPeaks, setPreviewPeaks] = useState<readonly number[] | null>(null);
   const [preset, setPreset] = useState<EnhancementPresetId>("natural");
   const [advancedEq, setAdvancedEq] = useState<AdvancedEqSettings | null>(null);
-  const [publishNotice, setPublishNotice] = useState(false);
+  const [publishPhase, setPublishPhase] = useState<PublishPhase>("idle");
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [pendingDraft, setPendingDraft] = useState<CreateWaveDraft | null>(null);
 
   useEffect(() => {
     // Resetting to null on every new `captured` happens in the setters below
@@ -109,15 +121,86 @@ export function CreateFlow() {
     setPreviewPeaks(null);
     setPreset("natural");
     setAdvancedEq(null);
-    setPublishNotice(false);
+    setPublishPhase("idle");
+    setPublishError(null);
+    setPendingDraft(null);
     setStep("capture");
   };
 
-  const handlePublish = () => {
-    // See the file header: this is where publishing gets wired up. Until
-    // then, tell the truth instead of faking success (spec §38, §44).
-    setPublishNotice(true);
+  const runPublish = async (draft: CreateWaveDraft): Promise<void> => {
+    setPendingDraft(draft);
+    setPublishError(null);
+    setPublishPhase("uploading");
+
+    const ticket = await createUploadTicket({
+      mimeType: draft.audio.mimeType,
+      sizeBytes: draft.audio.blob.size,
+      durationMs: draft.audio.durationMs,
+      creationType: draft.audio.creationType,
+      enhancementPreset: draft.audio.enhancementPreset,
+    });
+    if (!ticket.ok) {
+      setPublishError(ticket.error);
+      setPublishPhase("error");
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from(AUDIO_BUCKET)
+        .uploadToSignedUrl(ticket.path, ticket.uploadToken, draft.audio.blob, {
+          contentType: draft.audio.mimeType,
+        });
+      if (uploadError) {
+        setPublishError("The upload didn't complete. Try again.");
+        setPublishPhase("error");
+        return;
+      }
+    } catch {
+      setPublishError("The upload didn't complete. Check your connection and try again.");
+      setPublishPhase("error");
+      return;
+    }
+
+    setPublishPhase("finalizing");
+    const finalized = await finalizeUpload(ticket.assetId, draft.audio.advancedEq ?? undefined);
+    if (!finalized.ok) {
+      setPublishError(finalized.error);
+      setPublishPhase("error");
+      return;
+    }
+
+    setPublishPhase("publishing");
+    const published = await publishWave({
+      assetId: ticket.assetId,
+      title: draft.title,
+      description: draft.description || null,
+      creationType: draft.audio.creationType,
+      visibility: draft.visibility,
+      commentPermission: draft.commentPermission,
+      duetPermission: draft.duetPermission,
+      collaboratorUsernames: draft.collaboratorUsernames,
+      categories: draft.categories,
+    });
+    if (!published.ok) {
+      setPublishError(published.error);
+      setPublishPhase("error");
+      return;
+    }
+
+    router.push(routes.wave(published.waveId));
   };
+
+  const handlePublish = (draft: CreateWaveDraft) => {
+    void runPublish(draft);
+  };
+
+  const handleRetry = () => {
+    if (pendingDraft) void runPublish(pendingDraft);
+  };
+
+  const isSubmitting = publishPhase !== "idle" && publishPhase !== "error";
 
   return (
     <>
@@ -198,16 +281,24 @@ export function CreateFlow() {
                 sourceFileName: captured.sourceFileName,
               }}
               onSubmit={handlePublish}
+              submitting={isSubmitting}
               submitLabel="Publish"
             />
-            <Button variant="ghost" onClick={() => setStep("enhance")}>
+            <Button variant="ghost" onClick={() => setStep("enhance")} disabled={isSubmitting}>
               Back
             </Button>
 
-            {publishNotice ? (
+            {isSubmitting ? (
+              <p aria-live="polite" className="text-center text-sm text-fg-muted">
+                {PHASE_LABEL[publishPhase as Exclude<PublishPhase, "idle" | "error">]}
+              </p>
+            ) : null}
+
+            {publishPhase === "error" && publishError ? (
               <ErrorState
-                title="Publishing is not connected yet"
-                description="Recording, upload and enhancement all work locally, but this build does not send your Wave to the server yet. That step lands with the server-side audio integration."
+                title="Publishing failed"
+                description={publishError}
+                onRetry={handleRetry}
               />
             ) : null}
           </div>
