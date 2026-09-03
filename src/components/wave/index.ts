@@ -7,3 +7,8 @@ export {
   type WaveCardSkeletonProps,
   type WaveCardWave,
 } from "./WaveCard";
+export {
+  WaveCardContainer,
+  type WaveCardContainerProps,
+  type WaveCardContainerWave,
+} from "./WaveCardContainer";
