@@ -2,6 +2,7 @@ import { LogOut } from "lucide-react";
 
 import { signOut } from "@/app/(auth)/actions";
 import { PageHeader } from "@/components/layout";
+import { AccountForm } from "@/components/profile";
 import { Button } from "@/components/ui";
 import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
@@ -18,11 +19,7 @@ async function handleSignOut(): Promise<void> {
   await signOut();
 }
 
-/**
- * Account settings (spec §25). Profile customization (avatar, bio, theme)
- * arrives with the Profiles stage — this page owns what Stage 2 actually
- * delivers: account identity, password, and signing out.
- */
+/** Account settings (spec §25): avatar, display name, username, bio, email, password, sign out. */
 export default async function AccountSettingsPage() {
   const user = await requireUser("/settings/account");
   const supabase = await createServerSupabaseClient();
@@ -34,20 +31,21 @@ export default async function AccountSettingsPage() {
 
       <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
         <section className="rounded-xl border border-border bg-surface p-5">
-          <h2 className="text-sm font-semibold text-fg">Identity</h2>
-          <dl className="mt-3 flex flex-col gap-2 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-fg-muted">Username</dt>
-              <dd className="font-medium text-fg">@{profile?.username ?? "—"}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-fg-muted">Email</dt>
-              <dd className="font-medium text-fg">{user.email ?? "—"}</dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-xs text-fg-subtle">
-            Editing your username, display name, bio and avatar arrives with the Profiles stage.
+          <h2 className="text-sm font-semibold text-fg">Profile</h2>
+          <p className="mt-1 mb-4 text-sm text-fg-muted">
+            Your photo, display name, username and bio — visible on {`@${profile?.username ?? ""}`}.
           </p>
+          <AccountForm
+            initialUsername={profile?.username ?? ""}
+            initialDisplayName={profile?.displayName ?? null}
+            initialBio={profile?.bio ?? null}
+            initialAvatarUrl={profile?.avatarUrl ?? null}
+          />
+        </section>
+
+        <section className="rounded-xl border border-border bg-surface p-5">
+          <h2 className="text-sm font-semibold text-fg">Email</h2>
+          <p className="mt-1 text-sm text-fg-muted">{user.email ?? "—"}</p>
         </section>
 
         <section className="rounded-xl border border-border bg-surface p-5">
