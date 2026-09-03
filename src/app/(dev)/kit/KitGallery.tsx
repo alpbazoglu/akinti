@@ -11,7 +11,16 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { Waveform, WavePlayer, placeholderPeaks } from "@/components/audio";
+import {
+  AudioPreview,
+  EnhancementPicker,
+  RecorderPanel,
+  Waveform,
+  WavePlayer,
+  placeholderPeaks,
+} from "@/components/audio";
+import { UploadDropzone } from "@/components/create";
+import { type AdvancedEqSettings, type EnhancementPresetId } from "@/lib/audio";
 import { PageHeader } from "@/components/layout";
 import {
   Avatar,
@@ -100,6 +109,7 @@ export function KitGallery() {
         <OverlaySection />
         <StatesSection />
         <AudioSection />
+        <AudioCaptureSection />
         <WaveSection />
         <TokensSection />
         <FormattersSection />
@@ -473,6 +483,52 @@ function AudioSection() {
           duration={1}
           title="Gallery demo, compact"
           variant="compact"
+        />
+      </div>
+    </Section>
+  );
+}
+
+/** Base64 body of `SILENT_WAV`, decoded to a real `Blob` for the components that need one. */
+function silentWavBlob(): Blob {
+  const base64 = SILENT_WAV.slice(SILENT_WAV.indexOf(",") + 1);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: "audio/wav" });
+}
+
+function AudioCaptureSection() {
+  const [demoBlob] = useState<Blob>(() => silentWavBlob());
+  const [preset, setPreset] = useState<EnhancementPresetId>("natural");
+  const [advancedEq, setAdvancedEq] = useState<AdvancedEqSettings | null>(null);
+
+  return (
+    <Section title="Audio capture (Stage 4)">
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-fg-subtle">
+          RecorderPanel — asks for real microphone permission when pressed.
+        </p>
+        <RecorderPanel onComplete={() => {}} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-fg-subtle">UploadDropzone — validates format, size and duration.</p>
+        <UploadDropzone onFileAccepted={() => {}} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-fg-subtle">AudioPreview — plays a local blob via the global store.</p>
+        <AudioPreview blob={demoBlob} durationMs={1000} peaks={DEMO_PEAKS} title="Gallery demo take" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-xs text-fg-subtle">
+          EnhancementPicker — six presets, A/B preview, advanced EQ disclosure.
+        </p>
+        <EnhancementPicker
+          blob={demoBlob}
+          preset={preset}
+          onPresetChange={setPreset}
+          advancedEq={advancedEq}
+          onAdvancedEqChange={setAdvancedEq}
         />
       </div>
     </Section>

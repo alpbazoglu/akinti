@@ -163,6 +163,92 @@ Every other listener gets audio exclusively through:
 
 Raw storage paths are never sent to a client outside these two functions.
 
+## Client capture (spec §17, §18, §19, §20)
+
+Everything below lives under `src/lib/audio/`, `src/components/audio/` and
+`src/components/create/`. It is client infrastructure only — no server
+actions, no Supabase calls. It produces a typed `CreateWaveDraft` (see
+`src/lib/audio/createDraft.ts`) and hands it to an injected `onSubmit`; a
+later agent wires that to `enqueue_audio_job()` and the storage upload
+described above.
+
+### Recording (spec §17)
+
+`getRecordingMimeType()` (`capabilities.ts`) probes
+`MediaRecorder.isTypeSupported()` in preference order —
+`audio/webm;codecs=opus` first (what `PRESET_FILTERS`/ffmpeg read most
+cheaply), then Safari's `audio/mp4` — and returns `null` rather than letting
+`MediaRecorder` pick an undocumented default.
+
+`AudioRecorder` (`recorder.ts`) is a small external store, the same shape as
+`PlaybackStore`, wrapping `MediaRecorder` plus an `AnalyserNode` level meter
+(RMS of `getByteTimeDomainData`, never connected to a destination — no
+feedback). Every seam (`requestMicrophone`, `createRecorder`,
+`createAudioContext`, `now`, the tick interval) is injectable, exactly like
+`PlaybackStore.createAudio`, so `recorder.test.ts` drives the full
+idle → requesting → recording → paused → stopped state machine — including
+permission denial, no-device, auto-stop at `MAX_AUDIO_DURATION_MS`, and
+retake — without touching a real microphone. `useRecorder()` is the React
+binding (`useSyncExternalStore`) and releases the stream/AudioContext on
+unmount unconditionally, so navigating away never leaves a hot mic.
+
+### Client preview peaks and duration (spec §20)
+
+`decodeToPeaks(blob, buckets)` and `getDurationMs(blob)`
+(`decode.ts`) both call `AudioContext.decodeAudioData` once, locally, purely
+so the create flow has something to show before publishing. This is **not**
+the stored waveform — `scripts/worker.ts` regenerates the real 800-point
+peaks server-side from the processed file, per the pipeline above. Client
+peaks travel in `CreateWaveDraft.audio.previewPeaks` and must never be
+persisted as-is.
+
+### Upload validation (spec §18)
+
+`validateFile()` (`validateFile.ts`) is fast client feedback only — size,
+extension allow-list, and magic-byte sniffing (`sniffAudioKind`: MP3
+ID3/frame-sync, WAV RIFF/WAVE, OGG `OggS`, FLAC `fLaC`, M4A/MP4 `ftyp`, WebM's
+EBML header `1A 45 DF A3`), plus a duration check when the caller supplies
+one (from `getDurationMs`). It exists so a user learns about a bad file in
+milliseconds; **the server re-validates size, duration and magic bytes
+independently** before ever accepting an upload (see "Security" under Audio
+upload, spec §18) — a client check can always be bypassed outside the
+browser.
+
+### Enhancement presets — client preview (spec §19)
+
+`enhancement.ts` mirrors the six preset ids in `PRESET_FILTERS`
+(`scripts/worker.ts`) and `AUDIO_ENHANCEMENT_PRESETS`
+(`src/types/domain.ts`) exactly: `natural`, `studio`, `clear_voice`, `warm`,
+`deep`, `atmospheric`. Each preset is data — a short chain of
+`{ biquad | gain | convolver-light }` steps — consumed by
+`createPreviewGraph(audioContext, source, presetId)` to build a **local-only**
+Web Audio graph for the `EnhancementPicker`'s Original/Enhanced A/B toggle.
+This is a rough approximation of the real ffmpeg filter chain, never the
+audio that gets uploaded or the thing that produces the published Wave's
+actual processed file. The optional advanced 5-band EQ
+(`60/250/1000/4000/12000 Hz`, ±12 dB, `createAdvancedEqGraph`) is separate and
+opt-in, applied on top of the chosen preset, matching the spec's "opt-in and
+secondary to the presets" framing.
+
+### Components and the `/create` flow
+
+`RecorderPanel`, `AudioPreview`, `EnhancementPicker` (`src/components/audio/`)
+and `UploadDropzone`, `CreateWaveForm` (`src/components/create/`) are
+presentation plus local state only. `AudioPreview` plays a local `blob:` URL
+through the same global `PlaybackStore` a published Wave uses (spec §12: one
+Wave/sound at a time, everywhere) — `EnhancementPicker`'s A/B preview uses a
+dedicated `<audio>` + Web Audio graph instead (it needs a live
+`MediaElementAudioSourceNode` to route through the preset chain) but still
+calls `store.pause()` before playing, to hold the one-at-a-time rule against
+the rest of the app.
+
+`src/app/(app)/create/CreateFlow.tsx` sequences Record/Upload → preview →
+enhance → details → Publish. `CreateWaveForm`'s `onSubmit` is the one seam a
+server-side agent needs to replace — see the hand-off contract in that file's
+header comment and in `createDraft.ts`. Until that seam exists, pressing
+Publish renders an inline `ErrorState` ("Publishing is not connected yet")
+instead of a fake success toast (spec §38, §44).
+
 ## Duet mixdown
 
 Covered fully in `DUET_SPEC.md`. Summary: never trust client-side mixing.
