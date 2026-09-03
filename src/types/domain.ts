@@ -174,8 +174,19 @@ export interface WaveformPeaks {
 export interface AudioAsset {
   id: string;
   ownerId: string;
-  /** Storage key inside the PRIVATE `audio` bucket. Never render this. */
+  /**
+   * Storage key inside the PRIVATE `audio` bucket. Never render this.
+   *
+   * Column-level SELECT on this (and `processedPath`) is revoked from
+   * anon/authenticated (migration 15, spec §33) — `getAudioAssetById` and
+   * every other non-privileged read in `src/lib/db/audioAssets.ts` always
+   * returns `""` here. A real value only ever comes from
+   * `mintSignedAudioUrl`/`mintPlaybackUrl`, which resolve it server-side with
+   * the service-role client after `can_view_audio_asset()` has authorised
+   * the caller — see "Storage security" in docs/AUDIO_ARCHITECTURE.md.
+   */
   originalPath: string;
+  /** Same redaction as `originalPath` above; `null` here never means "no processed file yet" outside a privileged read. */
   processedPath: string | null;
   durationMs: number | null;
   mimeType: string;
