@@ -1,5 +1,61 @@
 export { PlaybackProvider, type PlaybackProviderProps } from "./PlaybackProvider";
 export {
+  RECORDING_MIME_CANDIDATES,
+  getRecordingMimeType,
+  isGetUserMediaSupported,
+  isMediaRecorderSupported,
+  isRecordingSupported,
+} from "./capabilities";
+export {
+  AudioRecorder,
+  useRecorder,
+  type AudioRecorderOptions,
+  type RecorderAnalyserLike,
+  type RecorderAudioContextLike,
+  type RecorderMediaRecorderLike,
+  type RecorderMediaStreamLike,
+  type RecorderMediaStreamTrackLike,
+  type RecorderResult,
+  type RecorderState,
+  type RecorderStatus,
+  type RecorderUnsubscribe,
+  type UseRecorderResult,
+} from "./recorder";
+export { decodeToPeaks, getDurationMs } from "./decode";
+export {
+  ALL_ALLOWED_EXTENSIONS,
+  mimeTypesForKind,
+  sniffAudioKind,
+  validateFile,
+  type SniffedAudioKind,
+  type ValidateFileOptions,
+  type ValidateFileResult,
+} from "./validateFile";
+export {
+  ADVANCED_EQ_BANDS,
+  ADVANCED_EQ_MAX_GAIN_DB,
+  ENHANCEMENT_PRESETS,
+  clampEqGain,
+  createAdvancedEqGraph,
+  createPreviewGraph,
+  defaultAdvancedEqSettings,
+  getEnhancementPreset,
+  type AdvancedEqBandHz,
+  type AdvancedEqSettings,
+  type EnhancementPreset,
+  type EnhancementPresetId,
+  type PreviewBiquadStep,
+  type PreviewChainStep,
+  type PreviewConvolverStep,
+  type PreviewGainStep,
+} from "./enhancement";
+export {
+  WAVE_CATEGORY_OPTIONS,
+  type CreatableCreationType,
+  type CreateWaveDraft,
+  type CreateWaveDraftAudio,
+} from "./createDraft";
+export {
   PlaybackStore,
   PlaybackStoreContext,
   createPlaybackStore,
