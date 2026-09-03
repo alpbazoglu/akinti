@@ -32,7 +32,10 @@ export function AppShell({
   aside,
   className,
 }: AppShellProps) {
-  const unreadMessages = badges?.messages ?? 0;
+  // `undefined` (not `?? 0`) so `TopBar` falls back to its own live
+  // `useUnreadMessages` subscription when no caller has explicitly overridden
+  // the badge — mirrors how `unreadNotifications` is left unset here today.
+  const unreadMessages = badges?.messages;
 
   return (
     <div className="flex min-h-dvh w-full">

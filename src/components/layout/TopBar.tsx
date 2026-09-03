@@ -7,6 +7,7 @@ import { AudioLines, Bell, MessageCircle, Search } from "lucide-react";
 import { routes } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
+import { useUnreadMessages } from "@/lib/messages";
 import { useUnreadNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
@@ -16,7 +17,9 @@ import { UserMenu } from "./UserMenu";
 export interface TopBarProps {
   /** Page title. Falls back to the wordmark when omitted. */
   title?: string;
-  /** Unread Messages count; Messages is not in the mobile bottom bar. */
+  /** Unread Messages count. Defaults to the live count when omitted — Messages
+   * is not in the mobile bottom bar, so this badge is its main visibility
+   * (spec §7). */
   unreadMessages?: number;
   /** Unread notifications count. Defaults to the live count when omitted —
    * Bottom Nav already carries a Notifications tab, so this exists mainly for
@@ -35,7 +38,7 @@ export interface TopBarProps {
  */
 export function TopBar({
   title,
-  unreadMessages = 0,
+  unreadMessages,
   unreadNotifications,
   actions,
   showSearch = true,
@@ -43,7 +46,9 @@ export function TopBar({
 }: TopBarProps) {
   const { profile } = useCurrentUser();
   const { count: liveUnreadNotifications } = useUnreadNotifications(profile?.id ?? null);
+  const { count: liveUnreadMessages } = useUnreadMessages(profile?.id ?? null);
   const notificationsBadge = unreadNotifications ?? liveUnreadNotifications;
+  const messagesBadge = unreadMessages ?? liveUnreadMessages;
 
   return (
     <header
@@ -111,9 +116,9 @@ export function TopBar({
           )}
         >
           <MessageCircle className="size-5" aria-hidden="true" />
-          {unreadMessages > 0 ? (
+          {messagesBadge > 0 ? (
             <CountBadge
-              count={unreadMessages}
+              count={messagesBadge}
               label="unread messages"
               className="absolute top-1 right-1"
             />

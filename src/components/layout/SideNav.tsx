@@ -7,6 +7,7 @@ import { AudioLines, Plus, Settings } from "lucide-react";
 import { isActiveRoute, routes } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
+import { useUnreadMessages } from "@/lib/messages";
 import { useUnreadNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
@@ -29,6 +30,7 @@ export function SideNav({ badges, className }: SideNavProps) {
   const pathname = usePathname();
   const { profile } = useCurrentUser();
   const { count: unreadNotifications } = useUnreadNotifications(profile?.id ?? null);
+  const { count: unreadMessages } = useUnreadMessages(profile?.id ?? null);
 
   return (
     <div
@@ -59,8 +61,13 @@ export function SideNav({ badges, className }: SideNavProps) {
                 : item.href;
             const active = isActiveRoute(pathname, href);
             const Icon = item.icon;
-            const badge =
-              badges?.[item.key] ?? (item.key === "notifications" ? unreadNotifications : 0);
+            const liveBadge =
+              item.key === "notifications"
+                ? unreadNotifications
+                : item.key === "messages"
+                  ? unreadMessages
+                  : 0;
+            const badge = badges?.[item.key] ?? liveBadge;
 
             return (
               <li key={item.key}>
