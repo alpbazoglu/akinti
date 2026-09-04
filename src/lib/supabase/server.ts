@@ -40,27 +40,3 @@ export async function createServerSupabaseClient(): Promise<SupabaseServerClient
     },
   });
 }
-
-/**
- * The signed-in user for this request, verified against the auth server.
- *
- * Always prefer this over `getSession()` on the server: `getUser()` validates
- * the JWT rather than trusting whatever the cookie claims.
- */
-export async function getCurrentUser(): Promise<{ id: string; email: string | null } | null> {
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) {
-    return null;
-  }
-  return { id: data.user.id, email: data.user.email ?? null };
-}
-
-/** Same as `getCurrentUser`, but throws when there is no session. */
-export async function requireCurrentUser(): Promise<{ id: string; email: string | null }> {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("Not authenticated");
-  }
-  return user;
-}
