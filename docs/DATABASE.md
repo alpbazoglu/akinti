@@ -32,6 +32,7 @@ instructions: `supabase/README.md`.
 | 21 | `rate_limits` | `rate_limit_events`, `check_rate_limit()`/`record_rate_limit_event()`/`prune_rate_limit_events()`, `BEFORE INSERT` rate-limit guards on `comments`/`follows`/`messages`/`duet_requests`/`shares`/`reports`/`audio_assets` (spec §39) |
 | 22 | `notification_preferences` | `profiles.notification_preferences` jsonb + CHECK constraint, `notification_category()`, `push_notification()` updated to respect preferences (spec §23, §25) |
 | 23 | `moderation_foundation` | `moderation_action_type` enum, `profiles.is_moderator`/`suspended_until`, `waves.hidden_at`, `can_view_wave()` updated, `is_moderator()`, `moderation_actions` (audit trail), `claim_report()`/`resolve_report()`/`dismiss_report()` (spec §26) |
+| 24 | `creator_analytics` | `play_events.suspicious`, `flag_suspicious_play_events()`, `wave_listen_is_suspicious()`, `creator_overview()`/`creator_timeseries()`/`creator_wave_performance()`, `product_health()` (moderator-only) — spec §13, §27, §28, §40, §43 Stage 13 |
 
 ## Entities
 
@@ -51,7 +52,8 @@ trigger-maintained counters), `wave_collaborators` (`pending | accepted |
 declined`, never auto-accepted).
 
 **Engagement:** `comments` (flat + one optional reply level via
-`parent_comment_id`), `saves`, `shares`, `play_events` (raw, append-only),
+`parent_comment_id`), `saves`, `shares`, `play_events` (raw, append-only,
+plus `suspicious` — migration 24's anomaly flag, see below),
 `wave_listens` (deduplicated per `(wave, listener)`, the only table
 `play_count`/`replay_count` actually derive from).
 
@@ -135,6 +137,37 @@ storage keys out of a direct PostgREST query — migration 15 revokes
 table-level `SELECT` from `anon`/`authenticated` and re-grants it scoped to
 every column except those two. Full write-up: "Storage security" in
 `AUDIO_ARCHITECTURE.md`.
+
+**Creator analytics + product health RPCs never take a target id** (migration
+24, spec §27/§28). `creator_overview(p_days)`, `creator_timeseries(p_days)`
+and `creator_wave_performance(p_days, p_limit)` all resolve `auth.uid()`
+internally — there is no `p_creator_id` argument to forge, so "only callable
+for `auth.uid() = creator`" is true by construction rather than by an
+argument check. `product_health(p_days)` takes no target at all; it
+re-checks `is_moderator()` itself, exactly like `resolve_report`/
+`dismiss_report` do, never trusting the caller's own `/analytics/health`
+`notFound()` gate. Every `p_days` argument across all four is restricted to
+`7 | 30 | 90` (`check ... using errcode = 'check_violation'`), mirrored by
+`src/lib/analytics/range.ts`'s `analyticsRangeSchema` so a bad value never
+reaches the network. Full metric definitions and the meaningful-vs-raw
+split: `PRODUCT.md`.
+
+**The anomaly flag is a column plus a manually-invoked function, not a
+trigger** (migration 24, spec §27). `play_events.suspicious boolean default
+false` is set by `flag_suspicious_play_events()`: more than 20 qualifying
+(`counted_play`/`counted_replay`) listens of one Wave from one
+`listener_key` on one calendar day. It is deliberately **not** a trigger —
+the rule needs to see a whole day's worth of a session's history at once,
+which a per-row `AFTER INSERT` trigger cannot cheaply evaluate — so it is
+meant to run periodically instead. **Open item: nothing in this codebase
+calls it yet.** `scripts/worker.ts`'s `runMaintenance()` (it already calls
+`requeue_stalled_audio_jobs`/`expire_duet_requests` roughly once a minute)
+is the right place — add
+`admin.rpc("flag_suspicious_play_events")` there alongside those two calls.
+This migration does not touch `scripts/worker.ts` itself (out of this
+agent's owned files for Stage 13); every analytics/health RPC excludes
+flagged rows regardless via `wave_listen_is_suspicious()`, so the feature is
+correct today, just not self-maintaining until that one call is added.
 
 ## Indexes worth knowing about
 

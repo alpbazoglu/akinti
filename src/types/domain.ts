@@ -499,6 +499,79 @@ export interface Block {
 }
 
 /* ------------------------------------------------------------------------ */
+/* Creator analytics + product health (spec §27, §28)                       */
+/* ------------------------------------------------------------------------ */
+
+/** The only windows the analytics RPCs accept (mirrors the SQL `p_days not in (7, 30, 90)` guard). */
+export const ANALYTICS_RANGE_DAYS = [7, 30, 90] as const;
+export type AnalyticsRangeDays = (typeof ANALYTICS_RANGE_DAYS)[number];
+
+/**
+ * Totals for one creator over a window. `plays`/`uniqueListeners`/`replays`
+ * are deduplicated (spec §27 "distinguish raw events from meaningful/
+ * deduplicated metrics"); `avgListenSeconds`/`completionRate` read the raw
+ * per-event log instead (see docs/PRODUCT.md). `followerDelta` is new
+ * followers gained in the window, not a true net (no unfollow ledger
+ * exists to subtract against — documented limitation).
+ */
+export interface CreatorAnalyticsOverview {
+  plays: number;
+  uniqueListeners: number;
+  replays: number;
+  saves: number;
+  shares: number;
+  comments: number;
+  duets: number;
+  /** `null` when there were no qualifying listens to average. */
+  avgListenSeconds: number | null;
+  /** 0–1. */
+  completionRate: number;
+  followerDelta: number;
+}
+
+/** One day of activity. Only days with at least one event come back from the RPC — see `fillAnalyticsTimeseriesGaps`. */
+export interface CreatorAnalyticsDay {
+  /** `YYYY-MM-DD`. */
+  day: string;
+  plays: number;
+  uniqueListeners: number;
+  replays: number;
+  saves: number;
+  comments: number;
+  shares: number;
+  newFollowers: number;
+}
+
+/** One Wave's performance row, ranked by plays. */
+export interface CreatorWavePerformance {
+  waveId: string;
+  title: string;
+  creationType: WaveCreationType;
+  publishedAt: string;
+  plays: number;
+  replays: number;
+  saves: number;
+  comments: number;
+  shares: number;
+  /** 0–1. */
+  completionRate: number;
+}
+
+/** Platform-wide product health signals (spec §28), moderator-only. Every `*Rate`/`*Share` is 0–1. */
+export interface ProductHealth {
+  activationRate: number;
+  week1ReturningListenerRate: number;
+  week4ReturningListenerRate: number;
+  week1ReturningCreatorRate: number;
+  week4ReturningCreatorRate: number;
+  duetRequestsPerActiveUser: number;
+  duetAcceptanceRate: number;
+  duetsPerWeek: number;
+  discoveryShare: number;
+  contentVelocity: number;
+}
+
+/* ------------------------------------------------------------------------ */
 /* Pagination                                                                */
 /* ------------------------------------------------------------------------ */
 

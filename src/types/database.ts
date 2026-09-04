@@ -287,6 +287,8 @@ export type PlayEventRow = {
   completed: boolean;
   counted_play: boolean;
   counted_replay: boolean;
+  /** Set by `flag_suspicious_play_events()` (spec s27 anomaly flag, migration 24). */
+  suspicious: boolean;
   created_at: string;
 };
 
@@ -303,6 +305,61 @@ export type WaveListenRow = {
   play_counted_at: string | null;
   replay_counted_at: string | null;
   last_played_at: string;
+};
+
+/* ------------------------------------------------------------------------ */
+/* Creator analytics + product health (spec s27, s28, migration 24)         */
+/* Not tables — the shapes `creator_overview`/`creator_timeseries`/          */
+/* `creator_wave_performance`/`product_health` return as `returns table`.   */
+/* ------------------------------------------------------------------------ */
+export type CreatorOverviewRow = {
+  plays: number;
+  unique_listeners: number;
+  replays: number;
+  saves: number;
+  shares: number;
+  comments: number;
+  duets: number;
+  avg_listen_seconds: number | null;
+  completion_rate: number;
+  follower_delta: number;
+};
+
+export type CreatorTimeseriesRow = {
+  day: string;
+  plays: number;
+  unique_listeners: number;
+  replays: number;
+  saves: number;
+  comments: number;
+  shares: number;
+  new_followers: number;
+};
+
+export type CreatorWavePerformanceRow = {
+  wave_id: string;
+  title: string;
+  creation_type: WaveCreationType;
+  published_at: string;
+  plays: number;
+  replays: number;
+  saves: number;
+  comments: number;
+  shares: number;
+  completion_rate: number;
+};
+
+export type ProductHealthRow = {
+  activation_rate: number;
+  week1_returning_listener_rate: number;
+  week4_returning_listener_rate: number;
+  week1_returning_creator_rate: number;
+  week4_returning_creator_rate: number;
+  duet_requests_per_active_user: number;
+  duet_acceptance_rate: number;
+  duets_per_week: number;
+  discovery_share: number;
+  content_velocity: number;
 };
 
 export type DuetRequestRow = {
@@ -697,6 +754,13 @@ export interface Database {
         Returns: ReportRow;
       };
       dismiss_report: { Args: { p_report_id: string; p_note?: string | null }; Returns: ReportRow };
+      creator_overview: { Args: { p_days?: number }; Returns: CreatorOverviewRow[] };
+      creator_timeseries: { Args: { p_days?: number }; Returns: CreatorTimeseriesRow[] };
+      creator_wave_performance: {
+        Args: { p_days?: number; p_limit?: number };
+        Returns: CreatorWavePerformanceRow[];
+      };
+      product_health: { Args: { p_days?: number }; Returns: ProductHealthRow[] };
     };
     Enums: {
       profile_privacy: ProfilePrivacy;
