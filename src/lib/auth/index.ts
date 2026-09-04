@@ -9,3 +9,4 @@
 export { AuthProvider, useCurrentUser, type AuthProviderProps, type CurrentUserState } from "./AuthProvider";
 export { mapAuthError, type AuthErrorLike } from "./errors";
 export { AUTH_ACTION_INITIAL_STATE, fieldErrorsFromZod, type AuthActionResult } from "./types";
+export { useAuthRedirect } from "./useAuthRedirect";

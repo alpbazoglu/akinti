@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { routes } from "@/config/routes";
 import { mapAuthError } from "@/lib/auth/errors";
 import { fieldErrorsFromZod, type AuthActionResult } from "@/lib/auth/types";
-import { isUsernameAvailable } from "@/lib/db/profiles";
+import { getProfileById, isUsernameAvailable } from "@/lib/db/profiles";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   requestPasswordResetSchema,
@@ -105,14 +105,39 @@ export async function signIn(
   }
 
   const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
     return { ok: false, formError: mapAuthError(error) };
   }
 
   const next = sanitizeNextPath(formData.get("next"));
-  redirect(next ?? routes.home());
+
+  // Deliberately NOT `redirect()` here (unlike every other action in this
+  // file): a server-action `redirect()` drives a client-side transition
+  // whose RSC fetch does not reliably carry the auth cookie this very call
+  // just set (reproduced directly against the live project — the outgoing
+  // request has no `Cookie` header at all, even though the browser's
+  // cookie jar has it at `path=/`). The destination can render fully
+  // signed-out despite a valid session until the next hard navigation.
+  // `LoginForm` performs a real `window.location.assign` instead (see
+  // `useAuthRedirect`, and the identical fix already applied to
+  // `OnboardingFlow.tsx`'s post-finish navigation) once it sees
+  // `redirectTo` below.
+  //
+  // Onboarding status is checked here too (rather than only relying on
+  // `updateSession`'s gate in `src/lib/supabase/middleware.ts`, which only
+  // ever sees the *next* real request) so a not-yet-onboarded sign-in lands
+  // straight on `/onboarding`, the same way `signUp` does for its own
+  // post-signup landing.
+  if (data.user) {
+    const profile = await getProfileById(supabase, data.user.id);
+    if (!profile?.onboardedAt) {
+      return { ok: true, redirectTo: routes.onboarding(next) };
+    }
+  }
+
+  return { ok: true, redirectTo: next ?? routes.home() };
 }
 
 export async function signOut(): Promise<AuthActionResult> {

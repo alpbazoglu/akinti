@@ -15,6 +15,18 @@ export interface AuthActionResult {
   formError?: string;
   /** Success copy for actions that don't redirect (e.g. "check your email"). */
   message?: string;
+  /**
+   * Set by `signIn` on success instead of calling `redirect()` — a
+   * server-action `redirect()` drives a client-side transition whose RSC
+   * fetch does not reliably carry the just-set auth cookie (reproduced
+   * directly: the outgoing request has no `Cookie` header even though the
+   * browser's cookie jar has it), so a signed-in destination can render as
+   * signed-out until the next hard navigation. `LoginForm` does a real
+   * `window.location.assign(redirectTo)` instead, matching the same fix
+   * already applied to onboarding's post-finish navigation
+   * (`OnboardingFlow.tsx`).
+   */
+  redirectTo?: string;
 }
 
 export const AUTH_ACTION_INITIAL_STATE: AuthActionResult = { ok: false };

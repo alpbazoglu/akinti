@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Mic, UserPlus } from "lucide-react";
 
@@ -32,7 +31,6 @@ export function OnboardingFlow({
   suggestedCreators,
   next,
 }: OnboardingFlowProps) {
-  const router = useRouter();
   const { refreshProfile } = useCurrentUser();
 
   const [step, setStep] = useState(0);
@@ -78,7 +76,20 @@ export function OnboardingFlow({
         return;
       }
       await refreshProfile();
-      router.push(destination);
+      // A client-side `router.push` (even followed by `router.refresh()`)
+      // can land on `destination` still rendered signed-out: the RSC fetch
+      // Next's router issues for that navigation does not reliably carry
+      // the just-set auth cookie (reproduced directly — the outgoing
+      // request has no `Cookie` header at all even though the browser's
+      // cookie jar has it, `path=/`, `SameSite=Lax`), so `AuthProvider`'s
+      // server-rendered `initialUser` comes back `null` and the header
+      // shows "Log in / Sign up" instead of the account menu, despite a
+      // perfectly valid session. A full navigation does not have this
+      // problem (verified: identical account, hard nav renders signed in
+      // immediately) and this is a one-time, end-of-flow transition where
+      // an SPA-smooth transition isn't worth the risk of landing a
+      // brand-new user on an apparently-logged-out Home page.
+      window.location.assign(destination);
     });
   }
 
@@ -97,7 +108,9 @@ export function OnboardingFlow({
         return;
       }
       await refreshProfile();
-      router.push(routes.create());
+      // Same reasoning as `finish()` above — a hard navigation guarantees
+      // `/create` renders signed in.
+      window.location.assign(routes.create());
     });
   }
 
