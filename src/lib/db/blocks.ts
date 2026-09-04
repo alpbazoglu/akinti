@@ -59,31 +59,27 @@ export async function isBlockedBetween(db: Db, a: string, b: string): Promise<bo
  * (avatar, username, display name) hydrated for the Safety settings page
  * (spec §25/§26).
  *
- * `can_view_profile` (migration 10) treats a block as visibility-symmetric —
- * once a block exists in either direction, `profiles_select` hides the row
- * from BOTH parties, including the blocker themselves. That is correct for
- * "can a blocked stranger still browse me," but it also means an
- * RLS-scoped read can never render a blocker's own unblock list. This
- * function does not weaken that: `listBlockedProfiles` above already proves
- * (via `blocks_select_own`, `blocker_id = auth.uid()`) that the caller is
- * authorized to know these ids are blocked; `admin` is used only to fetch
- * basic identity for ids the caller is already provably authorized to know
- * about — never to discover a block relationship it didn't already have.
- * The cleaner long-term fix is an RLS predicate change (`can_view_profile`
- * special-casing "viewer is the blocker"); flagged to the schema owner
- * rather than written as a migration here (out of scope for this agent).
+ * Migration 17 (`20260903121700_profile_visibility_blocker_exception.sql`)
+ * narrowed `can_view_profile()` from symmetric to directional: the blocked
+ * party still can never view the blocker, but the blocker retains identity
+ * visibility of who they blocked. That makes this a plain RLS-scoped read —
+ * the earlier admin-client workaround (fetching identity with the
+ * service-role client because `profiles_select` used to hide blocked rows
+ * from the blocker too) is no longer needed. `admin` is accepted for call-site
+ * compatibility but intentionally unused.
  */
 export async function listBlockedProfilesWithIdentity(
   db: Db,
   admin: SupabaseClient<Database>,
   blockerId: string,
 ): Promise<Profile[]> {
+  void admin;
   const blocks = await listBlockedProfiles(db, blockerId);
   if (blocks.length === 0) {
     return [];
   }
   const ids = blocks.map((b) => b.blockedId);
-  const result = await admin.from("profiles").select("*").in("id", ids);
+  const result = await db.from("profiles").select("*").in("id", ids);
   const rows = unwrap("listBlockedProfilesWithIdentity", {
     data: result.data ?? [],
     error: result.error,
