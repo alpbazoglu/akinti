@@ -157,6 +157,17 @@ const NO_DEVICE_ERROR_NAMES = new Set(["NotFoundError", "DevicesNotFoundError", 
 
 export class AudioRecorder {
   private state: RecorderState;
+  /**
+   * Computed once and never mutated — `getServerState` must return the exact
+   * same reference on every call. `useSyncExternalStore` (`useRecorder`
+   * below) calls `getServerSnapshot` on every render to detect a hydration
+   * mismatch; a fresh object literal each time looks like "always changed"
+   * and React logs "The result of getServerSnapshot should be cached to
+   * avoid an infinite loop" (and can genuinely loop). This value is
+   * immutable and derived only from constructor options, so computing it
+   * once is always correct.
+   */
+  private readonly serverState: RecorderState;
   private readonly listeners = new Set<() => void>();
   private readonly opts: {
     maxDurationMs: number;
@@ -210,6 +221,7 @@ export class AudioRecorder {
       clearIntervalFn: options.clearIntervalFn ?? ((id) => clearInterval(id)),
     };
     this.state = { ...INITIAL_STATE, maxDurationMs: this.opts.maxDurationMs };
+    this.serverState = { ...INITIAL_STATE, maxDurationMs: this.opts.maxDurationMs };
   }
 
   /* ---------------------------------------------------------------- */
@@ -225,10 +237,7 @@ export class AudioRecorder {
 
   readonly getState = (): RecorderState => this.state;
 
-  readonly getServerState = (): RecorderState => ({
-    ...INITIAL_STATE,
-    maxDurationMs: this.opts.maxDurationMs,
-  });
+  readonly getServerState = (): RecorderState => this.serverState;
 
   /* ---------------------------------------------------------------- */
   /* Commands                                                          */
