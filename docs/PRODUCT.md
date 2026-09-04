@@ -136,6 +136,104 @@ Requires `notifications` to be added to the `supabase_realtime` publication
 These measure whether the product behaves like a collaboration network, not
 a passive feed (spec §48) — the core differentiation goal.
 
+**Implemented in Stage 13** (`20260903140500_creator_analytics.sql`,
+`product_health(p_days)`, moderator-only — `/analytics/health`, a 404 for
+everyone else). Exact cohort definitions (v1 judgment, not a spec-mandated
+formula):
+
+- **Activation rate** — of new users who signed up in the window *and* are
+  at least 7 days old (so the 7-day window has actually elapsed — a
+  brand-new account isn't counted as "not activated" just because it hasn't
+  had time to), the % that published a first Wave within 7 days of signing
+  up.
+- **Week-1 / week-4 returning listener rate** — a listener's "first" is
+  their earliest qualifying (`counted_play`/`counted_replay`) raw
+  `play_events` row, anomaly-flagged rows excluded. Cohort: first play in
+  the window *and* old enough that the return window has fully elapsed. The
+  rate is the % with another qualifying play in `[+7d, +14d)` (week-1) or
+  `[+28d, +35d)` (week-4) after that first one.
+- **Week-1 / week-4 returning creator rate** — same shape, keyed off a
+  creator's earliest published (non-deleted) Wave instead of a listener's
+  earliest play.
+- **Duet Requests per active user** — Duet Requests created in the window,
+  divided by "active users" (anyone who published a Wave, commented, sent a
+  Duet Request or had a qualifying play in the window).
+- **Duet acceptance rate** — accepted ÷ (accepted + declined) Duet Requests
+  created in the window (pending/cancelled/expired excluded from both sides).
+- **Duets per week** — Duet Waves published in the window ÷ (window days /
+  7).
+- **Discovery share** — of qualifying Plays in the window, the % where the
+  listener wasn't already following the creator at query time (a *current*
+  follow check, not a historical snapshot — a listener who has since
+  followed the creator no longer counts as a "discovery" play, which is a
+  known approximation, not a bug). An anonymous listener always counts as a
+  discovery, since they cannot be a follower.
+- **Content velocity** — Waves published in the window ÷ distinct creators
+  who published at least one, ÷ (window days / 7).
+
+## Creator analytics (spec §27, §43 Stage 13)
+
+`/analytics` — every signed-in creator sees their own numbers; anonymous
+visitors are redirected to `/login`. Three RPCs
+(`20260903140500_creator_analytics.sql`), each resolving `auth.uid()`
+internally rather than taking a creator-id argument, so there is nothing to
+forge: `creator_overview(p_days)`, `creator_timeseries(p_days)`,
+`creator_wave_performance(p_days, p_limit)`. `p_days` is one of `7 | 30 |
+90` everywhere (`src/lib/analytics/range.ts`'s `analyticsRangeSchema`,
+mirroring each RPC's own `p_days not in (7, 30, 90)` guard).
+
+**Meaningful vs. raw (spec §27 "distinguish raw events from
+meaningful/deduplicated metrics")** — shown on every stat tile, not just
+documented here:
+
+- **Meaningful (deduplicated):** Plays, unique listeners, Replays, Saves,
+  Shares, Comments, Duets. These read `wave_listens` (Plays/Replays/unique
+  listeners — the same deduplicated table `waves.play_count`/`replay_count`
+  derive from) or count rows directly (Saves/Shares/Comments/Duets), never
+  the raw event log.
+- **Raw (per-event):** Avg. listen time and completion rate read raw
+  `play_events` instead, restricted to qualifying
+  (`counted_play`/`counted_replay`) listens — `wave_listens.total_listened_ms`
+  accumulates across every listen of a (Wave, listener) pair, which would
+  blend multiple sessions into one number; a raw per-event average needed
+  the unaggregated log.
+- **Follower change** is new followers gained in the window (accepted
+  `follows` rows created in it) — **not a true net.** No unfollow ledger
+  exists to subtract against (`follows` rows are deleted on unfollow, not
+  soft-deleted), so an unusually high unfollow rate in the window would not
+  show up as a lower/negative number here. Documented, not hidden.
+
+**Anomaly flag (spec §27 "prevent... bot plays, self-replay farming...
+basic anomaly flags, not a full fraud ML system")** —
+`play_events.suspicious boolean default false`, set by
+`flag_suspicious_play_events()`: more than 20 qualifying listens of one Wave
+from one `listener_key` (session or account) on one calendar day. Every
+analytics/health RPC excludes flagged rows via `wave_listen_is_suspicious()`.
+The function is **not** called automatically by anything in the migration —
+see "Worker maintenance" in `DATABASE.md` for the call that still needs
+adding to `scripts/worker.ts`'s maintenance loop (out of scope for this
+agent's owned files). A TypeScript mirror of the exact rule lives in
+`src/lib/analytics/suspiciousPlay.ts` (tested, never imported by code that
+computes real numbers) — Postgres is always the authority.
+
+**Self-plays never inflate a creator's own numbers** — already guaranteed
+upstream by `record_play_event` (migration 11: a creator's own listens never
+set `play_counted`/`counted_play`), so no extra creator-id exclusion was
+needed in these RPCs for that rule specifically.
+
+**UI** (`src/app/(app)/analytics/`, `src/components/analytics/`): a 7/30/90
+range switcher (`RangeSwitcher`, a plain server component — each option is
+its own `<form>` bound to the `setAnalyticsRange` Server Action, so it works
+without client JS), ten stat tiles each labelled meaningful/raw, a
+single-metric daily bar chart with a `<select>` to change series and a
+keyboard-accessible "Show table" toggle that renders the same data as a real
+`<table>` (`AnalyticsTimeseriesChart` — inline SVG only, no charting
+library), and a Wave performance table linking every row to `/w/[id]`. A
+creator with zero Waves sees an empty state instead of ten empty tiles. Data
+fetching is wrapped in `<Suspense>` (a real loading skeleton, not a
+spinner-over-blank-page) and a try/catch around the RPC calls (a real error
+state, not an unhandled crash).
+
 ## Product differentiation checklist (spec §48)
 
 For every feature decision, ask: does this make the experience more

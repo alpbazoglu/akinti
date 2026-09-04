@@ -28,6 +28,11 @@ export const routes = {
   duetRecord: (waveId: string, requestId: string) =>
     `/w/${enc(waveId)}/duet/record?request=${enc(requestId)}`,
 
+  /* Creator analytics + product health (§27, §28) */
+  analytics: (days?: number) => (days ? `/analytics?days=${days}` : "/analytics"),
+  /** Moderators only — 404 otherwise (spec §28, mirrors `/moderation`). */
+  analyticsHealth: (days?: number) => (days ? `/analytics/health?days=${days}` : "/analytics/health"),
+
   /* Settings (§25) */
   settings: () => "/settings",
   settingsAccount: () => "/settings/account",
@@ -97,6 +102,14 @@ const PUBLIC_EXACT_ROUTES: readonly Href[] = [
 /** Prefix-matched public routes: OAuth/callback plumbing and public content. */
 const PUBLIC_ROUTE_PREFIXES: readonly Href[] = [
   "/auth/", // /auth/callback and any future OAuth provider routes
+  "/api/", // Route Handlers do their own auth/authorization (RLS + can_view_* RPCs) and
+           // must return a real API response (JSON/404), never an HTML redirect to
+           // /login — e.g. GET /api/audio/[assetId]/url's documented "always 404,
+           // never 403" contract (AUDIO_ARCHITECTURE.md, SECURITY.md). Without this,
+           // an anonymous visitor's audio fetch for a fully public Wave was silently
+           // redirected to the login page instead of getting a signed URL or a 404.
+           // updateSession() still refreshes the session cookie for these paths first;
+           // this only skips the page-style redirect branch.
   "/w/", // Wave detail — visibility is enforced server-side, not by gating the route
   "/u/", // Profile pages — same
 ];
@@ -146,6 +159,12 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     label: "Content",
     description: "Saved Waves, commented Waves, your Waves and Duets.",
     href: routes.settingsContent(),
+  },
+  {
+    key: "analytics",
+    label: "Analytics",
+    description: "Plays, listeners, Replays and Wave performance over time.",
+    href: routes.analytics(),
   },
   {
     key: "audio",
