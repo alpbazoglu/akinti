@@ -33,28 +33,26 @@
  * ACCEPTED row is the fulfillment marker). This action does not set it
  * directly.
  *
- * KNOWN ISSUE (documented, not silently swallowed — spec §44 "never fake
- * functionality"): `finalizeUpload` (`./actions.ts`) unconditionally enqueues
- * a plain `process_audio` job for every newly uploaded asset, including a
- * Duet contribution — it has no "this will be superseded by a mix" flag, and
- * this action cannot skip that call without duplicating `finalizeUpload`'s
- * magic-byte verification (which it must not — spec §44 rule 3). Both jobs
- * write to the SAME `audio_assets` row via `complete_audio_job`, so whichever
- * finishes last wins. In the overwhelmingly common case `process_audio`
- * (enqueued first, lower job id, same default priority) is claimed and
- * completes before `mix_duet` (enqueued here, strictly later), so the final
- * state is correct. If `process_audio` is instead still retrying (e.g. after
- * a transient failure) when `mix_duet` completes, its eventual success would
- * overwrite the mix with the unmixed solo contribution. This is a real,
- * documented race, not a hidden one — the fix is out of this agent's
- * ownership (`src/app/(app)/create/actions.ts`, `src/lib/db/audioAssets.ts`):
- * a `skipAutoProcessing` flag on `finalizeUpload`, or a version/job-id guard
- * on `complete_audio_job`, would close it.
+ * RESOLVED JOB RACE (previously documented here as a known issue): a Duet
+ * contribution stem must never also get the ordinary standalone
+ * `process_audio` job `finalizeUpload` (`./actions.ts`) otherwise enqueues
+ * for every asset — that job and this action's `mix_duet` job both write the
+ * SAME `audio_assets` row via `complete_audio_job`, and whichever finished
+ * last would silently win (a live, non-hypothetical race whenever
+ * `process_audio` was still retrying after a transient failure when
+ * `mix_duet` completed). Fixed by `finalizeUpload` accepting a third
+ * `skipAutoProcessing` argument — `DuetRecorder.tsx` passes `true` for the
+ * contribution's `finalizeUpload` call, so no `process_audio` job is ever
+ * enqueued for it; `mix_duet`, enqueued below, already applies the chosen
+ * preset/EQ to the contribution as part of the mixdown
+ * (`buildDuetMixFilterComplex`, `src/lib/duet/ffmpegChain.ts`), so nothing is
+ * lost by skipping the standalone pass. See docs/DUET_SPEC.md and
+ * docs/AUDIO_ARCHITECTURE.md ("Duet mixdown") for the full write-up.
  */
 
 import { revalidatePath } from "next/cache";
 
-import { getAudioAssetById } from "@/lib/db/audioAssets";
+import { enqueueAudioProcessing, getAudioAssetById } from "@/lib/db/audioAssets";
 import { enqueueDuetMixJob } from "@/lib/db/duets";
 import { getDuetRequestById } from "@/lib/db/duetRequests";
 import { DatabaseError, ForbiddenError, NotFoundError } from "@/lib/db/types";
@@ -196,6 +194,22 @@ export async function publishDuetWave(args: PublishDuetWaveArgs): Promise<Publis
   } catch (err) {
     mixQueued = false;
     console.error("[create/duetActions] failed to enqueue the mix_duet job:", err);
+    // Fallback, not a silent failure: the contribution's `finalizeUpload`
+    // call skipped the standalone `process_audio` job on purpose (see the
+    // file header) because `mix_duet` was expected to process it. Now that
+    // `mix_duet` itself couldn't be queued, fall back to the standalone job
+    // so the stem still gets normalized/enhanced and reaches `ready` instead
+    // of sitting at `pending` forever — the published Duet Wave will play
+    // the raw, unmixed contribution take (never a fake "mixed" result) until
+    // someone retries the mix, but at least it is not left unprocessed.
+    try {
+      await enqueueAudioProcessing(db, contribution.id, parsed.data.preset, parsed.data.advancedEq ?? null);
+    } catch (fallbackErr) {
+      console.error(
+        "[create/duetActions] fallback process_audio enqueue also failed:",
+        fallbackErr,
+      );
+    }
   }
 
   revalidatePath(routes.wave(waveId));

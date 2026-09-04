@@ -173,16 +173,27 @@ export type FinalizeUploadResult = FinalizeUploadSuccess | ActionFailure;
  * again here as the actual security boundary. On success, enqueue real
  * processing; on failure, mark the asset `failed` with a reason (never a
  * silent/fake success).
+ *
+ * `skipAutoProcessing` (default `false`): pass `true` only for a Duet
+ * contribution stem (`DuetRecorder.tsx`) — `publishDuetWave`
+ * (`./duetActions.ts`) enqueues a `mix_duet` job for the same asset right
+ * after this call returns, and that job already applies the chosen
+ * preset/EQ as part of the mixdown. Enqueuing the ordinary `process_audio`
+ * job too would race it for the same `audio_assets` row (see
+ * `docs/AUDIO_ARCHITECTURE.md` "Duet mixdown" and `docs/DUET_SPEC.md`). The
+ * magic-byte validation below still always runs — only the processing job
+ * is conditional.
  */
 export async function finalizeUpload(
   assetId: string,
   advancedEq?: AdvancedEqSettingsInput | null,
+  skipAutoProcessing?: boolean,
 ): Promise<FinalizeUploadResult> {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: NOT_CONFIGURED_ERROR };
   }
 
-  const parsed = finalizeUploadSchema.safeParse({ assetId, advancedEq });
+  const parsed = finalizeUploadSchema.safeParse({ assetId, advancedEq, skipAutoProcessing });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid upload." };
   }
@@ -250,11 +261,19 @@ export async function finalizeUpload(
     };
   }
 
-  try {
-    await enqueueAudioProcessing(db, asset.id, asset.enhancementPreset, parsed.data.advancedEq);
-  } catch (err) {
-    return { ok: false, error: describeError(err, "We couldn't queue processing. Try again.") };
+  if (!parsed.data.skipAutoProcessing) {
+    try {
+      await enqueueAudioProcessing(db, asset.id, asset.enhancementPreset, parsed.data.advancedEq);
+    } catch (err) {
+      return { ok: false, error: describeError(err, "We couldn't queue processing. Try again.") };
+    }
   }
+  // else: a Duet contribution stem — `publishDuetWave` (`./duetActions.ts`)
+  // enqueues the `mix_duet` job for this asset next, which applies the
+  // preset/EQ itself. The asset legitimately stays `processing_status =
+  // 'pending'` until that job completes; `mintPlaybackUrl` already falls
+  // back to `original_path` while pending, so nothing plays a fake "ready"
+  // file in the meantime (spec §44).
 
   return { ok: true, assetId: asset.id };
 }

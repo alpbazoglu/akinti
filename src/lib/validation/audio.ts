@@ -72,10 +72,24 @@ export const createUploadTicketSchema = z.object({
  * only needed once, right before the processing job is enqueued — carrying
  * it through both actions would mean persisting client-chosen state
  * server-side between two independent round trips for no benefit.
+ *
+ * `skipAutoProcessing` closes the Duet job race documented in
+ * `docs/DUET_SPEC.md`/`docs/AUDIO_ARCHITECTURE.md`: a Duet contribution stem
+ * is about to be consumed by a `mix_duet` job (enqueued separately by
+ * `publishDuetWave`, `src/app/(app)/create/duetActions.ts`) that already
+ * applies the chosen preset/EQ to it as part of the mixdown. Also enqueuing
+ * the ordinary standalone `process_audio` job for the same asset would race
+ * `mix_duet` to write `audio_assets`/`complete_audio_job` last — both jobs
+ * target the same row, and unlike `mix_duet` vs. `mix_duet`, they are
+ * different `job_type`s so the one-live-job-per-`(asset, job_type)` unique
+ * index does not prevent the race. Defaults to `false` so every other
+ * caller (`CreateFlow.tsx`'s ordinary Recorded/Uploaded publish) is
+ * unaffected.
  */
 export const finalizeUploadSchema = z.object({
   assetId: uuidSchema,
   advancedEq: advancedEqSettingsSchema.nullish(),
+  skipAutoProcessing: z.boolean().optional().default(false),
 });
 
 export const enqueueProcessingSchema = z.object({
