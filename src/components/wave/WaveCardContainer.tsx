@@ -131,8 +131,20 @@ export function WaveCardContainer({ wave, onComment, onSave, onShare, onRequestD
         return;
       }
       const target = event.target as HTMLElement;
-      const control = target.closest("button[aria-label]");
-      const label = control?.getAttribute("aria-label") ?? "";
+      // Not `button[aria-label]`: `WavePlayer`'s transport button is an
+      // `IconButton` (`src/components/ui/IconButton.tsx`), which names
+      // itself with a visually-hidden text span, never a literal
+      // `aria-label` attribute — that selector never matched a real button,
+      // so this interception never fired for an actual click and playback
+      // silently never started anywhere `WaveCardContainer` is used
+      // (Explore, Home feed, search, profiles, ...). Match by `textContent`
+      // instead, the same way the Request-a-Duet tooltip effect below
+      // already does; the `TRANSPORT_LABEL_RE` check below is what excludes
+      // every other button on the card (Comment/Save/Share/Request a Duet
+      // all have unrelated text), so widening the element selector to any
+      // `button` is still safe.
+      const control = target.closest("button");
+      const label = control?.textContent?.trim() ?? "";
       if (!TRANSPORT_LABEL_RE.test(label)) {
         return;
       }
