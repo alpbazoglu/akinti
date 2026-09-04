@@ -54,6 +54,9 @@ type Phase =
   | "published"
   | "error";
 
+/** The only piece of the state machine that is real React state — see the file-header note near its `useState` call. */
+type Outcome = "idle" | "publishing" | "published" | "error";
+
 export interface DuetRecorderProps {
   requestId: string;
   originalAssetId: string;
@@ -85,7 +88,16 @@ export function DuetRecorder({
   const [originalLoadError, setOriginalLoadError] = useState<string | null>(null);
   const [originalPlaying, setOriginalPlaying] = useState(false);
 
-  const [phase, setPhase] = useState<Phase>("ready");
+  // `phase` (below) is intentionally NOT its own `useState`: "ready" /
+  // "recording" / "recorded" are entirely derivable from `recorder.state`
+  // every render, and mirroring them into a parallel state variable via a
+  // `useEffect` is exactly the anti-pattern
+  // https://react.dev/learn/you-might-not-need-an-effect warns against —
+  // it also fights `react-hooks/set-state-in-effect`. Only the publish
+  // outcome ("publishing"/"published"/"error") is genuine state, since it
+  // is driven by `handlePublish`, an event handler, not a render-time
+  // derivation of anything.
+  const [outcome, setOutcome] = useState<Outcome>("idle");
   const [baseOffsetMs, setBaseOffsetMs] = useState(0);
   const [nudgeMs, setNudgeMs] = useState(0);
   const [previewPeaks, setPreviewPeaks] = useState<readonly number[] | null>(null);
@@ -95,10 +107,13 @@ export function DuetRecorder({
   const [advancedEq, setAdvancedEq] = useState<AdvancedEqSettings | null>(null);
   const [title, setTitle] = useState(`Duet with @${originalCreatorUsername}`);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [originalLoadAttempt, setOriginalLoadAttempt] = useState(0);
 
   const recorder = useRecorder();
 
-  // Resolve a signed playback URL for the original once, on mount — this
+  // Resolve a signed playback URL for the original — on mount, and again
+  // whenever `retryLoadOriginal` bumps `originalLoadAttempt` (spec §38:
+  // "original unavailable" needs a real retry, not a dead end). This
   // recorder needs the original playable immediately, unlike a feed card's
   // lazy-on-first-click resolution.
   useEffect(() => {
@@ -116,35 +131,66 @@ export function DuetRecorder({
     return () => {
       cancelled = true;
     };
-  }, [originalAssetId]);
+  }, [originalAssetId, originalLoadAttempt]);
+
+  // The retry button (an event handler, not an effect) is the one place that
+  // clears a stale error and re-triggers the load effect above.
+  const retryLoadOriginal = () => {
+    setOriginalUrl(null);
+    setOriginalLoadError(null);
+    setOriginalLoadAttempt((n) => n + 1);
+  };
+
+  // Every render's "ready"/"recording"/"recorded" phase, derived straight
+  // from the recorder store rather than mirrored into a `useEffect` (see the
+  // note by the `outcome` state above).
+  const phase: Phase =
+    outcome !== "idle"
+      ? outcome
+      : recorder.state.status === "recording"
+        ? "recording"
+        : recorder.state.status === "stopped" && recorder.state.result
+          ? "recorded"
+          : "ready";
 
   // Measure the base offset the instant the recorder actually starts
   // capturing — not at the button click, which races microphone permission
-  // latency (see src/lib/duet/sync.ts's file header).
-  const recordingJustStarted = recorder.state.status === "recording" && phase !== "recording";
+  // latency (see src/lib/duet/sync.ts's file header). `prevStatusRef` (not
+  // `phase`, which would be circular now that it's derived FROM this same
+  // status) is what makes this a one-shot "just transitioned" effect rather
+  // than re-measuring on every render while still recording.
+  const prevRecorderStatusRef = useRef(recorder.state.status);
   useEffect(() => {
-    if (recordingJustStarted) {
+    const prevStatus = prevRecorderStatusRef.current;
+    prevRecorderStatusRef.current = recorder.state.status;
+    if (recorder.state.status === "recording" && prevStatus !== "recording") {
       const elapsedMs = (originalAudioRef.current?.currentTime ?? 0) * 1000;
       setBaseOffsetMs(computeBaseOffsetMs(elapsedMs));
-      setPhase("recording");
     }
-  }, [recordingJustStarted]);
+  }, [recorder.state.status]);
 
+  // Pausing the original the moment recording stops is a real DOM side
+  // effect (synchronizing the audio element with the recorder's state) —
+  // exactly what an effect is for, and it sets no state at all:
+  // `originalPlaying` is kept in sync by the element's own `onPause` handler
+  // below (it fires for every real pause, this one included), and `phase`
+  // above already reflects "recorded" the instant `recorder.state` does.
   useEffect(() => {
     if (recorder.state.status === "stopped" && recorder.state.result) {
       originalAudioRef.current?.pause();
-      setOriginalPlaying(false);
-      setPhase("recorded");
     }
   }, [recorder.state.status, recorder.state.result]);
 
+  // Decodes local preview peaks for whatever take is currently recorded.
+  // No corresponding "reset to null on retake" branch is needed: `phase`
+  // resets to "ready" the instant `retake()` runs (see below), which already
+  // hides every bit of UI that reads `previewPeaks` — so there is nothing to
+  // synchronize when `recorder.state.result` goes back to `null`.
   useEffect(() => {
-    if (!recorder.state.result) {
-      setPreviewPeaks(null);
-      return;
-    }
+    const result = recorder.state.result;
+    if (!result) return;
     let cancelled = false;
-    void decodeToPeaks(recorder.state.result.blob, PREVIEW_PEAK_BUCKETS)
+    void decodeToPeaks(result.blob, PREVIEW_PEAK_BUCKETS)
       .then((peaks) => {
         if (!cancelled) setPreviewPeaks(peaks);
       })
@@ -155,6 +201,26 @@ export function DuetRecorder({
       cancelled = true;
     };
   }, [recorder.state.result]);
+
+  // Never leave a `<audio>` element playing after this recorder unmounts
+  // (e.g. the user navigates away mid-preview) — pausing on unmount is not
+  // guaranteed by React removing the DOM node alone in every browser.
+  // Deliberately reads `.current` inside the cleanup itself rather than
+  // copying it to a local at mount time: `previewOriginalRef`/
+  // `previewTakeRef` only attach once recording finishes (they're behind a
+  // `phase === "recorded"` conditional), well after this effect's single
+  // mount-time run — a local captured at mount would always be `null` for
+  // those two.
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above: reading `.current` live is intentional here
+      originalAudioRef.current?.pause();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above: reading `.current` live is intentional here
+      previewOriginalRef.current?.pause();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- see comment above: reading `.current` live is intentional here
+      previewTakeRef.current?.pause();
+    };
+  }, []);
 
   const offsetMs = useMemo(() => resolveOffsetMs(baseOffsetMs, nudgeMs), [baseOffsetMs, nudgeMs]);
 
@@ -171,7 +237,11 @@ export function DuetRecorder({
   }, [takeUrl]);
 
   const startRecording = () => {
-    if (!originalAudioRef.current) return;
+    // Spec §38 "original unavailable": recording against nothing produces a
+    // meaningless offset and an unusable Duet — refuse to start until the
+    // original has actually loaded, rather than silently recording a solo
+    // take with `baseOffsetMs` stuck at 0.
+    if (!originalAudioRef.current || !originalUrl || originalLoadError) return;
     store.pause(); // Respect "only one Wave plays at a time" for the rest of the app.
     originalAudioRef.current.currentTime = 0;
     void originalAudioRef.current.play();
@@ -188,7 +258,10 @@ export function DuetRecorder({
     recorder.retake();
     setBaseOffsetMs(0);
     setNudgeMs(0);
-    setPhase("ready");
+    // Clears a previous failed-publish outcome too, not just resetting
+    // "recorded" back to "ready" — both are the same `outcome` reset now
+    // that `phase` is derived (see the note above).
+    setOutcome("idle");
   };
 
   const stopPreview = () => {
@@ -233,7 +306,7 @@ export function DuetRecorder({
     const result = recorder.state.result;
     if (!result) return;
     setPublishError(null);
-    setPhase("publishing");
+    setOutcome("publishing");
     stopPreview();
 
     const ticket = await createUploadTicket({
@@ -249,7 +322,7 @@ export function DuetRecorder({
     });
     if (!ticket.ok) {
       setPublishError(ticket.error);
-      setPhase("error");
+      setOutcome("error");
       return;
     }
 
@@ -260,19 +333,25 @@ export function DuetRecorder({
         .uploadToSignedUrl(ticket.path, ticket.uploadToken, result.blob, { contentType: result.mimeType });
       if (uploadError) {
         setPublishError("The upload didn't complete. Try again.");
-        setPhase("error");
+        setOutcome("error");
         return;
       }
     } catch {
       setPublishError("The upload didn't complete. Check your connection and try again.");
-      setPhase("error");
+      setOutcome("error");
       return;
     }
 
-    const finalized = await finalizeUpload(ticket.assetId, advancedEq ?? undefined);
+    // `skipAutoProcessing: true` — this is a Duet contribution stem. The
+    // `mix_duet` job enqueued below (via `publishDuetWave`) applies `preset`/
+    // `advancedEq` to it as part of the mixdown; enqueuing the ordinary
+    // standalone `process_audio` job too would race `mix_duet` for the same
+    // `audio_assets` row (see the file header of `create/duetActions.ts` and
+    // `docs/DUET_SPEC.md`).
+    const finalized = await finalizeUpload(ticket.assetId, advancedEq ?? undefined, true);
     if (!finalized.ok) {
       setPublishError(finalized.error);
-      setPhase("error");
+      setOutcome("error");
       return;
     }
 
@@ -287,11 +366,11 @@ export function DuetRecorder({
     });
     if (!published.ok) {
       setPublishError(published.error);
-      setPhase("error");
+      setOutcome("error");
       return;
     }
 
-    setPhase("published");
+    setOutcome("published");
     router.push(routes.wave(published.waveId));
   };
 
@@ -300,22 +379,36 @@ export function DuetRecorder({
       <div className="flex flex-col gap-5">
         <section className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4">
           <h2 className="text-sm font-semibold text-fg">Original — &ldquo;{originalTitle}&rdquo;</h2>
-          <audio ref={originalAudioRef} src={originalUrl ?? undefined} preload="auto" onEnded={() => setOriginalPlaying(false)}>
+          <audio
+            ref={originalAudioRef}
+            src={originalUrl ?? undefined}
+            preload="auto"
+            onEnded={() => setOriginalPlaying(false)}
+            onPause={() => setOriginalPlaying(false)}
+          >
             <track kind="captions" />
           </audio>
           <Waveform peaks={originalPeaks} progress={0} duration={originalDurationMs / 1000} readOnly />
-          {originalLoadError ? <p className="text-xs text-danger">{originalLoadError}</p> : null}
-          <p className="text-xs text-fg-subtle">
-            {originalPlaying ? "Playing — recording will pick up from here." : "Press record to start playback and capture your take together."}
-          </p>
+          {originalLoadError ? (
+            <ErrorState size="sm" title="The original couldn't be loaded" description={originalLoadError} onRetry={retryLoadOriginal} />
+          ) : (
+            <p className="text-xs text-fg-subtle">
+              {originalUrl
+                ? originalPlaying
+                  ? "Playing — recording will pick up from here."
+                  : "Press record to start playback and capture your take together."
+                : "Loading the original…"}
+            </p>
+          )}
         </section>
 
-        {phase === "ready" ? (
-          <RecordStep recorder={recorder} onStart={startRecording} onStop={stopRecording} />
-        ) : null}
-
-        {phase === "recording" ? (
-          <RecordStep recorder={recorder} onStart={startRecording} onStop={stopRecording} />
+        {phase === "ready" || phase === "recording" ? (
+          <RecordStep
+            recorder={recorder}
+            onStart={startRecording}
+            onStop={stopRecording}
+            originalReady={Boolean(originalUrl) && !originalLoadError}
+          />
         ) : null}
 
         {phase === "recorded" || phase === "publishing" || phase === "error" ? (
@@ -402,10 +495,13 @@ function RecordStep({
   recorder,
   onStart,
   onStop,
+  originalReady,
 }: {
   recorder: ReturnType<typeof useRecorder>;
   onStart: () => void;
   onStop: () => void;
+  /** False while the original's signed playback URL is still loading, or failed to load (spec §38). */
+  originalReady: boolean;
 }) {
   const { state } = recorder;
   return (
@@ -423,7 +519,7 @@ function RecordStep({
           size="lg"
           leadingIcon={<Mic className="size-4" />}
           onClick={onStart}
-          disabled={state.status === "unsupported" || state.status === "requesting"}
+          disabled={!originalReady || state.status === "unsupported" || state.status === "requesting"}
           loading={state.status === "requesting"}
         >
           Record your contribution
