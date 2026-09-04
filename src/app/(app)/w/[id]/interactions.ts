@@ -21,7 +21,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentUser } from "@/lib/auth/server";
+import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
+import { isRateLimitError, RATE_LIMIT_MESSAGE } from "@/lib/moderation/errors";
 import {
   createComment as createCommentDb,
   deleteComment as deleteCommentDb,
@@ -66,6 +67,9 @@ function fail<T = undefined>(error: string): InteractionResult<T> {
 
 /** Turn a thrown `src/lib/db` error into a message safe to show a user. Never forwards a raw Postgres error string. */
 function describeError(err: unknown, fallback: string): string {
+  if (isRateLimitError(err)) {
+    return RATE_LIMIT_MESSAGE;
+  }
   if (err instanceof NotFoundError) {
     return "That could not be found.";
   }
@@ -213,6 +217,7 @@ export async function createComment(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
 
@@ -257,6 +262,7 @@ export async function deleteComment(commentId: string): Promise<InteractionResul
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   const comment = await getCommentById(db, parsed.data).catch(() => null);
@@ -299,12 +305,16 @@ export async function reportComment(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   try {
     await createReport(db, user.id, parsed.data);
     return ok(undefined, "Report submitted. Our team will review it.");
   } catch (err) {
+    if (isRateLimitError(err)) {
+      return fail(RATE_LIMIT_MESSAGE);
+    }
     if (err instanceof DatabaseError && err.code === "23505") {
       return fail("You've already reported this comment.");
     }
@@ -325,6 +335,7 @@ export async function saveWave(waveId: string): Promise<InteractionResult> {
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   try {
@@ -348,6 +359,7 @@ export async function unsaveWave(waveId: string): Promise<InteractionResult> {
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   try {
@@ -390,6 +402,7 @@ export async function recordShare(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   try {

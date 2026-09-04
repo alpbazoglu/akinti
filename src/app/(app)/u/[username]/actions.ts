@@ -1,10 +1,11 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/auth/server";
+import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import type { AuthActionResult } from "@/lib/auth/types";
 import { fieldErrorsFromZod } from "@/lib/auth/types";
 import { blockProfile, unblockProfile } from "@/lib/db/blocks";
 import { followProfile, respondToFollowRequest, unfollowProfile } from "@/lib/db/follows";
+import { mapModerationError } from "@/lib/moderation/errors";
 import { createReport } from "@/lib/db/reports";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { uuidSchema } from "@/lib/validation/common";
@@ -40,6 +41,16 @@ async function requireSignedInUser() {
       } satisfies AuthActionResult,
     };
   }
+  // Server Action suspension guard (spec §26, §32, Stage 14 audit) —
+  // `requireUser`'s redirect-based check only runs at page-load time; a
+  // Server Action reached directly (a stale tab, or a client bypassing the
+  // UI) never goes through it, so every mutation here re-checks itself.
+  if (!(await assertNotSuspended(user.id))) {
+    return {
+      user: null,
+      result: { ok: false, formError: SUSPENDED_ACTION_MESSAGE } satisfies AuthActionResult,
+    };
+  }
   return { user, result: null };
 }
 
@@ -60,8 +71,8 @@ export async function follow(followeeId: string): Promise<FollowActionResult> {
   try {
     const status = await followProfile(supabase, user.id, parsed.data.followeeId);
     return { ok: true, status };
-  } catch {
-    return { ok: false, formError: "Could not follow this account. Try again." };
+  } catch (err) {
+    return { ok: false, formError: mapModerationError(err, "Could not follow this account. Try again.") };
   }
 }
 
@@ -189,8 +200,8 @@ export async function submitProfileReport(input: SubmitProfileReportInput): Prom
   const supabase = await createServerSupabaseClient();
   try {
     await createReport(supabase, user.id, parsed.data);
-  } catch {
-    return { ok: false, formError: "Could not submit your report. Try again." };
+  } catch (err) {
+    return { ok: false, formError: mapModerationError(err, "Could not submit your report. Try again.") };
   }
   return { ok: true, message: "Report submitted. Our team will review it." };
 }

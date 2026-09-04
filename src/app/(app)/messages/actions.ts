@@ -18,7 +18,7 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
-import { getCurrentUser } from "@/lib/auth/server";
+import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { createAudioAsset, getAudioAssetById } from "@/lib/db/audioAssets";
 import {
   canMessage as canMessageDb,
@@ -35,6 +35,7 @@ import { createReport } from "@/lib/db/reports";
 import { shareWave } from "@/lib/db/shares";
 import { DatabaseError, ForbiddenError, NotFoundError } from "@/lib/db/types";
 import { getWaveById } from "@/lib/db/waves";
+import { isRateLimitError, RATE_LIMIT_MESSAGE } from "@/lib/moderation/errors";
 import { sniffAudioKind } from "@/lib/audio/validateFile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -85,6 +86,9 @@ function fail<T = undefined>(error: string): MessageActionResult<T> {
 
 /** Turn a thrown `src/lib/db` error into a message safe to show a user. Never forwards a raw Postgres error string. */
 function describeError(err: unknown, fallback: string): string {
+  if (isRateLimitError(err)) {
+    return RATE_LIMIT_MESSAGE;
+  }
   if (err instanceof NotFoundError) {
     return "That could not be found.";
   }
@@ -133,6 +137,7 @@ export async function startConversation(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   const target = await getProfileByUsername(db, parsed.data.username.toLowerCase()).catch(() => null);
@@ -169,6 +174,7 @@ export async function sendTextMessage(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   try {
@@ -225,6 +231,7 @@ export async function createMessageAudioTicket(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   const conversation = await getConversationById(db, parsed.data.conversationId).catch(() => null);
@@ -274,6 +281,7 @@ export async function finalizeMessageAudio(assetId: string): Promise<MessageActi
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   const asset = await getAudioAssetById(db, parsed.data).catch(() => null);
@@ -362,6 +370,7 @@ export async function sendAudioMessage(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
 
@@ -423,6 +432,7 @@ export async function shareWaveToConversation(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
 
@@ -476,6 +486,7 @@ export async function markConversationRead(conversationId: string): Promise<Mess
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   try {
@@ -508,6 +519,7 @@ export async function loadOlderMessages(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   try {
@@ -532,6 +544,7 @@ export async function loadMoreConversations(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   try {
@@ -565,12 +578,16 @@ export async function reportMessage(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   try {
     await createReport(db, user.id, parsed.data);
     return ok(undefined, "Report submitted. Our team will review it.");
-  } catch {
+  } catch (err) {
+    if (isRateLimitError(err)) {
+      return fail(RATE_LIMIT_MESSAGE);
+    }
     return fail("Could not submit your report. Try again.");
   }
 }
@@ -598,6 +615,7 @@ export async function getSharedWaveCard(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   const wave = await getWaveById(db, parsed.data).catch(() => null);
@@ -618,6 +636,7 @@ export async function getDuetRequestCard(
 
   const user = await requireSignedIn();
   if (!user) return fail(SIGN_IN_ERROR);
+  if (!(await assertNotSuspended(user.id))) return fail(SUSPENDED_ACTION_MESSAGE);
 
   const db = await createServerSupabaseClient();
   const request = await getDuetRequestById(db, parsed.data).catch(() => null);

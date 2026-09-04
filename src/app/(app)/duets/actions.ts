@@ -22,7 +22,7 @@ import {
   respondToDuetRequest as respondToDuetRequestRow,
 } from "@/lib/db/duetRequests";
 import { DatabaseError } from "@/lib/db/types";
-import { getCurrentUser } from "@/lib/auth/server";
+import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { routes } from "@/config/routes";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -80,6 +80,9 @@ export async function respondToDuetRequest(
   if (!user) {
     return { ok: false, error: SIGN_IN_ERROR };
   }
+  if (!(await assertNotSuspended(user.id))) {
+    return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
+  }
 
   const db = await createServerSupabaseClient();
   const request = await getDuetRequestById(db, parsed.data.requestId);
@@ -117,6 +120,9 @@ export async function cancelDuetRequest(requestId: string): Promise<ActionResult
   const user = await getCurrentUser();
   if (!user) {
     return { ok: false, error: SIGN_IN_ERROR };
+  }
+  if (!(await assertNotSuspended(user.id))) {
+    return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
   }
 
   const db = await createServerSupabaseClient();

@@ -100,6 +100,37 @@ function isSuspended(suspendedUntil: string | null): boolean {
   return new Date(suspendedUntil).getTime() > Date.now();
 }
 
+/** Shown by a Server Action that refuses a mutation because the caller is suspended (spec §26, §32). */
+export const SUSPENDED_ACTION_MESSAGE =
+  "Your account is temporarily suspended, so this action isn't available right now.";
+
+/**
+ * Server Action suspension guard (spec §26, §32, Stage 14 audit) — the
+ * mutation-path complement to `requireUser`'s redirect-based check below.
+ * `requireUser` only runs at page-load time (every protected Server
+ * Component), so a Server Action reached directly — a tab left open from
+ * before the suspension took effect, or a client bypassing the UI entirely —
+ * never goes through it. Every mutating Server Action that inserts/updates on
+ * behalf of the caller should call this immediately after resolving the
+ * signed-in user and refuse the action (never throw to the client) when it
+ * returns `false`, matching this codebase's "blocked user attempts a direct
+ * API call bypassing the UI -> DENIED" standard for suspension too.
+ *
+ * Returns `true` when the assertion holds (the account is NOT suspended, the
+ * caller may proceed); `false` when `profiles.suspended_until` is still in
+ * the future.
+ */
+export async function assertNotSuspended(userId: string): Promise<boolean> {
+  if (!isSupabaseConfigured()) return true;
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("suspended_until")
+    .eq("id", userId)
+    .maybeSingle();
+  return !(data && isSuspended(data.suspended_until));
+}
+
 /**
  * Require a signed-in user, redirecting to `/login?next=<path>` otherwise.
  * `nextPath` should be the path (plus query string) to return to after

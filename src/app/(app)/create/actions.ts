@@ -23,7 +23,8 @@ import {
 import { createWave, inviteCollaborator } from "@/lib/db/waves";
 import { getProfileByUsername } from "@/lib/db/profiles";
 import { DatabaseError, ForbiddenError, NotFoundError } from "@/lib/db/types";
-import { getCurrentUser } from "@/lib/auth/server";
+import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
+import { isRateLimitError, RATE_LIMIT_MESSAGE } from "@/lib/moderation/errors";
 import { sniffAudioKind } from "@/lib/audio/validateFile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -52,6 +53,9 @@ export interface ActionFailure {
 
 /** Turn a thrown `src/lib/db` error into a message safe to show a user. Never forwards a raw Postgres error string. */
 function describeError(err: unknown, fallback: string): string {
+  if (isRateLimitError(err)) {
+    return RATE_LIMIT_MESSAGE;
+  }
   if (err instanceof NotFoundError) {
     return "That recording could not be found.";
   }
@@ -112,6 +116,9 @@ export async function createUploadTicket(
   const user = await getCurrentUser();
   if (!user) {
     return { ok: false, error: SIGN_IN_ERROR };
+  }
+  if (!(await assertNotSuspended(user.id))) {
+    return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
   }
 
   const db = await createServerSupabaseClient();
@@ -201,6 +208,9 @@ export async function finalizeUpload(
   const user = await getCurrentUser();
   if (!user) {
     return { ok: false, error: SIGN_IN_ERROR };
+  }
+  if (!(await assertNotSuspended(user.id))) {
+    return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
   }
 
   const db = await createServerSupabaseClient();
@@ -330,6 +340,9 @@ export async function publishWave(args: PublishWaveArgs): Promise<PublishWaveRes
   const user = await getCurrentUser();
   if (!user) {
     return { ok: false, error: SIGN_IN_ERROR };
+  }
+  if (!(await assertNotSuspended(user.id))) {
+    return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
   }
 
   const db = await createServerSupabaseClient();

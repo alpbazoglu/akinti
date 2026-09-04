@@ -612,9 +612,14 @@ async function processJob(admin: SupabaseAdminClient, job: AudioProcessingJobRow
 }
 
 async function runMaintenance(admin: SupabaseAdminClient): Promise<void> {
-  const [requeueResult, expireResult] = await Promise.all([
+  const [requeueResult, expireResult, flagResult] = await Promise.all([
     admin.rpc("requeue_stalled_audio_jobs", { p_stall_after: "10 minutes" }),
     admin.rpc("expire_duet_requests"),
+    // Spec s27 anomaly flag (migration 24, `20260903140500_creator_analytics.sql`):
+    // marks play_events.suspicious for any (wave, listener_key, day) with >20
+    // qualifying listens, so every creator/product analytics RPC can exclude
+    // farmed engagement. Idempotent — only ever adds flags, never removes one.
+    admin.rpc("flag_suspicious_play_events"),
   ]);
   if (requeueResult.error) {
     console.error("[worker] requeue_stalled_audio_jobs failed:", requeueResult.error.message);
@@ -625,6 +630,11 @@ async function runMaintenance(admin: SupabaseAdminClient): Promise<void> {
     console.error("[worker] expire_duet_requests failed:", expireResult.error.message);
   } else if (expireResult.data) {
     console.log(`[worker] expired ${expireResult.data} duet request(s)`);
+  }
+  if (flagResult.error) {
+    console.error("[worker] flag_suspicious_play_events failed:", flagResult.error.message);
+  } else if (flagResult.data) {
+    console.log(`[worker] flagged ${flagResult.data} suspicious play event(s)`);
   }
 }
 

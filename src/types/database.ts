@@ -702,6 +702,7 @@ export interface Database {
       fail_audio_job: { Args: { p_job_id: number; p_error: string }; Returns: undefined };
       requeue_stalled_audio_jobs: { Args: { p_stall_after?: string }; Returns: number };
       expire_duet_requests: { Args: Record<string, never>; Returns: number };
+      flag_suspicious_play_events: { Args: Record<string, never>; Returns: number };
       mark_notifications_read: { Args: { p_notification_ids?: string[] }; Returns: number };
       play_qualifying_ms: { Args: { p_duration_ms: number }; Returns: number };
       record_play_event: {

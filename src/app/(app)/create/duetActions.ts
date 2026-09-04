@@ -58,7 +58,7 @@ import { getDuetRequestById } from "@/lib/db/duetRequests";
 import { DatabaseError, ForbiddenError, NotFoundError } from "@/lib/db/types";
 import { createDuetWave, inviteCollaborator, respondToCollaboratorInvite } from "@/lib/db/waves";
 import { getWaveById } from "@/lib/db/waves";
-import { getCurrentUser } from "@/lib/auth/server";
+import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { routes } from "@/config/routes";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -113,6 +113,9 @@ export async function publishDuetWave(args: PublishDuetWaveArgs): Promise<Publis
   const user = await getCurrentUser();
   if (!user) {
     return { ok: false, error: SIGN_IN_ERROR };
+  }
+  if (!(await assertNotSuspended(user.id))) {
+    return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
   }
 
   const db = await createServerSupabaseClient();

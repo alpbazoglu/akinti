@@ -8,7 +8,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentUser } from "@/lib/auth/server";
+import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { deleteWave, getWaveById, updateWave } from "@/lib/db/waves";
 import { routes } from "@/config/routes";
 import { AUDIO_BUCKET, isSupabaseConfigured } from "@/lib/supabase/config";
@@ -55,6 +55,9 @@ export async function updateWaveDetails(
   if (!user) {
     return { ok: false, error: SIGN_IN_ERROR };
   }
+  if (!(await assertNotSuspended(user.id))) {
+    return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
+  }
 
   const db = await createServerSupabaseClient();
   const wave = await getWaveById(db, waveId);
@@ -88,6 +91,9 @@ export async function deleteWaveDetails(waveId: string): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) {
     return { ok: false, error: SIGN_IN_ERROR };
+  }
+  if (!(await assertNotSuspended(user.id))) {
+    return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
   }
 
   const db = await createServerSupabaseClient();
