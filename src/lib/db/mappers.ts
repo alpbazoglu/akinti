@@ -16,6 +16,7 @@ import type {
   DuetRequestRow,
   Json,
   MessageRow,
+  ModerationActionRow,
   NotificationRow,
   ProfileRow,
   ReportRow,
@@ -33,6 +34,7 @@ import type {
   ConversationMember,
   DuetRequest,
   Message,
+  ModerationAction,
   Notification,
   PlaybackOutcome,
   Profile,
@@ -65,6 +67,9 @@ export function toProfile(row: ProfileRow): Profile {
     },
     interests: row.interests,
     onboardedAt: row.onboarded_at,
+    notificationPreferences: row.notification_preferences,
+    isModerator: row.is_moderator,
+    suspendedUntil: row.suspended_until,
     counts: {
       followers: row.follower_count,
       following: row.following_count,
@@ -163,6 +168,7 @@ export function toWave(row: WaveRow): Wave {
     },
     publishedAt: row.published_at,
     updatedAt: row.updated_at,
+    hiddenAt: row.hidden_at,
   };
 }
 
@@ -301,6 +307,17 @@ export function toReport(row: ReportRow): Report {
     status: row.status,
     createdAt: row.created_at,
     reviewedAt: row.reviewed_at,
+  };
+}
+
+export function toModerationAction(row: ModerationActionRow): ModerationAction {
+  return {
+    id: row.id,
+    reportId: row.report_id,
+    moderatorId: row.moderator_id,
+    action: row.action,
+    note: row.note,
+    createdAt: row.created_at,
   };
 }
 

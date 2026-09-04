@@ -16,12 +16,16 @@ import type {
   AudioJobType,
   AudioProcessingStatus,
   CollaboratorStatus,
+  CommentAudience,
   ContentOrigin,
   ConversationKind,
   DuetRequestStatus,
   FollowStatus,
   Json,
   MessageKind,
+  ModerationActionType,
+  NotificationCategory,
+  NotificationPreferences,
   NotificationType,
   PermissionAudience,
   ProfilePrivacy,
@@ -43,12 +47,16 @@ export type {
   AudioJobType,
   AudioProcessingStatus,
   CollaboratorStatus,
+  CommentAudience,
   ContentOrigin,
   ConversationKind,
   DuetRequestStatus,
   FollowStatus,
   Json,
   MessageKind,
+  ModerationActionType,
+  NotificationCategory,
+  NotificationPreferences,
   NotificationType,
   PermissionAudience,
   ProfilePrivacy,
@@ -108,6 +116,16 @@ export const REPORT_REASONS = [
   "other",
 ] as const;
 export const REPORT_TARGET_TYPES = ["wave", "comment", "profile", "message"] as const;
+export const REPORT_STATUSES = ["open", "reviewing", "actioned", "dismissed"] as const;
+export const MODERATION_ACTION_TYPES = [
+  "none",
+  "hide_wave",
+  "hide_comment",
+  "warn_user",
+  "suspend_user",
+] as const;
+/** Order matches spec §25's own list ("message, Duet, comment, follower notifications"), `system` appended for the generic type. */
+export const NOTIFICATION_CATEGORIES = ["message", "duet", "comment", "follower", "system"] as const;
 
 /* ------------------------------------------------------------------------ */
 /* Profile                                                                   */
@@ -123,7 +141,7 @@ export interface ProfileTheme {
 export interface ProfilePermissions {
   duet: PermissionAudience;
   message: PermissionAudience;
-  comment: PermissionAudience;
+  comment: CommentAudience;
   defaultWaveVisibility: WaveVisibility;
 }
 
@@ -144,6 +162,12 @@ export interface Profile {
   permissions: ProfilePermissions;
   interests: string[];
   onboardedAt: string | null;
+  /** Spec §23/§25. A missing key means "on". */
+  notificationPreferences: NotificationPreferences;
+  /** Grants access to `/moderation` — see `src/lib/auth/server.ts`. */
+  isModerator: boolean;
+  /** Set only by `resolve_report(..., 'suspend_user')`. `null` or a past timestamp means not suspended. */
+  suspendedUntil: string | null;
   counts: ProfileCounts;
   createdAt: string;
 }
@@ -253,7 +277,7 @@ export interface Wave {
   creationType: WaveCreationType;
   visibility: WaveVisibility;
   /** `null` means "inherit the creator's profile setting". */
-  commentPermission: PermissionAudience | null;
+  commentPermission: CommentAudience | null;
   duetPermission: PermissionAudience | null;
   duet: WaveDuetLineage;
   contentOrigin: ContentOrigin;
@@ -261,6 +285,8 @@ export interface Wave {
   counts: WaveCounts;
   publishedAt: string;
   updatedAt: string;
+  /** Set only by `resolve_report(..., 'hide_wave')` (spec §26). Distinct from a soft delete — the creator still sees it, everyone else does not. */
+  hiddenAt: string | null;
 }
 
 export interface Collaborator {
@@ -454,6 +480,16 @@ export interface Report {
   status: ReportStatus;
   createdAt: string;
   reviewedAt: string | null;
+}
+
+/** Audit trail entry for a single `resolve_report`/`dismiss_report` call (spec §26). */
+export interface ModerationAction {
+  id: string;
+  reportId: string;
+  moderatorId: string;
+  action: ModerationActionType;
+  note: string | null;
+  createdAt: string;
 }
 
 export interface Block {

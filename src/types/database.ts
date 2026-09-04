@@ -48,6 +48,15 @@ type Relationships = {
 
 export type ProfilePrivacy = "public" | "private";
 export type PermissionAudience = "everyone" | "followers" | "following" | "nobody";
+/**
+ * `comment_permission` on both `profiles` and `waves` is a `permission_audience`
+ * column narrowed by a CHECK constraint that excludes `'following'`
+ * (`profiles_comment_permission_values`, migration 02;
+ * `waves_comment_permission_values`, migration 04 — comments only ever offer
+ * everyone / followers / nobody, spec s14). This alias makes that narrowing a
+ * compile-time fact instead of a runtime-only one.
+ */
+export type CommentAudience = "everyone" | "followers" | "nobody";
 export type FollowStatus = "pending" | "accepted";
 
 export type ThemeBackgroundColor = "ink" | "slate" | "sand" | "mist" | "plum" | "forest";
@@ -103,6 +112,12 @@ export type ReportReason =
   | "abusive"
   | "other";
 export type ReportStatus = "open" | "reviewing" | "actioned" | "dismissed";
+export type ModerationActionType = "none" | "hide_wave" | "hide_comment" | "warn_user" | "suspend_user";
+
+/** Keys of `profiles.notification_preferences` (spec s23, s25). A missing key means "on". */
+export type NotificationCategory = "message" | "duet" | "comment" | "follower" | "system";
+/** Shape of the `notification_preferences` jsonb column — every key optional, `undefined` == on. */
+export type NotificationPreferences = Partial<Record<NotificationCategory, boolean>>;
 
 /* ------------------------------------------------------------------------ */
 /* Row shapes                                                                */
@@ -121,10 +136,16 @@ export type ProfileRow = {
   accent_color: ThemeAccent;
   duet_permission: PermissionAudience;
   message_permission: PermissionAudience;
-  comment_permission: PermissionAudience;
+  comment_permission: CommentAudience;
   default_wave_visibility: WaveVisibility;
   interests: string[];
   onboarded_at: string | null;
+  /** jsonb; validated by `profiles_notification_preferences_valid` (migration 22). */
+  notification_preferences: NotificationPreferences;
+  /** Server-owned (migration 23) — never settable via a normal profile update, see `profiles_guard_moderation_columns`. */
+  is_moderator: boolean;
+  /** Server-owned (migration 23) — set only by `resolve_report(..., 'suspend_user')`. */
+  suspended_until: string | null;
   follower_count: number;
   following_count: number;
   wave_count: number;
@@ -195,7 +216,7 @@ export type WaveRow = {
   description: string | null;
   creation_type: WaveCreationType;
   visibility: WaveVisibility;
-  comment_permission: PermissionAudience | null;
+  comment_permission: CommentAudience | null;
   duet_permission: PermissionAudience | null;
   original_wave_id: string | null;
   parent_wave_id: string | null;
@@ -213,6 +234,8 @@ export type WaveRow = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  /** Server-owned (migration 23) — set only by `resolve_report(..., 'hide_wave')`. Invisible to everyone but the creator and moderators; distinct from `deleted_at`. */
+  hidden_at: string | null;
 };
 
 export type WaveCollaboratorRow = {
@@ -360,6 +383,16 @@ export type ReportRow = {
   reviewed_at: string | null;
 };
 
+/** Audit trail for `resolve_report`/`dismiss_report` (migration 23). Written only by those RPCs. */
+export type ModerationActionRow = {
+  id: string;
+  report_id: string;
+  moderator_id: string;
+  action: ModerationActionType;
+  note: string | null;
+  created_at: string;
+};
+
 /* ------------------------------------------------------------------------ */
 /* Database                                                                  */
 /* ------------------------------------------------------------------------ */
@@ -373,11 +406,26 @@ export interface Database {
           Partial<
             Omit<
               ProfileRow,
-              "id" | "username" | "follower_count" | "following_count" | "wave_count"
+              | "id"
+              | "username"
+              | "follower_count"
+              | "following_count"
+              | "wave_count"
+              | "is_moderator"
+              | "suspended_until"
             >
           >;
+        /** `is_moderator`/`suspended_until` are server-owned (migration 23, `profiles_guard_moderation_columns`) — never client-settable. */
         Update: Partial<
-          Omit<ProfileRow, "id" | "follower_count" | "following_count" | "wave_count">
+          Omit<
+            ProfileRow,
+            | "id"
+            | "follower_count"
+            | "following_count"
+            | "wave_count"
+            | "is_moderator"
+            | "suspended_until"
+          >
         >;
         Relationships: Relationships;
       };
@@ -550,6 +598,13 @@ export interface Database {
         Update: never;
         Relationships: Relationships;
       };
+      moderation_actions: {
+        Row: ModerationActionRow;
+        /** Written exclusively by `resolve_report`/`dismiss_report`. */
+        Insert: never;
+        Update: never;
+        Relationships: Relationships;
+      };
     };
     Views: Record<never, never>;
     Functions: {
@@ -630,6 +685,18 @@ export interface Database {
         };
         Returns: number;
       };
+      is_moderator: { Args: { p_profile_id?: string }; Returns: boolean };
+      claim_report: { Args: { p_report_id: string }; Returns: ReportRow };
+      resolve_report: {
+        Args: {
+          p_report_id: string;
+          p_action: ModerationActionType;
+          p_note?: string | null;
+          p_suspend_until?: string | null;
+        };
+        Returns: ReportRow;
+      };
+      dismiss_report: { Args: { p_report_id: string; p_note?: string | null }; Returns: ReportRow };
     };
     Enums: {
       profile_privacy: ProfilePrivacy;
@@ -655,6 +722,7 @@ export interface Database {
       report_target_type: ReportTargetType;
       report_reason: ReportReason;
       report_status: ReportStatus;
+      moderation_action_type: ModerationActionType;
     };
     CompositeTypes: Record<never, never>;
   };

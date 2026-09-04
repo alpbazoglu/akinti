@@ -4,8 +4,8 @@
  * and marks-as-read.
  */
 
-import type { MarkNotificationsReadInput } from "@/lib/validation/moderation";
-import type { Notification, NotificationWithActor, Page } from "@/types/domain";
+import type { MarkNotificationsReadInput, NotificationPreferencesInput } from "@/lib/validation/moderation";
+import type { Notification, NotificationPreferences, NotificationWithActor, Page } from "@/types/domain";
 
 import { getProfilesByIds } from "./profiles";
 import { toNotification } from "./mappers";
@@ -67,4 +67,27 @@ export async function markNotificationsRead(
 
 export function isNotification(value: unknown): value is Notification {
   return typeof value === "object" && value !== null && "groupKey" in value;
+}
+
+/**
+ * Settings → Notifications (spec §23, §25). Writes `profiles.notification_preferences`
+ * directly — `profiles_update_own` RLS already scopes this to the caller's
+ * own row (`id = auth.uid()`), same as every other Settings write in
+ * `src/app/(app)/settings/actions.ts`. `push_notification()` (migration 22)
+ * is what actually enforces these categories at write time; this is only
+ * the read/write path for the toggle values themselves.
+ */
+export async function updateNotificationPreferences(
+  db: Db,
+  profileId: string,
+  preferences: NotificationPreferencesInput,
+): Promise<NotificationPreferences> {
+  const result = await db
+    .from("profiles")
+    .update({ notification_preferences: preferences })
+    .eq("id", profileId)
+    .select("notification_preferences")
+    .single();
+  const row = unwrap("updateNotificationPreferences", result);
+  return row.notification_preferences;
 }
