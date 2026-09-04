@@ -11,9 +11,17 @@ for the two subsystems with the most design weight.
 - **Frontend:** Next.js 16.3 (App Router), React 19, TypeScript, Tailwind 4.
 - **Backend:** Supabase — Postgres 17, Supabase Auth, Supabase Storage,
   Realtime where needed (messaging, notifications).
-- **Audio tooling:** wavesurfer.js for playback/waveform rendering (owned by
-  the UI/audio agent, `src/lib/audio`); ffmpeg for server-side processing,
-  invoked from `scripts/worker.ts` (owned by this layer).
+- **Audio tooling:** a custom Canvas `Waveform` + native `<audio>` element
+  (`src/components/audio/Waveform.tsx`, `src/lib/audio/playbackStore.ts`) for
+  playback/waveform rendering — spec §12 allows wavesurfer.js "or an
+  equivalent waveform-aware player driven by a single global playback
+  manager," and this codebase never actually imported wavesurfer.js anywhere
+  under `src/` (Stage 14 audit removed it from `package.json`, where it had
+  sat unused as dead weight); peaks are pre-computed server-side (800 points,
+  see `AUDIO_ARCHITECTURE.md` "Waveform peaks") and rendered directly, so
+  there was never a decode-in-the-browser step for a wavesurfer instance to
+  own. ffmpeg for server-side processing, invoked from `scripts/worker.ts`
+  (owned by this layer).
 - **Deployment:** Vercel (web app). The worker is a long-running Node
   process and does **not** run as a Vercel serverless function — see
   `AUDIO_ARCHITECTURE.md` for why.
@@ -43,7 +51,7 @@ Next 16 renamed `middleware.ts` → **`proxy.ts`**, and `cookies()` is now
 ```
 src/app/**            UI routes, Server Components, Server Functions   (UI agent)
 src/components/**      Presentational + client components               (UI agent)
-src/lib/audio/**       wavesurfer/MediaRecorder integration              (UI agent)
+src/lib/audio/**       Canvas waveform/MediaRecorder integration           (UI agent)
 src/lib/ui/**          Design tokens, primitives                         (UI agent)
 src/config/**          App-level config (not Supabase)                   (UI agent)
 ------------------------------------------------------------------------------------
@@ -331,3 +339,152 @@ composition are the UI/audio agent's responsibility (`src/app`,
 `src/components`, `src/lib/audio`, `src/lib/ui`, `src/config`,
 `globals.css`, `src/test`). This layer stops at typed data access and the
 database/storage/worker that backs it.
+
+## Performance notes (Stage 14 audit, spec §35)
+
+### Eager per-Wave signed-URL minting on the profile page — fixed
+
+`src/lib/db/profileWaves.ts` (backing `/u/[username]`'s Waves/Duets tabs) used
+to call `mintSignedAudioUrl` once per Wave, server-side, on every page
+render — one Supabase Storage round trip per card before the profile page
+could respond at all, exactly the "load all audio assets on a page at once"
+pattern spec §35 rules out. Every other list in the app (`src/lib/feed/hydrate.ts`
+for Home/Explore/Search, `src/lib/interactions/contentLists.ts` for Settings
+→ Content's four tabs) had already been built the other way: hand
+`WaveCardContainer` an `audioAssetId` and let it resolve a signed URL itself,
+lazily, on first play, via `GET /api/audio/[assetId]/url`.
+`profileWaves.ts` was the one file still on the old pattern (its own doc
+comment, before this fix, said as much).
+
+Fixed by dropping `mintSignedAudioUrl`/the admin-client parameter from
+`hydrateProfileWaves`/`listProfileWaveCards`/`listProfileDuetCards` entirely
+— they now return `audioAssetId` like every other hydration helper — and
+switching `src/components/profile/ProfileTabs.tsx` from the plain `WaveCard`
+to `WaveCardContainer`. Net effect: the profile page's Waves/Duets tabs no
+longer touch Supabase Storage at all until a visitor actually presses play,
+and one fewer admin-client call site exists in the codebase (principle of
+least privilege: fewer places holding the service-role key at all).
+
+### Bundle size — recorder code on `/messages/[id]` — fixed
+
+`src/components/messages/Composer.tsx` statically imported `RecorderPanel`
+(pulls in `src/lib/audio/recorder.ts`'s `MediaRecorder`/`AnalyserNode`
+wrapper) at module scope, even though most people opening a conversation
+thread never record an audio message. Every `/messages/[id]` visit paid for
+that code. Fixed with `next/dynamic(() => import("@/components/audio").then(m
+=> m.RecorderPanel), { ssr: false })` — the recorder chunk now only loads
+once a visitor actually taps "Record an audio message." `RecorderPanel`,
+`AudioPreview` and `EnhancementPicker` on `/create` and
+`src/components/duet/DuetRecorder.tsx` on `/w/[id]/duet/record` were left as
+static imports — those are the three routes spec §35/Stage 14 explicitly
+names as the intended load sites, Next's own per-route code splitting
+already isolates them from every other route, and `/create`/`/w/[id]/duet/record`
+exist specifically to record, so there is no "most visitors don't need this"
+case to defer there the way there is on a general messaging thread.
+
+**On measuring the exact delta:** Next 16.3's Turbopack production build
+(`npm run build`) prints only the route list and its static/dynamic marker
+in this environment — no "First Load JS" size column the way a classic
+webpack `next build` does, and no bundle analyzer is wired into
+`next.config.ts` in this environment. Verified the fix held qualitatively
+instead: `grep -rl RecorderPanel .next/static/chunks` after the build still
+resolves (the string exists somewhere, as expected — `/create` and
+`/w/[id]/duet/record` still import it statically), but `Composer.tsx` itself
+no longer has a static `import { RecorderPanel } from "@/components/audio"`
+— `git diff`/direct inspection confirms it's `dynamic(() =>
+import("@/components/audio").then(...), { ssr: false })` now, which is what
+actually matters: Next only fetches that chunk when the dynamic component
+first renders (gated behind the record sheet's `open` state), not on
+`/messages/[id]` mount. If exact numbers are needed later, wiring
+`@next/bundle-analyzer` into `next.config.ts` (prodready-owned) would give a
+real before/after report the next time this route changes.
+
+### Unused `wavesurfer.js` dependency — removed
+
+`wavesurfer.js` sat in `package.json` `dependencies` but was never imported
+anywhere under `src/` — grepping for `wavesurfer` (case-insensitive) across
+`src/` returned nothing. Waveform rendering has always been the custom
+Canvas `Waveform` component (`src/components/audio/Waveform.tsx`) driven by
+peaks pre-computed server-side (800 points per Wave, see
+`AUDIO_ARCHITECTURE.md` "Waveform peaks"), and playback has always been the
+single native `<audio>` element in `PlaybackStore`
+(`src/lib/audio/playbackStore.ts`) — spec §12 explicitly allows "wavesurfer.js
+(or an equivalent waveform-aware player)," and this codebase built the
+equivalent rather than the named library. Removed via `npm uninstall
+wavesurfer.js` (zero source changes needed, since nothing imported it); see
+the Stack section above.
+
+### Playback — reviewed, already compliant
+
+- **Single `<audio>` element, app-wide:** `PlaybackProvider` mounts once in
+  `src/app/providers.tsx` (the root layout's providers, not per-route), so
+  `PlaybackStore` is a true singleton — it survives client-side navigation
+  rather than being recreated per page.
+- **`preload="metadata"`:** `PlaybackStore`'s default `createAudio()` sets
+  `element.preload = "metadata"` — a card that isn't playing never buffers
+  audio bytes it doesn't need yet.
+- **No leaked listeners across route changes:** `src/lib/metrics/playTracker.ts#attach`
+  is idempotent per `PlaybackStore` instance (a module-level `WeakSet`), and
+  since the store is the one app-wide singleton above, every
+  `WaveCardContainer`'s `usePlayTracker()` call across every route resolves
+  to exactly one `onProgress`/`onEnded` subscription, ever — not one per
+  mount, and never re-subscribed on navigation.
+
+### Feed pagination — reviewed, one correctness note
+
+- Page sizes are all ≤ 20 in practice: `DEFAULT_PAGE_LIMIT = 20`
+  (`src/lib/db/types.ts`), Explore categories request `CATEGORY_PAGE_SIZE =
+  10` explicitly. (`MAX_PAGE_LIMIT = 50` exists as a clamp ceiling for any
+  future caller, not something any current caller reaches.)
+  `WaveFeedList`'s `IntersectionObserver` (`rootMargin: "600px 0px"`, one
+  sentinel node) fires `onLoadMore` once per intersection and is torn down
+  while `status === "loading"`, so it only ever prefetches the single next
+  page — never the whole remaining list.
+- **Ordering note, not fixed here:** every cursor-paginated `waves.ts` list
+  helper (`listHomeFeed`, `listProfileWaves`, `listProfileDuets`,
+  `listNewWaves`, `listOriginalWaves`, `listWavesByTags`,
+  `listWavesByCreatorIds`, `listOpenForDuet`) orders and pages strictly by
+  `published_at desc`, with no `id` tiebreaker — the cursor itself is the
+  bare `published_at` value (`buildPage`, `src/lib/db/types.ts`). The
+  matching indexes (migration 04's `waves_creator_published_idx`/
+  `waves_public_published_idx`, migration 18's
+  `waves_original_content_published_idx`) are likewise `published_at`-only.
+  In the extremely unlikely event two Waves in the same page share an
+  identical `published_at` timestamp (bulk-imported/seeded data, or a
+  future bulk-publish feature), a `lt("published_at", cursor)` cursor can
+  skip or repeat a row at the page boundary. Not a security issue and not
+  observed in practice (organic `published_at` values come from Postgres
+  `now()`, effectively never collide), so left as a documented note rather
+  than a live fix: closing it cleanly means widening every cursor in this
+  list to a compound `(published_at, id)` tuple and adding `id` to each
+  matching index, which touches the waves-list surface broadly enough that
+  it deserves its own reviewed change rather than a rushed one inside an
+  audit pass.
+
+### Anonymous-safe caching for `/explore`, `/u/[username]`, `/w/[id]` — reviewed, not applied
+
+All three read cookies (via `getCurrentUser()`/`createServerSupabaseClient()`)
+on every render, even for an anonymous visitor, specifically because each
+response is genuinely per-viewer:
+
+- `/explore` — `hydrateWaveCards(supabase, trending, user?.id ?? null)`
+  computes each card's saved-state per viewer, and the Rising Creators strip
+  computes per-viewer follow status.
+- `/u/[username]` — `isSelf`, follow status, `canSeeContent` (private-account
+  gating) and each Wave card's `isSaved`/`canRequestDuet` are all
+  viewer-dependent.
+- `/w/[id]` — the same saved-state/comment-permission/Duet-permission
+  personalization, plus the page itself is the authorization boundary for a
+  private Wave.
+
+Adding `export const revalidate`/`dynamic = "force-static"` to any of these
+as written would not simply be a no-op — Next 16 already renders them
+dynamically because they call `cookies()` — it would risk caching one
+visitor's saved-state/follow-status/private-content view and serving it to a
+different visitor, which is a privacy bug, not a performance win. **Not
+applied.** The only way to make the anonymous case cacheable would be
+restructuring each page into a static/ISR public shell (trending list,
+public Wave/profile data) plus a small client-fetched personalization layer
+(saved-state, follow status) hydrated after paint — a real but nontrivial
+refactor, out of scope for a surgical audit pass; flagged here as the
+concrete next step if this becomes a measured bottleneck.

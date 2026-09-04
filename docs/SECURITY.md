@@ -534,3 +534,170 @@ Blocked user sends a message via direct API call, bypassing UI → DENIED (`mess
 Audio message asset id guessed by a non-member                 → ACCESS DENIED (`can_view_audio_asset`)
 Wave made private after being shared into a conversation       → message card no longer resolves it, `/w/[id]` denies directly
 ```
+
+## Audit 2026-09-04 (Stage 14 — security & performance audit)
+
+Scope: spec §32–§35, §38, §39, §43 Stage 14, §47. Everything below was found
+and fixed in this pass unless marked "reported" (owned by another stage/file
+this agent doesn't touch).
+
+### 1. `mapModerationError` adoption (spec §39) — fixed
+
+The rate-limit guard (`AKRTL`, migration 21) was only mapped to the honest
+"You're doing that too often…" copy in `src/app/(app)/moderation/actions.ts`.
+Every other Server Action that inserts into a rate-limited table was letting
+the raw guard rejection fall through to a generic "Something went wrong"
+message instead. Adopted `mapModerationError`/`isRateLimitError` in:
+
+- `src/app/(app)/w/[id]/interactions.ts` — `createComment`, `saveWave`,
+  `unsaveWave`, `recordShare` (via the shared `describeError` helper) and
+  `reportComment` (its own catch, since it doesn't call `describeError`).
+- `src/app/(app)/messages/actions.ts` — every mutation that goes through
+  `sendMessage`/`createAudioAsset` (via `describeError`) and `reportMessage`.
+- `src/app/(app)/u/[username]/actions.ts` — `follow`, `submitProfileReport`.
+- `src/app/(app)/w/[id]/duet/actions.ts` — `requestDuet` (`duet_requests`
+  insert, the one rate-limited table this file writes to).
+- `src/app/(app)/create/actions.ts` — `createUploadTicket` (`audio_assets`
+  insert, via `describeError`).
+
+`reports` (20/day) was not explicitly listed in the Stage 14 brief but is
+rate-limited per the table above and had the exact same bug (a raw `AKRTL`
+falling through to a generic message) in three report-filing actions —
+fixed alongside the listed tables rather than left half-done.
+
+### 2. `GET /api/audio/[assetId]/url` — reviewed, one gap reported to another owner
+
+Confirmed already compliant: constant `404` on every authorization failure
+(never `403`), `Cache-Control: private, no-store` on every response, a
+10-minute signed-URL TTL (`SIGNED_AUDIO_URL_TTL_SECONDS`), and a UUID-shaped
+`assetId` rejected before touching the database. No per-request DB write
+happens before the `can_view_audio_asset` check, so there's no cheap way to
+add a useful in-process throttle here — Vercel serverless instances don't
+share memory, so an in-memory counter would be trivially bypassed by load
+balancing across instances, and a DB-backed throttle would add a write (and
+therefore latency and its own row growth) to the hottest read path in the
+app (every play, on every card). **Recommendation, not implemented:** rate
+limit this route at the edge/CDN (Vercel's WAF rate-limiting rules, or a
+shared Redis/Upstash token bucket keyed by `auth.uid()` or IP) rather than
+in application code — the same conclusion a reasonable reviewer would reach
+for any high-frequency, low-mutation read endpoint.
+
+**Separate, more urgent bug found, reported, and fixed by the `routes.ts`
+owner during this pass:** `src/config/routes.ts#isPublicRoute` had no
+`/api/` entry, and `src/proxy.ts`'s matcher doesn't exclude `/api/*` either.
+`updateSession()` (`src/lib/supabase/middleware.ts`) therefore treated `GET
+/api/audio/[assetId]/url` as a *protected* route — for an anonymous visitor,
+`!userId && !isPublicRoute(pathname)` was true and the proxy 307-redirected
+the request to `/login` instead of letting the route handler answer. Since
+this route is the *only* way any browser ever gets a playable audio URL,
+including for fully public (`visibility = 'everyone'`) Waves an anonymous
+visitor is allowed to browse from `/explore`/`/w/[id]`, the practical effect
+was: **a signed-out visitor could browse the app but every play attempt
+failed** (the fetch followed the redirect, got the login page's HTML instead
+of JSON, and `WaveCardContainer` showed "This Wave's audio could not be
+loaded"). Signed-in users were unaffected (the redirect branch only fires
+when there is no session). Fixed in `src/config/routes.ts` — `"/api/"` was
+added to `PUBLIC_ROUTE_PREFIXES`, with a comment noting Route Handlers do
+their own auth/authorization and must never receive an HTML redirect in
+place of their documented JSON/404 contract.
+
+### 3. Suspension enforcement on Server Actions (spec §26, §32) — fixed, real gap
+
+`requireUser()` (`src/lib/auth/server.ts`) already redirected an actively
+suspended account to `/suspended` — but only when called, and every
+protected **page** calls it, while every **Server Action** in this codebase
+calls `getCurrentUser()` directly instead (never `requireUser`, since a
+`redirect()` thrown from inside a Server Action is a poor fit for this
+codebase's `{ ok, error }` contract). Net effect: a suspended account could
+still comment, message, follow, block/unblock, request a Duet, respond to a
+Duet Request, upload/publish a Wave, and edit/delete a Wave — every mutation
+surface — via a tab left open from before the suspension took effect, or a
+direct call bypassing the UI entirely. This is exactly the "blocked user
+attempts a direct API call bypassing the UI → DENIED" standard the table
+above already holds blocking to; suspension had no equivalent.
+
+**Fix:** `assertNotSuspended(userId): Promise<boolean>` added to
+`src/lib/auth/server.ts` (returns `true` when the account may proceed), with
+`SUSPENDED_ACTION_MESSAGE` as the one piece of copy every caller shows. Wired
+into every mutating Server Action module: `src/app/(app)/w/[id]/interactions.ts`,
+`src/app/(app)/messages/actions.ts`, `src/app/(app)/u/[username]/actions.ts`
+(inside its existing `requireSignedInUser` helper), `src/app/(app)/duets/actions.ts`,
+`src/app/(app)/w/[id]/duet/actions.ts`, `src/app/(app)/w/[id]/actions.ts`,
+`src/app/(app)/create/actions.ts`, `src/app/(app)/create/duetActions.ts`. In
+`interactions.ts`/`messages/actions.ts` this is applied uniformly through
+each file's shared `requireSignedIn()` helper — including the handful of
+read-only actions in `messages/actions.ts` (`loadOlderMessages`,
+`loadMoreConversations`, `getSharedWaveCard`, `getDuetRequestCard`). That is
+a deliberate, slightly broader-than-the-minimum choice: a suspended
+account's session reaching these Server Actions at all only happens via a
+stale tab or a direct bypass (a fresh page load already redirects to
+`/suspended` before any of these mount), so treating the whole surface as
+denied is consistent with — not more restrictive in any practical sense
+than — the existing page-level redirect, and it is far simpler to reason
+about than trying to split "reads still work, writes don't" per action.
+
+### 4. Ownership checks / admin-client ordering (spec §32, §33) — reviewed, no gap found
+
+Audited every mutating Server Action for an ownership check before
+update/delete, and every `createAdminClient()` call site in `src/` for
+"authorize with the RLS-scoped client first, only then use the admin
+client" ordering:
+
+- Wave edit/delete (`w/[id]/actions.ts`) — `wave.creatorId !== user.id`
+  checked before either `updateWave` or the admin-client storage cleanup in
+  `deleteWaveDetails`.
+- Comment delete (`interactions.ts`) — author OR the Wave's creator, checked
+  before `deleteCommentDb`.
+- Duet Request accept/decline/cancel — `recipientId`/`requesterId` checked
+  before the row transition, with `duet_requests_guard` (migration 12) as
+  the real, independent backstop regardless of what the app layer believes.
+- `finalizeUpload`/`finalizeMessageAudio`/`publishWave`/`publishDuetWave` —
+  `asset.ownerId !== user.id` checked before any admin-client read of the
+  asset's storage paths.
+- `settings/safety/page.tsx` (`listBlockedProfilesWithIdentity`) and
+  `messages/[id]/page.tsx` (`resolveOtherProfile`) — both use the admin
+  client only to fetch *identity* for ids an RLS-scoped read already proved
+  the caller may know about (their own `blocks` rows; a conversation they're
+  already a member of) — matches this file's existing documented reasoning
+  for both, not a new pattern.
+- `moderation/page.tsx` — `isModerator(db)` checked (with `notFound()` on
+  failure) before the admin-client-backed `getReportDetail` call.
+
+No client component (`"use client"`) imports `createAdminClient`,
+`@/lib/supabase/admin`, or anything from `src/lib/db` that requires the
+admin client — grepped every `"use client"` file in `src/` for `admin`
+imports; all ten `createAdminClient` call sites in the repo are
+Server Actions, Server Components, or the one Route Handler.
+
+**Minor, non-exploitable finding, not fixed:** `src/lib/supabase/server.ts`
+exports a second, unrelated `getCurrentUser`/`requireCurrentUser` pair that
+is never imported anywhere (every real call site uses
+`src/lib/auth/server.ts`'s version, which is also where the suspension logic
+above lives). Dead code, not a vulnerability — flagged since two
+same-named auth helpers in different modules is exactly the kind of thing
+that causes a future accidental wrong-import.
+
+### 5. `src/proxy.ts` / cookies / client-side secret leakage (spec §32) — reviewed
+
+- Matcher excludes `_next/static`, `_next/image`, `favicon.ico`, and every
+  static asset extension (images, fonts, `css`/`js`/`map`, and the audio
+  extensions) — confirmed appropriate; the one gap found (`/api/*` not
+  excluded) is `routes.ts`-owned and reported in section 2 above, not fixed
+  here.
+- Cookie options passed through `@supabase/ssr`'s `createServerClient` in
+  both `src/lib/supabase/middleware.ts` and `src/lib/supabase/server.ts` are
+  never overridden — `options` from `cookiesToSet` is forwarded as-is, so
+  `httpOnly`/`secure`/`sameSite` stay at `@supabase/ssr`'s own defaults.
+  Nothing in this codebase weakens them.
+- `SUPABASE_SERVICE_ROLE_KEY` is read only in `src/lib/supabase/admin.ts`,
+  which throws if evaluated in a browser context — see "Secrets" above,
+  unchanged this pass.
+
+### Performance (spec §35) — see `docs/ARCHITECTURE.md` "Performance notes (Stage 14 audit)"
+
+Eager per-Wave signed-URL minting on `/u/[username]` (fixed), the
+`Composer.tsx` recorder bundle (fixed), the unused `wavesurfer.js` dependency
+(removed), feed pagination/ordering (reviewed, one correctness note
+reported), and the `/explore`/`/u/[username]`/`/w/[id]` caching question
+(reviewed, not safely cacheable as built — reported) are documented there
+rather than duplicated in this file.
