@@ -26,6 +26,12 @@ instructions: `supabase/README.md`.
 | 15 | `audio_asset_column_security` | Security fix: revokes table-level `SELECT` on `audio_assets` from `anon`/`authenticated` and re-grants it scoped to every column except `original_path`/`processed_path` (spec §33) — see "Storage security" in `AUDIO_ARCHITECTURE.md` |
 | 16 | `realtime_publication` | Adds `notifications`, `messages`, `audio_assets` to the `supabase_realtime` publication (guarded, idempotent) |
 | 17 | `profile_visibility_blocker_exception` | Fix: `can_view_profile()` was symmetric on blocks, which also hid a blocked account's identity from the person who blocked them; now directional — the blocker keeps visibility, the blocked party still does not |
+| 18 | `explore_discovery` | `rising_creators()`, the Original-content partial index |
+| 19 | `realtime_audio_assets_security_fix` | Security fix: removes `audio_assets` from the `supabase_realtime` publication (`postgres_changes` broadcasts full rows, leaking the column-locked storage paths — see `SECURITY.md`) |
+| 20 | `rising_creators_security_definer` | Security fix: `rising_creators()` made `SECURITY DEFINER` so its `follows` aggregate isn't RLS-narrowed per viewer; output still filtered through `can_view_profile` |
+| 21 | `rate_limits` | `rate_limit_events`, `check_rate_limit()`/`record_rate_limit_event()`/`prune_rate_limit_events()`, `BEFORE INSERT` rate-limit guards on `comments`/`follows`/`messages`/`duet_requests`/`shares`/`reports`/`audio_assets` (spec §39) |
+| 22 | `notification_preferences` | `profiles.notification_preferences` jsonb + CHECK constraint, `notification_category()`, `push_notification()` updated to respect preferences (spec §23, §25) |
+| 23 | `moderation_foundation` | `moderation_action_type` enum, `profiles.is_moderator`/`suspended_until`, `waves.hidden_at`, `can_view_wave()` updated, `is_moderator()`, `moderation_actions` (audit trail), `claim_report()`/`resolve_report()`/`dismiss_report()` (spec §26) |
 
 ## Entities
 
@@ -58,7 +64,10 @@ duet_request`, payload shape enforced by a CHECK constraint per `kind`).
 
 **Notifications/moderation:** `notifications` (grouped by `group_key`; see
 below), `reports` (`open → reviewing → actioned | dismissed`, never
-auto-actioned on a single report).
+auto-actioned on a single report), `moderation_actions` (append-only audit
+trail — one row per `resolve_report`/`dismiss_report` call), `rate_limit_events`
+(append-only ledger backing the per-account rate limits, spec §39 — no
+client access, only through `check_rate_limit()`/`record_rate_limit_event()`).
 
 ## Design decisions worth knowing
 
@@ -94,6 +103,31 @@ the next event resets the group to a fresh unread notification with
 `search_profiles`/`search_waves`. Callers use the RPCs, never raw `ILIKE`
 queries, so the implementation can change without touching call sites.
 
+**Rate limits are a generic counter, not a table per action** (migration 21,
+spec §39). `rate_limit_events(profile_id, action, created_at)` plus
+`check_rate_limit(profile_id, action, max_count, window)` (raises SQLSTATE
+`AKRTL`) and `record_rate_limit_event(profile_id, action)`, called from a
+`BEFORE INSERT` guard on each of `comments`/`follows`/`messages`/
+`duet_requests`/`shares`/`reports`/`audio_assets`. Exact thresholds and the
+app-layer error mapping: `SECURITY.md`.
+
+**Notification preferences gate at the single write path, not at read time**
+(migration 22, spec §23/§25). `profiles.notification_preferences` (jsonb,
+keys `message | duet | comment | follower | system`) is checked inside
+`push_notification()` itself via `notification_category(type)` — a
+disabled category means the row is never inserted, not inserted-then-filtered.
+`save`/`share` notifications have no gating key and always deliver.
+
+**Wave hiding is a moderation state, not a delete** (migration 23, spec
+§26). `waves.hidden_at` is orthogonal to `waves.deleted_at`: a hidden Wave
+still exists and still counts toward `wave_count`, it is just invisible to
+everyone but the creator and moderators (`can_view_wave`, updated in
+migration 23) — reversible, and never set except by
+`resolve_report(..., 'hide_wave')`. Hiding a *comment* deliberately reuses
+`comments.deleted_at` instead of adding a parallel column, since the
+visibility effect a moderator wants there is identical to the author's own
+delete path.
+
 **`audio_assets.original_path`/`processed_path` are column-locked, not just
 RLS-gated.** Table-level `SELECT` on `audio_assets` implicitly covers every
 column, so RLS alone (migration 12) was not enough to keep the two raw
@@ -120,6 +154,13 @@ and `waves.title`/`description`.
 `audience_allows`, `can_message`, `is_conversation_member`. RLS policies
 (migration 12) and application code both call these — they are the *only*
 place a visibility rule is written down. Full write-up: `SECURITY.md`.
+
+`is_moderator(profile_id default auth.uid())` (migration 23) joins this set:
+`can_view_wave()` calls it to admit moderators to a hidden Wave,
+`reports_select_moderator`/`moderation_actions_select_moderator` RLS
+(migration 23) key off it directly, and `claim_report`/`resolve_report`/
+`dismiss_report` independently re-check it server-side rather than trusting
+any app-layer gate.
 
 **Migration 17 exception:** `can_view_profile()` is the one predicate that is
 *not* symmetric on blocks. It originally denied identity-card visibility

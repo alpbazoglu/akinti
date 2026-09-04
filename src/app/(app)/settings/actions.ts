@@ -4,10 +4,16 @@ import { getCurrentUser } from "@/lib/auth/server";
 import type { AuthActionResult } from "@/lib/auth/types";
 import { fieldErrorsFromZod } from "@/lib/auth/types";
 import { unblockProfile } from "@/lib/db/blocks";
-import { isUsernameAvailable, updateProfile } from "@/lib/db/profiles";
+import { toComment, toWave } from "@/lib/db/mappers";
+import { updateNotificationPreferences as updateNotificationPreferencesDb } from "@/lib/db/notifications";
+import { getProfileById, isUsernameAvailable, updateProfile } from "@/lib/db/profiles";
 import { DatabaseError } from "@/lib/db/types";
+import type { AccountDataExport } from "@/lib/privacy/dataExport";
+import { serializeAccountDataExport } from "@/lib/privacy/dataExport";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { CommentRow, WaveRow } from "@/types/database";
 import { uuidSchema } from "@/lib/validation/common";
+import { notificationPreferencesSchema } from "@/lib/validation/moderation";
 import {
   updateAccountSchema,
   updateAppearanceSchema,
@@ -184,4 +190,92 @@ export async function unblockUser(blockedId: string): Promise<AuthActionResult> 
   }
 
   return { ok: true, message: "Account unblocked." };
+}
+
+export interface UpdateNotificationPreferencesFormInput {
+  message?: boolean;
+  duet?: boolean;
+  comment?: boolean;
+  follower?: boolean;
+  system?: boolean;
+}
+
+/**
+ * Settings → Notifications (spec §23, §25). A missing/undefined key means
+ * "on" — the form only ever sends the keys the user has actually toggled
+ * off from their current state, so this never has to first read-then-merge.
+ * `push_notification()` (migration 22) is the actual enforcement point.
+ */
+export async function updateNotificationPreferences(
+  input: UpdateNotificationPreferencesFormInput,
+): Promise<AuthActionResult> {
+  const { user, result } = await requireSignedInUser();
+  if (!user) return result!;
+
+  const parsed = notificationPreferencesSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, formError: "Could not save your notification preferences." };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  try {
+    await updateNotificationPreferencesDb(supabase, user.id, parsed.data);
+  } catch {
+    return { ok: false, formError: "Could not save your notification preferences. Try again." };
+  }
+
+  return { ok: true, message: "Notification preferences saved." };
+}
+
+export interface ExportAccountDataResult extends AuthActionResult {
+  data?: AccountDataExport;
+}
+
+/**
+ * Settings → Safety → "Download my data" (spec §25/§26). A real export, not
+ * a placeholder (spec §44 rule 9): the caller's own profile, Wave metadata
+ * and comments, gathered through the caller's own RLS-scoped client (so
+ * this can never return more than the account can already see of itself)
+ * and shaped by the pure `serializeAccountDataExport`
+ * (`src/lib/privacy/dataExport.ts`). The client turns `data` into a
+ * downloadable `Blob` — a Server Action cannot hand back a `Blob` directly
+ * across the RSC boundary, only serializable JSON.
+ */
+export async function exportAccountData(): Promise<ExportAccountDataResult> {
+  const { user, result } = await requireSignedInUser();
+  if (!user) return result!;
+
+  const supabase = await createServerSupabaseClient();
+
+  try {
+    const profile = await getProfileById(supabase, user.id);
+    if (!profile) {
+      return { ok: false, formError: "Your account could not be found." };
+    }
+
+    const [wavesResult, commentsResult] = await Promise.all([
+      supabase
+        .from("waves")
+        .select("*")
+        .eq("creator_id", user.id)
+        .is("deleted_at", null)
+        .order("published_at", { ascending: false }),
+      supabase
+        .from("comments")
+        .select("*")
+        .eq("author_id", user.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false }),
+    ]);
+    if (wavesResult.error) throw wavesResult.error;
+    if (commentsResult.error) throw commentsResult.error;
+
+    const waves = ((wavesResult.data ?? []) as WaveRow[]).map(toWave);
+    const comments = ((commentsResult.data ?? []) as CommentRow[]).map(toComment);
+
+    const data = serializeAccountDataExport({ profile, waves, comments });
+    return { ok: true, data };
+  } catch {
+    return { ok: false, formError: "Could not prepare your data export. Try again." };
+  }
 }

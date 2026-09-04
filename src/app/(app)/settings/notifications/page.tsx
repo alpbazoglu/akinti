@@ -1,32 +1,49 @@
-import { Bell } from "lucide-react";
-
+import { PageHeader } from "@/components/layout";
+import { EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
+import { getProfileById } from "@/lib/db/profiles";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-import { PlaceholderPage } from "../../_components/PlaceholderPage";
+import { NotificationsForm } from "./NotificationsForm";
 
 export const metadata = { title: `Notifications · ${TERMS.settings}` };
 
 /**
- * Notification preferences (spec s25: "message, Duet, comment, follower
- * notifications"). `profiles` (migration 02) has no preference columns yet —
- * toggles need somewhere server-side to persist to, and there is currently
- * nowhere. Rather than fake working switches, this renders an honest
- * "not available yet" state. See the Stage 11 report for the exact migration
- * this needs (a `notification_preferences` jsonb column, or a dedicated
- * table) so a future stage can wire real Switch controls straight in here.
+ * Settings → Notifications (spec §23, §25). `profiles.notification_preferences`
+ * (migration 22) is now real — this used to render an honest "not available
+ * yet" state because there was nowhere to persist a toggle; that gap is
+ * closed, so this is a real form now.
  */
 export default async function NotificationsSettingsPage() {
-  await requireUser(routes.settingsNotifications());
+  const user = await requireUser(routes.settingsNotifications());
+
+  if (!isSupabaseConfigured()) {
+    return (
+      <>
+        <PageHeader title="Notifications" description="Choose what you want to hear about." />
+        <EmptyState
+          title="Backend not configured"
+          description="Notification preferences are unavailable in this environment."
+        />
+      </>
+    );
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const profile = await getProfileById(supabase, user.id);
 
   return (
-    <PlaceholderPage
-      title="Notifications"
-      description="Choose what you want to hear about."
-      icon={<Bell className="size-6" />}
-      emptyTitle="Preferences are not available yet"
-      emptyDescription={`There is nowhere to save a preference yet — no column or table for it exists (see docs/PRODUCT.md). Until then, every ${TERMS.notifications.toLowerCase()} type stays on. There are no Like notifications, because there are no Likes.`}
-    />
+    <>
+      <PageHeader
+        title="Notifications"
+        description="Choose what you want to hear about. Saves and Shares always notify — there's no toggle for those yet."
+      />
+      <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
+        <NotificationsForm initialPreferences={profile?.notificationPreferences ?? {}} />
+      </div>
+    </>
   );
 }

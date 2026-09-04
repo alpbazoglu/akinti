@@ -195,13 +195,14 @@ off (`(storage.foldername(name))[1] = auth.uid()::text`).
 A blocked account is never told it blocked them: `blocks` has no SELECT
 policy exposing the reverse direction.
 
-## Abuse prevention (spec §39) — what exists today, what doesn't yet
+## Abuse prevention (spec §39, Stage 12)
 
 Implemented at the database level:
 
 - **Play/Replay debounce** — duplicate raw events from the same listener
   within 5 seconds are dropped (`record_play_event`); self-plays by the
-  creator never count.
+  creator never count. Deliberately NOT covered by the rate limiter below —
+  it already has its own, more precise abuse control.
 - **Duplicate Duet requests** — one live `PENDING` request per `(wave,
   requester)`, enforced by a unique partial index, not just app logic.
 - **Duplicate reports** — one open report per `(reporter, target)`, per
@@ -209,14 +210,170 @@ Implemented at the database level:
 - **Comment/message abuse surfaces** — routed through `can_comment_on_wave`/
   `can_message`, both of which respect blocks and per-account permission
   settings before a row can be inserted at all.
+- **Per-account rate limits** (migration 21,
+  `20260903140200_rate_limits.sql`) — a generic `check_rate_limit(profile_id,
+  action, max_count, window)` SECURITY DEFINER function backed by an
+  append-only `rate_limit_events` ledger, called from a `BEFORE INSERT`
+  guard trigger on every rate-limited table (mirroring `messages_guard_insert`
+  and every other write guard — enforcement lives in the database, not
+  application code, so a direct API call cannot bypass it). Each guard
+  records exactly one event per accepted insert via
+  `record_rate_limit_event`, after every threshold for that action has
+  already passed; `is_service_request()` exempts trusted server-side writes.
+  `rate_limit_events` has no client-facing RLS policy at all — the only
+  access is through these SECURITY DEFINER functions.
 
-**Not yet implemented, flagged for a follow-up:** general per-account rate
-limiting on comments/follows/messages/share events/uploads (spec §39 says
-"choose exact thresholds based on real usage" — no usage data exists yet in
-this environment). If this is added, it belongs as another `BEFORE INSERT`
-guard (a rolling-window count against `created_at`) rather than
-application-layer throttling, for the same reason every other rule here
-lives in the database: it must hold even against direct API calls.
+  | Action | Table | Limit(s) |
+  |---|---|---|
+  | `comment` | `comments` | 10/minute, 200/day per author |
+  | `follow` | `follows` | 30/minute per follower |
+  | `message` | `messages` | 60/minute per sender |
+  | `duet_request` | `duet_requests` | 10/hour per requester |
+  | `share` | `shares` | 30/minute per sharer |
+  | `report` | `reports` | 20/day per reporter |
+  | `audio_upload` | `audio_assets` | 10/hour per owner (covers Wave uploads, recordings and message-audio registrations alike) |
+
+  These are conservative starting numbers (spec §39: "start conservative"),
+  chosen without production usage data — revisit once real traffic exists.
+  `prune_rate_limit_events(interval)` (service-role only) deletes ledger rows
+  older than the interval given (default 2 days, safely past the widest
+  1-day window above); nothing calls it automatically today — wire it into
+  `scripts/worker.ts` or a `pg_cron` job when one exists.
+
+  **Error mapping:** every guard raises SQLSTATE `AKRTL` (a code this
+  project owns; Postgres never assigns it). `src/lib/moderation/errors.ts`
+  (`isRateLimitError`, `mapModerationError`) is the one place that recognises
+  it and maps it to *"You're doing that too often. Try again in a few
+  minutes."* instead of a raw Postgres message reaching a form. Adopted by
+  `src/app/(app)/moderation/actions.ts` today; the natural remaining call
+  sites are `src/app/(app)/w/[id]/interactions.ts` (comments/shares),
+  `src/app/(app)/messages/actions.ts`, the follow action, and the Duet
+  request action module — none owned by this stage, flagged here for their
+  owners to adopt.
+
+## Notification preferences (spec §23, §25, Stage 12)
+
+`profiles.notification_preferences` (migration 22, jsonb, default `{}`) —
+keys `message | duet | comment | follower | system`, each an optional
+boolean; a missing key means "on" (the pre-migration behavior, so existing
+accounts are unaffected). Validated twice: `profiles_notification_preferences_valid`
+(a CHECK constraint calling `is_valid_notification_preferences`, rejecting
+any other key or a non-boolean value) at the database layer, and
+`notificationPreferencesSchema` (`src/lib/validation/moderation.ts`, `.strict()`)
+at the application layer for an honest client-side error before the request
+even reaches Postgres.
+
+**Enforcement lives in exactly one place:** `push_notification()` (migration
+08, updated in migration 22) — the single write path for every notification
+— calls `notification_category(p_type)` to map the type to one of the five
+keys (or `null` for `save`/`share`, which are not gated by any preference and
+always deliver, since spec §25 doesn't list a Saves/Shares toggle) and skips
+the insert when the recipient has that category explicitly turned off. RLS
+and application code never need their own copy of this rule.
+
+## Moderation (spec §26, Stage 12)
+
+**Report states** (`report_status`, migration 01) — `open → reviewing →
+actioned | dismissed`. This already matched the spec's shape 1:1 (`reviewing`
+~ "under review", `actioned` ~ "resolved"); no enum change was needed.
+`claim_report(report_id)` optionally moves `open → reviewing` (a "someone is
+on this" UI nicety — `resolve_report`/`dismiss_report` don't require a prior
+claim, they can act directly from `open`).
+
+**Moderator flag, not a table.** `profiles.is_moderator boolean default
+false` (migration 23) — a single bit of information, no per-moderator scope
+tiers in v1, checkable from a RLS `using` clause without a join via
+`is_moderator(profile_id default auth.uid())`. No self-service path exists
+anywhere in this schema to become a moderator; promote/demote by hand
+(Supabase SQL editor or a future internal tool). `profiles.suspended_until`
+(also migration 23) is the second server-owned column added alongside it.
+Both are protected from the account owner by
+`profiles_guard_moderation_columns` (a `BEFORE UPDATE` guard mirroring
+`audio_assets_guard_update`'s shape) even though `profiles_update_own` RLS
+has no column-level restriction of its own — the guard forces both columns
+back to their prior value unless the write is flagged `is_service_request()`,
+which `resolve_report` does via `set_config('akinti.system', 'on', true)`,
+exactly like `complete_audio_job` does for `audio_assets`.
+
+**`resolve_report(report_id, action, note?, suspend_until?)`** — moderator
+only (re-checked server-side via `is_moderator()`, independent of any
+app-layer gate). Never called automatically on a single report (spec §26).
+v1 actions:
+
+| Action | Effect |
+|---|---|
+| `none` | Reviewed, no action taken |
+| `hide_wave` | Sets `waves.hidden_at` (migration 23) — invisible to everyone but the creator and moderators (`can_view_wave`, updated in migration 23); still counts toward `wave_count`, distinct from a soft delete |
+| `hide_comment` | Sets `comments.deleted_at` — reuses the creator's own soft-delete path rather than a second "hidden" column, since the visibility effect a moderator wants is identical |
+| `warn_user` | Sends a `system`-type notification to the resolved target account (via `push_notification`) |
+| `suspend_user` | Sets `profiles.suspended_until` (default 7 days from now, or `suspend_until` if given) on the resolved target account |
+
+For `warn_user`/`suspend_user`, the "target account" is resolved from
+whichever of the report's four target columns is set: the reported profile
+directly, or the author/creator/sender of the reported comment/Wave/message.
+`dismiss_report(report_id, note?)` closes a report with no action, logged as
+`moderation_actions.action = 'none'` — distinct from `resolve_report(...,
+'none')` only in the resulting status (`dismissed` vs `actioned`), so the
+audit trail can tell "reviewed, nothing to do" apart from "reviewed,
+explicitly decided no action was warranted".
+
+**`moderation_actions`** — append-only audit trail, one row per
+resolve/dismiss call (`report_id`, `moderator_id`, `action`, `note`,
+`created_at`). RLS: `select` only, gated by `is_moderator()`; there is no
+insert/update/delete policy for `authenticated` at all — the only writer is
+`resolve_report`/`dismiss_report` (SECURITY DEFINER, bypasses RLS the same
+way `push_notification` already does for `notifications`).
+
+**`/moderation` route protection.** Moderators only; everyone else gets a
+`notFound()` (404), not a 403 — the route's existence isn't itself
+information. This is UX, not the authorization boundary: `reports_select_moderator`/
+`moderation_actions_select_moderator` RLS (keyed off `is_moderator()`)
+already return nothing for a non-moderator regardless of what the page does,
+so a route-matcher gap leaks nothing.
+
+**Suspension enforcement.** `requireUser()` (`src/lib/auth/server.ts`) — the
+one call site every protected page already routes through — checks
+`profiles.suspended_until` after confirming a session and redirects an
+actively-suspended account to `/suspended` instead of the page it asked for.
+`/suspended` itself reads `getCurrentUser()` directly rather than
+`requireUser`/`requireOnboarded`, to avoid an immediate redirect loop back to
+itself; it's also in `isPublicRoute`'s allowlist so the proxy's own
+onboarding gate doesn't bounce a suspended-and-not-onboarded account between
+`/suspended` and `/onboarding`. A signed-in visitor whose suspension has
+since expired (or who navigates there without ever having been suspended) is
+redirected home instead of shown a stale message.
+
+## Security fixes landed in Stage 12 (unrelated to the deliverables above)
+
+Found during this stage's review pass, fixed in the same migration set:
+
+- **`audio_assets` removed from the `supabase_realtime` publication**
+  (migration 19, `20260903140000_realtime_audio_assets_security_fix.sql`).
+  Supabase Realtime's `postgres_changes` protocol broadcasts the *entire*
+  row to any subscriber, ignoring column-level `GRANT`s — so `audio_assets`
+  being in the publication (migration 16) leaked `original_path`/
+  `processed_path` (deliberately locked out of ordinary reads by migration
+  15, spec §33) to anyone who could see the row via `audio_assets_select`.
+  Confirmed unused: grepping `src/` for `postgres_changes` shows only
+  `notifications` and `messages` channels are ever opened;
+  `ProcessingBanner.tsx` polls `processing_status` instead.
+- **`rising_creators()` made `SECURITY DEFINER`** (migration 20,
+  `20260903140100_rising_creators_security_definer.sql`). It read
+  `public.follows` with invoker rights, so `follows_select` RLS silently
+  narrowed its `recent_followers` aggregate per viewer instead of producing
+  one deterministic Explore → Rising ranking (spec §10). Fixed the same way
+  every predicate in migration 10 is; the output is still filtered through
+  `can_view_profile(p.id)` so blocking/visibility rules hold on what comes
+  back, only the internal aggregate stopped being viewer-dependent.
+- **`waves.comment_permission`/`profiles.comment_permission` narrowed to a
+  `CommentAudience` type** (`"everyone" | "followers" | "nobody"`, excluding
+  `"following"`) in `src/types/database.ts`/`src/types/domain.ts` — both
+  columns are `permission_audience` narrowed by a CHECK constraint that
+  already excluded `'following'` (`profiles_comment_permission_values`,
+  migration 02; `waves_comment_permission_values`, migration 04), which the
+  TypeScript types didn't reflect. The Zod schemas already validated this
+  correctly (`COMMENT_AUDIENCES` in `src/lib/validation/{profiles,waves}.ts`);
+  this closes the gap at the type layer too.
 
 ## Secrets
 

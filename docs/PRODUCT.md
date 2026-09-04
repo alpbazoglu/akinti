@@ -250,9 +250,60 @@ counters.
   `comment_created`/`comment_deleted` fire only from the click/submit handler
   that already knows the server action succeeded — mirroring how
   `playTracker.ts` fires Play/Replay events — never from a render path.
-- **Open issue — no comment rate limit at the database layer** (spec §39):
-  unlike Play/Replay event recording, there is no `comments`-side throttle in
-  migration 11/12 today. If added, the natural shape is a `rate_limits`-style
-  check inside a `comments_guard_insert` trigger (mirroring
-  `messages_guard_insert`), not application code, so it can't be bypassed by
-  a direct API call.
+- **Resolved in Stage 12** — comments (and follows/messages/Duet
+  Requests/shares/reports/uploads) now have exactly the database-level
+  throttle this note called for: `20260903140200_rate_limits.sql` (migration
+  21). See "Moderation & preferences" below and `SECURITY.md`'s Abuse
+  prevention section for the thresholds.
+
+## Moderation & preferences (spec §23, §25, §26, §39 — Stage 12)
+
+**Rate limits** close spec §39's remaining gap: comments, follows, messages,
+Duet Requests, shares, reports and audio uploads are all guarded by a
+database-level `BEFORE INSERT` check (never application-layer throttling —
+see `SECURITY.md` for exact thresholds), so a direct API call cannot exceed
+them any more than the UI can. Hitting one shows the same honest copy
+everywhere: *"You're doing that too often. Try again in a few minutes."*
+
+**Notification preferences** turn spec §25's "message, Duet, comment,
+follower notifications" list into real toggles at `/settings/notifications`
+— previously an honest "not available yet" empty state, now a working form.
+Four of Notification's fourteen types stay ungated by design: `save`/`share`
+have no preference category (spec §25 doesn't list one for them) and always
+deliver.
+
+**Moderation foundation** (spec §26) ships the review side of reporting that
+was previously only a queue with no way to act on it: `/moderation`
+(moderators only — a 404 for everyone else, not a "no access" page) lists
+reports with filters (state, target type, reason), a detail Sheet shows the
+reporter and the reported Wave/comment/profile/message with a link to it,
+and Resolve (`none` / hide the Wave / hide the comment / warn the account /
+suspend the account for 7 days) or Dismiss closes it with an audit-trail
+entry. **A single report never auto-triggers any of these** — every action
+requires a moderator's explicit call, matching the founding rule in spec §26.
+A suspended account is redirected to `/suspended` on its next request to any
+protected page (`requireUser`, `src/lib/auth/server.ts`) rather than being
+signed out outright — it can still view `/suspended` itself and public
+routes, just not act on the product until the suspension lapses or a
+moderator reverses it.
+
+**Settings → Audio** (spec §25) ships autoplay-next and preferred-quality
+toggles, but honestly: both live in this device's `localStorage`
+(`src/lib/audio/preferences.ts`), not on the account, because there is no
+per-device sync requirement for them and adding a `profiles` column/migration
+for a browser preference would be more machinery than the feature is worth.
+"Preferred quality" doesn't change what gets fetched yet either — `audio_assets`
+stores exactly one processed file per Wave, there is no adaptive-bitrate
+pipeline to switch between — the settings page says so rather than pretending
+otherwise (spec §44 rule 9, no fake functionality). Autoplay-next is stored
+for the same honesty reason it isn't wired into `src/lib/audio/playbackStore.ts`:
+that store manages exactly one Wave and has no concept of "what's next" —
+that concept belongs to whichever feed/queue is playing it, which is a
+future feed-level change, not a Stage 12 one.
+
+**"Download my data"** (spec §25/§26, Settings → Safety) is a real export —
+the account's own profile, Wave metadata and comments as one downloadable
+JSON file (`src/lib/privacy/dataExport.ts` shapes it; the Server Action
+gathers it through the caller's own RLS-scoped client, so it can never
+return more than the account can already see of itself) — not a placeholder
+button.
