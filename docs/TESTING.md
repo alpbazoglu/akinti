@@ -34,13 +34,81 @@ Supabase project it can actually create accounts against — there is no
 etc. are unset by design; see `AGENTS.md`), so this spec is **excluded from
 the Playwright run entirely** via `testIgnore` in `playwright.config.ts`
 unless `E2E_SUPABASE=1` is set — never via `test.skip`, which would report as
-a passing, exercised test. To actually run it: point `.env.local` at a
-throwaway Supabase project with `enable_confirmations = false` (see
-`supabase/config.toml`) and run:
+a passing, exercised test.
+
+### Running the live-backend specs (`E2E_SUPABASE=1`)
+
+`e2e/auth.spec.ts`, `e2e/duet.spec.ts` and `e2e/critical-journey.spec.ts` all
+need a real, migrated Supabase project. Point `.env.local` at one
+(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`), run `npm run db:migrate`, then:
 
 ```
 E2E_SUPABASE=1 npm run e2e
 ```
+
+In PowerShell, set the env var first (`$env:E2E_SUPABASE=1; npm run e2e`) or
+prefix inline the same way bash does above — either works, `cross-env` is not
+needed since this is a one-off local/CI invocation, not a cross-platform npm
+script.
+
+**A hosted Supabase project defaults to "Confirm email" ON**
+(`mailer_autoconfirm: false` — check with
+`GET {url}/auth/v1/settings` using the service-role key), which blocks the
+real `/signup` UI form from getting a session immediately, the same way a
+real unconfirmed user would be blocked. Rather than changing that project
+setting (out of scope, and it would make the live project's actual signup
+flow untested), every spec that needs a *signed-in* account creates it
+directly through the Supabase admin API — `createConfirmedUser` in
+`e2e/helpers/supabaseAdmin.ts`, `POST /auth/v1/admin/users` with
+`email_confirm: true` — and then signs in through the real `/login` form.
+This exercises everything downstream of authentication (session cookies, the
+onboarding redirect, RLS-backed queries) exactly like a real login; only the
+"fill out `/signup` and wait for a confirmation email" step itself is
+bypassed. `e2e/auth.spec.ts` still has one test that submits the real
+`/signup` form directly (with an account it does NOT expect to sign in),
+asserting the honest "check your email" response — this is a real signup
+attempt against Supabase's own email-sending pipeline, and can intermittently
+fail with "Too many emails requested" if the project's own send-rate quota is
+already exhausted (e.g. by other tests/tools that ran many signups in a short
+window); that is an infrastructure rate limit, not an app or test bug — retry
+later if you hit it.
+
+Every account these specs create uses an email of the form
+`e2e+<tag>-<timestamp>@akinti.test` (or `@akinti.example` for the one test
+that goes through the real `/signup` endpoint, which validates the address
+itself and rejects the reserved `.test` TLD outright — `.example` is also
+RFC 2606-reserved and passes). Each spec deletes the accounts it created in a
+`try/finally`; `playwright.config.ts` additionally wires up
+`e2e/helpers/globalTeardown.ts` (only when `E2E_SUPABASE=1`) to sweep any
+`e2e+*@akinti.(test|example)` accounts left over from a failed run, so a
+crashed test never leaks a throwaway account into the project indefinitely.
+
+**`e2e/fixtures/tone.wav`** is a real, ffmpeg-generated 3-second 440Hz tone
+(mono, 44.1kHz PCM WAV) used for every Upload-path publish in these specs —
+regenerate it with:
+
+```
+ffmpeg -f lavfi -i "sine=frequency=440:duration=3" -ac 1 -ar 44100 e2e/fixtures/tone.wav
+```
+
+**Run only one `E2E_SUPABASE=1` Playwright invocation at a time.** Each
+invocation's `globalTeardown` sweeps *every* matching `e2e+*` account on the
+project, not just the ones its own run created — two invocations running
+concurrently can have one's teardown delete an account the other is still
+mid-test with, surfacing as a spurious "invalid credentials" or "wave not
+found" failure that has nothing to do with the app. This was reproduced
+directly while building this stage's suite; it is a testing-methodology
+hazard, not something the harness needs to guard against for a single
+`npm run e2e` run.
+
+**The dev server.** `playwright.config.ts`'s `webServer` always points at
+`http://localhost:3333` and never spawns its own — Next 16 refuses to start
+a second `next dev` for the same project directory at all ("Another next dev
+server is already running"), regardless of port, so there is exactly one dev
+server per checkout, not per port. If nothing is listening on 3333 yet,
+`npm run dev -- -p 3333` first; the suite reuses whatever is already running
+there (do not kill or restart it if someone is browsing it).
 
 ## What this layer is responsible for verifying
 
@@ -123,12 +191,35 @@ captures a real, synthetic audio stream — no physical microphone needed) →
 publish → the new Duet Wave is linked from the original's page, plus the two
 named denial scenarios from spec §46 above ("duets disabled on a Wave" and
 "blocked user") asserted against the real `/w/[id]/duet` page, not a unit
-mock. Same `E2E_SUPABASE=1`-gated, `testIgnore`-excluded convention as
-`e2e/auth.spec.ts` above (see `docs/DUET_SPEC.md` for the full state/permission
-matrix this spec is checking):
+mock. A blocked pair can't see each other's Waves at all (`can_view_wave`
+denies on `is_blocked_between`, independent of the Wave's own visibility), so
+the "blocked user" case renders the generic "This wave isn't available"
+state rather than the duet-specific denial message — that distinction is
+worth remembering when reading the assertions. Same `E2E_SUPABASE=1`-gated,
+`testIgnore`-excluded convention as `e2e/auth.spec.ts` above (see
+`docs/DUET_SPEC.md` for the full state/permission matrix this spec is
+checking):
 
 ```
 E2E_SUPABASE=1 npm run e2e -- duet.spec.ts
+```
+
+**`e2e/critical-journey.spec.ts`** covers what `e2e/duet.spec.ts` doesn't:
+the full spec §46 scenario end to end, including two real `scripts/worker.ts
+--once` passes (between the original Wave's publish and User B's discovery,
+and again between the Duet's publish and the lineage check — see
+`runWorkerOnce` in `e2e/helpers/flows.ts`), Explore discovery (the "New"
+category, most-recent-first, so a just-published Wave is guaranteed to show
+up — "Trending" is not), a real signed-playback-URL round trip
+(`GET /api/audio/[assetId]/url`, asserted at the network level), and
+comments/saves/shares from the Wave detail page. Two more tests cover the
+private-content scenario (an `only_me` Wave is unavailable to another user,
+and its audio URL 404s even when requested directly) and the block-then-
+message-denied scenario (`/messages/new?to=<blocker>` renders "Can't start
+this conversation"). Same gating:
+
+```
+E2E_SUPABASE=1 npm run e2e -- critical-journey.spec.ts
 ```
 
 ## Audio testing (spec §46)
@@ -159,18 +250,31 @@ must stay usable on small screens.
 
 | Area | Owner | Status |
 |---|---|---|
-| Migration schema/RLS/trigger correctness | this layer | reviewed manually; needs a real Supabase run |
+| Migration schema/RLS/trigger correctness | this layer | reviewed manually AND run against a live Supabase project (Stage 15) — two real RLS/constraint bugs found and fixed there, see migrations 26/27 below |
 | `src/lib/db` / `src/lib/validation` unit tests | this layer | not yet written — see skeleton above |
-| Private content / Duet security scenarios | this layer (DB) + UI (flows) | schema-level guarantees in place; needs integration tests once Docker/hosted Supabase is reachable |
-| Worker (`scripts/worker.ts`) behavior incl. missing-ffmpeg path | this layer | smoke-tested manually (`--once`); no automated test harness yet |
+| Private content / Duet security scenarios | this layer (DB) + UI (flows) | schema-level guarantees in place, and exercised live in `e2e/critical-journey.spec.ts` (only_me Wave unavailable + audio 404) and `e2e/duet.spec.ts` (duets-disabled + blocked-user denial) |
+| Worker (`scripts/worker.ts`) behavior incl. missing-ffmpeg path | this layer | smoke-tested manually (`--once`) and run for real from `e2e/critical-journey.spec.ts` (`process_audio` and `mix_duet` jobs both claimed and completed against a live queue); no automated *unit* test harness yet |
 | Recording/upload UI, playback UI, responsive layout | UI/audio agent | out of scope here |
-| Critical end-to-end scenario (full user journey) | both, via Playwright | signup→onboarding→logout→login automated (`e2e/auth.spec.ts`, gated on `E2E_SUPABASE`); the Duet leg (request→accept→record→publish→link) is automated in `e2e/duet.spec.ts`, same gating; the messaging leg is not yet automated |
+| Critical end-to-end scenario (full user journey) | both, via Playwright | fully automated end to end in `e2e/critical-journey.spec.ts` (signup→onboarding→upload→publish→worker→discover→play→comment/save/share→duet request→accept→record→publish→worker→lineage), gated on `E2E_SUPABASE`; `e2e/auth.spec.ts` and `e2e/duet.spec.ts` cover the auth and Duet legs in isolation too |
 | Duet lifecycle + denial scenarios (UI) | Duet agent | automated in `e2e/duet.spec.ts` (gated on `E2E_SUPABASE`) — happy path, duets-disabled denial, blocked-user denial |
 
 ## Known gap
 
-No automated test files exist yet for `src/lib/db/**`, `src/lib/validation/**`,
-or `scripts/worker.ts` — this pass focused on getting the schema, typed data
-layer, worker, and docs correct and typechecking cleanly. The skeletons above
-are the intended shape for the next pass. Flag this explicitly rather than
-claiming coverage that doesn't exist.
+No automated *unit* test files exist yet for `src/lib/db/**`,
+`src/lib/validation/**`, or `scripts/worker.ts` — the skeletons above are the
+intended shape for that pass. What Stage 15 added instead is live *end-to-end*
+coverage (`E2E_SUPABASE=1 npm run e2e`) exercising the real database, RLS,
+storage and worker against an actual Supabase project — that pass surfaced
+and fixed several real bugs no amount of mocked unit testing would have
+caught (a broken `RLS`-on-`INSERT...RETURNING` policy, a check constraint
+that blocked deleting an account with Duets, a client-side redirect that
+could render a page signed-out despite a valid session, and — the most
+user-facing one — Wave playback never actually starting anywhere feed cards
+render, because the click-interception selector never matched the real
+button). See the migrations added in this pass
+(`20260904100000_insert_returning_select_policy_fix.sql`,
+`20260904110000_waves_duet_shape_allow_orphaned_ancestor.sql`) and the fixes
+in `src/app/(auth)/actions.ts`, `src/app/(auth)/onboarding/OnboardingFlow.tsx`,
+`src/lib/audio/recorder.ts`, `src/lib/validation/audio.ts`, and
+`src/components/wave/WaveCardContainer.tsx` for the detail. Flag remaining
+gaps explicitly rather than claiming coverage that doesn't exist.
