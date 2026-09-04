@@ -43,6 +43,13 @@ export const routes = {
   settingsSafety: () => "/settings/safety",
   settingsFollowRequests: () => "/settings/follow-requests",
 
+  /* Moderation (§26) — moderators only, 404 otherwise */
+  moderation: () => "/moderation",
+  moderationReport: (reportId: string) => `/moderation?report=${enc(reportId)}`,
+
+  /* Suspension (§26) */
+  suspended: () => "/suspended",
+
   /* Auth & onboarding */
   login: (next?: string) => withNext("/login", next),
   signup: () => "/signup",
@@ -80,6 +87,11 @@ const PUBLIC_EXACT_ROUTES: readonly Href[] = [
   // The Stage 1 component gallery: static UI only, no user data, useful
   // without an account.
   "/kit",
+  // Reachable for a signed-in suspended user without the proxy's onboarding
+  // gate bouncing them to `/onboarding` first (spec §26, migration 23) — the
+  // page itself still requires a session (via `getCurrentUser`, never
+  // `requireUser`, to avoid a redirect loop back to itself).
+  routes.suspended(),
 ];
 
 /** Prefix-matched public routes: OAuth/callback plumbing and public content. */

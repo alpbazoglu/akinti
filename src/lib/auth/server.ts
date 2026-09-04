@@ -88,15 +88,51 @@ export async function getCurrentUserWithProfile(): Promise<{
 }
 
 /**
+ * True when `profiles.suspended_until` (migration 23) is set to a moment
+ * still in the future. A `null` column or a past timestamp both mean "not
+ * suspended" — this never auto-expires the column itself, it just stops
+ * treating an elapsed suspension as active.
+ */
+function isSuspended(suspendedUntil: string | null): boolean {
+  if (!suspendedUntil) {
+    return false;
+  }
+  return new Date(suspendedUntil).getTime() > Date.now();
+}
+
+/**
  * Require a signed-in user, redirecting to `/login?next=<path>` otherwise.
  * `nextPath` should be the path (plus query string) to return to after
  * signing in — pass the current route from the calling Server Component.
+ *
+ * Also enforces suspension (spec §26, migration 23:
+ * `resolve_report(..., 'suspend_user')`): a suspended account is redirected
+ * to `/suspended` instead of reaching the page it asked for. This is the
+ * ONE call site that checks it, since every protected page already calls
+ * `requireUser`/`requireOnboarded` (both route through here) as its
+ * authorization boundary (see the route protection matrix in
+ * `docs/SECURITY.md`) — `/suspended` itself must never call `requireUser`,
+ * or a suspended visitor would bounce in a redirect loop; it reads
+ * `getCurrentUser()` directly instead.
  */
 export async function requireUser(nextPath?: string): Promise<User> {
   const user = await getCurrentUser();
   if (!user) {
     redirect(routes.login(nextPath));
   }
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createServerSupabaseClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("suspended_until")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (data && isSuspended(data.suspended_until)) {
+      redirect(routes.suspended());
+    }
+  }
+
   return user;
 }
 
