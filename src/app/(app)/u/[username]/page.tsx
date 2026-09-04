@@ -3,12 +3,11 @@ import { UserX } from "lucide-react";
 import { PageHeader } from "@/components/layout";
 import { LockedContent, ProfileHeader, ProfileTabs } from "@/components/profile";
 import { EmptyState } from "@/components/ui";
-import type { WaveCardWave } from "@/components/wave";
+import type { WaveCardContainerWave } from "@/components/wave";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getFollowStatus, isFollowing } from "@/lib/db/follows";
 import { canViewProfileContent, getProfileByUsername } from "@/lib/db/profiles";
 import { listProfileDuetCards, listProfileWaveCards, type ProfileWaveCard } from "@/lib/db/profileWaves";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { PermissionAudience, Profile, Wave } from "@/types/domain";
@@ -38,7 +37,7 @@ function toWaveCardWave(
   card: ProfileWaveCard,
   creator: { username: string; displayName: string | null; avatarUrl: string | null },
   canRequestDuet: boolean,
-): WaveCardWave {
+): WaveCardContainerWave {
   return {
     id: card.wave.id,
     title: card.wave.title,
@@ -51,7 +50,7 @@ function toWaveCardWave(
     },
     collaborators: card.collaborators,
     creationType: card.wave.creationType,
-    audioUrl: card.audioUrl,
+    audioAssetId: card.audioAssetId,
     peaks: card.peaks,
     duration: card.durationMs ? card.durationMs / 1000 : undefined,
     metrics: card.wave.counts,
@@ -102,15 +101,14 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     isSelf ? Promise.resolve(true) : canViewProfileContent(supabase, profile.id),
   ]);
 
-  let waveCards: WaveCardWave[] = [];
-  let duetCards: WaveCardWave[] = [];
+  let waveCards: WaveCardContainerWave[] = [];
+  let duetCards: WaveCardContainerWave[] = [];
 
   if (canSeeContent) {
-    const admin = createAdminClient();
     const creator = { username: profile.username, displayName: profile.displayName, avatarUrl: profile.avatarUrl };
     const [wavesPage, duetsPage] = await Promise.all([
-      listProfileWaveCards(supabase, admin, profile.id),
-      listProfileDuetCards(supabase, admin, profile.id),
+      listProfileWaveCards(supabase, profile.id),
+      listProfileDuetCards(supabase, profile.id),
     ]);
     waveCards = wavesPage.items.map((card) =>
       toWaveCardWave(card, creator, resolveCanRequestDuet(card.wave, profile, isSelf, viewerUser?.id ?? null)),

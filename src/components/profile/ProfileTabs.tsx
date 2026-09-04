@@ -5,12 +5,12 @@ import { AudioLines, Handshake, Mic } from "lucide-react";
 
 import { TERMS } from "@/config/terminology";
 import { routes } from "@/config/routes";
-import { WaveCard, type WaveCardWave } from "@/components/wave";
+import { WaveCardContainer, type WaveCardContainerWave } from "@/components/wave";
 import { Button, EmptyState, TabPanel, Tabs, tabId, tabPanelId } from "@/components/ui";
 
 export interface ProfileTabsProps {
-  waves: WaveCardWave[];
-  duets: WaveCardWave[];
+  waves: WaveCardContainerWave[];
+  duets: WaveCardContainerWave[];
   isSelf: boolean;
   username: string;
 }
@@ -62,7 +62,7 @@ export function ProfileTabs({ waves, duets, isSelf, username }: ProfileTabsProps
         ) : (
           <div className="flex flex-col gap-4">
             {waves.map((wave) => (
-              <WaveCard key={wave.id} wave={wave} />
+              <WaveCardContainer key={wave.id} wave={wave} />
             ))}
           </div>
         )}
@@ -87,7 +87,7 @@ export function ProfileTabs({ waves, duets, isSelf, username }: ProfileTabsProps
         ) : (
           <div className="flex flex-col gap-4">
             {duets.map((wave) => (
-              <WaveCard key={wave.id} wave={wave} />
+              <WaveCardContainer key={wave.id} wave={wave} />
             ))}
           </div>
         )}

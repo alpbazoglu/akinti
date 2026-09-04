@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { ChartColumn, Pencil } from "lucide-react";
 
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
@@ -70,10 +70,17 @@ export function ProfileHeader({ profile, viewer, className }: ProfileHeaderProps
 
           <div className="flex items-center gap-2 pb-1">
             {viewer.isSelf ? (
-              <Link href={routes.settingsAccount()} className={SECONDARY_LINK_BUTTON}>
-                <Pencil className="size-4" aria-hidden="true" />
-                {TERMS.editProfile}
-              </Link>
+              <>
+                <Link href={routes.settingsAccount()} className={SECONDARY_LINK_BUTTON}>
+                  <Pencil className="size-4" aria-hidden="true" />
+                  {TERMS.editProfile}
+                </Link>
+                {/* spec §27 (creator analytics): one tap from the owner's own profile to their Plays/Replays/Wave performance dashboard. */}
+                <Link href={routes.analytics()} className={SECONDARY_LINK_BUTTON}>
+                  <ChartColumn className="size-4" aria-hidden="true" />
+                  Analytics
+                </Link>
+              </>
             ) : (
               <>
                 <FollowButton

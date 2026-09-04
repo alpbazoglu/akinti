@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { Mic, Send, TriangleAlert, X } from "lucide-react";
 
 import {
@@ -9,13 +10,28 @@ import {
   sendAudioMessage,
   sendTextMessage,
 } from "@/app/(app)/messages/actions";
-import { AudioPreview, RecorderPanel } from "@/components/audio";
+import { AudioPreview } from "@/components/audio";
 import { Button, IconButton, Sheet, Textarea, useToast } from "@/components/ui";
 import { decodeToPeaks, type RecorderResult } from "@/lib/audio";
 import { MAX_MESSAGE_BODY_LENGTH } from "@/lib/messages";
 import { AUDIO_BUCKET } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
 import type { Message } from "@/types/domain";
+
+/**
+ * `RecorderPanel` pulls in the `MediaRecorder`/`AnalyserNode` wrapper
+ * (`src/lib/audio/recorder.ts`) — real weight that most people opening a
+ * conversation never need, since most messages are text (spec §35: never
+ * load what's not about to be needed). Every conversation thread mounts this
+ * composer, so a static import here put that cost on every `/messages/[id]`
+ * visit; `next/dynamic` defers it until the record sheet actually opens.
+ * `ssr: false` because `RecorderPanel` only makes sense once a user taps
+ * "Record" client-side — there is nothing to server-render.
+ */
+const RecorderPanel = dynamic(
+  () => import("@/components/audio").then((mod) => mod.RecorderPanel),
+  { ssr: false },
+);
 
 export interface ComposerProps {
   conversationId: string;
