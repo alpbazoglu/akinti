@@ -1,0 +1,17 @@
+# Keeps Dockerfile.worker's build context small and never leaks a local
+# secret into an image layer.
+.git
+.github
+.next
+node_modules
+coverage
+playwright-report
+test-results
+e2e
+public
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+next-env.d.ts
+.vercel

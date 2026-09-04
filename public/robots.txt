@@ -1,0 +1,32 @@
+# AKINTI. Sitemap is generated at /sitemap.xml (see src/app/sitemap.ts) —
+# submit that URL directly in Search Console; it isn't linked here because a
+# relative Sitemap directive isn't reliably honored and this file has no way
+# to know the deployment's real domain at commit time (docs/DEPLOYMENT.md
+# covers the post-deploy SEO checklist).
+
+User-agent: *
+Allow: /
+
+# Requires a session; nothing to index behind these (spec §32 — a crawler
+# gets the same redirect-to-login an anonymous visitor does).
+Disallow: /create
+Disallow: /duets
+Disallow: /messages
+Disallow: /notifications
+Disallow: /settings/
+
+# Token-based/utility flows only — a reset-password or callback link in an
+# index would only ever show an expired-token page to a crawler. /login and
+# /signup stay crawlable (see src/app/sitemap.ts): they're real,
+# content-bearing public entry points, unlike these.
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /auth/
+
+# No JSON to index, and private audio must never be reachable via a crawled
+# URL regardless (spec §33) — this is belt-and-suspenders, not the
+# authorization boundary.
+Disallow: /api/
+
+# Stage 1 component gallery — internal tooling, not product content.
+Disallow: /kit

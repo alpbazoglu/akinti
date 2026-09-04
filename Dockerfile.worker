@@ -1,0 +1,44 @@
+# AKINTI audio worker container (scripts/worker.ts).
+#
+# Runs outside Vercel on purpose — Vercel's serverless functions have
+# execution-time limits unsuitable for ffmpeg audio processing (spec §30,
+# docs/AUDIO_ARCHITECTURE.md "Background job queue"). This image is built
+# for any long-running host: Fly.io, Railway, a VPS with Docker, etc. — see
+# docs/DEPLOYMENT.md "Worker deployment".
+#
+# Single stage: the worker runs its TypeScript source directly through `tsx`
+# (the same devDependency `npm run worker` already uses locally — see
+# package.json), so `node_modules` needs the full dependency set, not a
+# pruned production install.
+FROM node:22-slim
+
+# ffmpeg provides both `ffmpeg` and `ffprobe` on PATH — scripts/worker.ts
+# requires both, with no fallback: a missing binary fails every claimed job
+# loudly through `fail_audio_job` rather than faking success (spec §44 rule
+# 9). Override the binary paths with FFMPEG_PATH/FFPROBE_PATH if a different
+# build is needed.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Dependencies first, for Docker layer caching — only reinstalled when
+# package.json/package-lock.json actually change.
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Only what the worker's import graph actually reaches: scripts/worker.ts,
+# the src/lib/duet + src/lib/supabase modules it imports, and src/types.
+# Copying all of src/ is simplest and harmless (tsx only executes what's
+# actually imported) and avoids this file silently going stale if the
+# worker's dependencies shift to a new src/lib subdirectory.
+COPY tsconfig.json ./
+COPY scripts ./scripts
+COPY src ./src
+
+# Fails loudly and immediately on a missing secret (scripts/check-env.ts
+# --worker) rather than starting the poll loop and failing obscurely on the
+# first claimed job.
+ENTRYPOINT ["sh", "-c", "npm run check-env:worker && exec npm run worker"]

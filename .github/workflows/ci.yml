@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same branch/PR rather than letting them
+# queue behind each other.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test
+
+      # No Supabase env vars are set in this job on purpose — the app is
+      # designed to build and degrade to an honest "not configured" UI
+      # without them (docs/SECURITY.md "Never a fake login"), so a build
+      # that only passes with real secrets present would be masking a
+      # regression, not proving anything.
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: e2e (backend-dependent specs)
+    runs-on: ubuntu-latest
+    needs: checks
+    # Only the two backend-dependent specs (e2e/auth.spec.ts, e2e/duet.spec.ts
+    # — see playwright.config.ts's BACKEND_SPECS) need a real Supabase
+    # project. This job — and the E2E_SUPABASE flag that unlocks those specs
+    # — only runs when a throwaway Supabase project's credentials are
+    # available as repository secrets (Settings → Secrets and variables →
+    # Actions): E2E_SUPABASE_URL, E2E_SUPABASE_ANON_KEY,
+    # E2E_SUPABASE_SERVICE_ROLE_KEY. Without them this job is skipped
+    # entirely rather than run and left to fail on every assertion.
+    if: ${{ secrets.E2E_SUPABASE_URL != '' && secrets.E2E_SUPABASE_ANON_KEY != '' && secrets.E2E_SUPABASE_SERVICE_ROLE_KEY != '' }}
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.E2E_SUPABASE_SERVICE_ROLE_KEY }}
+      E2E_SUPABASE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e specs
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

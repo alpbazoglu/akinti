@@ -1,0 +1,21 @@
+# Runs the AKINTI audio worker (Dockerfile.worker) standalone — for local
+# testing against a real Supabase project, or as a starting point on a VPS
+# that runs docker compose directly (Fly.io/Railway deploy the image without
+# this file; see docs/DEPLOYMENT.md "Worker deployment").
+#
+# Usage:
+#   cp .env.example .env.local   # fill in the three Supabase values
+#   docker compose -f docker-compose.worker.yml up --build
+
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file:
+      - .env.local
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+    # No ports: the worker has no HTTP server, it only polls Postgres and
+    # calls Supabase Storage/ffmpeg locally.
