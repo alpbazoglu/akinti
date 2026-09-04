@@ -27,9 +27,34 @@ No CLI access? Open the Studio SQL editor and paste/run each file under
 `supabase start`/`db reset` path once Docker is available:
 [`supabase/README.md`](../supabase/README.md).
 
+**No CLI/Docker, but `psql`/Node is available?** Use
+`scripts/apply-migrations.ts` — a small `pg`-based runner that needs only a
+`DATABASE_URL` (see below for how to get it), no CLI login/link step:
+
+```bash
+npm run db:migrate:dry   # list pending migrations; no DB connection required
+npm run db:migrate       # apply every pending migration (skips ones already applied)
+```
+
+It tracks applied migrations in `public.schema_migrations`, runs each file
+in its own transaction, and stops with a non-zero exit on the first failure
+(`FAILED <name>: <error> at position <n>`). See
+[`supabase/README.md`](../supabase/README.md#option-d--scriptsapply-migrationsts-plain-pg-no-clidocker)
+for `--down` (single-migration rollback) and other detail.
+
+**Getting `DATABASE_URL`.** Supabase dashboard → **Project Settings →
+Database → Connection string**, tab **URI**. Pick the **session pooler**
+form (`postgres://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres`)
+if you're on an IPv4-only network (most laptops/CI runners) — Supabase's
+**direct** connection (`db.<ref>.supabase.co:5432`) is IPv6-only unless the
+IPv4 add-on is enabled on the project. Put the filled-in URI in
+`.env.local` as `DATABASE_URL=...` (or `SUPABASE_DB_URL`, accepted as an
+alias). Never commit it — it contains your database password.
+
 **Do not run `supabase/seed.sql` against this project.** It's dev-only fake
 data (three test accounts, `audio_assets` rows pointing at storage keys that
-don't exist) — see the banner at the top of that file.
+don't exist) — see the banner at the top of that file. (`npm run db:seed`
+enforces this itself: it refuses to run when `NODE_ENV=production`.)
 
 **Storage buckets.** Created by migration 13, not by hand in the dashboard:
 
@@ -41,6 +66,22 @@ don't exist) — see the banner at the top of that file.
 If either bucket is ever missing (e.g. after a partial reset), re-run
 migration 13 rather than creating it by hand in the dashboard — the object
 policies it creates are load-bearing (see [`SECURITY.md`](SECURITY.md#storage-security-spec-33)).
+`npx tsx scripts/verify-live.ts --create-buckets` (part of the verification
+step below) can also create either bucket if missing, with the same
+public/private + size-limit + MIME allowlist as migration 13.
+
+**Verify the deploy.** Once migrations are applied:
+
+```bash
+npm run verify:live
+```
+
+Confirms `profiles`, `waves`, `audio_assets`, `notifications`, `messages`
+are reachable over the REST API, that the `audio`/`avatars` buckets exist
+with the right settings, and that the `can_view_wave`/`rising_creators` RPCs
+are callable — prints a pass/fail table and exits non-zero on any failure.
+Needs `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (the same
+two of the three app env vars used everywhere else in this doc).
 
 **Realtime.** Migration 16 adds `notifications` and `messages` to the
 `supabase_realtime` publication (messaging/notification live updates).
