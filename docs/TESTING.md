@@ -116,6 +116,21 @@ An ACCEPTED request is reused after already producing a Wave     → resulting_w
 An EXPIRED/CANCELLED/DECLINED request is used to publish a Duet  → REJECTED by waves_guard_insert
 ```
 
+**`e2e/duet.spec.ts`** exercises the full lifecycle through the real UI:
+request → accept → record against the original (in a Chromium instance
+launched with `--use-fake-device-for-media-stream`, so `MediaRecorder`
+captures a real, synthetic audio stream — no physical microphone needed) →
+publish → the new Duet Wave is linked from the original's page, plus the two
+named denial scenarios from spec §46 above ("duets disabled on a Wave" and
+"blocked user") asserted against the real `/w/[id]/duet` page, not a unit
+mock. Same `E2E_SUPABASE=1`-gated, `testIgnore`-excluded convention as
+`e2e/auth.spec.ts` above (see `docs/DUET_SPEC.md` for the full state/permission
+matrix this spec is checking):
+
+```
+E2E_SUPABASE=1 npm run e2e -- duet.spec.ts
+```
+
 ## Audio testing (spec §46)
 
 Recording/upload/permission flows (MediaRecorder, `getUserMedia`) are owned
@@ -149,7 +164,8 @@ must stay usable on small screens.
 | Private content / Duet security scenarios | this layer (DB) + UI (flows) | schema-level guarantees in place; needs integration tests once Docker/hosted Supabase is reachable |
 | Worker (`scripts/worker.ts`) behavior incl. missing-ffmpeg path | this layer | smoke-tested manually (`--once`); no automated test harness yet |
 | Recording/upload UI, playback UI, responsive layout | UI/audio agent | out of scope here |
-| Critical end-to-end scenario (full user journey) | both, via Playwright | signup→onboarding→logout→login automated (`e2e/auth.spec.ts`, gated on `E2E_SUPABASE`); the Wave/Duet/messaging legs are not yet automated |
+| Critical end-to-end scenario (full user journey) | both, via Playwright | signup→onboarding→logout→login automated (`e2e/auth.spec.ts`, gated on `E2E_SUPABASE`); the Duet leg (request→accept→record→publish→link) is automated in `e2e/duet.spec.ts`, same gating; the messaging leg is not yet automated |
+| Duet lifecycle + denial scenarios (UI) | Duet agent | automated in `e2e/duet.spec.ts` (gated on `E2E_SUPABASE`) — happy path, duets-disabled denial, blocked-user denial |
 
 ## Known gap
 

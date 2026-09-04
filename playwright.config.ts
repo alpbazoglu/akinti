@@ -7,7 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
  * fail on every assertion — and never via `test.skip`, which would look like
  * a passing, exercised test in CI output.
  */
-const BACKEND_SPECS = ["auth.spec.ts"];
+const BACKEND_SPECS = ["auth.spec.ts", "duet.spec.ts"];
 
 export default defineConfig({
   testDir: "./e2e",

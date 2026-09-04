@@ -418,9 +418,47 @@ top on failure — never a fake success toast (spec §38, §44).
 ## Duet mixdown
 
 Covered fully in `DUET_SPEC.md`. Summary: never trust client-side mixing.
-`enqueueDuetMix()` queues a `mix_duet` job carrying `{ reference_asset_id,
-offset_ms, preset }`; the worker downloads both stems, applies
-`adelay=<offset_ms>:all=1` to the new take, `amix`es it against the
-reference, runs the requested preset filter chain, and uploads the result as
-the new take's own `processed_path` — that rendered file is what the
-finished Duet Wave's `audio_asset_id` points at.
+`enqueueDuetMixJob()` (`src/lib/db/duets.ts`) queues a `mix_duet` job
+carrying `{ reference_asset_id, offset_ms, preset, advanced_eq }`
+(`offset_ms` signed, may be negative); the worker resolves the sign by
+delaying whichever stem needs it (`adelay` itself never receives a negative
+value), applies the chosen preset + advanced EQ to the new take alone before
+mixing, `amix`es it against the reference, and uploads the result as the new
+take's own `processed_path` — that rendered file is what the finished Duet
+Wave's `audio_asset_id` points at.
+
+### Avoiding a duplicate `process_audio` job for a Duet contribution
+
+A Duet contribution stem goes through the *same* `createUploadTicket` ->
+upload -> `finalizeUpload` sequence documented above, then gets a `mix_duet`
+job queued against it. Left unguarded, that means the same `audio_assets`
+row could get **two** jobs racing to write it: the ordinary `process_audio`
+job `finalizeUpload` enqueues for every asset by default, and the `mix_duet`
+job queued moments later by `publishDuetWave`
+(`src/app/(app)/create/duetActions.ts`). Both jobs write the row through the
+same `complete_audio_job` RPC on completion, and — because `process_audio`
+and `mix_duet` are different `job_type`s — the "one live job per
+`(audio_asset_id, job_type)`" unique partial index (`audio_processing_jobs_active_uniq`,
+migration 03) does **not** stop this: nothing in the schema prevents both
+from running concurrently. Whichever finished last would win, and if
+`process_audio` was still retrying after a transient failure when
+`mix_duet` completed, its eventual success would silently overwrite the real
+mix with the unmixed solo take.
+
+**Fix:** `finalizeUpload` (`src/app/(app)/create/actions.ts`) takes a third,
+optional `skipAutoProcessing` argument (default `false`, also on
+`finalizeUploadSchema` in `src/lib/validation/audio.ts`) that skips only the
+`enqueueAudioProcessing` call — the magic-byte validation immediately above
+it, the actual security boundary (spec §18), always still runs.
+`DuetRecorder.tsx` passes `true` for the contribution's `finalizeUpload`
+call, since the `mix_duet` job about to be queued for the same asset already
+applies the chosen preset/EQ as part of the mixdown (see above) — there is
+nothing left for a standalone `process_audio` pass to do. The asset
+legitimately stays `processing_status = 'pending'` (never a faked `'ready'`)
+in the gap between finalize and the mix job completing; `mintPlaybackUrl`
+already falls back to `original_path` while pending, so playback is never
+blocked or faked in the meantime. If `mix_duet` itself then fails to
+enqueue, `publishDuetWave` falls back to enqueuing the standalone
+`process_audio` job after all, so the stem is never left with zero jobs ever
+scheduled against it. Full write-up: `DUET_SPEC.md` ("Avoiding a duplicate
+processing job").
