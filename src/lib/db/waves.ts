@@ -19,7 +19,7 @@ import type { Collaborator, CollaboratorStatus, Page, Wave } from "@/types/domai
 import { getProfilesByIds } from "./profiles";
 import { toCollaborator, toWave } from "./mappers";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap, unwrapMaybe } from "./types";
+import { buildPage, clampLimit, decodeCursor, encodeCursor, keysetFilter, unwrap, unwrapMaybe } from "./types";
 
 /* ------------------------------------------------------------------------ */
 /* Reads                                                                     */
@@ -78,13 +78,14 @@ export async function listHomeFeed(db: Db, viewerId: string, params: CursorParam
     .in("creator_id", followingIds)
     .is("deleted_at", null)
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listHomeFeed", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
@@ -101,13 +102,14 @@ export async function listProfileWaves(
     .eq("creator_id", profileId)
     .is("deleted_at", null)
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listProfileWaves", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
@@ -125,13 +127,14 @@ export async function listProfileDuets(
     .eq("creation_type", "duet")
     .is("deleted_at", null)
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listProfileDuets", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
@@ -148,13 +151,14 @@ export async function listDuetsOfWave(
     .eq("original_wave_id", originalWaveId)
     .is("deleted_at", null)
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listDuetsOfWave", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
@@ -171,13 +175,14 @@ export async function listDirectDuets(
     .eq("parent_wave_id", parentWaveId)
     .is("deleted_at", null)
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listDirectDuets", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
@@ -195,13 +200,14 @@ export async function listOpenForDuet(db: Db, params: CursorParams = {}): Promis
     .is("deleted_at", null)
     .or("duet_permission.is.null,duet_permission.neq.nobody")
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listOpenForDuet", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
@@ -214,13 +220,14 @@ export async function listNewWaves(db: Db, params: CursorParams = {}): Promise<P
     .eq("visibility", "everyone")
     .is("deleted_at", null)
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listNewWaves", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
@@ -258,13 +265,14 @@ export async function listOriginalWaves(db: Db, params: CursorParams = {}): Prom
     .eq("content_origin", "original")
     .is("deleted_at", null)
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listOriginalWaves", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
@@ -294,13 +302,14 @@ export async function listWavesByTags(
     .is("deleted_at", null)
     .overlaps("tags", tags as string[])
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listWavesByTags", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
@@ -321,13 +330,14 @@ export async function listWavesByCreatorIds(
     .eq("visibility", "everyone")
     .is("deleted_at", null)
     .order("published_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("published_at", params.cursor);
+    query = query.or(keysetFilter("published_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listWavesByCreatorIds", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.published_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.published_at, r.id));
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 

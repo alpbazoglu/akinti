@@ -15,7 +15,7 @@ import type { Conversation, ConversationSummary, Message, Page, Profile } from "
 import { getProfilesByIds } from "./profiles";
 import { toConversation, toMessage } from "./mappers";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap, unwrapMaybe } from "./types";
+import { buildPage, clampLimit, decodeCursor, encodeCursor, keysetFilter, unwrap, unwrapMaybe } from "./types";
 
 /** Open (or reuse) the 1:1 thread with another account (RLS-checked via `can_message`). */
 export async function openDirectConversation(db: Db, otherProfileId: string): Promise<string> {
@@ -61,13 +61,14 @@ export async function listMessages(
     .eq("conversation_id", conversationId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listMessages", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.created_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.created_at, r.id));
   return { items: page.items.map(toMessage), nextCursor: page.nextCursor };
 }
 
@@ -132,16 +133,17 @@ export async function listConversations(
     .select("*")
     .in("id", conversationIds)
     .order("last_message_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("last_message_at", params.cursor);
+    query = query.or(keysetFilter("last_message_at", "id", decodeCursor(params.cursor)));
   }
   const conversationsResult = await query;
   const conversationRows = unwrap("listConversations", {
     data: conversationsResult.data ?? [],
     error: conversationsResult.error,
   });
-  const page = buildPage(conversationRows, limit, (r) => r.last_message_at);
+  const page = buildPage(conversationRows, limit, (r) => encodeCursor(r.last_message_at, r.id));
 
   const items: ConversationSummary[] = await Promise.all(
     page.items.map(async (row) => {

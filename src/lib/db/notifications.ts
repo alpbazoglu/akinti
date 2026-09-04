@@ -10,7 +10,7 @@ import type { Notification, NotificationPreferences, NotificationWithActor, Page
 import { getProfilesByIds } from "./profiles";
 import { toNotification } from "./mappers";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap } from "./types";
+import { buildPage, clampLimit, decodeCursor, encodeCursor, keysetFilter, unwrap } from "./types";
 
 export async function listNotifications(
   db: Db,
@@ -21,13 +21,14 @@ export async function listNotifications(
     .from("notifications")
     .select("*")
     .order("updated_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("updated_at", params.cursor);
+    query = query.or(keysetFilter("updated_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listNotifications", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.updated_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.updated_at, r.id));
   const notifications = page.items.map(toNotification);
 
   const actorIds = [...new Set(notifications.map((n) => n.actorId).filter((id): id is string => id !== null))];

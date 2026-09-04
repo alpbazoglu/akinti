@@ -114,3 +114,78 @@ export function buildPage<T>(rows: T[], limit: number, cursorOf: (row: T) => str
   }
   return { items: rows, nextCursor: null };
 }
+
+/* ------------------------------------------------------------------------ */
+/* Composite (timestamp, id) keyset cursors                                 */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A decoded keyset cursor: the ordering timestamp, plus the tiebreaker column
+ * value on that same row (`null` for a cursor encoded before the tiebreak
+ * existed — see `decodeCursor`).
+ */
+export interface DecodedCursor {
+  ts: string;
+  id: string | null;
+}
+
+/**
+ * Encode a `(timestamp, id)` keyset cursor as the opaque string handed back
+ * to callers as `Page.nextCursor`.
+ *
+ * Every list helper here paginates on a timestamp column that is NOT unique
+ * (`published_at`, `created_at`, `updated_at`, ...) — two rows created in the
+ * same millisecond are possible, and previously the cursor's `.lt(column,
+ * cursor)` filter silently skipped or duplicated whichever of a tied pair
+ * landed on the boundary between two pages. Appending the row's own id (or
+ * another column that is unique for the query, e.g. `saves.wave_id` scoped to
+ * one saver) as a tiebreaker makes the keyset total, not just monotonic.
+ *
+ * The encoding is `<ts>_<id>` — an ISO 8601 timestamp never contains `_`, so
+ * splitting on the first `_` unambiguously separates the two halves.
+ */
+export function encodeCursor(ts: string, id: string): string {
+  return `${ts}_${id}`;
+}
+
+/**
+ * Decode a cursor produced by `encodeCursor`, or a bare timestamp — the
+ * format every cursor was before the id tiebreak. A pre-existing bookmarked
+ * URL or cached client with an old cursor must keep working: `id` decodes to
+ * `null` for that shape, and `keysetFilter` falls back to a timestamp-only
+ * comparison for it.
+ */
+export function decodeCursor(raw: string): DecodedCursor {
+  const separator = raw.indexOf("_");
+  if (separator === -1) {
+    return { ts: raw, id: null };
+  }
+  const ts = raw.slice(0, separator);
+  const id = raw.slice(separator + 1);
+  if (!ts || !id) {
+    return { ts: raw, id: null };
+  }
+  return { ts, id };
+}
+
+/**
+ * Build the PostgREST `.or()` expression for a `(column desc, idColumn desc)`
+ * (or, with `direction: "asc"`, ascending) composite keyset page boundary:
+ * `column < cursor.ts OR (column = cursor.ts AND idColumn < cursor.id)`.
+ *
+ * Falls back to a plain `column <op> cursor.ts` filter when `cursor.id` is
+ * `null` (a pre-tiebreak cursor, see `decodeCursor`) — correct but not
+ * tie-safe, matching this codebase's previous behavior for that one page.
+ */
+export function keysetFilter(
+  column: string,
+  idColumn: string,
+  cursor: DecodedCursor,
+  direction: "asc" | "desc" = "desc",
+): string {
+  const op = direction === "desc" ? "lt" : "gt";
+  if (!cursor.id) {
+    return `${column}.${op}.${cursor.ts}`;
+  }
+  return `${column}.${op}.${cursor.ts},and(${column}.eq.${cursor.ts},${idColumn}.${op}.${cursor.id})`;
+}

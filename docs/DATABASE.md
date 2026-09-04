@@ -33,6 +33,7 @@ instructions: `supabase/README.md`.
 | 22 | `notification_preferences` | `profiles.notification_preferences` jsonb + CHECK constraint, `notification_category()`, `push_notification()` updated to respect preferences (spec §23, §25) |
 | 23 | `moderation_foundation` | `moderation_action_type` enum, `profiles.is_moderator`/`suspended_until`, `waves.hidden_at`, `can_view_wave()` updated, `is_moderator()`, `moderation_actions` (audit trail), `claim_report()`/`resolve_report()`/`dismiss_report()` (spec §26) |
 | 24 | `creator_analytics` | `play_events.suspicious`, `flag_suspicious_play_events()`, `wave_listen_is_suspicious()`, `creator_overview()`/`creator_timeseries()`/`creator_wave_performance()`, `product_health()` (moderator-only) — spec §13, §27, §28, §40, §43 Stage 13 |
+| 25 | `composite_pagination_indexes` | Drop-and-recreate of the ordering index behind every keyset-paginated list helper (Waves' `published_at`, comments'/messages'/saves' `created_at`, notifications' `updated_at`, conversations' `last_message_at`), each now trailing an id (or, for `saves`, `wave_id`) tiebreaker column — see "Composite keyset cursors" below |
 
 ## Entities
 
@@ -94,6 +95,27 @@ them is the relevant `*_after_change` trigger in migration 11.
 **Play/Replay is server-authoritative.** Clients report raw playback via
 `record_play_event()`; the function alone decides what counts. Exact
 thresholds: `AUDIO_ARCHITECTURE.md`.
+
+**Composite keyset cursors (migration 25).** Every cursor-paginated list
+helper in `src/lib/db` (the home feed, Explore's lanes, a profile's
+Waves/Duets tabs, Saved, Wave comments and their replies, "Commented Waves",
+messages, the conversation inbox, notifications) orders on a timestamp column
+that is not unique on its own — two rows can share the same `published_at`/
+`created_at`/`updated_at`/`last_message_at`. `src/lib/db/types.ts` encodes the
+page cursor as that timestamp plus a tiebreaker (`encodeCursor`/
+`decodeCursor`) and filters the next page with `keysetFilter`'s
+`column < cursor.ts OR (column = cursor.ts AND idColumn < cursor.id)` — a
+total order, so a tied pair can never be skipped or repeated across a page
+boundary. The tiebreaker is each table's `id` primary key, except `saves`
+(no surrogate id; `wave_id` is unique once a query is already scoped to one
+`profile_id`). `decodeCursor` also accepts a bare timestamp — the format
+every cursor was before this migration — so an old bookmarked/cached cursor
+still works, just without the tie-safety for that one page. Migration 25
+replaced each backing index with a `(..., ts desc, id desc)` (or `asc` for
+`listCommentReplies`, which pages oldest-first) composite so the new filter
+still hits an index. Out of scope for this pass, with the same gap: duet
+request/share/follow/report/moderation-queue list helpers, which still
+paginate on a bare timestamp.
 
 **Notifications are grouped by construction**, not deduplicated after the
 fact. `push_notification()` upserts on `(recipient_id, group_key)`: while a

@@ -9,7 +9,7 @@ import type { Comment, Page, Wave } from "@/types/domain";
 
 import { toComment, toWave } from "./mappers";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap, unwrapMaybe } from "./types";
+import { buildPage, clampLimit, decodeCursor, encodeCursor, keysetFilter, unwrap, unwrapMaybe } from "./types";
 
 /** A single comment by id, or `null` if it doesn't exist / RLS hides it. */
 export async function getCommentById(db: Db, commentId: string): Promise<Comment | null> {
@@ -77,13 +77,14 @@ export async function listWaveComments(
     .is("parent_comment_id", null)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listWaveComments", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.created_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.created_at, r.id));
   return { items: page.items.map(toComment), nextCursor: page.nextCursor };
 }
 
@@ -100,13 +101,14 @@ export async function listCommentReplies(
     .eq("parent_comment_id", parentCommentId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.gt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "id", decodeCursor(params.cursor), "asc"));
   }
   const result = await query;
   const rows = unwrap("listCommentReplies", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.created_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.created_at, r.id));
   return { items: page.items.map(toComment), nextCursor: page.nextCursor };
 }
 
@@ -127,17 +129,18 @@ export async function listCommentedWaves(
   const limit = clampLimit(params.limit);
   let query = db
     .from("comments")
-    .select("wave_id, created_at")
+    .select("id, wave_id, created_at")
     .eq("author_id", authorId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listCommentedWaves", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.created_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.created_at, r.id));
 
   const seen = new Set<string>();
   const orderedWaveIds: string[] = [];

@@ -7,7 +7,7 @@ import type { Page, Wave } from "@/types/domain";
 
 import { toWave } from "./mappers";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap, unwrapMaybe } from "./types";
+import { buildPage, clampLimit, decodeCursor, encodeCursor, keysetFilter, unwrap, unwrapMaybe } from "./types";
 
 export async function saveWave(db: Db, profileId: string, waveId: string): Promise<void> {
   const result = await db
@@ -56,18 +56,22 @@ export async function listSavedWaves(
   params: { limit?: number; cursor?: string | null } = {},
 ): Promise<Page<Wave>> {
   const limit = clampLimit(params.limit);
+  // `saves` has no surrogate id (its primary key is `(profile_id, wave_id)`);
+  // scoped to one `profile_id` here, `wave_id` is itself unique per row, so it
+  // is a valid tiebreaker for the `(created_at, wave_id)` composite cursor.
   let query = db
     .from("saves")
     .select("wave_id, created_at")
     .eq("profile_id", profileId)
     .order("created_at", { ascending: false })
+    .order("wave_id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "wave_id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listSavedWaves", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.created_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.created_at, r.wave_id));
 
   if (page.items.length === 0) {
     return { items: [], nextCursor: page.nextCursor };
