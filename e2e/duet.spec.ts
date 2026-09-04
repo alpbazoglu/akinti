@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { createConfirmedUser, deleteTestUser, type ConfirmedTestUser } from "./helpers/supabaseAdmin";
+
 /**
  * End-to-end coverage of the Duet lifecycle (spec §15, §46): request ->
  * accept -> record against the original -> publish -> the new Duet Wave
@@ -26,6 +28,12 @@ import { expect, test } from "@playwright/test";
  * real, server-authoritative lifecycle: the request, the accept, the
  * recording UI actually producing a take, and the publish action succeeding
  * (or being correctly denied) — never a faked "it worked."
+ *
+ * The live project requires email confirmation (`mailer_autoconfirm:
+ * false`), so accounts here are created through the Supabase admin API
+ * (`e2e/helpers/supabaseAdmin.ts`, `email_confirm: true`) and signed in
+ * through the real `/login` form, rather than through `/signup` — see
+ * `docs/TESTING.md`.
  */
 
 test.use({
@@ -34,15 +42,6 @@ test.use({
     args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
   },
 });
-
-function uniqueUser(tag: string) {
-  const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  return {
-    email: `e2e_duet_${tag}_${stamp}@example.com`,
-    username: `e2eduet${tag}${stamp}`.slice(0, 24),
-    password: "correct-horse-battery-staple",
-  };
-}
 
 /** A minimal, real, decodable WAV file — silence, but valid PCM (RIFF/WAVE header the worker/browser both accept). */
 function makeWavFile(name: string, durationSeconds = 1, sampleRate = 8000): { name: string; mimeType: string; buffer: Buffer } {
@@ -67,12 +66,20 @@ function makeWavFile(name: string, durationSeconds = 1, sampleRate = 8000): { na
   return { name, mimeType: "audio/wav", buffer };
 }
 
-async function signUpAndOnboard(page: import("@playwright/test").Page, user: ReturnType<typeof uniqueUser>) {
-  await page.goto("/signup");
-  await page.getByLabel("Username").fill(user.username);
+/**
+ * Signs in (through the real UI) and walks the onboarding flow for an
+ * already-created account. `handle_new_user` creates the `profiles` row
+ * synchronously on admin-API user creation, so a caller that only needs the
+ * *profile to exist* (e.g. so another user can navigate to `/u/<username>`)
+ * can call `createConfirmedUser` directly and skip this until later — see
+ * the "blocked user" test below, which needs User B's profile to exist
+ * before User B ever logs in.
+ */
+async function onboardWithLogin(page: import("@playwright/test").Page, user: ConfirmedTestUser): Promise<void> {
+  await page.goto("/login");
   await page.getByLabel("Email").fill(user.email);
-  await page.getByLabel("Password", { exact: true }).fill(user.password);
-  await page.getByRole("button", { name: "Sign up" }).click();
+  await page.getByLabel("Password").fill(user.password);
+  await page.getByRole("button", { name: "Log in" }).click();
 
   await expect(page).toHaveURL(/\/onboarding/);
   await page.getByRole("button", { name: "Continue" }).click(); // step 1 -> 2 (interests)
@@ -84,13 +91,23 @@ async function signUpAndOnboard(page: import("@playwright/test").Page, user: Ret
   await expect(page).toHaveURL("/");
 }
 
+/** Creates the account through the admin API (live project requires email confirmation), then signs in and onboards through the real UI. */
+async function signUpAndOnboard(
+  page: import("@playwright/test").Page,
+  tag: string,
+): Promise<ConfirmedTestUser> {
+  const user = await createConfirmedUser({ tag: `duet-${tag}` });
+  await onboardWithLogin(page, user);
+  return user;
+}
+
 async function logOut(page: import("@playwright/test").Page) {
   await page.getByRole("button", { name: /account menu/i }).click();
   await page.getByRole("menuitem", { name: "Log out" }).click();
   await expect(page).toHaveURL(/\/login/);
 }
 
-async function logIn(page: import("@playwright/test").Page, user: ReturnType<typeof uniqueUser>) {
+async function logIn(page: import("@playwright/test").Page, user: ConfirmedTestUser) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(user.email);
   await page.getByLabel("Password").fill(user.password);
@@ -126,97 +143,127 @@ async function publishOriginalWave(
 
 test.describe("duet", () => {
   test("request -> accept -> record -> publish produces a linked Duet Wave", async ({ page }) => {
-    const userA = uniqueUser("a1");
-    const userB = uniqueUser("b1");
+    let userA: ConfirmedTestUser | undefined;
+    let userB: ConfirmedTestUser | undefined;
+    try {
+      // --- User A publishes the original Wave -----------------------------
+      userA = await signUpAndOnboard(page, "a1");
+      const originalWaveId = await publishOriginalWave(page, `Original by ${userA.username}`);
+      await logOut(page);
 
-    // --- User A publishes the original Wave -----------------------------
-    await signUpAndOnboard(page, userA);
-    const originalWaveId = await publishOriginalWave(page, `Original by ${userA.username}`);
-    await logOut(page);
+      // --- User B requests a Duet on it ------------------------------------
+      userB = await signUpAndOnboard(page, "b1");
+      await page.goto(`/w/${originalWaveId}/duet`);
+      await page.getByLabel("Add a message (optional)").fill("Would love to duet on this!");
+      // Two "Request a Duet" buttons exist on this page: the (disabled,
+      // `canRequestDuet: false`) preview card's own duet button, and the
+      // form's real submit button — scope to the form to disambiguate.
+      await page.locator("form").getByRole("button", { name: "Request a Duet" }).click();
+      await expect(page).toHaveURL(/\/duets/);
+      await logOut(page);
 
-    // --- User B requests a Duet on it ------------------------------------
-    await signUpAndOnboard(page, userB);
-    await page.goto(`/w/${originalWaveId}/duet`);
-    await page.getByLabel("Add a message (optional)").fill("Would love to duet on this!");
-    await page.getByRole("button", { name: "Request a Duet" }).click();
-    await expect(page).toHaveURL(/\/duets/);
-    await logOut(page);
+      // --- User A accepts it -------------------------------------------------
+      await logIn(page, userA);
+      await page.goto("/duets");
+      // "Received" is the default tab.
+      // DuetRequestsView renders the requester's bare username, no "@" prefix.
+      await expect(page.getByText(userB.username).first()).toBeVisible();
+      await page.getByRole("button", { name: "Accept" }).click();
+      await expect(page.getByRole("button", { name: "Accept" })).not.toBeVisible();
+      await logOut(page);
 
-    // --- User A accepts it -------------------------------------------------
-    await logIn(page, userA);
-    await page.goto("/duets");
-    // "Received" is the default tab.
-    await expect(page.getByText(`@${userB.username}`)).toBeVisible();
-    await page.getByRole("button", { name: "Accept" }).click();
-    await expect(page.getByRole("button", { name: "Accept" })).not.toBeVisible();
-    await logOut(page);
+      // --- User B records their contribution and publishes -------------------
+      await logIn(page, userB);
+      await page.goto("/duets");
+      await page.getByRole("tab", { name: "Sent" }).click();
+      await page.getByRole("link", { name: "Record your Duet" }).click();
+      await expect(page).toHaveURL(/\/w\/[^/]+\/duet\/record\?request=/);
 
-    // --- User B records their contribution and publishes -------------------
-    await logIn(page, userB);
-    await page.goto("/duets");
-    await page.getByRole("tab", { name: "Sent" }).click();
-    await page.getByRole("link", { name: "Record your Duet" }).click();
-    await expect(page).toHaveURL(/\/w\/[^/]+\/duet\/record\?request=/);
+      // The original must actually load before "Record" is enabled (spec §38
+      // "original unavailable" — DuetRecorder.tsx gates on this).
+      const recordButton = page.getByRole("button", { name: "Record your contribution" });
+      await expect(recordButton).toBeEnabled({ timeout: 15_000 });
+      await recordButton.click();
 
-    // The original must actually load before "Record" is enabled (spec §38
-    // "original unavailable" — DuetRecorder.tsx gates on this).
-    const recordButton = page.getByRole("button", { name: "Record your contribution" });
-    await expect(recordButton).toBeEnabled({ timeout: 15_000 });
-    await recordButton.click();
+      // Let the fake mic device actually capture something before stopping.
+      await page.waitForTimeout(1500);
+      await page.getByRole("button", { name: "Stop" }).click();
 
-    // Let the fake mic device actually capture something before stopping.
-    await page.waitForTimeout(1500);
-    await page.getByRole("button", { name: "Stop" }).click();
+      await expect(page.getByLabel("Title")).toBeVisible({ timeout: 10_000 });
+      await page.getByLabel("Title").fill(`Duet by ${userB.username}`);
+      await page.getByRole("button", { name: "Publish Duet" }).click();
 
-    await expect(page.getByLabel("Title")).toBeVisible({ timeout: 10_000 });
-    await page.getByLabel("Title").fill(`Duet by ${userB.username}`);
-    await page.getByRole("button", { name: "Publish Duet" }).click();
+      await expect(page).toHaveURL(/\/w\/[^/]+$/, { timeout: 20_000 });
+      const duetWaveId = /\/w\/([^/]+)$/.exec(new URL(page.url()).pathname)?.[1];
+      expect(duetWaveId).toBeTruthy();
+      expect(duetWaveId).not.toBe(originalWaveId);
 
-    await expect(page).toHaveURL(/\/w\/[^/]+$/, { timeout: 20_000 });
-    const duetWaveId = /\/w\/([^/]+)$/.exec(new URL(page.url()).pathname)?.[1];
-    expect(duetWaveId).toBeTruthy();
-    expect(duetWaveId).not.toBe(originalWaveId);
-
-    // --- The original links to the new Duet -----------------------------
-    await page.goto(`/w/${originalWaveId}`);
-    await expect(page.getByText(`Duet by ${userB.username}`)).toBeVisible();
+      // --- The original links to the new Duet -----------------------------
+      await page.goto(`/w/${originalWaveId}`);
+      await expect(page.getByText(`Duet by ${userB.username}`)).toBeVisible();
+    } finally {
+      if (userA) await deleteTestUser(userA.id);
+      if (userB) await deleteTestUser(userB.id);
+    }
   });
 
   test("duets disabled on a Wave -> request denied", async ({ page }) => {
-    const userA = uniqueUser("a2");
-    const userB = uniqueUser("b2");
+    let userA: ConfirmedTestUser | undefined;
+    let userB: ConfirmedTestUser | undefined;
+    try {
+      userA = await signUpAndOnboard(page, "a2");
+      const waveId = await publishOriginalWave(page, `No duets ${userA.username}`, { duetPermission: "nobody" });
+      await logOut(page);
 
-    await signUpAndOnboard(page, userA);
-    const waveId = await publishOriginalWave(page, `No duets ${userA.username}`, { duetPermission: "nobody" });
-    await logOut(page);
+      userB = await signUpAndOnboard(page, "b2");
+      await page.goto(`/w/${waveId}/duet`);
 
-    await signUpAndOnboard(page, userB);
-    await page.goto(`/w/${waveId}/duet`);
-
-    // `canRequestDuet()` (server-side, `src/lib/db/duetRequests.ts`) denies
-    // before the request form ever renders — the page itself is the
-    // enforcement surface here, not just a hidden button (spec §15).
-    await expect(page.getByText("You can't request a Duet on this Wave")).toBeVisible();
-    await expect(page.getByLabel("Add a message (optional)")).not.toBeVisible();
+      // `canRequestDuet()` (server-side, `src/lib/db/duetRequests.ts`) denies
+      // before the request form ever renders — the page itself is the
+      // enforcement surface here, not just a hidden button (spec §15).
+      await expect(page.getByText("You can't request a Duet on this Wave")).toBeVisible();
+      await expect(page.getByLabel("Add a message (optional)")).not.toBeVisible();
+    } finally {
+      if (userA) await deleteTestUser(userA.id);
+      if (userB) await deleteTestUser(userB.id);
+    }
   });
 
   test("blocked user -> request denied", async ({ page }) => {
-    const userA = uniqueUser("a3");
-    const userB = uniqueUser("b3");
+    let userA: ConfirmedTestUser | undefined;
+    let userB: ConfirmedTestUser | undefined;
+    try {
+      // User B's account (and profile row, via `handle_new_user`) must exist
+      // before User A can navigate to `/u/<username>` to block them — create
+      // it now but don't log User B in yet, so User A's session isn't disturbed.
+      userB = await createConfirmedUser({ tag: "duet-b3" });
 
-    await signUpAndOnboard(page, userA);
-    const waveId = await publishOriginalWave(page, `Blockable ${userA.username}`);
-    // User A blocks User B from A's own profile page.
-    await page.goto(`/u/${userB.username}`);
-    await page.getByRole("button", { name: "More actions" }).click();
-    await page.getByRole("menuitem", { name: "Block" }).click();
-    await expect(page.getByRole("menuitem", { name: "Block" })).not.toBeVisible();
-    await logOut(page);
+      userA = await signUpAndOnboard(page, "a3");
+      const waveId = await publishOriginalWave(page, `Blockable ${userA.username}`);
+      // User A blocks User B from A's own profile page.
+      await page.goto(`/u/${userB.username}`);
+      await page.getByRole("button", { name: "More actions" }).click();
+      await page.getByRole("menuitem", { name: "Block" }).click();
+      await expect(page.getByRole("menuitem", { name: "Block" })).not.toBeVisible();
+      await logOut(page);
 
-    await signUpAndOnboard(page, userB);
-    await page.goto(`/w/${waveId}/duet`);
+      await onboardWithLogin(page, userB);
+      await page.goto(`/w/${waveId}/duet`);
 
-    await expect(page.getByText("You can't request a Duet on this Wave")).toBeVisible();
-    await expect(page.getByLabel("Add a message (optional)")).not.toBeVisible();
+      // A blocked pair can't see EACH OTHER'S content at all (`can_view_wave`
+      // returns false whenever `is_blocked_between()` is true, regardless of
+      // the Wave's own visibility setting — see migration
+      // `20260903121000_authorization_functions.sql`) — not just "duets
+      // disabled." `getWaveById` comes back null for User B here the exact
+      // same way it would for a genuinely deleted Wave (spec's "existence
+      // itself is not information visible to an unauthorized caller" rule,
+      // `docs/TESTING.md`), so `/w/[id]/duet` renders its generic
+      // unavailable state rather than the duet-specific denial message.
+      await expect(page.getByText("This wave isn't available")).toBeVisible();
+      await expect(page.getByLabel("Add a message (optional)")).not.toBeVisible();
+    } finally {
+      if (userA) await deleteTestUser(userA.id);
+      if (userB) await deleteTestUser(userB.id);
+    }
   });
 });
