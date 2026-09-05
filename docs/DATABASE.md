@@ -38,6 +38,11 @@ instructions: `supabase/README.md`.
 | — | `fix_creator_wave_performance_ambiguous_wave_id` | Bug fix (42702 ambiguous column) in `creator_wave_performance()` |
 | 27 | `audio_enhancement_report` | `audio_assets.enhancement_report` jsonb (Wave B server-side polish pipeline — see "Enhancement report" in `AUDIO_ARCHITECTURE.md`); extends the `audio_assets_guard_update` write guard to cover it; `complete_audio_job` gains a 6th param `p_enhancement_report` (old 5-arg signature dropped, not overloaded) |
 | 28 | `backing_tracks` | `backing_tracks` (curated CC0/CC-BY + user-uploaded "open for vocals" instrumentals, spec §4), `waves.backing_track_id` (mutually exclusive with `parent_wave_id`), `list_backing_tracks()` keyset-paginated discovery RPC, RLS (public read for curated/open, owner write) |
+| 29 | `duet_v2_notification_type` | Adds `open_call_answered` to `notification_type` — its own migration/transaction because `ALTER TYPE ... ADD VALUE` can't be used in the same transaction that later references it (Wave D) |
+| 30 | `duet_v2_open_calls` | `open_calls` (one row per Wave, `is_open`/`prompt`/`deadline_at`), `open_calls_guard()` (server-derives `creator_id`), RLS, `list_open_calls()` keyset RPC, `answer_open_call()` (atomically creates an ALREADY-ACCEPTED `duet_requests` row), `duet_requests_after_change()` updated to fire `open_call_answered` instead of the generic `duet_request`/`duet_accepted` pair when the insert/accept came from `answer_open_call` (Wave D) |
+| 31 | `duet_v2_modes` | `duet_mode` enum (`layer \| atisma \| cypher`), `waves.duet_mode`/`segments`/`cypher_order`, `validate_duet_segments()`, `waves_derive_duet_lineage()` extended to derive mode default/cypher_order/segment validation, chain-depth ceiling tightened 32 → 6, `waves_guard_update()` extended to lock the three new columns (Wave D) |
+| 32 | `duet_v2_chain_rpc` | `duet_tree(root_wave_id)` — the full chain, `can_view_wave`-filtered per node (Wave D) |
+| 33 | `duet_v2_backing_track_lineage` | `waves_after_insert_backing_track_credit()` trigger (credits a backing track's uploader as an already-accepted collaborator the moment a Wave publishes over their track), `list_waves_on_track()` keyset RPC (Wave D) |
 
 ## Entities
 
@@ -63,6 +68,13 @@ Singing over one sets `waves.backing_track_id` (mutually exclusive with
 visibility, per-Wave comment/duet permission overrides, duet lineage,
 `backing_track_id`, trigger-maintained counters), `wave_collaborators`
 (`pending | accepted | declined`, never auto-accepted).
+
+**Open Calls (Wave D, spec §3-4):** `open_calls` — one row per Wave
+(`open_calls_one_per_wave`), a creator's own "open for anyone to Duet" flag:
+`prompt` (optional), `deadline_at` (optional), `is_open`/`closed_at`.
+`answer_open_call(wave_id)` skips the request/accept round trip entirely,
+creating an already-`accepted` `duet_requests` row in one atomic call. Full
+write-up: `DUET_SPEC.md`.
 
 **Engagement:** `comments` (flat + one optional reply level via
 `parent_comment_id`), `saves`, `shares`, `play_events` (raw, append-only,
@@ -96,7 +108,24 @@ for "all Duets of X") and `parent_wave_id` (immediate ancestor, the actual
 tree edge), derived server-side by `waves_derive_duet_lineage` — a client can
 propose `parent_wave_id` but never `original_wave_id` or `duet_depth`. A Duet
 never copies audio: it references the parent's `audio_asset_id` chain only
-through the request/mix job, not a data copy. Full detail: `DUET_SPEC.md`.
+through the request/mix job, not a data copy. Chain depth is capped at 6
+(tightened from an arbitrary 32 in Wave D); duetting a Duet has always been
+allowed at the schema level, nothing special was needed to support it. Full
+detail: `DUET_SPEC.md`.
+
+**Duet modes (Wave D).** `waves.duet_mode` (`layer | atisma | cypher`,
+server-defaulted to `layer` for any duet Wave that doesn't request a mode)
+plus `waves.segments` (`atisma` only — an ordered `[{source, startMs,
+endMs}]` jsonb array, validated by `validate_duet_segments()`) and
+`waves.cypher_order` (`cypher` only — 1-based position, capped at 4
+participants). All three are derived/validated by the same
+`waves_derive_duet_lineage` trigger that already owned tree shape, and locked
+against post-publish edits by `waves_guard_update`, exactly like
+`duet_depth`. `duet_tree(root_wave_id)` returns the whole chain
+(id/parent/creator/depth/mode/cypher_order/counts), `can_view_wave`-filtered
+per node — `src/lib/duet/chain.ts` turns that into a nested tree plus
+chain-length/branch stats. Full detail, including the worker's ffmpeg
+rendering per mode: `DUET_SPEC.md`.
 
 **Counters are trigger-maintained, never client-writable.** `waves_guard_insert`/
 `waves_guard_update` (migration 12) force `play_count`, `replay_count`,
@@ -235,6 +264,15 @@ and `waves.title`/`description`.
 `audience_allows`, `can_message`, `is_conversation_member`. RLS policies
 (migration 12) and application code both call these — they are the *only*
 place a visibility rule is written down. Full write-up: `SECURITY.md`.
+
+`answer_open_call(wave_id)` (migration 30) reuses `can_request_duet` as its
+base permission gate (view + not-self + blocks + resolved duet-permission
+audience) rather than re-implementing any of it — the open call only removes
+the request/accept round trip, not the underlying permission rules.
+`duet_tree(root_wave_id)` (migration 32) and `list_waves_on_track(track_id)`
+(migration 33) both re-check `can_view_wave` per row rather than once at the
+top, the same "SECURITY DEFINER re-implements the RLS filter explicitly"
+pattern `list_backing_tracks`/`list_open_calls` use.
 
 `is_moderator(profile_id default auth.uid())` (migration 23) joins this set:
 `can_view_wave()` calls it to admit moderators to a hidden Wave,
