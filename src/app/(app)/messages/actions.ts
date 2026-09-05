@@ -40,7 +40,6 @@ import { sniffAudioKind } from "@/lib/audio/validateFile";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
-  ALLOWED_AUDIO_MIME_TYPES,
   AUDIO_BUCKET,
   MAX_AUDIO_BYTES,
   MAX_AUDIO_DURATION_MS,
@@ -48,6 +47,7 @@ import {
   extensionForAudioMimeType,
   isSupabaseConfigured,
 } from "@/lib/supabase/config";
+import { audioMimeTypeSchema } from "@/lib/validation/audio";
 import { uuidSchema } from "@/lib/validation/common";
 import { createReportSchema } from "@/lib/validation/moderation";
 import { sendMessageSchema } from "@/lib/validation/messaging";
@@ -191,7 +191,15 @@ export async function sendTextMessage(
 
 const createMessageAudioTicketSchema = z.object({
   conversationId: uuidSchema,
-  mimeType: z.enum(ALLOWED_AUDIO_MIME_TYPES),
+  // `audioMimeTypeSchema` (not a raw `z.enum(ALLOWED_AUDIO_MIME_TYPES)`)
+  // because `MediaRecorder.mimeType` reports codec parameters (e.g.
+  // `"audio/webm;codecs=opus"`) in every real engine that supports
+  // Opus/WebM recording — a bare `z.enum` rejects that outright, which
+  // failed every real voice-message send with "Invalid option" (found
+  // verifying docs/qa/full/REPORT.md defect #1's fix end-to-end; see the
+  // doc comment on `audioMimeTypeSchema` in `src/lib/validation/audio.ts`,
+  // which `createUploadTicketSchema` already uses for the same reason).
+  mimeType: audioMimeTypeSchema,
   sizeBytes: z.number().int().positive().max(MAX_AUDIO_BYTES),
   durationMs: z.number().int().positive().max(MAX_AUDIO_DURATION_MS).nullish(),
 });
@@ -340,8 +348,19 @@ export async function finalizeMessageAudio(assetId: string): Promise<MessageActi
     return fail("This recording doesn't look like a supported audio format. Try again.");
   }
 
+  // Audio messages never get a processing job (spec §22 — never a Wave,
+  // never enhanced): the original upload IS the final, playable file, and
+  // always will be. `audio_assets_ready_has_output`
+  // (`supabase/migrations/20260903120300_audio_assets_and_jobs.sql`) checks
+  // `processing_status <> 'ready' or processed_path is not null` — without
+  // also setting `processed_path` here, this update always violated that
+  // constraint, so every voice message ever sent failed at this exact step
+  // with a generic "couldn't finish preparing" error (found verifying
+  // docs/qa/full/REPORT.md defect #1's fix end-to-end: nothing had reached
+  // a real conversation thread before, so this was never exercised).
   const readyPayload = {
     processing_status: "ready",
+    processed_path: pathRow.original_path,
     processed_at: new Date().toISOString(),
   } as unknown as Partial<Pick<AudioAssetRow, "duration_ms" | "sample_rate" | "channels" | "enhancement_preset">>;
   const { error: markReadyError } = await admin.from("audio_assets").update(readyPayload).eq("id", asset.id);

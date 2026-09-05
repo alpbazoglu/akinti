@@ -21,7 +21,7 @@ import { uuidSchema } from "./common";
  * against a live Chromium recording, spec §17/§18/§36. Uploaded files (picked
  * from disk, `file.type`) are already bare and pass through unchanged.
  */
-const audioMimeTypeSchema = z.preprocess(
+export const audioMimeTypeSchema = z.preprocess(
   (value) => (typeof value === "string" ? value.split(";")[0]!.trim().toLowerCase() : value),
   z.enum(ALLOWED_AUDIO_MIME_TYPES),
 );
