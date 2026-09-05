@@ -19,6 +19,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { getProcessingErrorMessage } from "@/config/terminology";
 import type { AudioProcessingStatus } from "@/types/domain";
 import { cn } from "@/lib/ui";
 
@@ -80,7 +81,7 @@ export function ProcessingBanner({ assetId, initialStatus, initialError = null }
       )}
     >
       {isFailed
-        ? (error ?? "The polished version didn't finish. The original is what you are hearing.")
+        ? getProcessingErrorMessage(error)
         : "Still working on the polished version. You are hearing the original, and the trace will sharpen when it lands."}
     </p>
   );
