@@ -2,30 +2,36 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Flag, MessageSquare, MoreHorizontal, Trash2 } from "@/components/ui/icons";
 
 import { deleteComment, loadReplies } from "@/app/(app)/w/[id]/interactions";
-import { emitAnalyticsEvent } from "@/lib/metrics";
-import { mergeCommentPage } from "@/lib/interactions";
+import { Avatar, IconButton, Menu, useToast } from "@/components/ui";
+import { Flag, MoreHorizontal, Trash2 } from "@/components/ui/icons";
 import { routes } from "@/config/routes";
-import { Avatar, Button, IconButton, Menu, useToast } from "@/components/ui";
+import { mergeCommentPage } from "@/lib/interactions";
+import { emitAnalyticsEvent } from "@/lib/metrics";
 import { cn, formatAbsoluteTime, timeAgo } from "@/lib/ui";
 import type { CommentWithAuthor } from "@/types/domain";
 
 import { CommentComposer } from "./CommentComposer";
+import { parseFeedback } from "./feedback";
 
 export interface CommentItemProps {
   comment: CommentWithAuthor;
   waveId: string;
   waveCreatorId: string;
   currentUserId: string | null;
-  /** Replies never nest further (spec §14 shallow threading) — a reply renders without its own reply affordance. */
+  /** Replies never nest further: a reply renders without its own reply key. */
   isReply?: boolean;
   onDeleted: (commentId: string) => void;
   onReportRequested: (commentId: string) => void;
   onReplyPosted?: (parentCommentId: string, reply: CommentWithAuthor) => void;
 }
 
+/**
+ * One comment, hung on the same 44px rail as every other item in the product
+ * (§5.4, SCREENS.md §5). No box, no tint, no coloured left border: the rail
+ * carries the author and the text column carries what they said.
+ */
 export function CommentItem({
   comment,
   waveId,
@@ -47,12 +53,13 @@ export function CommentItem({
 
   const canDelete = currentUserId === comment.authorId || currentUserId === waveCreatorId;
   const authorName = comment.author.displayName ?? comment.author.username;
+  const feedback = parseFeedback(comment.body);
 
   const handleDelete = () => {
     startDeleting(async () => {
       const result = await deleteComment(comment.id);
       if (!result.ok) {
-        toast({ title: result.error ?? "Could not delete that comment.", tone: "error" });
+        toast({ title: result.error ?? "That comment didn't delete.", tone: "error" });
         return;
       }
       emitAnalyticsEvent({ name: "comment_deleted", waveId, sessionId: "n/a", at: Date.now() });
@@ -64,7 +71,7 @@ export function CommentItem({
     startLoadingReplies(async () => {
       const result = await loadReplies(comment.id, cursor);
       if (!result.ok || !result.data) {
-        toast({ title: result.error ?? "Could not load replies.", tone: "error" });
+        toast({ title: result.error ?? "Replies didn't load.", tone: "error" });
         return;
       }
       setReplies((current) => mergeCommentPage(current, result.data!.items));
@@ -102,76 +109,92 @@ export function CommentItem({
   ].filter((item): item is NonNullable<typeof item> => item !== null);
 
   return (
-    <div className="flex gap-2.5">
-      <Link href={routes.profile(comment.author.username)} className="shrink-0">
+    <div className={cn("akinti-rail py-4", isReply && "pl-11")}>
+      <Link
+        href={routes.profile(comment.author.username)}
+        className="self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
         <Avatar name={authorName} src={comment.author.avatarUrl} size={isReply ? "sm" : "md"} />
       </Link>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-            <Link
-              href={routes.profile(comment.author.username)}
-              className="truncate text-sm font-semibold text-fg hover:underline"
-            >
-              {authorName}
-            </Link>
-            <time
-              dateTime={comment.createdAt}
-              title={formatAbsoluteTime(comment.createdAt)}
-              className="shrink-0 text-xs text-fg-subtle"
-            >
-              {timeAgo(comment.createdAt)}
-            </time>
-          </div>
+      <div className="min-w-0">
+        <div className="flex items-baseline gap-2">
+          <Link
+            href={routes.profile(comment.author.username)}
+            className="type-subhead truncate text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {authorName}
+          </Link>
+          <time
+            dateTime={comment.createdAt}
+            title={formatAbsoluteTime(comment.createdAt)}
+            className="type-mono-sm shrink-0 text-ink-subtle"
+          >
+            {timeAgo(comment.createdAt)}
+          </time>
           {menuItems.length > 0 ? (
-            <Menu
-              label={`More actions for ${authorName}'s comment`}
-              align="end"
-              items={menuItems}
-              trigger={(triggerProps) => (
-                <IconButton
-                  {...triggerProps}
-                  label="More actions"
-                  icon={<MoreHorizontal className="size-4" />}
-                  size="sm"
-                  loading={isDeleting}
-                />
-              )}
-            />
+            <div className="ml-auto shrink-0">
+              <Menu
+                label={`Options for ${authorName}'s comment`}
+                align="end"
+                items={menuItems}
+                trigger={(triggerProps) => (
+                  <IconButton
+                    {...triggerProps}
+                    label="Comment options"
+                    icon={<MoreHorizontal className="size-5" />}
+                    size="sm"
+                    loading={isDeleting}
+                  />
+                )}
+              />
+            </div>
           ) : null}
         </div>
 
-        <p className={cn("mt-0.5 text-sm whitespace-pre-line text-fg", isDeleting && "opacity-50")}>
-          {comment.body}
-        </p>
+        {feedback ? (
+          <dl className={cn("mt-2 flex flex-col gap-2", isDeleting && "opacity-50")}>
+            {feedback.map((line) => (
+              <div key={line.key} className="flex flex-col">
+                <dt className="type-caption text-ink-subtle">{line.label}</dt>
+                <dd className="type-body-sm measure text-ink">{line.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p
+            className={cn(
+              "type-body-sm measure mt-1 whitespace-pre-line text-ink",
+              isDeleting && "opacity-50",
+            )}
+          >
+            {comment.body}
+          </p>
+        )}
 
-        <div className="mt-1 flex items-center gap-3">
+        <div className="mt-2 flex items-center gap-5">
           {!isReply && currentUserId ? (
             <button
               type="button"
               onClick={() => setReplyOpen((current) => !current)}
-              className="inline-flex items-center gap-1 text-xs font-medium text-fg-subtle hover:text-fg"
+              className="type-caption text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              <MessageSquare className="size-3.5" aria-hidden="true" />
-              Reply
+              {replyOpen ? "Cancel reply" : "Reply"}
             </button>
           ) : null}
           {!isReply && comment.replyCount > 0 ? (
             <button
               type="button"
               onClick={handleToggleReplies}
-              className="text-xs font-medium text-accent hover:underline"
+              className="type-caption text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              {repliesOpen
-                ? "Hide replies"
-                : `View ${comment.replyCount} ${comment.replyCount === 1 ? "reply" : "replies"}`}
+              {repliesOpen ? "Hide replies" : `Show replies (${comment.replyCount})`}
             </button>
           ) : null}
         </div>
 
         {!isReply && replyOpen ? (
-          <div className="mt-2">
+          <div className="mt-3">
             <CommentComposer
               waveId={waveId}
               parentCommentId={comment.id}
@@ -189,7 +212,7 @@ export function CommentItem({
         ) : null}
 
         {!isReply && repliesOpen ? (
-          <div className="mt-3 flex flex-col gap-3 border-l border-border pl-3">
+          <div className="mt-2 flex flex-col">
             {replies.map((reply) => (
               <CommentItem
                 key={reply.id}
@@ -203,15 +226,14 @@ export function CommentItem({
               />
             ))}
             {repliesCursor ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                loading={isLoadingReplies}
+              <button
+                type="button"
                 onClick={() => fetchReplies(repliesCursor)}
-                className="self-start"
+                disabled={isLoadingReplies}
+                className="type-caption self-start py-2 text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-55"
               >
-                Load more replies
-              </Button>
+                {isLoadingReplies ? "Loading replies" : "Show more replies"}
+              </button>
             ) : null}
           </div>
         ) : null}

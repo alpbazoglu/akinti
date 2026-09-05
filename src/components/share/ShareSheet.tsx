@@ -24,7 +24,7 @@ import { buildWaveShareUrl } from "@/lib/interactions";
 import { emitAnalyticsEvent } from "@/lib/metrics";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
-import { Avatar, Button, EmptyState, Sheet, Spinner, useToast } from "@/components/ui";
+import { Avatar, Sheet, Spinner, useToast } from "@/components/ui";
 import type { ConversationSummary } from "@/types/domain";
 
 export interface ShareSheetWave {
@@ -65,11 +65,11 @@ export function ShareSheet({ open, onClose, wave }: ShareSheetProps) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast({ title: "Link copied", description: url, tone: "success" });
+      toast({ title: "Link copied.", tone: "success" });
       const result = await recordShare(wave.id, "link");
       if (result.ok) fireShared("link");
     } catch {
-      toast({ title: "Could not copy the link", description: url, tone: "error" });
+      toast({ title: "The link didn't copy.", description: url, tone: "error" });
     }
   };
 
@@ -91,25 +91,25 @@ export function ShareSheet({ open, onClose, wave }: ShareSheetProps) {
     <Sheet
       open={open}
       onClose={handleClose}
-      title={view === "main" ? `${TERMS.share} ${TERMS.wave.toLowerCase()}` : "Send in a message"}
+      title={view === "main" ? `${TERMS.share} this ${TERMS.wave}` : "Send in a message"}
       description={view === "main" ? wave.title : undefined}
     >
       {view === "main" ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col">
           <ShareOption
-            icon={copied ? <Check className="size-4 text-success" /> : <LinkIcon className="size-4" />}
+            icon={copied ? <Check className="size-5" /> : <LinkIcon className="size-5" />}
             label={copied ? "Link copied" : "Copy link"}
             onClick={handleCopyLink}
           />
           {canNativeShare ? (
             <ShareOption
-              icon={<Share2 className="size-4" />}
-              label="Share…"
+              icon={<Share2 className="size-5" />}
+              label="Share elsewhere"
               onClick={handleNativeShare}
             />
           ) : null}
           <ShareOption
-            icon={<MessageCircle className="size-4" />}
+            icon={<MessageCircle className="size-5" />}
             label="Send in a message"
             onClick={() => setView("conversations")}
           />
@@ -134,17 +134,21 @@ interface ShareOptionProps {
   onClick: () => void;
 }
 
+/**
+ * A share destination: a 56px row, the glyph on the rail, the label in ink.
+ * No coloured tile, no icon inside a grey circle (§12.28).
+ */
 function ShareOption({ icon, label, onClick }: ShareOptionProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-fg transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      className="akinti-rail w-full items-center border-b border-hairline py-4 text-left last:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
     >
-      <span aria-hidden="true" className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-muted text-fg-muted">
+      <span aria-hidden="true" className="inline-flex justify-start text-ink-muted">
         {icon}
       </span>
-      {label}
+      <span className="type-subhead text-ink">{label}</span>
     </button>
   );
 }
@@ -169,7 +173,7 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
       const result = await loadMoreConversations(null);
       if (cancelled) return;
       if (!result.ok || !result.data) {
-        setLoadError(result.error ?? "Could not load your conversations.");
+        setLoadError(result.error ?? "Your conversations didn't load.");
         return;
       }
       setConversations(result.data.items);
@@ -184,10 +188,10 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
     const result = await shareWaveToConversation(wave.id, conversationId);
     setSendingId(null);
     if (!result.ok) {
-      toast({ title: result.error ?? "Could not share this Wave.", tone: "error" });
+      toast({ title: result.error ?? "That didn't send. Try again.", tone: "error" });
       return;
     }
-    toast({ title: "Sent", tone: "success" });
+    toast({ title: "Sent.", tone: "success" });
     onSent();
   };
 
@@ -196,7 +200,7 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-fg-muted hover:text-fg"
+        className="type-caption inline-flex items-center gap-1.5 self-start text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         Back
@@ -207,30 +211,23 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
           <Spinner label="Loading conversations" />
         </div>
       ) : loadError ? (
-        <EmptyState
-          size="sm"
-          title="Could not load your conversations"
-          description={loadError}
-          action={
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                window.location.href = routes.messages();
-              }}
-            >
-              Go to {TERMS.messages}
-            </Button>
-          }
-        />
+        <div className="flex flex-col items-start gap-3 py-4">
+          <p role="alert" className="type-body-sm measure text-ink">
+            {loadError}
+          </p>
+          <a
+            href={routes.messages()}
+            className="type-caption text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink"
+          >
+            Open {TERMS.messages}
+          </a>
+        </div>
       ) : conversations && conversations.length === 0 ? (
-        <EmptyState
-          size="sm"
-          title="No conversations yet"
-          description="Start a conversation first, then you can share Waves into it."
-        />
+        <p className="type-body-sm measure py-4 text-ink-muted">
+          You have no conversations yet. Start one, then you can send {TERMS.waves} into it.
+        </p>
       ) : (
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col">
           {conversations?.map((summary) => {
             const other =
               summary.members.find((m) => m.id !== user?.id) ?? summary.members[0] ?? null;
@@ -241,15 +238,17 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
                   type="button"
                   onClick={() => void handleSend(summary.conversation.id)}
                   disabled={sendingId !== null}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-55"
+                  className="akinti-rail w-full items-center border-b border-hairline py-3 text-left last:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   <Avatar name={name} src={other?.avatarUrl} size="md" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-fg">{name}</span>
-                  {sendingId === summary.conversation.id ? (
-                    <Spinner size="sm" label={null} />
-                  ) : (
-                    <Send className="size-4 shrink-0 text-fg-subtle" aria-hidden="true" />
-                  )}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="type-subhead min-w-0 flex-1 truncate text-ink">{name}</span>
+                    {sendingId === summary.conversation.id ? (
+                      <Spinner size="sm" label={null} />
+                    ) : (
+                      <Send className="size-4 shrink-0 text-ink-subtle" aria-hidden="true" />
+                    )}
+                  </span>
                 </button>
               </li>
             );

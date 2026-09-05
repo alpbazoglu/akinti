@@ -17,8 +17,6 @@
  */
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Loader2 } from "@/components/ui/icons";
-
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { AudioProcessingStatus } from "@/types/domain";
@@ -71,26 +69,19 @@ export function ProcessingBanner({ assetId, initialStatus, initialError = null }
 
   const isFailed = status === "failed";
 
+  // An honest strip, not a banner: one line of ink on a hairline, saying
+  // exactly what is and is not true right now (§4.4, §12.18).
   return (
-    <div
+    <p
       role="status"
       className={cn(
-        "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
-        isFailed
-          ? "border-danger/30 bg-danger-soft text-danger-soft-fg"
-          : "border-border-strong bg-surface-muted text-fg-muted",
+        "type-body-sm measure border-l-0 py-2",
+        isFailed ? "text-signal-deep" : "text-ink-muted",
       )}
     >
-      {isFailed ? (
-        <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
-      ) : (
-        <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden="true" />
-      )}
-      <span>
-        {isFailed
-          ? (error ?? "This recording failed to process.")
-          : "Still processing — enhanced audio and the final waveform will appear shortly. Playback works now with the original file."}
-      </span>
-    </div>
+      {isFailed
+        ? (error ?? "The polished version didn't finish. The original is what you are hearing.")
+        : "Still working on the polished version. You are hearing the original, and the trace will sharpen when it lands."}
+    </p>
   );
 }

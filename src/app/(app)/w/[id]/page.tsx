@@ -1,29 +1,26 @@
 import Link from "next/link";
-import { Handshake } from "@/components/ui/icons";
 
-import { PageHeader } from "@/components/layout";
 import { CommentsSection } from "@/components/comments";
-import { Badge, EmptyState } from "@/components/ui";
-import { WaveCardContainer, type WaveCardContainerWave } from "@/components/wave";
-import { getAudioAssetById } from "@/lib/db/audioAssets";
-import { getProfileById, getProfilesByIds } from "@/lib/db/profiles";
-import { resolveWavePeaks } from "@/lib/audio/peaks";
-import { isWaveSaved } from "@/lib/db/saves";
-import {
-  getWaveById,
-  listDirectDuets,
-  listWaveCollaborators,
-} from "@/lib/db/waves";
-import { getCurrentUser } from "@/lib/auth/server";
+import { PageHeader } from "@/components/layout";
+import { Avatar, Badge } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { CREATION_TYPES, TERMS } from "@/config/terminology";
+import { TERMS } from "@/config/terminology";
+import { resolveWavePeaks } from "@/lib/audio/peaks";
+import { getCurrentUser } from "@/lib/auth/server";
+import { getAudioAssetById } from "@/lib/db/audioAssets";
+import { getDuetTree } from "@/lib/db/duets";
+import { getOpenCallByWaveId } from "@/lib/db/openCalls";
+import { getProfileById, getProfilesByIds } from "@/lib/db/profiles";
+import { isWaveSaved } from "@/lib/db/saves";
+import { getWaveById, listDirectDuets, listWaveCollaborators } from "@/lib/db/waves";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { cn, timeAgo } from "@/lib/ui";
-import type { Collaborator, CollaboratorStatus, Profile, Wave } from "@/types/domain";
+import { timeAgo } from "@/lib/ui";
+import type { CollaboratorStatus, DuetTreeNode, Profile, Wave } from "@/types/domain";
 
 import { getCommentPermissionState, loadComments } from "./interactions";
 import { ProcessingBanner } from "./ProcessingBanner";
+import { WaveDetail, type WaveDetailWave } from "./WaveDetail";
 import { WaveOwnerMenu } from "./WaveOwnerMenu";
 
 interface WavePageProps {
@@ -32,7 +29,9 @@ interface WavePageProps {
 
 export async function generateMetadata({ params }: WavePageProps) {
   const { id } = await params;
-  return { title: `${TERMS.wave} ${id}` };
+  const db = isSupabaseConfigured() ? await createServerSupabaseClient() : null;
+  const wave = db ? await getWaveById(db, id) : null;
+  return { title: wave?.title ?? TERMS.wave };
 }
 
 const COLLABORATOR_STATUS_LABEL: Record<CollaboratorStatus, string> = {
@@ -41,20 +40,19 @@ const COLLABORATOR_STATUS_LABEL: Record<CollaboratorStatus, string> = {
   declined: "Declined",
 };
 
-/** Wave detail: the full card, creation type, collaborators and the Duet tree that grew from it (spec §11, §15). */
+/**
+ * The Wave detail (SCREENS.md §5).
+ *
+ * Everything about one Wave: the full trace, who made it, what they said
+ * about it, what it grew into, and what anyone listening can do next. A Wave
+ * that is gone, private or blocked says so in one sentence and offers the way
+ * back, rather than rendering an empty shell.
+ */
 export default async function WavePage({ params }: WavePageProps) {
   const { id } = await params;
 
   if (!isSupabaseConfigured()) {
-    return (
-      <>
-        <PageHeader title={TERMS.wave} />
-        <EmptyState
-          title="This isn't connected to a backend yet"
-          description="Supabase environment variables aren't set, so Waves can't be loaded here."
-        />
-      </>
-    );
+    return <UnavailableState />;
   }
 
   const db = await createServerSupabaseClient();
@@ -83,12 +81,16 @@ export default async function WavePage({ params }: WavePageProps) {
     loadComments(wave.id, null),
     getCommentPermissionState(wave.id),
   ]);
+
   const initialComments =
-    commentsResult.ok && commentsResult.data ? commentsResult.data : { items: [], nextCursor: null };
+    commentsResult.ok && commentsResult.data
+      ? commentsResult.data
+      : { items: [], nextCursor: null };
 
   if (!asset || !creator) {
-    // Data integrity edge case (a Wave with no readable creator/asset) —
-    // treated the same as "unavailable" rather than a 500.
+    // A Wave whose creator or audio the reader cannot see is treated exactly
+    // like one that is gone: saying "it exists but you may not have it" is
+    // itself a leak.
     return <UnavailableState />;
   }
 
@@ -105,31 +107,49 @@ export default async function WavePage({ params }: WavePageProps) {
   const lineageCreatorIds = [parentWave?.creatorId, originalWave?.creatorId].filter(
     (creatorId): creatorId is string => Boolean(creatorId),
   );
-  const duetCreatorIds = directDuets.items.map((duetWave) => duetWave.creatorId);
-  const collaboratorProfileIds = allCollaborators.map((c) => c.profileId);
-
   const relatedProfiles = await getProfilesByIds(db, [
-    ...new Set([...lineageCreatorIds, ...duetCreatorIds, ...collaboratorProfileIds]),
+    ...new Set([
+      ...lineageCreatorIds,
+      ...directDuets.items.map((duetWave) => duetWave.creatorId),
+      ...allCollaborators.map((collaborator) => collaborator.profileId),
+    ]),
   ]);
-  const profileById = new Map(relatedProfiles.map((p) => [p.id, p]));
+  const profileById = new Map(relatedProfiles.map((profile) => [profile.id, profile]));
 
-  const acceptedCollaboratorPeople = allCollaborators
-    .filter((c) => c.status === "accepted")
-    .map((c) => profileById.get(c.profileId))
-    .filter((p): p is Profile => Boolean(p))
-    .map((p) => ({ username: p.username, displayName: p.displayName ?? undefined, avatarUrl: p.avatarUrl }));
+  // The chain view needs the `duet_tree` routine. Where it is not present the
+  // page falls back to the direct Duets it can read for itself, rather than
+  // failing the whole screen for a section.
+  const chainRoot = wave.duet.originalWaveId ?? wave.id;
+  let chain: DuetTreeNode[] = [];
+  try {
+    const tree = await getDuetTree(db, chainRoot);
+    chain = tree.tree;
+  } catch {
+    chain = [];
+  }
 
-  const cardWave: WaveCardContainerWave = {
+  // The open call is the creator's own switch, so it is only read for them.
+  const openCall = isCreator ? await getOpenCallByWaveId(db, wave.id).catch(() => null) : null;
+
+  const detailWave: WaveDetailWave = {
     id: wave.id,
     title: wave.title,
     description: wave.description ?? undefined,
-    createdAt: wave.publishedAt,
+    publishedAt: wave.publishedAt,
     creator: {
       username: creator.username,
       displayName: creator.displayName ?? undefined,
       avatarUrl: creator.avatarUrl,
     },
-    collaborators: acceptedCollaboratorPeople,
+    collaborators: allCollaborators
+      .filter((collaborator) => collaborator.status === "accepted")
+      .map((collaborator) => profileById.get(collaborator.profileId))
+      .filter((profile): profile is Profile => Boolean(profile))
+      .map((profile) => ({
+        username: profile.username,
+        displayName: profile.displayName ?? undefined,
+        avatarUrl: profile.avatarUrl,
+      })),
     creationType: wave.creationType,
     audioAssetId: asset.id,
     peaks: resolveWavePeaks(asset.peaks?.data, asset.id, asset.peaks?.bits),
@@ -147,85 +167,138 @@ export default async function WavePage({ params }: WavePageProps) {
   };
 
   return (
-    <>
-      <PageHeader
-        title={TERMS.wave}
-        actions={isCreator ? <WaveOwnerMenu wave={wave} redirectAfterDeleteHref={routes.profile(creator.username)} /> : undefined}
-      />
+    <div className="flex flex-col pb-12">
+      {isCreator ? (
+        <div className="akinti-page flex justify-end pt-4">
+          <WaveOwnerMenu
+            wave={wave}
+            redirectAfterDeleteHref={routes.profile(creator.username)}
+            openCallIsOpen={openCall?.isOpen ?? false}
+            openCallPrompt={openCall?.prompt ?? null}
+          />
+        </div>
+      ) : null}
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-16 sm:px-5">
+      <div className="akinti-page pt-4 pb-2">
         <ProcessingBanner
           assetId={asset.id}
           initialStatus={asset.processingStatus}
           initialError={asset.processingError}
         />
+      </div>
 
-        <WaveCardContainer wave={cardWave} variant="detail" />
-
-        <CommentsSection
-          waveId={wave.id}
-          waveCreatorId={wave.creatorId}
-          initialComments={initialComments}
-          initialPermission={commentPermission}
-          initialCommentCount={wave.counts.comments}
-        />
-
-        {(parentWave || originalWave) && (
-          <DuetLineage
+      <WaveDetail wave={detailWave}>
+        {parentWave || originalWave ? (
+          <Lineage
             parentWave={parentWave}
             originalWave={originalWave}
             profileById={profileById}
           />
-        )}
+        ) : null}
+
+        {chain.length > 0 ? (
+          <DuetChain nodes={chain} currentWaveId={wave.id} />
+        ) : directDuets.items.length > 0 ? (
+          <DirectDuets waves={directDuets.items} profileById={profileById} />
+        ) : null}
 
         {allCollaborators.length > 0 ? (
-          <CollaboratorsSection collaborators={allCollaborators} profileById={profileById} />
+          <section aria-labelledby="collaborators" className="flex flex-col pt-8">
+            <h2 id="collaborators" className="akinti-page type-caption-strong pb-2 text-ink-muted">
+              {TERMS.collaborators}
+            </h2>
+            <ul className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
+              {allCollaborators.map((collaborator) => {
+                const profile = profileById.get(collaborator.profileId);
+                return (
+                  <li
+                    key={collaborator.id}
+                    className="flex items-center justify-between gap-3 py-3"
+                  >
+                    {profile ? (
+                      <Link
+                        href={routes.profile(profile.username)}
+                        className="type-subhead truncate text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                      >
+                        @{profile.username}
+                      </Link>
+                    ) : (
+                      <span className="type-body-sm text-ink-subtle">Not available</span>
+                    )}
+                    <Badge>{COLLABORATOR_STATUS_LABEL[collaborator.status]}</Badge>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         ) : null}
+      </WaveDetail>
 
-        {directDuets.items.length > 0 ? (
-          <DuetsList waves={directDuets.items} profileById={profileById} />
-        ) : null}
+      <CommentsSection
+        waveId={wave.id}
+        waveCreatorId={wave.creatorId}
+        initialComments={initialComments}
+        initialPermission={commentPermission}
+        initialCommentCount={wave.counts.comments}
+      />
+    </div>
+  );
+}
+
+/** A Wave that is gone, private, or from someone the reader has blocked. */
+function UnavailableState() {
+  return (
+    <>
+      <PageHeader title={TERMS.wave} />
+      <div className="akinti-page flex flex-col items-start gap-4">
+        <p className="type-body measure text-ink">
+          This {TERMS.wave} was removed by its creator, or it is not open to you.
+        </p>
+        <Link
+          href={routes.home()}
+          className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          Back to {TERMS.home}
+        </Link>
       </div>
     </>
   );
 }
 
-function UnavailableState() {
-  return (
-    <>
-      <PageHeader title={TERMS.wave} />
-      <EmptyState
-        title={`This ${TERMS.wave.toLowerCase()} isn't available`}
-        description="It may have been deleted, made private, or the link is wrong."
-      />
-    </>
-  );
-}
-
-interface DuetLineageProps {
+interface LineageProps {
   parentWave: Wave | null;
   originalWave: Wave | null;
   profileById: Map<string, Profile>;
 }
 
-function DuetLineage({ parentWave, originalWave, profileById }: DuetLineageProps) {
+/** Where this Duet came from: the Wave it answers, and the one it started from. */
+function Lineage({ parentWave, originalWave, profileById }: LineageProps) {
   return (
-    <section className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4 text-sm">
-      <h2 className="flex items-center gap-1.5 font-semibold text-fg">
-        <Handshake className="size-4" aria-hidden="true" />
-        {TERMS.duet} lineage
+    <section aria-labelledby="lineage" className="flex flex-col pt-8">
+      <h2 id="lineage" className="akinti-page type-caption-strong pb-2 text-ink-muted">
+        Recorded with
       </h2>
-      {parentWave ? (
-        <LineageLink label={`${TERMS.duet} of`} wave={parentWave} profile={profileById.get(parentWave.creatorId)} />
-      ) : null}
-      {originalWave ? (
-        <LineageLink label="Original" wave={originalWave} profile={profileById.get(originalWave.creatorId)} />
-      ) : null}
+      <div className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
+        {parentWave ? (
+          <LineageRow
+            label={`${TERMS.duet} of`}
+            wave={parentWave}
+            profile={profileById.get(parentWave.creatorId)}
+          />
+        ) : null}
+        {originalWave ? (
+          <LineageRow
+            label="Started from"
+            wave={originalWave}
+            profile={profileById.get(originalWave.creatorId)}
+          />
+        ) : null}
+      </div>
     </section>
   );
 }
 
-function LineageLink({
+function LineageRow({
   label,
   wave,
   profile,
@@ -235,48 +308,63 @@ function LineageLink({
   profile?: Profile;
 }) {
   return (
-    <p className="text-fg-muted">
-      {label}{" "}
-      <Link href={routes.wave(wave.id)} className="font-medium text-fg hover:underline">
+    <p className="flex flex-wrap items-baseline gap-x-2 py-3">
+      <span className="type-caption text-ink-subtle">{label}</span>
+      <Link
+        href={routes.wave(wave.id)}
+        className="type-subhead text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
         {wave.title}
       </Link>
       {profile ? (
-        <>
-          {" "}by{" "}
-          <Link href={routes.profile(profile.username)} className="text-fg hover:underline">
-            @{profile.username}
-          </Link>
-        </>
+        <Link
+          href={routes.profile(profile.username)}
+          className="type-caption text-ink-muted hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        >
+          @{profile.username}
+        </Link>
       ) : null}
     </p>
   );
 }
 
-function CollaboratorsSection({
-  collaborators,
-  profileById,
-}: {
-  collaborators: readonly Collaborator[];
-  profileById: Map<string, Profile>;
-}) {
+/**
+ * The Duet chain: every Wave that grew from this one, in the order it grew.
+ * Depth is drawn by indentation on the rail, not by a nested box.
+ */
+function DuetChain({ nodes, currentWaveId }: { nodes: readonly DuetTreeNode[]; currentWaveId: string }) {
+  const flat = flattenChain(nodes, 0);
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
-      <h2 className="text-sm font-semibold text-fg">{TERMS.collaborators}</h2>
-      <ul className="flex flex-col gap-2">
-        {collaborators.map((collaborator) => {
-          const profile = profileById.get(collaborator.profileId);
+    <section aria-labelledby="duet-chain" className="flex flex-col pt-8">
+      <h2 id="duet-chain" className="akinti-page type-caption-strong pb-2 text-ink-muted">
+        {TERMS.duet} chain
+      </h2>
+      <ul className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
+        {flat.map(({ node, depth }) => {
+          const isCurrent = node.wave.id === currentWaveId;
+          const name = node.creator.displayName ?? node.creator.username;
           return (
-            <li key={collaborator.id} className="flex items-center justify-between gap-2 text-sm">
-              {profile ? (
-                <Link href={routes.profile(profile.username)} className="font-medium text-fg hover:underline">
-                  @{profile.username}
-                </Link>
-              ) : (
-                <span className="text-fg-muted">Unknown</span>
-              )}
-              <Badge>
-                {COLLABORATOR_STATUS_LABEL[collaborator.status]}
-              </Badge>
+            <li key={node.wave.id} style={{ paddingLeft: `${Math.min(depth, 4) * 16}px` }}>
+              <Link
+                href={routes.wave(node.wave.id)}
+                aria-current={isCurrent ? "page" : undefined}
+                className="akinti-rail items-center py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+              >
+                <Avatar name={name} src={node.creator.avatarUrl} size="sm" />
+                <span className="flex min-w-0 flex-col">
+                  <span className="type-subhead truncate text-ink">
+                    {node.wave.title}
+                    {isCurrent ? (
+                      <span className="type-caption text-ink-subtle"> &middot; you are here</span>
+                    ) : null}
+                  </span>
+                  <span className="type-caption truncate text-ink-subtle">
+                    @{node.creator.username}
+                    <span aria-hidden="true"> &middot; </span>
+                    {timeAgo(node.wave.publishedAt)}
+                  </span>
+                </span>
+              </Link>
             </li>
           );
         })}
@@ -285,7 +373,18 @@ function CollaboratorsSection({
   );
 }
 
-function DuetsList({
+function flattenChain(
+  nodes: readonly DuetTreeNode[],
+  depth: number,
+): { node: DuetTreeNode; depth: number }[] {
+  return nodes.flatMap((node) => [
+    { node, depth },
+    ...flattenChain(node.children, depth + 1),
+  ]);
+}
+
+/** The chain view's fallback: the Duets recorded directly against this Wave. */
+function DirectDuets({
   waves,
   profileById,
 }: {
@@ -293,31 +392,28 @@ function DuetsList({
   profileById: Map<string, Profile>;
 }) {
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
-      <h2 className="text-sm font-semibold text-fg">
-        {TERMS.duets} ({waves.length})
+    <section aria-labelledby="direct-duets" className="flex flex-col pt-8">
+      <h2 id="direct-duets" className="akinti-page type-caption-strong pb-2 text-ink-muted">
+        {TERMS.duets} of this {TERMS.wave}
       </h2>
-      <ul className="flex flex-col gap-2">
+      <ul className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
         {waves.map((duetWave) => {
           const profile = profileById.get(duetWave.creatorId);
-          const meta = CREATION_TYPES[duetWave.creationType];
+          const name = profile?.displayName ?? profile?.username ?? "";
           return (
             <li key={duetWave.id}>
               <Link
                 href={routes.wave(duetWave.id)}
-                className={cn(
-                  "flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm",
-                  "hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                )}
+                className="akinti-rail items-center py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
               >
+                <Avatar name={name} src={profile?.avatarUrl} size="sm" />
                 <span className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium text-fg">{duetWave.title}</span>
-                  <span className="truncate text-xs text-fg-subtle">
-                    {profile ? `@${profile.username}` : "Unknown"} &middot; {timeAgo(duetWave.publishedAt)}
+                  <span className="type-subhead truncate text-ink">{duetWave.title}</span>
+                  <span className="type-caption truncate text-ink-subtle">
+                    {profile ? `@${profile.username}` : "Not available"}
+                    <span aria-hidden="true"> &middot; </span>
+                    {timeAgo(duetWave.publishedAt)}
                   </span>
-                </span>
-                <span aria-hidden="true" className="shrink-0 text-fg-subtle">
-                  {meta.glyph}
                 </span>
               </Link>
             </li>

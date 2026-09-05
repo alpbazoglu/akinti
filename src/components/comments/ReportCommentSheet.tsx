@@ -18,7 +18,7 @@ const REASON_LABELS: Record<ReportReason, string> = {
   impersonation: "Impersonation",
   copyright: "Copyright concern",
   inappropriate: "Inappropriate content",
-  abusive: "Abusive behavior",
+  abusive: "Abusive behaviour",
   other: "Other",
 };
 
@@ -29,7 +29,10 @@ const REASON_OPTIONS: SelectOption[] = REPORT_REASONS.map((value) => ({
 
 const DETAILS_MAX_LENGTH = 1000;
 
-/** Report a comment (spec §14, §26) — mirrors `ReportMessageSheet`/`ReportSheet`. Never auto-actioned; lands in the moderation queue as `open`. */
+/**
+ * Report a comment. Nothing is auto-actioned: the report opens in the
+ * moderation queue and a person reads it.
+ */
 export function ReportCommentSheet({ open, onClose, commentId }: ReportCommentSheetProps) {
   const [reason, setReason] = useState<ReportReason>("spam");
   const [details, setDetails] = useState("");
@@ -47,7 +50,7 @@ export function ReportCommentSheet({ open, onClose, commentId }: ReportCommentSh
         details.trim().length > 0 ? details.trim() : null,
       );
       if (!result.ok) {
-        setError(result.error ?? "Could not submit your report.");
+        setError(result.error ?? "That report didn't send. Try again.");
         return;
       }
       toast({ title: result.message ?? "Report submitted.", tone: "success" });
@@ -62,7 +65,7 @@ export function ReportCommentSheet({ open, onClose, commentId }: ReportCommentSh
       open={open}
       onClose={onClose}
       title="Report comment"
-      description="Tell us what's wrong. Reports are reviewed by our team — this does not notify the author."
+      description="Say what is wrong. A person reviews every report, and the author is not told."
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={isPending}>
@@ -85,14 +88,14 @@ export function ReportCommentSheet({ open, onClose, commentId }: ReportCommentSh
         <Textarea
           id="report-comment-details"
           label="Details (optional)"
-          placeholder="Add any context that will help our team review this."
+          placeholder="Anything that helps the review."
           value={details}
           onChange={(event) => setDetails(event.target.value)}
           maxLength={DETAILS_MAX_LENGTH}
           showCount
         />
         {error ? (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="type-body-sm text-signal-deep">
             {error}
           </p>
         ) : null}
