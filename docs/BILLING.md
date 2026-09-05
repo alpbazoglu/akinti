@@ -47,19 +47,25 @@ doesn't exist at the provider, which is exactly the "fake success" spec §44
 rule 9 forbids. Once real iyzico pricing-plan reference codes and Paddle
 price ids exist (create them in each provider's dashboard first: iyzico
 Merchant Panel → Subscription → Products & Pricing Plans; Paddle → Catalog →
-Prices), insert the four rows with the service role, e.g.:
+Prices), run `scripts/seed-plans.ts`:
 
-```sql
-insert into public.plans (code, provider, provider_price_id, amount, currency, interval) values
-  ('pro_monthly_try', 'iyzico', '<pricingPlanReferenceCode>', 7999, 'TRY', 'month'),
-  ('pro_yearly_try',  'iyzico', '<pricingPlanReferenceCode>', 79999, 'TRY', 'year'),
-  ('pro_monthly_usd', 'paddle', '<pri_...>', 499, 'USD', 'month'),
-  ('pro_yearly_usd',  'paddle', '<pri_...>', 4999, 'USD', 'year');
+```sh
+npx tsx --env-file-if-exists=.env.local scripts/seed-plans.ts
 ```
 
-(`amount` is minor units — kuruş/cents; the yearly TRY/USD amounts above are
-placeholders for "12 months minus a discount", not a fixed number — price it
-per the founder's actual annual-discount decision before inserting.)
+It reads the four price/pricing-plan reference ids from
+`IYZICO_PLAN_MONTHLY_TRY` / `IYZICO_PLAN_YEARLY_TRY` /
+`PADDLE_PRICE_MONTHLY_USD` / `PADDLE_PRICE_YEARLY_USD` (`.env.example`) and
+inserts one `plans` row per id that is actually set — a plan whose id is
+unset is skipped with a console message, never inserted with a placeholder.
+`amount` (minor units — kuruş/cents) for the two monthly plans is the
+founder's already-decided price (PRODUCT_V2 §5/§6: ₺79.99/month,
+$4.99/month), filled in by the script itself. The annual discount is **not**
+decided yet — "12 months minus a discount" is not a fixed number — so each
+yearly plan additionally requires its own real amount via
+`IYZICO_PLAN_YEARLY_TRY_AMOUNT` / `PADDLE_PRICE_YEARLY_USD_AMOUNT`; without
+it, that yearly row is skipped rather than seeded with a guessed discount.
+Idempotent — re-running skips any code that already has a `plans` row.
 
 ## Providers (`src/lib/billing/`)
 
