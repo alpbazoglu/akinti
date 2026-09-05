@@ -29,6 +29,7 @@
     "perf": "npm run build && tsx scripts/perf-budget.ts"
   },
   "dependencies": {
+    "@paddle/paddle-js": "^1.6.5",
     "@paddle/paddle-node-sdk": "^3.10.0",
     "@phosphor-icons/react": "^2.1.10",
     "@sapphi-red/web-noise-suppressor": "^0.4.0",

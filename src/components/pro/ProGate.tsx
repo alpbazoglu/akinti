@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Sheet } from "@/components/ui";
 import { routes } from "@/config/routes";
 
+import { PRO_INCLUDES } from "./proIncludes";
 import { useProStatus } from "./useProStatus";
 
 /** Matches `Button`'s `variant="primary" size="lg"` — a real navigation to the Pro screen, not an action, so it renders as `<a>` (mirrors `ProfileHeader`'s `SECONDARY_LINK_BUTTON`). */
@@ -12,16 +13,6 @@ const PRIMARY_LINK_BUTTON =
   "akinti-press flex h-13 w-full items-center justify-center rounded-key bg-tide " +
   "type-subhead text-on-ink transition-colors " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide";
-
-/** PRODUCT_V2 §4/§5's Pro-only list, plain, no icons-in-circles, no cards. */
-const PRO_INCLUDES = [
-  "Pitch snap and self-harmony sounds",
-  "Stems for every Wave you publish",
-  "Unlimited saves",
-  "Ad-free, always",
-  "One featured Duet slot a month",
-  "The Pro mark next to your handle",
-] as const;
 
 export interface ProGateProps {
   open: boolean;

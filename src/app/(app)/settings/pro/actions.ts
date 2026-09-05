@@ -107,7 +107,20 @@ export interface StartProCheckoutInput {
   buyer?: IyzicoBuyerDetails;
 }
 
-/** Start a Pro checkout. Returns a redirect URL (Paddle) or an iyzico Checkout Form to embed (`checkoutFormToken`/`checkoutFormContent`) — see `docs/BILLING.md` "Checkout flow" for what the caller does with each. */
+/**
+ * Start a Pro checkout. Returns a redirect URL (Paddle) or an iyzico
+ * Checkout Form to embed (`checkoutFormToken`/`checkoutFormContent`) — see
+ * `docs/BILLING.md` "Checkout flow" for what the caller does with each.
+ *
+ * `transactionId` (Wave F frontend addition): the Pro screen
+ * (`src/components/pro/`) opens Paddle's checkout as an in-page overlay via
+ * `@paddle/paddle-js`'s `Checkout.open({ transactionId })`, per this wave's
+ * brief — not a plain redirect to `redirectUrl`, even though that URL is
+ * also a real, working hosted checkout page. `result.providerRef` already
+ * *is* that transaction id for Paddle (see `CreateCheckoutResult.providerRef`'s
+ * doc comment in `src/lib/billing/types.ts`); this field just surfaces it
+ * to the client, additively, alongside the two fields already returned.
+ */
 export async function startProCheckout(
   input: StartProCheckoutInput,
 ): Promise<
@@ -115,6 +128,7 @@ export async function startProCheckout(
     redirectUrl: string | null;
     checkoutFormToken: string | null;
     checkoutFormContent: string | null;
+    transactionId: string | null;
   }>
 > {
   const parsed = startProCheckoutSchema.safeParse(input);
@@ -146,6 +160,7 @@ export async function startProCheckout(
         redirectUrl: result.redirectUrl,
         checkoutFormToken: result.redirectUrl ? null : result.providerRef,
         checkoutFormContent: result.checkoutFormContent ?? null,
+        transactionId: result.redirectUrl ? result.providerRef : null,
       },
     };
   } catch (err) {
