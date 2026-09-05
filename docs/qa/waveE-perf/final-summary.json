@@ -1,0 +1,26 @@
+{
+  "home": {
+    "score": 82,
+    "lcp": 4.577953000000001,
+    "jsTransferKb": 357.849609375,
+    "totalTransferKb": 588.7158203125
+  },
+  "explore": {
+    "score": 75,
+    "lcp": 4.996338750000001,
+    "jsTransferKb": 381.080078125,
+    "totalTransferKb": 611.27734375
+  },
+  "create": {
+    "score": 82,
+    "lcp": 4.568702999999999,
+    "jsTransferKb": 345.7392578125,
+    "totalTransferKb": 571.6748046875
+  },
+  "wave": {
+    "score": 73,
+    "lcp": 5.3949755999999995,
+    "jsTransferKb": 480.087890625,
+    "totalTransferKb": 703.771484375
+  }
+}
