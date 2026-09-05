@@ -30,7 +30,9 @@ import { DatabaseError } from "@/lib/db/types";
 import { getWaveById } from "@/lib/db/waves";
 import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { isRateLimitError, RATE_LIMIT_MESSAGE } from "@/lib/moderation/errors";
+import { notifyDuetPush } from "@/lib/push/send";
 import { routes } from "@/config/routes";
+import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
@@ -118,6 +120,14 @@ export async function requestDuet(waveId: string, message: string | null): Promi
   } catch (err) {
     return { ok: false, error: describeError(err) };
   }
+
+  void notifyDuetPush(db, {
+    recipientId: wave.creatorId,
+    title: "New duet request",
+    body: `Wants to create a ${TERMS.duet.toLowerCase()} using your ${TERMS.wave.toLowerCase()}.`,
+    url: routes.duets(),
+    tag: `duet-request:${requestId}`,
+  });
 
   try {
     const conversationId = await openDirectConversation(db, wave.creatorId);
@@ -283,6 +293,17 @@ export async function answerOpenCall(waveId: string): Promise<AnswerOpenCallResu
       return { ok: false, error: "You can't answer this open call right now." };
     }
     return { ok: false, error: "We couldn't answer this open call. Try again." };
+  }
+
+  const openCallWave = await getWaveById(db, parsed.data.waveId);
+  if (openCallWave) {
+    void notifyDuetPush(db, {
+      recipientId: openCallWave.creatorId,
+      title: "Your open call was answered",
+      body: `Someone recorded against your open ${TERMS.duet.toLowerCase()} call.`,
+      url: routes.duets(),
+      tag: `duet-answer:${requestId}`,
+    });
   }
 
   revalidatePath(routes.wave(parsed.data.waveId));

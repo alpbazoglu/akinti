@@ -23,7 +23,9 @@ import {
 } from "@/lib/db/duetRequests";
 import { DatabaseError } from "@/lib/db/types";
 import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
+import { notifyDuetPush } from "@/lib/push/send";
 import { routes } from "@/config/routes";
+import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
@@ -101,6 +103,17 @@ export async function respondToDuetRequest(
   } catch (err) {
     return { ok: false, error: describeError(err, "Only the recipient can respond to this Duet Request.") };
   }
+
+  void notifyDuetPush(db, {
+    recipientId: request.requesterId,
+    title: decision === "accepted" ? "Duet request accepted" : "Duet request declined",
+    body:
+      decision === "accepted"
+        ? `Your ${TERMS.duetRequest.toLowerCase()} was accepted.`
+        : `Your ${TERMS.duetRequest.toLowerCase()} was declined.`,
+    url: routes.duets(),
+    tag: `duet-answer:${parsed.data.requestId}`,
+  });
 
   revalidatePath(routes.duets());
   return { ok: true };

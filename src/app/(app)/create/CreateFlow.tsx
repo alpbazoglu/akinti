@@ -46,6 +46,7 @@ import {
   type EnhancementPresetId,
   type TrimRange,
 } from "@/lib/audio";
+import { markFirstPublish } from "@/lib/pwa/installPrompt";
 import { AUDIO_BUCKET } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
 import { routes } from "@/config/routes";
@@ -296,6 +297,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
       }
 
       setPublishStage("done");
+      markFirstPublish();
       router.push(routes.wave(published.waveId));
     },
     [backingTrack, initialChallenge, router, toast],

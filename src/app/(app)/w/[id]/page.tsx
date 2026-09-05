@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CommentsSection } from "@/components/comments";
 import { PageHeader } from "@/components/layout";
+import { InstallHint } from "@/components/pwa/InstallHint";
 import { Avatar, Badge } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
@@ -241,6 +242,10 @@ export default async function WavePage({ params }: WavePageProps) {
         initialPermission={commentPermission}
         initialCommentCount={wave.counts.comments}
       />
+
+      <div className="akinti-page">
+        <InstallHint />
+      </div>
     </div>
   );
 }
