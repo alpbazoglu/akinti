@@ -1,2 +1,12 @@
 export { UploadDropzone, type UploadDropzoneProps } from "./UploadDropzone";
 export { CreateWaveForm, type CreateWaveFormProps } from "./CreateWaveForm";
+export { RecordStage, type RecordStageProps, type RecordStageBackingTrack, type CapturedTake } from "./RecordStage";
+export { ReviewStage, type ReviewStageProps } from "./ReviewStage";
+export { EnhanceStage, type EnhanceStageProps } from "./EnhanceStage";
+export { PublishProgress, PUBLISH_STAGES, type PublishProgressProps, type PublishStage } from "./PublishProgress";
+export { Countdown, type CountdownProps } from "./Countdown";
+export { MicPrimer, MicDenied, MicUnsupported, recoveryFor, type MicPrimerProps, type MicDeniedProps, type MicUnsupportedProps } from "./MicPermission";
+export { LevelReadout, PitchMeter, type LevelReadoutProps, type PitchMeterProps } from "./Readouts";
+export { TakeStrip, type TakeStripProps } from "./TakeStrip";
+export { TrimTrace, type TrimTraceProps } from "./TrimTrace";
+export { useTrackAudio, type TrackAudio } from "./useTrackAudio";

@@ -1,8 +1,8 @@
 "use client";
 
 import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
-import { X } from "@/components/ui/icons";
 
+import { X } from "@/components/ui/icons";
 import {
   WAVE_CATEGORY_OPTIONS,
   type CreateWaveDraft,
@@ -14,17 +14,26 @@ import {
   type PermissionAudience,
   type WaveVisibility,
 } from "@/types/domain";
-import { Button, Chip, Input, Select, Textarea, type SelectOption } from "@/components/ui";
+import { Badge, Button, Chip, Input, Select, Switch, Textarea, type SelectOption } from "@/components/ui";
 import { CREATION_TYPES, TERMS } from "@/config/terminology";
 import { cn } from "@/lib/ui";
 
+import { TakeStrip } from "./TakeStrip";
+
 export interface CreateWaveFormProps {
-  /** The captured/enhanced audio from the earlier steps — presentation only, never uploaded here. */
+  /** The captured audio from the earlier steps — shown here, never uploaded here. */
   audio: CreateWaveDraftAudio;
-  /** Receives the assembled draft. Wiring this to a server call is the next agent's job. */
   onSubmit: (draft: CreateWaveDraft) => void;
   submitting?: boolean;
   submitLabel?: string;
+  /** Title of the backing track this take was sung over, when there was one. */
+  backingTrackTitle?: string | null;
+  /**
+   * "Open for Duet". Omitted entirely when the caller has nowhere to send it:
+   * a switch that silently does nothing is worse than no switch.
+   */
+  openCall?: boolean;
+  onOpenCallChange?: (open: boolean) => void;
   className?: string;
 }
 
@@ -60,17 +69,25 @@ function normaliseUsername(raw: string): string {
 }
 
 /**
- * Wave creation details: title, description, visibility, comment/Duet
- * permissions, collaborators, category (spec §11, §16, §21). Presentation
- * and local state only — no server calls. On submit, assembles a typed
- * `CreateWaveDraft` (see `lib/audio/createDraft.ts`) and hands it to the
- * caller's `onSubmit`, which is where the server-side agent wires publishing.
+ * Details (`docs/design/SCREENS.md` §4.5, spec §11, §16, §21).
+ *
+ * The take pins to the top as a 32px strip so the form is always about a
+ * specific piece of audio. How it was made is stated, not asked: the creation
+ * type is derived from how you got here and shown as a hairline tag (§8.11),
+ * never as a question.
+ *
+ * Presentation and local state only — no server calls. On submit it assembles
+ * a typed `CreateWaveDraft` and hands it to `onSubmit`, which is where
+ * `CreateFlow` runs the real publish sequence.
  */
 export function CreateWaveForm({
   audio,
   onSubmit,
   submitting = false,
   submitLabel = "Publish",
+  backingTrackTitle,
+  openCall,
+  onOpenCallChange,
   className,
 }: CreateWaveFormProps) {
   const idPrefix = useId();
@@ -85,6 +102,7 @@ export function CreateWaveForm({
   const [titleError, setTitleError] = useState<string | null>(null);
 
   const creationMeta = CREATION_TYPES[audio.creationType];
+  const showOpenCall = typeof openCall === "boolean" && Boolean(onOpenCallChange);
 
   const addCollaborator = () => {
     const username = normaliseUsername(collaboratorInput);
@@ -117,12 +135,12 @@ export function CreateWaveForm({
     event.preventDefault();
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      setTitleError(`Give this ${TERMS.wave.toLowerCase()} a title.`);
+      setTitleError("Give this Wave a title.");
       return;
     }
     setTitleError(null);
 
-    const draft: CreateWaveDraft = {
+    onSubmit({
       audio,
       title: trimmedTitle,
       description: description.trim(),
@@ -131,21 +149,22 @@ export function CreateWaveForm({
       duetPermission,
       collaboratorUsernames: collaborators,
       categories,
-    };
-    onSubmit(draft);
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit} className={cn("flex flex-col gap-5", className)} noValidate>
-      <div className="flex items-center gap-2 text-sm text-fg-muted">
-        <span aria-hidden="true">{creationMeta.glyph}</span>
-        <span>{creationMeta.label}</span>
+    <form onSubmit={handleSubmit} className={cn("flex flex-col gap-6", className)} noValidate>
+      <div className="flex flex-col gap-3 border-b border-hairline pb-4">
+        <TakeStrip blob={audio.blob} peaks={audio.previewPeaks} durationMs={audio.durationMs} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge>{creationMeta.label}</Badge>
+          {backingTrackTitle ? <Badge>Over {backingTrackTitle}</Badge> : null}
+        </div>
       </div>
 
       <Input
         id={`${idPrefix}-title`}
         label="Title"
-        placeholder={`Give this ${TERMS.wave.toLowerCase()} a name`}
         value={title}
         onChange={(event) => {
           setTitle(event.target.value);
@@ -158,21 +177,31 @@ export function CreateWaveForm({
 
       <Textarea
         id={`${idPrefix}-description`}
-        label="Description"
-        placeholder="Say something about this recording (optional)"
+        label="What is this?"
         value={description}
         onChange={(event) => setDescription(event.target.value)}
         maxLength={DESCRIPTION_MAX_LENGTH}
         showCount
       />
 
+      {showOpenCall ? (
+        <div className="border-t border-hairline pt-4">
+          <Switch
+            label={TERMS.openForDuet}
+            description="Anyone can ask to record with this."
+            checked={openCall === true}
+            onCheckedChange={(next) => onOpenCallChange?.(next)}
+          />
+        </div>
+      ) : null}
+
       <Select
         id={`${idPrefix}-visibility`}
-        label={`${TERMS.wave} visibility`}
+        label="Who can hear it"
         value={visibility}
         onChange={(event) => setVisibility(event.target.value as WaveVisibility)}
         options={VISIBILITY_OPTIONS}
-        hint="This actually controls who can open it — not just what's shown on screen."
+        hint="This controls who can open it, not just what is shown."
       />
 
       <Select
@@ -195,16 +224,15 @@ export function CreateWaveForm({
         options={PERMISSION_OPTIONS_WITH_DEFAULT}
       />
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <Input
           id={`${idPrefix}-collaborators`}
           label={TERMS.collaborators}
-          placeholder="username"
           value={collaboratorInput}
           onChange={(event) => setCollaboratorInput(event.target.value)}
           onKeyDown={handleCollaboratorKeyDown}
           onBlur={addCollaborator}
-          hint="Press Enter to add. They must accept before being credited."
+          hint="A username at a time. They accept before they are credited."
           disabled={collaborators.length >= MAX_COLLABORATORS}
         />
         {collaborators.length > 0 ? (
@@ -215,7 +243,7 @@ export function CreateWaveForm({
                 selected
                 icon={<X className="size-3.5" />}
                 onClick={() => removeCollaborator(username)}
-                aria-label={`Remove @${username}`}
+                aria-label={`Remove ${username}`}
               >
                 @{username}
               </Chip>
@@ -224,9 +252,9 @@ export function CreateWaveForm({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <span className="text-[0.8125rem] font-medium text-fg">Category</span>
-        <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2">
+        <span className="type-caption-strong text-ink-muted">Tags</span>
+        <div role="group" aria-label="Tags" className="flex flex-wrap gap-2">
           {WAVE_CATEGORY_OPTIONS.map((category) => (
             <Chip
               key={category}
@@ -239,7 +267,7 @@ export function CreateWaveForm({
         </div>
       </div>
 
-      <Button type="submit" size="lg" loading={submitting} fullWidth>
+      <Button type="submit" size="lg" loading={submitting} loadingLabel="Publishing" fullWidth>
         {submitLabel}
       </Button>
     </form>

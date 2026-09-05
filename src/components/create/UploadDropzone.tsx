@@ -1,51 +1,68 @@
 "use client";
 
 import { useCallback, useId, useRef, useState, type DragEvent } from "react";
-import { Upload } from "@/components/ui/icons";
 
+import { Waveform } from "@/components/audio";
+import { Button } from "@/components/ui";
 import { getDurationMs, validateFile } from "@/lib/audio";
-import { Spinner } from "@/components/ui";
+import { MAX_AUDIO_BYTES, MAX_AUDIO_DURATION_MS } from "@/lib/supabase/config";
 import { cn } from "@/lib/ui";
 
 export interface UploadDropzoneProps {
   /** Called once a file passes client-side validation (spec §18). */
   onFileAccepted: (file: File, durationMs: number) => void;
+  /** Back to the record screen. */
+  onRecord?: () => void;
   className?: string;
 }
 
-type Phase = "idle" | "validating" | "error";
+type Phase = "idle" | "reading" | "error";
+
+const MAX_MEGABYTES = Math.round(MAX_AUDIO_BYTES / (1024 * 1024));
+const MAX_MINUTES = Math.round(MAX_AUDIO_DURATION_MS / 60000);
+
+/** The dormant trace draws ticks, not data (§6.2). */
+const NO_PEAKS: readonly number[] = [];
 
 /**
- * Drag-and-drop / click-to-browse file picker for uploaded Waves (spec §18).
- * Validates format, size and duration client-side via `validateFile` before
- * ever calling `onFileAccepted` — the server re-validates independently, this
- * is purely fast feedback (see the JSDoc on `validateFile`).
+ * Upload a file you already have (spec §18).
+ *
+ * Not a dashed-border box in the middle of the screen: a rail item with a
+ * dormant waterline where the audio will go, a hairline above it, and one key.
+ * The dashed rectangle is the single most template-shaped element in this
+ * category, and a drop target that draws the thing it is waiting for says the
+ * same thing without it. Dropping still works anywhere on the row, because
+ * that is free on a desktop and invisible on a phone.
+ *
+ * Validation messages are sentences about what to do, not error codes
+ * (`mobile-guidelines.md` rule 38). This check is fast local feedback only —
+ * the server independently re-validates size, duration and magic bytes before
+ * accepting anything (`docs/AUDIO_ARCHITECTURE.md`).
  */
-export function UploadDropzone({ onFileAccepted, className }: UploadDropzoneProps) {
+export function UploadDropzone({ onFileAccepted, onRecord, className }: UploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputId = useId();
-  const hintId = `${inputId}-hint`;
 
   const processFile = useCallback(
     async (file: File) => {
-      setPhase("validating");
+      setPhase("reading");
       setError(null);
       try {
         const durationMs = await getDurationMs(file).catch(() => null);
         const result = await validateFile(file, { durationMs: durationMs ?? undefined });
         if (!result.ok) {
           setPhase("error");
-          setError(result.reason ?? "This file could not be used.");
+          setError(result.reason ?? "This file can't be used.");
           return;
         }
         setPhase("idle");
         onFileAccepted(file, durationMs ?? 0);
       } catch {
         setPhase("error");
-        setError("This file could not be read. Try a different file.");
+        setError("This file could not be read. Try a different one.");
       }
     },
     [onFileAccepted],
@@ -63,18 +80,12 @@ export function UploadDropzone({ onFileAccepted, className }: UploadDropzoneProp
   };
 
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <section className={cn("flex flex-col gap-6", className)}>
+      <div className="-mx-page akinti-edge-fade">
+        <Waveform peaks={NO_PEAKS} state="dormant" height={96} readOnly label="No file chosen yet" />
+      </div>
+
       <div
-        role="button"
-        tabIndex={0}
-        aria-describedby={hintId}
-        onClick={() => inputRef.current?.click()}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            inputRef.current?.click();
-          }
-        }}
         onDragOver={(event) => {
           event.preventDefault();
           setDragOver(true);
@@ -82,42 +93,51 @@ export function UploadDropzone({ onFileAccepted, className }: UploadDropzoneProp
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         className={cn(
-          "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center",
-          "cursor-pointer transition-colors duration-150",
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-          dragOver ? "border-accent bg-accent-soft" : "border-border-strong hover:border-fg-subtle",
+          "flex flex-col gap-3 border-t py-4 transition-colors duration-[--dur-micro]",
+          dragOver ? "border-ink" : "border-hairline",
         )}
       >
-        {phase === "validating" ? (
-          <Spinner label="Checking file" />
-        ) : (
-          <>
-            <Upload className="size-6 text-fg-subtle" aria-hidden="true" />
-            <p className="text-sm font-medium text-fg">
-              Drop an audio file here, or click to choose one
-            </p>
-            <p id={hintId} className="text-xs text-fg-subtle">
-              MP3, WAV, OGG, FLAC, M4A or WebM
-            </p>
-          </>
-        )}
-      </div>
-      <input
-        ref={inputRef}
-        id={inputId}
-        type="file"
-        accept="audio/*"
-        className="sr-only"
-        onChange={(event) => {
-          handleFiles(event.target.files);
-          event.target.value = "";
-        }}
-      />
-      {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
+        <p className="type-body measure text-ink">
+          {dragOver ? "Drop it here." : "Choose an audio file, or drop one on this page."}
         </p>
-      ) : null}
-    </div>
+        <p className="type-caption text-ink-subtle">
+          MP3, WAV, OGG, FLAC, M4A or WebM · up to {MAX_MEGABYTES} MB and {MAX_MINUTES} minutes
+        </p>
+
+        <div className="flex flex-wrap items-center gap-6 pt-1">
+          <Button
+            size="lg"
+            loading={phase === "reading"}
+            loadingLabel="Checking the file"
+            onClick={() => inputRef.current?.click()}
+          >
+            Choose a file
+          </Button>
+          {onRecord ? (
+            <Button variant="ghost" onClick={onRecord}>
+              Record instead
+            </Button>
+          ) : null}
+        </div>
+
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="file"
+          accept="audio/*"
+          className="sr-only"
+          onChange={(event) => {
+            handleFiles(event.target.files);
+            event.target.value = "";
+          }}
+        />
+
+        {error ? (
+          <p role="alert" className="type-body-sm measure text-signal-deep">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 }
