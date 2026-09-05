@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { startProCheckout } from "@/app/(app)/settings/pro/actions";
 import { Button, Input, Sheet } from "@/components/ui";
@@ -53,6 +53,25 @@ function IntervalKey({
   );
 }
 
+/** The browser's own language never changes without a full page reload, so there is nothing to subscribe to. */
+function subscribeToNothing(): () => void {
+  return () => {};
+}
+
+/**
+ * `navigator.language` doesn't exist during SSR, so reading it directly in
+ * render (or updating state for it from an effect) makes the server's first
+ * paint diverge from the client's — a genuine hydration mismatch (React
+ * error #418), not a cosmetic one. `useSyncExternalStore`'s third argument
+ * is exactly React's own answer to "a value that exists on the client only":
+ * the server (and the client's very first render, before hydration
+ * reconciles) sees `getServerSnapshot`'s USD; the real detected currency
+ * appears the instant hydration finishes, with no extra render pass.
+ */
+function useDetectedCurrency(): ProCurrency {
+  return useSyncExternalStore(subscribeToNothing, detectProCurrency, () => "USD");
+}
+
 const EMPTY_BUYER: IyzicoBuyerDetails = {
   identityNumber: "",
   gsmNumber: "",
@@ -71,9 +90,7 @@ const EMPTY_BUYER: IyzicoBuyerDetails = {
  */
 export function StartProControls({ plans, paddleClientToken, paddleEnvironment }: StartProControlsProps) {
   const [billingInterval, setBillingInterval] = useState<ProInterval>("month");
-  // Detected once, client-side only (no profile locale column exists yet —
-  // see `detectProCurrency`'s doc comment) — never re-derived per click.
-  const [currency] = useState<ProCurrency>(() => detectProCurrency());
+  const currency = useDetectedCurrency();
   const [buyerOpen, setBuyerOpen] = useState(false);
   const [buyer, setBuyer] = useState<IyzicoBuyerDetails>(EMPTY_BUYER);
   const [buyerErrors, setBuyerErrors] = useState<Record<string, string>>({});
