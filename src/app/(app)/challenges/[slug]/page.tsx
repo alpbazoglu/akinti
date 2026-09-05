@@ -100,12 +100,19 @@ export default async function ChallengePage({ params, searchParams }: ChallengeP
           ) : null}
 
           {viewer && challenge.status === "live" ? (
-            <EnterChallengeWavePicker
-              challengeId={challenge.id}
-              challengeSlug={challenge.slug}
-              waves={eligibleWaves.map((wave) => ({ id: wave.id, title: wave.title, publishedAt: wave.publishedAt }))}
-              className="pt-2"
-            />
+            <div className="flex flex-wrap items-center gap-4 pt-2">
+              <EnterChallengeWavePicker
+                challengeId={challenge.id}
+                challengeSlug={challenge.slug}
+                waves={eligibleWaves.map((wave) => ({ id: wave.id, title: wave.title, publishedAt: wave.publishedAt }))}
+              />
+              <Link
+                href={routes.create({ challenge: challenge.slug })}
+                className="type-body-sm text-ink underline"
+              >
+                Enter with a new Wave
+              </Link>
+            </div>
           ) : null}
         </div>
 

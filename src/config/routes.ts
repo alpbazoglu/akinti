@@ -10,7 +10,13 @@ export const routes = {
   home: () => "/",
   explore: () => "/explore",
   search: (q?: string) => (q && q.trim().length > 0 ? `/search?q=${enc(q.trim())}` : "/search"),
-  create: () => "/create",
+  create: (params?: { track?: string; challenge?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.track) query.set("track", params.track);
+    if (params?.challenge) query.set("challenge", params.challenge);
+    const search = query.toString();
+    return search ? `/create?${search}` : "/create";
+  },
   /** Browse the curated/open backing-track library (see also Explore's own "Tracks to sing over" lane). */
   tracks: () => "/tracks",
   notifications: () => "/notifications",

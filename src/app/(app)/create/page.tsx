@@ -3,17 +3,19 @@ import { requireOnboarded } from "@/lib/auth/server";
 import { routes } from "@/config/routes";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
 import { getBackingTrackById } from "@/lib/db/backingTracks";
+import { getChallengeBySlug } from "@/lib/db/challenges";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import type { RecordStageBackingTrack } from "@/components/create";
+import type { CreateFlowChallenge } from "./CreateFlow";
 
 import { CreateFlow } from "./CreateFlow";
 
 export const metadata = { title: `${TERMS.create} ${TERMS.aWave}` };
 
 interface CreatePageProps {
-  searchParams: Promise<{ track?: string }>;
+  searchParams: Promise<{ track?: string; challenge?: string }>;
 }
 
 /**
@@ -31,14 +33,42 @@ interface CreatePageProps {
  * client, so an id for a track that is neither curated, open-for-vocals nor
  * the caller's own simply resolves to `null` — a quiet fallback to "no
  * track", never an error screen over one stale or mistyped link.
+ *
+ * `?challenge=<slug>` (from a challenge's "Enter with a new Wave", spec §4
+ * `docs/CHALLENGES.md`) is resolved the same way, through `getChallengeBySlug`
+ * — which already reads through RLS, so a slug that is hidden or missing
+ * quietly resolves to no challenge rather than an error screen. Its own
+ * backing track, if it has one, preselects the same way `?track=` does,
+ * unless the link already named an explicit `track`.
  */
 export default async function CreatePage({ searchParams }: CreatePageProps) {
   await requireOnboarded(routes.create());
-  const { track: trackId } = await searchParams;
+  const { track: trackId, challenge: challengeSlug } = await searchParams;
 
-  const initialBackingTrack = trackId ? await loadBackingTrack(trackId) : null;
+  const challenge = challengeSlug ? await loadChallenge(challengeSlug) : null;
+  const resolvedTrackId = trackId ?? challenge?.backingTrackId ?? null;
+  const initialBackingTrack = resolvedTrackId ? await loadBackingTrack(resolvedTrackId) : null;
 
-  return <CreateFlow initialBackingTrack={initialBackingTrack} />;
+  return <CreateFlow initialBackingTrack={initialBackingTrack} initialChallenge={challenge} />;
+}
+
+async function loadChallenge(slug: string): Promise<CreateFlowChallenge | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const db = await createServerSupabaseClient();
+    const challenge = await getChallengeBySlug(db, slug);
+    if (!challenge) return null;
+    return {
+      id: challenge.id,
+      slug: challenge.slug,
+      title: challenge.title,
+      backingTrackId: challenge.backingTrackId ?? null,
+    };
+  } catch {
+    // A missing/unreachable challenge is never a reason to block the whole
+    // record screen — the singer just publishes without entering one.
+    return null;
+  }
 }
 
 async function loadBackingTrack(trackId: string): Promise<RecordStageBackingTrack | null> {

@@ -21,6 +21,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { enterChallengeAction } from "@/app/(app)/challenges/actions";
 import { PageHeader } from "@/components/layout";
 import {
   CreateWaveForm,
@@ -33,7 +34,7 @@ import {
   type PublishStage,
   type RecordStageBackingTrack,
 } from "@/components/create";
-import { Button } from "@/components/ui";
+import { Button, useToast } from "@/components/ui";
 import {
   applyTrim,
   decodeToPeaks,
@@ -67,13 +68,24 @@ interface CapturedAudio {
 
 const FALLBACK_PEAKS = (buckets: number): readonly number[] => new Array(buckets).fill(0.2);
 
+/** From `?challenge=<slug>` (spec §4, `docs/CHALLENGES.md`), already resolved server-side by `page.tsx`. */
+export interface CreateFlowChallenge {
+  readonly id: string;
+  readonly slug: string;
+  readonly title: string;
+  readonly backingTrackId: string | null;
+}
+
 export interface CreateFlowProps {
   /** From `?track=<id>` (spec §4), already resolved server-side by `page.tsx`. */
   initialBackingTrack: RecordStageBackingTrack | null;
+  /** From `?challenge=<slug>`; `null` when this Wave isn't entering one. */
+  initialChallenge: CreateFlowChallenge | null;
 }
 
-export function CreateFlow({ initialBackingTrack }: CreateFlowProps) {
+export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlowProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [step, setStep] = useState<Step>("capture");
   const [captureMode, setCaptureMode] = useState<CaptureMode>("record");
   const [backingTrack, setBackingTrack] = useState<RecordStageBackingTrack | null>(
@@ -255,10 +267,29 @@ export function CreateFlow({ initialBackingTrack }: CreateFlowProps) {
         return;
       }
 
+      if (initialChallenge) {
+        // Best-effort: the Wave already published successfully, so a failed
+        // entry (the challenge closed underneath the singer, a rate limit)
+        // is surfaced as a toast, never as a reason to block navigation to
+        // the Wave that did publish.
+        const entered = await enterChallengeAction({
+          challengeId: initialChallenge.id,
+          waveId: published.waveId,
+          challengeSlug: initialChallenge.slug,
+        }).catch(() => null);
+        if (!entered?.ok) {
+          toast({
+            title: `Published, but couldn't enter ${initialChallenge.title}`,
+            description: entered?.formError ?? "Try entering it again from the challenge page.",
+            tone: "error",
+          });
+        }
+      }
+
       setPublishStage("done");
       router.push(routes.wave(published.waveId));
     },
-    [backingTrack, router],
+    [backingTrack, initialChallenge, router, toast],
   );
 
   const handlePublish = (draft: CreateWaveDraft) => {
@@ -330,6 +361,11 @@ export function CreateFlow({ initialBackingTrack }: CreateFlowProps) {
               <PublishProgress stage={publishStage} error={publishError} onRetry={handleRetry} />
             ) : (
               <>
+                {initialChallenge ? (
+                  <p className="type-caption-strong text-ink-muted">
+                    Entering {initialChallenge.title}
+                  </p>
+                ) : null}
                 <CreateWaveForm
                   audio={{
                     creationType: captured.creationType,
