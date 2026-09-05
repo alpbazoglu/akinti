@@ -5,6 +5,7 @@ import {
   type PlaybackAudioElement,
   type PlaybackStore,
 } from "./playbackStore";
+import { SIGNED_AUDIO_URL_TTL_MS } from "./signedAudioUrl";
 
 /**
  * Minimal stand-in for the single `<audio>` element. jsdom does not implement
@@ -232,5 +233,164 @@ describe("playbackStore", () => {
     expect(store.getState().waveId).toBeNull();
     expect(store.getState().status).toBe("idle");
     expect(audio.paused).toBe(true);
+  });
+});
+
+describe("playbackStore — signed URL refresh (review2 #8)", () => {
+  let audio: FakeAudio;
+
+  beforeEach(() => {
+    audio = new FakeAudio();
+  });
+
+  function createStoreWithClock(fetchSignedAudioUrl: (assetId: string) => Promise<string | null>) {
+    let currentTime = 0;
+    const store = createPlaybackStore({
+      createAudio: () => audio,
+      fetchSignedAudioUrl,
+      now: () => currentTime,
+    });
+    return { store, advance: (ms: number) => (currentTime += ms) };
+  }
+
+  it("does nothing extra when no assetId is given — unchanged behaviour", async () => {
+    const fetchSignedAudioUrl = vi.fn();
+    const { store, advance } = createStoreWithClock(fetchSignedAudioUrl);
+
+    store.play("wave-a", "/a.mp3");
+    await Promise.resolve();
+    advance(SIGNED_AUDIO_URL_TTL_MS * 2);
+    store.pause();
+    store.play("wave-a", "/a.mp3");
+    await Promise.resolve();
+
+    expect(fetchSignedAudioUrl).not.toHaveBeenCalled();
+    expect(audio.src).toBe("/a.mp3");
+  });
+
+  it("refreshes the URL when play() restarts a Wave whose signed URL has gone stale", async () => {
+    const fetchSignedAudioUrl = vi.fn().mockResolvedValue("/a-fresh.mp3");
+    const { store, advance } = createStoreWithClock(fetchSignedAudioUrl);
+
+    store.play("wave-a", "/a.mp3", { assetId: "asset-a" });
+    await Promise.resolve();
+    expect(audio.src).toBe("/a.mp3");
+
+    advance(SIGNED_AUDIO_URL_TTL_MS);
+    store.play("wave-a", "/a.mp3", { assetId: "asset-a" });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchSignedAudioUrl).toHaveBeenCalledWith("asset-a");
+    expect(audio.src).toBe("/a-fresh.mp3");
+    expect(store.getState().src).toBe("/a-fresh.mp3");
+    expect(store.getState().status).toBe("playing");
+  });
+
+  it("refreshes the URL on resume() when it has gone stale", async () => {
+    const fetchSignedAudioUrl = vi.fn().mockResolvedValue("/a-fresh.mp3");
+    const { store, advance } = createStoreWithClock(fetchSignedAudioUrl);
+
+    store.play("wave-a", "/a.mp3", { assetId: "asset-a" });
+    await Promise.resolve();
+    store.pause();
+
+    advance(SIGNED_AUDIO_URL_TTL_MS);
+    store.resume();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchSignedAudioUrl).toHaveBeenCalledWith("asset-a");
+    expect(audio.src).toBe("/a-fresh.mp3");
+    expect(store.getState().status).toBe("playing");
+  });
+
+  it("does not refresh a URL that is still fresh", async () => {
+    const fetchSignedAudioUrl = vi.fn().mockResolvedValue("/a-fresh.mp3");
+    const { store, advance } = createStoreWithClock(fetchSignedAudioUrl);
+
+    store.play("wave-a", "/a.mp3", { assetId: "asset-a" });
+    await Promise.resolve();
+    store.pause();
+
+    advance(SIGNED_AUDIO_URL_TTL_MS / 2);
+    store.resume();
+    await Promise.resolve();
+
+    expect(fetchSignedAudioUrl).not.toHaveBeenCalled();
+    expect(audio.src).toBe("/a.mp3");
+  });
+
+  it("refreshes once on a media error and resumes playback with the fresh URL", async () => {
+    const fetchSignedAudioUrl = vi.fn().mockResolvedValue("/a-fresh.mp3");
+    const { store } = createStoreWithClock(fetchSignedAudioUrl);
+
+    store.play("wave-a", "/a.mp3", { assetId: "asset-a" });
+    await Promise.resolve();
+
+    audio.emit("error");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchSignedAudioUrl).toHaveBeenCalledWith("asset-a");
+    expect(audio.src).toBe("/a-fresh.mp3");
+    expect(store.getState().status).toBe("playing");
+    expect(store.getState().error).toBeNull();
+  });
+
+  it("surfaces the honest error when a refresh after a media error also fails", async () => {
+    const fetchSignedAudioUrl = vi.fn().mockResolvedValue(null);
+    const { store } = createStoreWithClock(fetchSignedAudioUrl);
+
+    store.play("wave-a", "/a.mp3", { assetId: "asset-a" });
+    await Promise.resolve();
+
+    audio.emit("error");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(store.getState().status).toBe("error");
+    expect(store.getState().error).toBeTruthy();
+  });
+
+  it("does not loop forever on repeated media errors after one failed refresh", async () => {
+    const fetchSignedAudioUrl = vi.fn().mockResolvedValue(null);
+    const { store } = createStoreWithClock(fetchSignedAudioUrl);
+
+    store.play("wave-a", "/a.mp3", { assetId: "asset-a" });
+    await Promise.resolve();
+
+    audio.emit("error");
+    await Promise.resolve();
+    await Promise.resolve();
+    audio.emit("error");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Only the first error triggered a refresh attempt; the second went
+    // straight to the error state instead of fetching again.
+    expect(fetchSignedAudioUrl).toHaveBeenCalledTimes(1);
+    expect(store.getState().status).toBe("error");
+  });
+
+  it("re-arms the error-refresh guard after switching to a new Wave", async () => {
+    const fetchSignedAudioUrl = vi.fn().mockResolvedValue(null);
+    const { store } = createStoreWithClock(fetchSignedAudioUrl);
+
+    store.play("wave-a", "/a.mp3", { assetId: "asset-a" });
+    await Promise.resolve();
+    audio.emit("error");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fetchSignedAudioUrl).toHaveBeenCalledTimes(1);
+
+    store.play("wave-b", "/b.mp3", { assetId: "asset-b" });
+    await Promise.resolve();
+    audio.emit("error");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchSignedAudioUrl).toHaveBeenCalledTimes(2);
+    expect(fetchSignedAudioUrl).toHaveBeenLastCalledWith("asset-b");
   });
 });

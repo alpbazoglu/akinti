@@ -20,6 +20,11 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import {
+  fetchSignedAudioUrl as defaultFetchSignedAudioUrl,
+  isSignedAudioUrlStale,
+  type FetchSignedAudioUrl,
+} from "./signedAudioUrl";
 import type { WaveSurferHandle } from "./waveSurfer";
 
 export type PlaybackStatus =
@@ -44,6 +49,16 @@ export interface PlaybackMeta {
    * already know (`docs/design/DESIGN.md` §6.4).
    */
   readonly peaks?: readonly number[];
+  /**
+   * `audio_assets.id` for this Wave. When given, the store tracks when the
+   * `src` it was handed was minted and re-fetches a fresh signed URL from
+   * `GET /api/audio/[assetId]/url` — rather than handing a dead URL to the
+   * media element — once it looks stale: on the next `play()`/`resume()`
+   * for this Wave, or after the element reports a media `error` (signed
+   * URLs are 10-minute, single-mint; review2 #8). Omitting it opts out —
+   * the store then behaves exactly as it always has.
+   */
+  readonly assetId?: string;
 }
 
 export interface PlaybackState {
@@ -113,6 +128,10 @@ export interface PlaybackStoreOptions {
   /** Factory for the single media element. Overridden in tests. */
   readonly createAudio?: () => PlaybackAudioElement;
   readonly initialVolume?: number;
+  /** Re-fetches a signed URL for an `audio_assets.id`. Overridden in tests. */
+  readonly fetchSignedAudioUrl?: FetchSignedAudioUrl;
+  /** Clock used to decide URL staleness. Overridden in tests. */
+  readonly now?: () => number;
 }
 
 const INITIAL_STATE: PlaybackState = {
@@ -165,9 +184,21 @@ export class PlaybackStore {
   private boundHandlers: { type: string; handler: () => void }[] = [];
   private waveSurfer: WaveSurferHandle | null = null;
   private waveSurferToken = 0;
+  private readonly fetchSignedAudioUrl: FetchSignedAudioUrl;
+  private readonly now: () => number;
+  /** `audio_assets.id` for the currently loaded Wave, if the caller gave one. */
+  private assetId: string | null = null;
+  /** When the current `src` was minted/last refreshed, for staleness checks. */
+  private urlMintedAt: number | null = null;
+  /** In-flight refresh, de-duplicated so a resume + a media error don't both fetch. */
+  private refreshInFlight: Promise<void> | null = null;
+  /** One refresh attempt per media `error`, so a genuinely broken asset still surfaces the error instead of looping. */
+  private errorRefreshAttempted = false;
 
   constructor(options: PlaybackStoreOptions = {}) {
     this.createAudio = options.createAudio ?? defaultCreateAudio;
+    this.fetchSignedAudioUrl = options.fetchSignedAudioUrl ?? defaultFetchSignedAudioUrl;
+    this.now = options.now ?? Date.now;
     this.state = {
       ...INITIAL_STATE,
       volume: options.initialVolume ?? INITIAL_STATE.volume,
@@ -224,6 +255,9 @@ export class PlaybackStore {
       audio.pause();
       audio.src = src;
       audio.load?.();
+      this.assetId = meta.assetId ?? null;
+      this.urlMintedAt = this.now();
+      this.errorRefreshAttempted = false;
       this.setState({
         waveId,
         src,
@@ -238,6 +272,11 @@ export class PlaybackStore {
       this.attachAnalysis(audio, meta);
     } else {
       this.setState({ meta, status: "loading", error: null });
+      if (this.shouldRefreshSignedUrl()) {
+        this.publishMediaSession(meta);
+        void this.refreshSignedUrl(audio);
+        return;
+      }
     }
 
     this.publishMediaSession(meta);
@@ -249,6 +288,10 @@ export class PlaybackStore {
     const audio = this.audio;
     if (!audio || !this.state.waveId) return;
     this.setState({ error: null });
+    if (this.shouldRefreshSignedUrl()) {
+      void this.refreshSignedUrl(audio);
+      return;
+    }
     void this.startPlayback(audio);
   }
 
@@ -295,6 +338,9 @@ export class PlaybackStore {
     this.audio?.pause();
     if (this.audio) this.audio.currentTime = 0;
     this.detachAnalysis();
+    this.assetId = null;
+    this.urlMintedAt = null;
+    this.errorRefreshAttempted = false;
     this.setState({
       waveId: null,
       src: null,
@@ -446,6 +492,62 @@ export class PlaybackStore {
     this.boundHandlers = [];
   }
 
+  /** True when the current Wave has a known asset and its signed URL looks stale. */
+  private shouldRefreshSignedUrl(): boolean {
+    return this.assetId !== null && this.urlMintedAt !== null && isSignedAudioUrlStale(this.urlMintedAt, this.now());
+  }
+
+  /**
+   * Re-fetches a signed URL for the active asset and, on success, swaps it
+   * into the media element and resumes playback. On failure (including the
+   * endpoint's constant 404 — the asset is gone or no longer authorized)
+   * surfaces the same honest playback error as any other failure, since a
+   * refresh was already the fallback, not the first attempt.
+   */
+  private refreshSignedUrl(audio: PlaybackAudioElement): Promise<void> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    const assetId = this.assetId;
+    if (!assetId) return Promise.resolve();
+
+    this.setState({ status: "loading", error: null });
+
+    const request = this.fetchSignedAudioUrl(assetId)
+      .then((freshUrl) => {
+        // The active Wave changed while the request was in flight (or the
+        // asset id was cleared by a `stop()`) — this response is stale.
+        if (this.assetId !== assetId) return;
+
+        if (!freshUrl) {
+          this.setState({
+            status: "error",
+            error: "This Wave could not be played right now.",
+          });
+          return;
+        }
+
+        this.urlMintedAt = this.now();
+        this.errorRefreshAttempted = false;
+        audio.pause();
+        audio.src = freshUrl;
+        audio.load?.();
+        this.setState({ src: freshUrl });
+        void this.startPlayback(audio);
+      })
+      .catch(() => {
+        if (this.assetId !== assetId) return;
+        this.setState({
+          status: "error",
+          error: "This Wave could not be played right now.",
+        });
+      })
+      .finally(() => {
+        this.refreshInFlight = null;
+      });
+
+    this.refreshInFlight = request;
+    return request;
+  }
+
   private async startPlayback(audio: PlaybackAudioElement): Promise<void> {
     try {
       await audio.play();
@@ -514,6 +616,15 @@ export class PlaybackStore {
         this.setState({ volume: audio.volume, muted: audio.muted });
         break;
       case "error":
+        // A signed URL that expired mid-session looks like any other media
+        // error to the element. Try one refresh before giving up — a
+        // genuinely broken/unauthorized asset still ends up in the error
+        // state once `refreshSignedUrl` itself fails (see below).
+        if (this.assetId && !this.errorRefreshAttempted) {
+          this.errorRefreshAttempted = true;
+          void this.refreshSignedUrl(audio);
+          break;
+        }
         this.setState({
           status: "error",
           error: "This Wave could not be played right now.",
@@ -648,14 +759,15 @@ export function useWaveControls(waveId: string, src: string, meta?: PlaybackMeta
   const creatorUsername = meta?.creatorUsername;
   const duration = meta?.duration;
   const peaks = meta?.peaks;
+  const assetId = meta?.assetId;
 
   const play = useCallback(() => {
-    store.play(waveId, src, { title, creatorUsername, duration, peaks });
-  }, [store, waveId, src, title, creatorUsername, duration, peaks]);
+    store.play(waveId, src, { title, creatorUsername, duration, peaks, assetId });
+  }, [store, waveId, src, title, creatorUsername, duration, peaks, assetId]);
 
   const toggle = useCallback(() => {
-    store.toggle(waveId, src, { title, creatorUsername, duration, peaks });
-  }, [store, waveId, src, title, creatorUsername, duration, peaks]);
+    store.toggle(waveId, src, { title, creatorUsername, duration, peaks, assetId });
+  }, [store, waveId, src, title, creatorUsername, duration, peaks, assetId]);
 
   const pause = useCallback(() => {
     store.pause();
