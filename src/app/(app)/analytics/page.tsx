@@ -5,7 +5,6 @@ import {
   AnalyticsSkeleton,
   AnalyticsTimeseriesChart,
   RangeSwitcher,
-  StatTile,
   WavePerformanceTable,
 } from "@/components/analytics";
 import { PageHeader } from "@/components/layout";
@@ -47,10 +46,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
 
   return (
     <>
-      <PageHeader
-        title="Analytics"
-        actions={<RangeSwitcher current={days} section="creator" />}
-      />
+      <PageHeader title="Analytics" below={<RangeSwitcher current={days} section="creator" />} />
       {isSupabaseConfigured() ? (
         <Suspense fallback={<AnalyticsSkeleton />}>
           <AnalyticsContent days={days} />
@@ -105,9 +101,9 @@ async function AnalyticsContent({ days }: { days: AnalyticsRangeDays }) {
           action={
             <Link
               href={routes.create()}
-              className="inline-flex h-10 items-center justify-center rounded-full bg-accent px-4 text-sm font-medium text-fg-on-accent shadow-xs transition-colors hover:bg-accent-hover"
+              className="akinti-press inline-flex h-11 items-center rounded-key bg-ink px-5 type-subhead text-on-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              Create a {TERMS.wave}
+              Record your first {TERMS.wave}
             </Link>
           }
         />
@@ -116,55 +112,58 @@ async function AnalyticsContent({ days }: { days: AnalyticsRangeDays }) {
   }
 
   const filledDays = fillAnalyticsTimeseriesGaps(timeseries, days);
-  const followerDeltaLabel = `${overview.followerDelta >= 0 ? "+" : ""}${formatCount(overview.followerDelta)}`;
+
+  // The 4 figures (SCREENS.md §12): mono values in a row, only the ones
+  // that are actually non-zero (§12.6 — six zeros is a debug dump).
+  const figures: { label: string; value: string }[] = [
+    { label: TERMS.replays.toLowerCase(), value: formatCount(overview.replays) },
+    { label: TERMS.saves.toLowerCase(), value: formatCount(overview.saves) },
+    { label: TERMS.shares.toLowerCase(), value: formatCount(overview.shares) },
+    { label: TERMS.duets.toLowerCase(), value: formatCount(overview.duets) },
+  ].filter((figure) => figure.value !== "0");
 
   return (
-    <div className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <StatTile
-          label={TERMS.plays}
-          value={formatCount(overview.plays)}
-          kind="meaningful"
-          hint="Counted once per listener, not every playback ping."
-        />
-        <StatTile
-          label="Unique listeners"
-          value={formatCount(overview.uniqueListeners)}
-          kind="meaningful"
-        />
-        <StatTile
-          label={TERMS.replays}
-          value={formatCount(overview.replays)}
-          kind="meaningful"
-          hint="One per listener at most — not total repeat plays."
-        />
-        <StatTile label={TERMS.saves} value={formatCount(overview.saves)} kind="meaningful" />
-        <StatTile label={TERMS.shares} value={formatCount(overview.shares)} kind="meaningful" />
-        <StatTile label={TERMS.comments} value={formatCount(overview.comments)} kind="meaningful" />
-        <StatTile label={TERMS.duets} value={formatCount(overview.duets)} kind="meaningful" />
-        <StatTile
-          label="Avg. listen time"
-          value={formatAvgListenTime(overview.avgListenSeconds)}
-          kind="raw"
-          hint="Average across listens that counted as a play."
-        />
-        <StatTile
-          label="Completion rate"
-          value={formatPercent(overview.completionRate)}
-          kind="raw"
-          hint="Share of counted listens that reached 90% of the Wave."
-        />
-        <StatTile
-          label="Follower change"
-          value={followerDeltaLabel}
-          hint="New followers gained in this window (unfollows are not netted out)."
-        />
+    <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
+      <div>
+        <p className="type-mono-display tabular-nums text-ink">{formatCount(overview.plays)}</p>
+        <p className="type-body-sm text-ink-muted">{TERMS.plays.toLowerCase()}</p>
       </div>
 
       <AnalyticsTimeseriesChart days={filledDays} />
 
+      {figures.length > 0 ? (
+        <>
+          <div className="border-t border-hairline" />
+          <div className="flex gap-8">
+            {figures.map((figure) => (
+              <div key={figure.label} className="flex flex-col gap-1">
+                <span className="type-mono-lg tabular-nums text-ink">{figure.value}</span>
+                <span className="type-caption text-ink-subtle">{figure.label}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <div className="border-t border-hairline" />
+
+      <div className="flex flex-col gap-2 text-ink-muted">
+        <p className="type-caption font-medium">Unique listeners</p>
+        <p className="type-mono tabular-nums text-ink">{formatCount(overview.uniqueListeners)}</p>
+      </div>
+      <div className="flex gap-8 text-ink-muted">
+        <div className="flex flex-col gap-1">
+          <span className="type-mono tabular-nums text-ink">{formatAvgListenTime(overview.avgListenSeconds)}</span>
+          <span className="type-caption">avg. listen time</span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="type-mono tabular-nums text-ink">{formatPercent(overview.completionRate)}</span>
+          <span className="type-caption">completion rate</span>
+        </div>
+      </div>
+
       <div>
-        <h2 className="mb-2 px-1 text-sm font-semibold text-fg">{TERMS.wave} performance</h2>
+        <h2 className="type-caption mb-2 font-semibold text-ink-muted">{TERMS.wave} performance</h2>
         <WavePerformanceTable waves={waves} />
       </div>
     </div>

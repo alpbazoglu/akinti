@@ -14,13 +14,15 @@ export interface RangeSwitcherProps {
  * `setAnalyticsRange` (`src/app/(app)/analytics/actions.ts`) — a plain
  * server-rendered component, no client JS needed to change the range.
  */
+/**
+ * Underbar tabs (SCREENS.md §12), not a pill segmented control: the active
+ * range is a 2px ink underline, never a filled/rounded background (§12.4).
+ * Kept as one `<form>` per option — same no-JS-required design as before —
+ * so the switcher still works with JavaScript disabled.
+ */
 export function RangeSwitcher({ current, section, className }: RangeSwitcherProps) {
   return (
-    <div
-      role="group"
-      aria-label="Date range"
-      className={cn("inline-flex items-center gap-1 rounded-full bg-surface-muted p-1", className)}
-    >
+    <div role="group" aria-label="Date range" className={cn("flex items-center gap-5", className)}>
       {ANALYTICS_RANGE_OPTIONS.map((option) => {
         const selected = option.value === current;
         return (
@@ -29,9 +31,9 @@ export function RangeSwitcher({ current, section, className }: RangeSwitcherProp
               type="submit"
               aria-current={selected || undefined}
               className={cn(
-                "h-8 rounded-full px-3.5 text-sm font-medium transition-colors duration-150",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                selected ? "bg-surface text-fg shadow-xs" : "text-fg-muted hover:text-fg",
+                "type-body-sm h-8 border-b-2 font-medium transition-colors duration-150",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                selected ? "border-ink text-ink" : "border-transparent text-ink-muted hover:text-ink",
               )}
             >
               {option.label}

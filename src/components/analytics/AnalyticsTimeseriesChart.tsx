@@ -58,13 +58,13 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
     days.length > 0 ? `${formatShortDate(days[0]!.day)} – ${formatShortDate(days[days.length - 1]!.day)}` : "";
 
   return (
-    <div className={cn("rounded-xl border border-border bg-surface p-4", className)}>
+    <div className={cn("flex flex-col", className)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 id={titleId} className="text-sm font-semibold text-fg">
+          <h3 id={titleId} className="type-caption font-semibold text-ink-muted">
             Daily {METRIC_LABELS[metric].toLowerCase()}
           </h3>
-          {rangeLabel ? <p className="text-xs text-fg-subtle">{rangeLabel}</p> : null}
+          {rangeLabel ? <p className="type-caption text-ink-subtle">{rangeLabel}</p> : null}
         </div>
         <div className="flex items-center gap-2">
           <Select
@@ -80,7 +80,7 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
             type="button"
             onClick={() => setShowTable((value) => !value)}
             aria-pressed={showTable}
-            className="h-10 shrink-0 rounded-full border border-border px-3 text-xs font-medium text-fg-muted transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="akinti-press type-caption h-10 shrink-0 text-ink-muted underline decoration-hairline-strong decoration-1 underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             {showTable ? "Show chart" : "Show table"}
           </button>
