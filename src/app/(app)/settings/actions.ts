@@ -10,11 +10,14 @@ import { getProfileById, isUsernameAvailable, updateProfile } from "@/lib/db/pro
 import { DatabaseError } from "@/lib/db/types";
 import type { AccountDataExport } from "@/lib/privacy/dataExport";
 import { serializeAccountDataExport } from "@/lib/privacy/dataExport";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CommentRow, WaveRow } from "@/types/database";
+import { routes } from "@/config/routes";
 import { uuidSchema } from "@/lib/validation/common";
 import { notificationPreferencesSchema } from "@/lib/validation/moderation";
 import {
+  deleteAccountSchema,
   updateAccountSchema,
   updateAppearanceSchema,
   updateAvatarSchema,
@@ -278,4 +281,50 @@ export async function exportAccountData(): Promise<ExportAccountDataResult> {
   } catch {
     return { ok: false, formError: "Could not prepare your data export. Try again." };
   }
+}
+
+export interface DeleteAccountFormInput {
+  /** The account's own handle, retyped as the confirmation (SCREENS.md §11). */
+  confirmHandle: string;
+}
+
+/**
+ * Settings → delete account (SCREENS.md §11, DESIGN.md §11.2). Retyping the
+ * caller's own handle IS the confirmation, checked against their real
+ * username here — never trusted from the client beyond that.
+ *
+ * Deletes the `auth.users` row through the service-role admin client, the
+ * same "admin path, only after an authorization check" this client is
+ * already scoped to (`src/lib/supabase/admin.ts`) — the authorization here
+ * is simply that a signed-in user can only ever delete themselves
+ * (`user.id` comes from the verified session, never from the form).
+ * `profiles.id references auth.users(id) on delete cascade`
+ * (`20260903120200_identity_and_social_graph.sql`) takes every dependent row
+ * (Waves, Duets, comments, messages) from there — the same cascade path
+ * `e2e/helpers/supabaseAdmin.ts#deleteTestUser` already exercises for every
+ * live-backend e2e spec's cleanup. No new migration needed.
+ */
+export async function deleteAccount(input: DeleteAccountFormInput): Promise<AuthActionResult> {
+  const { user, result } = await requireSignedInUser();
+  if (!user) return result!;
+
+  const parsed = deleteAccountSchema.safeParse({ confirmHandle: input.confirmHandle });
+  if (!parsed.success) {
+    return { ok: false, fieldErrors: { confirmHandle: "Type your handle to confirm." } };
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const profile = await getProfileById(supabase, user.id);
+  if (!profile || parsed.data.confirmHandle !== profile.username) {
+    return { ok: false, fieldErrors: { confirmHandle: "That doesn't match your handle." } };
+  }
+
+  try {
+    const { error } = await createAdminClient().auth.admin.deleteUser(user.id);
+    if (error) throw error;
+  } catch {
+    return { ok: false, formError: "Could not delete your account. Try again." };
+  }
+
+  return { ok: true, redirectTo: routes.login() };
 }

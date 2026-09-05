@@ -94,6 +94,16 @@ export const updatePrivacySchema = z.object({
 /** Settings → Appearance (spec §21/§25): curated theme presets only. */
 export const updateAppearanceSchema = profileThemeSchema;
 
+/**
+ * Settings → Delete account (SCREENS.md §11, DESIGN.md §11.2): retyping the
+ * caller's own handle is the confirmation. Reuses `usernameSchema` so the
+ * typed value is trimmed and lowercased the same way a real handle is before
+ * the action compares it against the signed-in user's actual username.
+ */
+export const deleteAccountSchema = z.object({
+  confirmHandle: usernameSchema,
+});
+
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type CompleteOnboardingInput = z.infer<typeof completeOnboardingSchema>;
 export type FollowInput = z.infer<typeof followSchema>;
@@ -103,3 +113,4 @@ export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;
 export type UpdateAvatarInput = z.infer<typeof updateAvatarSchema>;
 export type UpdatePrivacyInput = z.infer<typeof updatePrivacySchema>;
 export type UpdateAppearanceInput = z.infer<typeof updateAppearanceSchema>;
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;

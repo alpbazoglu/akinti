@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   blockSchema,
+  deleteAccountSchema,
   followSchema,
   profileThemeSchema,
   respondToFollowRequestSchema,
@@ -122,6 +123,29 @@ describe("updateProfileSchema", () => {
 
   it("accepts a partial patch", () => {
     expect(updateProfileSchema.safeParse({ bio: "hello" }).success).toBe(true);
+  });
+});
+
+describe("deleteAccountSchema", () => {
+  it("accepts a plausible handle", () => {
+    expect(deleteAccountSchema.safeParse({ confirmHandle: "maria_lopez" }).success).toBe(true);
+  });
+
+  it("trims and lowercases, like a real handle", () => {
+    const result = deleteAccountSchema.parse({ confirmHandle: "  Maria_Lopez  " });
+    expect(result.confirmHandle).toBe("maria_lopez");
+  });
+
+  it("rejects a handle shorter than the minimum a real username could be", () => {
+    expect(deleteAccountSchema.safeParse({ confirmHandle: "ab" }).success).toBe(false);
+  });
+
+  it("rejects a value that isn't a valid handle shape (spaces, symbols)", () => {
+    expect(deleteAccountSchema.safeParse({ confirmHandle: "not a handle!" }).success).toBe(false);
+  });
+
+  it("rejects a missing confirmHandle", () => {
+    expect(deleteAccountSchema.safeParse({}).success).toBe(false);
   });
 });
 

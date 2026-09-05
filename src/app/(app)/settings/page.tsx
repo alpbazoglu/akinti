@@ -4,6 +4,7 @@ import { ChevronRight, LogOut } from "@/components/ui/icons";
 
 import { signOut } from "@/app/(auth)/actions";
 import { PageHeader } from "@/components/layout";
+import { DeleteAccountSheet } from "@/components/settings";
 import { Avatar } from "@/components/ui";
 import { SETTINGS_SECTIONS, routes, type SettingsSection } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
@@ -102,6 +103,7 @@ export default async function SettingsPage() {
               {TERMS.logOut}
             </button>
           </form>
+          {profile ? <DeleteAccountSheet username={profile.username} /> : null}
         </div>
 
         <p className="type-caption pt-8 text-ink-subtle">{BRAND} &middot; 2026</p>
