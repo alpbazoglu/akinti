@@ -69,6 +69,15 @@ function clamp01(value: number): number {
  * Exposed as an ARIA slider so the trace is a real seek control for keyboard
  * and screen-reader users rather than a picture, and the playhead — not the
  * colour — carries the played/unplayed boundary (§6.2).
+ *
+ * `onSeek` reaches `PlaybackStore.seek`/`seekToRatio`, which are no-ops for a
+ * Wave that is not already the store's active `waveId` — so dragging or
+ * arrow-keying an *unplayed* trace does nothing until Play is pressed once.
+ * That is by design, the same way you cannot scrub tape that has not been
+ * loaded onto the transport yet, and there is always an explicit Play
+ * control right there — reviewA flagged it as worth stating in writing so a
+ * later pass does not "fix" it into something worse (a seek that starts
+ * playback of a Wave nobody asked to hear, or races the store's own load).
  */
 export function Waveform({
   peaks,
