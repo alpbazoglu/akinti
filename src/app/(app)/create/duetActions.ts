@@ -67,8 +67,7 @@ import type { DuetSegment } from "@/lib/duet/ffmpegChain";
 import type { AdvancedEqSettings } from "@/lib/audio/enhancement";
 import type { AudioEnhancementPreset, DuetMode, WaveVisibility } from "@/types/domain";
 
-const NOT_CONFIGURED_ERROR =
-  "This isn't connected to a backend yet — Supabase environment variables are not set.";
+const NOT_CONFIGURED_ERROR = "This can't be completed right now. Try again later.";
 const SIGN_IN_ERROR = "Sign in to publish a Duet.";
 
 export interface ActionFailure {

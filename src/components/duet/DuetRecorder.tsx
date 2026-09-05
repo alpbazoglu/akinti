@@ -237,7 +237,7 @@ export function DuetRecorder({
     <div className={className}>
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-2">
-          <p className="type-caption-strong text-ink-muted">Original — &ldquo;{originalTitle}&rdquo;</p>
+          <p className="type-caption-strong text-ink-muted">The original: &ldquo;{originalTitle}&rdquo;</p>
           <div className="-mx-page">
             <Waveform
               peaks={originalPeaks}

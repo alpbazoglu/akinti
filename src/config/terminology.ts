@@ -229,7 +229,7 @@ export const MAX_ONBOARDING_INTERESTS = 5;
 
 export const SITE = {
   name: BRAND,
-  title: `${BRAND} — ${BRAND_TAGLINE}`,
+  title: `${BRAND} · ${BRAND_TAGLINE}`,
   titleTemplate: `%s · ${BRAND}`,
   description: BRAND_DESCRIPTION,
   locale: "en",

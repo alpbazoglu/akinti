@@ -135,7 +135,7 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
               {name}
             </Link>{" "}
             <span className="text-fg-subtle">
-              {variant === "received" ? "wants to Duet on" : "— your request on"}
+              {variant === "received" ? "wants to Duet on" : "was asked to Duet on"}
             </span>{" "}
             <Link href={routes.wave(item.waveId)} className="font-medium hover:underline">
               {item.waveTitle}

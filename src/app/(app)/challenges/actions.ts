@@ -51,8 +51,7 @@ import {
   withdrawChallengeEntrySchema,
 } from "@/lib/validation/challenges";
 
-const NOT_CONFIGURED_ERROR =
-  "This isn't connected to a backend yet — Supabase environment variables are not set.";
+const NOT_CONFIGURED_ERROR = "This can't be completed right now. Try again later.";
 const SIGN_IN_ERROR = "Sign in to continue.";
 const NOT_MODERATOR_ERROR = "You don't have access to manage challenges.";
 /** Postgres insufficient_privilege — RLS/a guard trigger rejected the write. */

@@ -43,8 +43,7 @@ import {
 import { publishWaveSchema } from "@/lib/validation/waves";
 import type { PermissionAudience } from "@/types/domain";
 
-const NOT_CONFIGURED_ERROR =
-  "This isn't connected to a backend yet — Supabase environment variables are not set.";
+const NOT_CONFIGURED_ERROR = "This can't be completed right now. Try again later.";
 const SIGN_IN_ERROR = "Sign in to do that.";
 
 export interface ActionFailure {

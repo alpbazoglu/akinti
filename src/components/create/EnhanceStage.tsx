@@ -139,8 +139,8 @@ export function EnhanceStage({
       </div>
       {!tracePrepared ? (
         <p className="type-body-sm measure text-ink-muted">
-          We couldn&apos;t prepare a trace for this take. It is still there — the sound underneath
-          this screen is real, only the picture of it is missing.
+          We couldn&apos;t prepare a trace for this take. The sound underneath this screen is real,
+          only the picture of it is missing.
         </p>
       ) : null}
 
