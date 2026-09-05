@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 
 import { cn } from "@/lib/ui";
 
-import { drawWaterline, type WaterlineColors, type WaterlineState } from "./waterline";
+import {
+  drawWaterline,
+  type WaterlineColors,
+  type WaterlineState,
+  type WaterlineTrim,
+} from "./waterline";
 
 export interface WaveformCanvasProps {
   /** Normalised peak amplitudes, `0..1`. Resampled, never stretched. */
@@ -20,6 +25,8 @@ export interface WaveformCanvasProps {
   height?: number;
   /** Draw the 2px ink write-head. */
   playhead?: boolean;
+  /** Kept region of a take being trimmed; the rest draws at 20% (§4.3). */
+  trim?: WaterlineTrim;
   className?: string;
 }
 
@@ -85,6 +92,7 @@ export function WaveformCanvas({
   state = "unplayed",
   height = 56,
   playhead = false,
+  trim,
   className,
 }: WaveformCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -119,8 +127,9 @@ export function WaveformCanvas({
       progress,
       loaded,
       playhead,
+      trim,
     });
-  }, [peaks, duetPeaks, progress, loaded, state, height, playhead]);
+  }, [peaks, duetPeaks, progress, loaded, state, height, playhead, trim]);
 
   useEffect(() => {
     paint();

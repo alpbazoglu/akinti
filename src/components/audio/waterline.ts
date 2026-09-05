@@ -61,6 +61,19 @@ export const MIRROR_ALPHA = 0.7;
 /** A partially buffered track shows what it has, at 40% alpha (§6.2). */
 export const UNLOADED_ALPHA = 0.4;
 
+/**
+ * Audio the trim handles have cut away is still drawn, at 20%
+ * (`docs/design/SCREENS.md` §4.3). Removing it outright would make the trace
+ * jump as the handle moves and would hide what is being discarded.
+ */
+export const TRIMMED_ALPHA = 0.2;
+
+/** A trim selection, as ratios of the whole take. */
+export interface WaterlineTrim {
+  readonly start: number;
+  readonly end: number;
+}
+
 export interface WaterlineColors {
   /** The idle tick row on a recorder, and the skeleton. */
   readonly rest: string;
@@ -89,6 +102,11 @@ export interface DrawWaterlineOptions {
   readonly loaded?: number;
   /** Draw the 2px ink playhead with its square write-head cap. */
   readonly playhead?: boolean;
+  /**
+   * Kept region of the take, as ratios. Everything outside it draws at
+   * `TRIMMED_ALPHA` (§4.3). Omitted means "the whole take is kept".
+   */
+  readonly trim?: WaterlineTrim;
 }
 
 /** Resample to exactly `count` buckets, taking the peak of each bucket. */
@@ -149,6 +167,7 @@ export function drawWaterline(
     progress = 0,
     loaded = 1,
     playhead = false,
+    trim,
   } = options;
 
   ctx.clearRect(0, 0, width, height);
@@ -246,6 +265,27 @@ export function drawWaterline(
       ctx.globalAlpha = 1;
       ctx.restore();
     }
+  }
+
+  // Trimmed-away audio stays visible at 20% so the handle shows what it is
+  // discarding rather than eating the trace as it moves (§4.3).
+  if (trim) {
+    const keepStart = Math.round(Math.min(1, Math.max(0, trim.start)) * width);
+    const keepEnd = Math.round(Math.min(1, Math.max(0, trim.end)) * width);
+    const dim = (from: number, to: number) => {
+      if (to <= from) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(from, 0, to - from, height);
+      ctx.clip();
+      ctx.clearRect(from, 0, to - from, height);
+      ctx.globalAlpha = TRIMMED_ALPHA;
+      paintBars(colors.dormant, samples, "both");
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    };
+    dim(0, keepStart);
+    dim(keepEnd, width);
   }
 
   // The write-head: a 2px ink line spanning the full height with a 2px square

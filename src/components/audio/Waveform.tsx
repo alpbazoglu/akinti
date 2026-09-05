@@ -12,7 +12,7 @@ import { placeholderPeaks } from "@/lib/audio/peaks";
 import { cn, formatDuration } from "@/lib/ui";
 
 import { WaveformCanvas } from "./WaveformCanvas";
-import type { WaterlineState } from "./waterline";
+import type { WaterlineState, WaterlineTrim } from "./waterline";
 
 export { placeholderPeaks };
 
@@ -41,6 +41,12 @@ export interface WaveformProps {
   disabled?: boolean;
   /** Applies the 24px edge fade, for a trace that bleeds past the page edges. */
   fullBleed?: boolean;
+  /**
+   * Kept region of a take being trimmed, as ratios. Everything outside it
+   * draws at 20% (`docs/design/SCREENS.md` §4.3). The handles themselves are
+   * the caller's: this only changes the drawing.
+   */
+  trim?: WaterlineTrim;
   className?: string;
 }
 
@@ -77,6 +83,7 @@ export function Waveform({
   readOnly = false,
   disabled = false,
   fullBleed = false,
+  trim,
   className,
 }: WaveformProps) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -192,6 +199,7 @@ export function Waveform({
         state={resolvedState}
         height={height}
         playhead={resolvedState === "playing" || resolvedState === "duet"}
+        trim={trim}
       />
     </div>
   );

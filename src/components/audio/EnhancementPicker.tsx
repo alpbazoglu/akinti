@@ -1,21 +1,20 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { ChevronDown, Pause, Play } from "@/components/ui/icons";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { ChevronDown, Pause, Play } from "@/components/ui/icons";
 import {
   ADVANCED_EQ_BANDS,
   ADVANCED_EQ_MAX_GAIN_DB,
   ENHANCEMENT_PRESETS,
+  PolishPreview,
   clampEqGain,
-  createAdvancedEqGraph,
-  createPreviewGraph,
   defaultAdvancedEqSettings,
   usePlaybackStore,
   type AdvancedEqSettings,
   type EnhancementPresetId,
+  type PolishMode,
 } from "@/lib/audio";
-import { Chip } from "@/components/ui";
 import { cn } from "@/lib/ui";
 
 export interface EnhancementPickerProps {
@@ -24,26 +23,26 @@ export interface EnhancementPickerProps {
   onPresetChange: (preset: EnhancementPresetId) => void;
   advancedEq: AdvancedEqSettings | null;
   onAdvancedEqChange: (eq: AdvancedEqSettings | null) => void;
+  /** Told which branch is audible, so a caller can morph its own trace. */
+  onModeChange?: (mode: PolishMode) => void;
   className?: string;
 }
 
-type PreviewMode = "original" | "enhanced" | null;
-
-function getAudioContextCtor(): typeof AudioContext | null {
-  if (typeof window === "undefined") return null;
-  return (
-    window.AudioContext ??
-    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ??
-    null
-  );
-}
-
 /**
- * The six accessible presets (spec §19), each with an A/B "Original /
- * Enhanced" preview built from a lightweight local Web Audio graph
- * (`createPreviewGraph` in `lib/audio/enhancement.ts`) — never the real,
- * server-side ffmpeg processing. The optional advanced 5-band EQ sits behind
- * a disclosure, applied on top of the chosen preset.
+ * "Sounds like" (`docs/design/SCREENS.md` §4.4, spec §19).
+ *
+ * The A/B pair is the primary interaction on this screen, not the preset list:
+ * it sits above the list, and switching keeps playing rather than restarting,
+ * because that continuity is the only way to actually hear what a compressor
+ * did. `PolishPreview` (`src/lib/audio/preview/`) runs both branches off one
+ * media element permanently and crossfades between them.
+ *
+ * Six named sounds as 56px radio rows separated by hairlines, the selected one
+ * carrying a filled ink dot and an ink-tint row. Not a grid of bordered tiles,
+ * not chips, and nothing here is a pill (§12.1, §12.4).
+ *
+ * Everything is preview only: the published file is rendered server-side by
+ * `scripts/worker.ts`, and nothing built in this component is ever uploaded.
  */
 export function EnhancementPicker({
   blob,
@@ -51,16 +50,19 @@ export function EnhancementPicker({
   onPresetChange,
   advancedEq,
   onAdvancedEqChange,
+  onModeChange,
   className,
 }: EnhancementPickerProps) {
   const store = usePlaybackStore();
   const reactId = useId();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const [previewMode, setPreviewMode] = useState<PreviewMode>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [engine] = useState(() => new PolishPreview());
+
+  const [mode, setMode] = useState<PolishMode>("polished");
+  const [playing, setPlaying] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [previewUnavailable, setPreviewUnavailable] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
+
   const url = useMemo(() => URL.createObjectURL(blob), [blob]);
 
   useEffect(() => {
@@ -71,102 +73,113 @@ export function EnhancementPicker({
 
   useEffect(() => {
     return () => {
-      const ctx = audioContextRef.current;
-      audioContextRef.current = null;
-      sourceNodeRef.current = null;
-      if (ctx) void ctx.close().catch(() => {});
+      engine.destroy();
     };
-  }, []);
+  }, [engine]);
 
-  const rebuildGraph = (mode: "original" | "enhanced") => {
-    const audio = audioRef.current;
-    const ctx = audioContextRef.current;
-    if (!audio || !ctx) return;
+  // Preset and EQ changes are applied to the live graph; the audio does not
+  // restart, so a comparison stays a comparison.
+  useEffect(() => {
+    engine.setPreset(preset, advancedEq);
+  }, [engine, preset, advancedEq]);
 
-    if (!sourceNodeRef.current) {
-      sourceNodeRef.current = ctx.createMediaElementSource(audio);
-    }
-    const source = sourceNodeRef.current;
-    source.disconnect();
+  const play = useCallback(
+    async (nextMode: PolishMode) => {
+      const element = audioRef.current;
+      if (!element) return;
 
-    let end: AudioNode = source;
-    if (mode === "enhanced") {
-      end = createPreviewGraph(ctx, source, preset);
-      if (advancedEq) {
-        end = createAdvancedEqGraph(ctx, end, advancedEq);
-      }
-    }
-    end.connect(ctx.destination);
-  };
+      // One sound at a time, everywhere (spec §12): stop whatever Wave the
+      // rest of the app is playing before a local preview starts.
+      store.pause();
 
-  const stopPreview = () => {
-    audioRef.current?.pause();
-    setPreviewMode(null);
-  };
-
-  const startPreview = async (mode: "original" | "enhanced") => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (!audioContextRef.current) {
-      const Ctor = getAudioContextCtor();
-      if (!Ctor) {
-        setPreviewUnavailable(true);
+      if (!engine.isReady && !engine.connect(element)) {
+        setUnavailable(true);
+        // Without Web Audio there is no polished branch, so the honest thing
+        // is to play the original and say the comparison is unavailable.
+        try {
+          await element.play();
+          setPlaying(true);
+          setMode("original");
+          onModeChange?.("original");
+        } catch {
+          setPlaying(false);
+        }
         return;
       }
-      audioContextRef.current = new Ctor();
-    }
 
-    // Enforce the "one Wave/sound at a time" rule (spec §12) against the rest
-    // of the app before starting a local preview.
-    store.pause();
+      await engine.resume();
+      engine.setPreset(preset, advancedEq);
+      engine.setMode(nextMode);
+      setMode(nextMode);
+      onModeChange?.(nextMode);
 
-    rebuildGraph(mode);
-    try {
-      await audioContextRef.current.resume();
-      audio.currentTime = 0;
-      await audio.play();
-      setPreviewMode(mode);
-    } catch {
-      setPreviewMode(null);
+      try {
+        await element.play();
+        setPlaying(true);
+      } catch {
+        setPlaying(false);
+      }
+    },
+    [engine, store, preset, advancedEq, onModeChange],
+  );
+
+  const handleAb = (nextMode: PolishMode) => {
+    if (playing && mode === nextMode) {
+      audioRef.current?.pause();
+      setPlaying(false);
+      return;
     }
+    if (playing) {
+      // Already running: this is a comparison, not a restart.
+      engine.setMode(nextMode);
+      setMode(nextMode);
+      onModeChange?.(nextMode);
+      return;
+    }
+    void play(nextMode);
   };
-
-  const togglePreview = (mode: "original" | "enhanced") => {
-    if (previewMode === mode) {
-      stopPreview();
-    } else {
-      void startPreview(mode);
-    }
-  };
-
-  useEffect(() => {
-    if (previewMode === "enhanced") {
-      rebuildGraph("enhanced");
-    }
-    // Rebuild the live graph when the preset or EQ changes mid-preview.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, advancedEq]);
 
   const advancedEqId = `${reactId}-advanced-eq`;
 
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
+    <div className={cn("flex flex-col gap-6", className)}>
       <audio
         ref={audioRef}
         src={url}
         preload="auto"
-        onEnded={() => setPreviewMode(null)}
+        onEnded={() => setPlaying(false)}
+        onPause={() => setPlaying(false)}
         className="hidden"
       >
         <track kind="captions" />
       </audio>
 
-      <div
-        role="radiogroup"
-        aria-label="Enhancement preset"
-        className="grid grid-cols-2 gap-2 sm:grid-cols-3"
-      >
+      {/* A/B. Active is an ink key, inactive a line key (§8.7) — never a
+          segmented pill (§12.4). */}
+      <div className="flex flex-col gap-2">
+        <div role="group" aria-label="Compare the original with the polished take" className="flex gap-3">
+          <AbKey
+            active={mode === "original"}
+            playing={playing && mode === "original"}
+            label="Original"
+            onClick={() => handleAb("original")}
+          />
+          <AbKey
+            active={mode === "polished"}
+            playing={playing && mode === "polished"}
+            label="Polished"
+            onClick={() => handleAb("polished")}
+            disabled={unavailable}
+          />
+        </div>
+        {unavailable ? (
+          <p className="type-caption text-ink-subtle">
+            This browser cannot preview the polish. Your Wave is still polished after you publish.
+          </p>
+        ) : null}
+      </div>
+
+      <div role="radiogroup" aria-label="Sounds like" className="flex flex-col">
         {ENHANCEMENT_PRESETS.map((item) => {
           const selected = preset === item.id;
           return (
@@ -177,58 +190,27 @@ export function EnhancementPicker({
               aria-checked={selected}
               onClick={() => onPresetChange(item.id)}
               className={cn(
-                "flex flex-col gap-1 rounded-lg border px-3 py-2.5 text-left transition-colors duration-150",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                selected
-                  ? "border-accent bg-accent-soft text-accent-soft-fg"
-                  : "border-border bg-surface text-fg-muted hover:border-border-strong hover:text-fg",
+                "flex h-14 items-center gap-4 border-t border-hairline px-3 text-left",
+                "transition-colors duration-[--dur-micro]",
+                "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+                selected ? "bg-paper-sunk" : "hover:bg-paper-sunk/50",
               )}
             >
-              <span className="text-sm font-medium">{item.label}</span>
-              <span className="text-xs text-fg-subtle">{item.description}</span>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "size-3 shrink-0 rounded-full border",
+                  selected ? "border-ink bg-ink" : "border-hairline-strong",
+                )}
+              />
+              <span className="type-subhead min-w-28 text-ink">{item.label}</span>
+              <span className="type-caption truncate text-ink-subtle">{item.description}</span>
             </button>
           );
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span id={`${reactId}-ab-label`} className="text-xs font-medium text-fg-subtle">
-          Preview
-        </span>
-        <div role="group" aria-labelledby={`${reactId}-ab-label`} className="flex gap-2">
-          <Chip
-            selected={previewMode === "original"}
-            onClick={() => togglePreview("original")}
-            icon={
-              previewMode === "original" ? (
-                <Pause className="size-3.5" />
-              ) : (
-                <Play className="size-3.5" />
-              )
-            }
-          >
-            Original
-          </Chip>
-          <Chip
-            selected={previewMode === "enhanced"}
-            onClick={() => togglePreview("enhanced")}
-            icon={
-              previewMode === "enhanced" ? (
-                <Pause className="size-3.5" />
-              ) : (
-                <Play className="size-3.5" />
-              )
-            }
-          >
-            Enhanced
-          </Chip>
-        </div>
-        {previewUnavailable ? (
-          <span className="text-xs text-fg-subtle">Preview is not available in this browser.</span>
-        ) : null}
-      </div>
-
-      <div>
+      <div className="border-t border-hairline pt-4">
         <button
           type="button"
           onClick={() => {
@@ -239,25 +221,28 @@ export function EnhancementPicker({
           aria-expanded={advancedOpen}
           aria-controls={advancedEqId}
           className={cn(
-            "inline-flex items-center gap-1.5 text-xs font-medium text-fg-muted hover:text-fg",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "type-caption inline-flex items-center gap-1.5 text-ink-muted hover:text-ink",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
           )}
         >
           <ChevronDown
             aria-hidden="true"
-            className={cn("size-3.5 transition-transform duration-150", advancedOpen && "rotate-180")}
+            className={cn(
+              "size-3.5 transition-transform duration-[--dur-micro]",
+              advancedOpen && "rotate-180",
+            )}
           />
-          Advanced EQ
+          Advanced, five bands
         </button>
 
         {advancedOpen ? (
-          <div id={advancedEqId} className="mt-3 flex gap-4">
+          <div id={advancedEqId} className="mt-4 flex gap-5">
             {ADVANCED_EQ_BANDS.map((band) => {
               const value = advancedEq?.[band] ?? 0;
               const bandId = `${reactId}-eq-${band}`;
               return (
-                <div key={band} className="flex flex-col items-center gap-1.5">
-                  <span className="text-[0.6875rem] tabular-nums text-fg-subtle">
+                <div key={band} className="flex flex-col items-center gap-2">
+                  <span className="type-mono-sm text-ink-subtle">
                     {value > 0 ? `+${value}` : value}
                   </span>
                   <input
@@ -268,17 +253,16 @@ export function EnhancementPicker({
                     step={1}
                     value={value}
                     onChange={(event) => {
-                      const nextValue = clampEqGain(Number(event.target.value));
                       onAdvancedEqChange({
                         ...(advancedEq ?? defaultAdvancedEqSettings()),
-                        [band]: nextValue,
+                        [band]: clampEqGain(Number(event.target.value)),
                       });
                     }}
                     aria-valuetext={`${value} decibels`}
-                    className="h-24 w-6 accent-accent [writing-mode:vertical-lr]"
+                    className="h-24 w-6 accent-ink [writing-mode:vertical-lr]"
                     style={{ direction: "rtl" }}
                   />
-                  <label htmlFor={bandId} className="text-[0.6875rem] text-fg-subtle">
+                  <label htmlFor={bandId} className="type-mono-sm text-ink-subtle">
                     {band >= 1000 ? `${band / 1000}k` : band}
                   </label>
                 </div>
@@ -288,5 +272,40 @@ export function EnhancementPicker({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function AbKey({
+  active,
+  playing,
+  label,
+  onClick,
+  disabled = false,
+}: {
+  active: boolean;
+  playing: boolean;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "akinti-press inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-key",
+        "type-subhead transition-colors duration-[--dur-micro]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "disabled:cursor-not-allowed disabled:opacity-55",
+        active ? "bg-ink text-on-ink" : "border border-hairline-strong text-ink",
+      )}
+    >
+      <span aria-hidden="true" className="inline-flex">
+        {playing ? <Pause className="size-4" weight="fill" /> : <Play className="size-4" weight="fill" />}
+      </span>
+      {label}
+    </button>
   );
 }

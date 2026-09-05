@@ -199,6 +199,23 @@ export function WavePlayer({
     );
   }
 
+  // `fullBleed` puts the trace on its own edge-to-edge row (§8.3: "the trace
+  // bleeds past both page edges in every variant"). A transport button beside
+  // it would inset that edge by its own width, so the controls move to a
+  // second row underneath instead — the waveform row and the controls row,
+  // kept separate, exactly as §8.3's stream-item layout draws them.
+  if (fullBleed) {
+    return (
+      <div className={cn("flex flex-col gap-3", className)}>
+        {traceNode}
+        <div className="flex items-center gap-4">
+          {transport}
+          <div className="flex-1">{timecodes}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-center gap-4">
