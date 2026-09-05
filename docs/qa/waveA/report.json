@@ -1,0 +1,23 @@
+{
+  "base": "http://localhost:3555",
+  "waveId": "75df2f13-ac39-47ae-9aea-11dfcce442fd",
+  "consoleErrors": [],
+  "failedRequests": [],
+  "axeResults": [
+    {
+      "label": "kit (light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "kit (dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "explore",
+      "total": 0,
+      "serious": []
+    }
+  ]
+}

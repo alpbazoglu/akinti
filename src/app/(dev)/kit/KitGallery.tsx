@@ -1,27 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import {
-  Bookmark,
-  Compass,
-  Flag,
-  Handshake,
-  MoreHorizontal,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import {
-  AudioPreview,
-  EnhancementPicker,
-  RecorderPanel,
-  Waveform,
-  WavePlayer,
-  placeholderPeaks,
-} from "@/components/audio";
-import { UploadDropzone } from "@/components/create";
-import { type AdvancedEqSettings, type EnhancementPresetId } from "@/lib/audio";
+import { Waveform, WaveformCanvas, placeholderPeaks } from "@/components/audio";
 import { PageHeader } from "@/components/layout";
+import { BottomNav } from "@/components/layout/BottomNav";
 import {
   Avatar,
   Badge,
@@ -32,593 +15,558 @@ import {
   ErrorState,
   IconButton,
   Input,
-  Kbd,
   Menu,
+  RecordKey,
   Select,
   Sheet,
   Skeleton,
-  Spinner,
   Switch,
   TabPanel,
   Tabs,
   Textarea,
-  useToast,
-  VisuallyHidden,
   tabId,
   tabPanelId,
+  useToast,
+  type RecordKeyState,
 } from "@/components/ui";
-import { WaveCard, WaveCardSkeleton, type WaveCardWave } from "@/components/wave";
-import { BRAND, CREATION_TYPES, TERMS } from "@/config/terminology";
-import { cn, formatCount, formatDuration, timeAgo } from "@/lib/ui";
+import { Bookmark, MessageSquare, Play, Share2 } from "@/components/ui/icons";
+import { WaveCard, WaveCardSkeleton, WaveSeparator } from "@/components/wave";
+import { BRAND, TERMS } from "@/config/terminology";
+import { contrastRatio } from "@/lib/ui";
 
-const DEMO_PEAKS = placeholderPeaks(72, 7);
-const DEMO_PEAKS_B = placeholderPeaks(72, 23);
+/**
+ * The living style guide (`docs/design/DESIGN.md`).
+ *
+ * Every token and every component in one place, in both themes, so a drift —
+ * a new radius, a pill, a shimmer, an accent that left audio state — is
+ * visible in one screen rather than discovered in production. `page.tsx` 404s
+ * this route in production, so it never ships as a public surface.
+ */
 
-/** Silent one-second WAV, so the gallery never depends on a network asset. */
-const SILENT_WAV =
-  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=";
+const DEMO_PEAKS = placeholderPeaks(160, 7);
+const DEMO_PEAKS_B = placeholderPeaks(160, 23);
 
-const DEMO_WAVE: WaveCardWave = {
-  id: "demo-wave-1",
-  title: "Late night take, one mic, no edits",
-  description:
-    "First pass at a verse I have been carrying around for a week. Open to a second voice on the chorus.",
-  createdAt: Date.now() - 1000 * 60 * 47,
-  creator: { username: "akin", displayName: "Akin" },
-  collaborators: [
-    { username: "maria", displayName: "Maria" },
-    { username: "alex", displayName: "Alex" },
-  ],
-  creationType: "recorded",
-  audioUrl: SILENT_WAV,
+/** The §3.2 regression string, checked at 11px, 16px and 40px in both faces. */
+const REGRESSION = "AKINTI · kayıt akışı düğümü · ŞİŞLİ İĞNE · 0:14 / 2:07 · -18.2 dB";
+
+const TYPE_SCALE: readonly { token: string; spec: string; className: string }[] = [
+  { token: "display-xl", spec: "40 / 40 · 600 · wdth 112 · -0.025em", className: "type-display-xl" },
+  { token: "display", spec: "32 / 34 · 600 · wdth 108 · -0.022em", className: "type-display" },
+  { token: "title", spec: "28 / 30 · 600 · wdth 100 · -0.02em", className: "type-title" },
+  { token: "heading", spec: "19 / 24 · 600 · wdth 100 · -0.015em", className: "type-heading" },
+  { token: "subhead", spec: "15 / 20 · 600 · wdth 100 · -0.006em", className: "type-subhead" },
+  { token: "body", spec: "16 / 25 · 400 · wdth 100 · -0.002em", className: "type-body" },
+  { token: "body-sm", spec: "14 / 20 · 400 · wdth 100 · 0", className: "type-body-sm" },
+  { token: "caption", spec: "13 / 17 · 500 · wdth 100 · +0.004em", className: "type-caption" },
+  { token: "micro", spec: "11 / 14 · 500 · wdth 100 · +0.02em", className: "type-micro" },
+];
+
+const MONO_SCALE: readonly { token: string; spec: string; className: string }[] = [
+  { token: "mono-display", spec: "44 / 44 · 500 · wdth 87.5", className: "type-mono-display" },
+  { token: "mono-lg", spec: "22 / 26 · 500 · wdth 87.5", className: "type-mono-lg" },
+  { token: "mono", spec: "15 / 18 · 500 · wdth 87.5", className: "type-mono" },
+  { token: "mono-sm", spec: "12 / 15 · 500 · wdth 87.5", className: "type-mono-sm" },
+];
+
+const LIGHT_SWATCHES: readonly { token: string; hex: string; use: string }[] = [
+  { token: "paper", hex: "#EFEFEC", use: "The page. Every screen." },
+  { token: "paper-raised", hex: "#F6F6F4", use: "Sheets and menus only." },
+  { token: "paper-sunk", hex: "#E4E4E0", use: "Pressed rows, inset fields." },
+  { token: "ink", hex: "#191A17", use: "Body, headlines, glyphs, playheads." },
+  { token: "ink-muted", hex: "#52534C", use: "Secondary prose, meta." },
+  { token: "ink-subtle", hex: "#6A6B63", use: "Captions, counts, timestamps." },
+  { token: "hairline", hex: "#D6D6D1", use: "Row dividers, input borders." },
+  { token: "hairline-strong", hex: "#B4B4AD", use: "Line keys, the dormant tick row." },
+  { token: "signal", hex: "#DE3C11", use: "Graphic only. Live audio, nothing else." },
+  { token: "signal-deep", hex: "#A32A08", use: "Error text." },
+  { token: "signal-wash", hex: "#FAE3DC", use: "The one tinted field: a pending request." },
+  { token: "wave-rest", hex: "#B4B4AD", use: "The idle tick row." },
+  { token: "wave-dormant", hex: "#86877E", use: "The unplayed part of every trace." },
+];
+
+const DARK_SWATCHES: readonly { token: string; hex: string; use: string }[] = [
+  { token: "paper", hex: "#131412", use: "The page." },
+  { token: "paper-raised", hex: "#1C1D19", use: "Sheets and menus." },
+  { token: "paper-sunk", hex: "#0C0D0B", use: "Pressed rows, inset fields." },
+  { token: "ink", hex: "#EDEDE8", use: "Body, headlines, glyphs, playheads." },
+  { token: "ink-muted", hex: "#A0A199", use: "Secondary prose." },
+  { token: "ink-subtle", hex: "#7E7F77", use: "Captions." },
+  { token: "hairline", hex: "#292A26", use: "Row dividers." },
+  { token: "hairline-strong", hex: "#3F403A", use: "Line keys, idle ticks." },
+  { token: "signal", hex: "#FF5C33", use: "Live audio." },
+  { token: "signal-deep", hex: "#FF9376", use: "Error text." },
+  { token: "signal-wash", hex: "#2A140E", use: "The pending-request strip." },
+  { token: "wave-rest", hex: "#3F403A", use: "Idle tick row." },
+  { token: "wave-dormant", hex: "#63645D", use: "Unplayed trace." },
+];
+
+const RADII: readonly { token: string; value: string; means: string }[] = [
+  { token: "line", value: "0", means: "a line" },
+  { token: "label", value: "2px", means: "a label" },
+  { token: "tag", value: "6px", means: "a tag" },
+  { token: "field", value: "10px", means: "you can type in it" },
+  { token: "key", value: "14px", means: "you can press it" },
+  { token: "object", value: "16px", means: "a bounded object" },
+  { token: "sheet", value: "24px", means: "it slid up from the bottom" },
+];
+
+const DEMO_WAVE = {
+  id: "kit-demo",
+  title: "Sabah provası",
+  description: "İkinci köprüyü bir daha denedim. Nefes yerleri hâlâ dar.",
+  // A fixed instant, not `Date.now()`: a gallery that rerenders with a new
+  // timestamp on the client hydrates with a mismatch every time.
+  createdAt: "2026-09-05T09:20:00.000Z",
+  creator: { username: "aysek", displayName: "Ayşe Kaya" },
+  creationType: "recorded" as const,
+  audioUrl: "",
   peaks: DEMO_PEAKS,
-  duration: 214,
-  metrics: { plays: 12840, replays: 3120, comments: 84, saves: 512, shares: 96, duets: 7 },
-  isSaved: false,
-  canRequestDuet: true,
-};
-
-const DEMO_DUET: WaveCardWave = {
-  ...DEMO_WAVE,
-  id: "demo-wave-2",
-  title: "Chorus answer",
-  description: undefined,
-  createdAt: Date.now() - 1000 * 60 * 60 * 26,
-  creator: { username: "maria", displayName: "Maria" },
-  collaborators: [],
-  creationType: "duet",
-  peaks: DEMO_PEAKS_B,
-  duration: 96,
-  metrics: { plays: 940, replays: 210, comments: 12, saves: 41, shares: 4, duets: 1 },
-  isSaved: true,
-  canRequestDuet: false,
+  duration: 127,
+  metrics: { plays: 312, replays: 41, comments: 0, saves: 0, shares: 0, duets: 6 },
 };
 
 export function KitGallery() {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [filter, setFilter] = useState("trending");
+  const [tab, setTab] = useState("waves");
+  const [switched, setSwitched] = useState(true);
+  const [recordState, setRecordState] = useState<RecordKeyState>("idle");
+  const [note, setNote] = useState("");
+  const { toast } = useToast();
+
+  // The gallery pins the theme so both palettes can be screenshotted; the rest
+  // of the product resolves it from `prefers-color-scheme` plus Settings.
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    return () => {
+      delete document.documentElement.dataset.theme;
+    };
+  }, [theme]);
+
+  const swatches = theme === "dark" ? DARK_SWATCHES : LIGHT_SWATCHES;
+  const ground = theme === "dark" ? "#131412" : "#EFEFEC";
+
   return (
-    <div className="mx-auto w-full max-w-3xl pb-24">
+    <div className="min-h-dvh bg-paper pb-32">
       <PageHeader
-        title={`${BRAND} UI kit`}
-        description="Development-only gallery of every Stage 1 component. Not reachable in production."
+        title={`${BRAND} kit`}
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          >
+            {theme === "light" ? "Gece" : "Gündüz"}
+          </Button>
+        }
       />
-      <div className="flex flex-col gap-10 px-4 sm:px-5">
-        <ButtonsSection />
-        <IdentitySection />
-        <FormsSection />
-        <NavigationSection />
-        <OverlaySection />
-        <StatesSection />
-        <AudioSection />
-        <AudioCaptureSection />
-        <WaveSection />
-        <TokensSection />
-        <FormattersSection />
+
+      <div className="flex flex-col gap-16">
+        <Section title="Type" note="Archivo Variable · Martian Mono Variable">
+          <p className="type-caption text-ink-subtle">Regression string, three sizes</p>
+          <div className="flex flex-col gap-3 border-y border-hairline py-5">
+            <p className="type-micro text-ink">{REGRESSION}</p>
+            <p className="type-body text-ink">{REGRESSION}</p>
+            <p className="type-display text-ink">{REGRESSION}</p>
+            <p className="type-mono text-ink">{REGRESSION}</p>
+          </div>
+
+          <div className="flex flex-col divide-y divide-hairline">
+            {TYPE_SCALE.map((row) => (
+              <div key={row.token} className="flex flex-col gap-1 py-4">
+                <div className="flex items-baseline gap-3">
+                  <span className="type-caption text-ink-subtle">{row.token}</span>
+                  <span className="type-mono-sm text-ink-subtle">{row.spec}</span>
+                </div>
+                <p className={`${row.className} text-ink`}>Sabah provası · ŞİŞLİ</p>
+              </div>
+            ))}
+            {MONO_SCALE.map((row) => (
+              <div key={row.token} className="flex flex-col gap-1 py-4">
+                <div className="flex items-baseline gap-3">
+                  <span className="type-caption text-ink-subtle">{row.token}</span>
+                  <span className="type-mono-sm text-ink-subtle">{row.spec}</span>
+                </div>
+                <p className={`${row.className} text-ink`}>0:14 / 2:07 · -18.2 dB</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          title="Palette"
+          note={theme === "dark" ? "Gece · contrast on #131412" : "Gündüz · contrast on #EFEFEC"}
+        >
+          <ul className="flex flex-col divide-y divide-hairline">
+            {swatches.map((swatch) => {
+              const ratio = contrastRatio(swatch.hex, ground);
+              return (
+                <li key={swatch.token} className="flex items-center gap-4 py-3">
+                  <span
+                    aria-hidden="true"
+                    style={{ background: swatch.hex }}
+                    className="size-10 shrink-0 rounded-label border border-hairline"
+                  />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="type-subhead text-ink">{swatch.token}</span>
+                    <span className="type-caption text-ink-subtle">{swatch.use}</span>
+                  </span>
+                  <span className="type-mono-sm shrink-0 text-ink-muted">
+                    {swatch.hex.toLowerCase()}
+                  </span>
+                  <span className="type-mono-sm w-14 shrink-0 text-right text-ink-muted">
+                    {ratio.toFixed(2)}:1
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </Section>
+
+        <Section title="Radius" note="Radius encodes role, never taste">
+          <ul className="flex flex-wrap gap-5">
+            {RADII.map((radius) => (
+              <li key={radius.token} className="flex w-32 flex-col gap-2">
+                <span
+                  aria-hidden="true"
+                  style={{ borderRadius: radius.value }}
+                  className="block h-16 w-full border border-hairline-strong"
+                />
+                <span className="type-caption text-ink">{radius.token}</span>
+                <span className="type-mono-sm text-ink-subtle">{radius.value}</span>
+                <span className="type-caption text-ink-subtle">{radius.means}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+
+        <Section title="Keys" note="Ink · line · text. No pills, ever.">
+          <div className="flex flex-wrap items-end gap-4">
+            <Button size="lg">Publish</Button>
+            <Button variant="secondary">Re-record</Button>
+            <Button variant="ghost">Skip this step</Button>
+            <Button variant="danger">Delete my account</Button>
+            <Button size="sm" loading>
+              Saving
+            </Button>
+            <Button size="xs" variant="secondary">
+              Compact
+            </Button>
+            <Button disabled>Disabled</Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4">
+            <IconButton label="Play" icon={<Play className="size-6" weight="fill" />} variant="primary" shape="round" size="lg" />
+            <IconButton label={TERMS.comment} icon={<MessageSquare className="size-5" />} />
+            <IconButton label={TERMS.save} icon={<Bookmark className="size-5" weight="fill" />} />
+            <IconButton label={TERMS.share} icon={<Share2 className="size-5" />} />
+            <IconButton label="Secondary" icon={<Play className="size-5" />} variant="secondary" />
+          </div>
+
+          <div className="flex flex-wrap items-end gap-6">
+            {([96, 88, 72, 44, 36] as const).map((size) => (
+              <div key={size} className="flex flex-col items-start gap-2">
+                <RecordKey
+                  label={`${TERMS.record}, ${size}px`}
+                  size={size}
+                  state={recordState}
+                  onClick={() =>
+                    setRecordState(recordState === "recording" ? "idle" : "recording")
+                  }
+                />
+                <span className="type-mono-sm text-ink-subtle">{size}px</span>
+              </div>
+            ))}
+            <div className="flex flex-col gap-2">
+              <span className="type-caption text-ink-subtle">state</span>
+              <div className="flex gap-4">
+                {(["idle", "armed", "recording", "paused"] as const).map((state) => (
+                  <Chip
+                    key={state}
+                    selected={recordState === state}
+                    onClick={() => setRecordState(state)}
+                  >
+                    {state}
+                  </Chip>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Chips, tabs and badges" note="Active is a 2px ink underbar">
+          <div className="flex gap-5 overflow-x-auto">
+            {["trending", "new", "rising", "open for duet"].map((value) => (
+              <Chip key={value} selected={filter === value} onClick={() => setFilter(value)}>
+                {value}
+              </Chip>
+            ))}
+          </div>
+
+          <Tabs
+            idPrefix="kit-tabs"
+            label="Kit tabs"
+            value={tab}
+            onValueChange={setTab}
+            items={[
+              { value: "waves", label: TERMS.waves, count: 12 },
+              { value: "duets", label: TERMS.duets, count: 3 },
+            ]}
+          />
+          <TabPanel
+            id={tabPanelId("kit-tabs", tab)}
+            labelledBy={tabId("kit-tabs", tab)}
+            active
+          >
+            <p className="type-body-sm text-ink-muted">
+              The panel body for {tab}.
+            </p>
+          </TabPanel>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge>Recorded</Badge>
+            <Badge>Uploaded</Badge>
+            <Badge>Duet</Badge>
+            <Badge tone="signal">{TERMS.openForDuet}</Badge>
+            <Badge size="md">Pending</Badge>
+            <CountBadge count={3} label="unread messages" />
+            <CountBadge count={128} label="unread notifications" />
+          </div>
+
+          <div className="flex flex-wrap items-end gap-4">
+            {(["xs", "sm", "md", "lg", "xl"] as const).map((size) => (
+              <div key={size} className="flex flex-col items-center gap-2">
+                <Avatar name="Ayşe Kaya" size={size} />
+                <span className="type-mono-sm text-ink-subtle">{size}</span>
+              </div>
+            ))}
+            <Avatar name="Deniz Arslan" size="md" ring />
+          </div>
+        </Section>
+
+        <Section title="Inputs" note="Label above the field, always. Never a placeholder.">
+          <div className="flex max-w-sm flex-col gap-6">
+            <Input id="kit-title" label="Title" defaultValue="Sabah provası" />
+            <Input id="kit-handle" label="Handle" defaultValue="aysek" confirmed />
+            <Input
+              id="kit-email"
+              label="Email"
+              type="email"
+              defaultValue="not-an-email"
+              error="Enter an email address we can reach you at."
+            />
+            <Textarea
+              id="kit-note"
+              label="Description"
+              maxLength={280}
+              showCount
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+            />
+            <Select
+              id="kit-category"
+              label="Category"
+              options={[
+                { value: "voice", label: "Voice" },
+                { value: "song", label: "Song" },
+                { value: "composition", label: "Composition" },
+              ]}
+            />
+            <Switch
+              checked={switched}
+              onCheckedChange={setSwitched}
+              label="Allow Duet Requests"
+              description="Anyone who can hear this Wave can ask to record against it."
+            />
+          </div>
+        </Section>
+
+        <Section title="Waterline" note="Every state of the one drawing">
+          <TraceRow label="dormant · the recorder before you press anything">
+            <Waveform peaks={[]} state="dormant" height={56} readOnly label="Dormant trace" />
+          </TraceRow>
+          <TraceRow label="loaded, unplayed · 56px, mirrored, bottom half at 70%">
+            <Waveform peaks={DEMO_PEAKS} height={56} readOnly label="Unplayed trace" />
+          </TraceRow>
+          <TraceRow label="playing · played in Signal, 2px ink write-head, 60% buffered">
+            <Waveform
+              peaks={DEMO_PEAKS}
+              progress={0.42}
+              loaded={0.6}
+              duration={214}
+              height={56}
+              readOnly
+              label="Playing trace"
+            />
+          </TraceRow>
+          <TraceRow label="recording · the whole trace in Signal, write-head at the right edge">
+            <WaveformCanvas peaks={DEMO_PEAKS_B} state="recording" height={56} playhead />
+          </TraceRow>
+          <TraceRow label="duet · theirs in ink downward, yours in Signal upward, one playhead">
+            <Waveform
+              peaks={DEMO_PEAKS_B}
+              duetPeaks={DEMO_PEAKS}
+              state="duet"
+              progress={0.55}
+              height={96}
+              readOnly
+              label="Duet trace"
+            />
+          </TraceRow>
+          <TraceRow label="detail · 144px, full bleed, 24px edge fade">
+            <Waveform
+              peaks={DEMO_PEAKS}
+              progress={0.28}
+              height={144}
+              fullBleed
+              readOnly
+              label="Detail trace"
+            />
+          </TraceRow>
+          <TraceRow label="inline · 28px, single-sided on a baseline">
+            <Waveform peaks={DEMO_PEAKS} height={28} readOnly label="Inline trace" />
+          </TraceRow>
+          <TraceRow label="skeleton · a flat 6px waterline, no shimmer">
+            <Skeleton shape="waterline" />
+          </TraceRow>
+          <TraceRow label="separator · drawn from the ending Wave's own peaks">
+            <WaveSeparator peaks={DEMO_PEAKS} />
+          </TraceRow>
+        </Section>
+
+        <Section title="Wave" note="Rail-hung, no card, non-zero metrics only">
+          <div className="-mx-page">
+            <WaveCard wave={DEMO_WAVE} />
+            <WaveCardSkeleton />
+          </div>
+        </Section>
+
+        <Section title="States" note="Left-aligned, with the real next action">
+          <EmptyState
+            title="No one you follow has posted yet."
+            description="Waves from the people you follow land here."
+            action={<Button size="sm">Find people to follow</Button>}
+          >
+            <div className="flex flex-col gap-4 border-y border-hairline py-4">
+              <div className="flex flex-col gap-1">
+                <span className="type-caption text-ink-muted">Ayşe Kaya · playing now</span>
+                <Waveform peaks={DEMO_PEAKS} progress={0.3} height={28} readOnly label="Live trace" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="type-caption text-ink-muted">Deniz Arslan · playing now</span>
+                <Waveform peaks={DEMO_PEAKS_B} progress={0.6} height={28} readOnly label="Live trace" />
+              </div>
+            </div>
+          </EmptyState>
+
+          <ErrorState
+            title="Couldn't reach the stream."
+            description="Check your connection and try again."
+            onRetry={() => toast({ title: "Retrying." })}
+          />
+
+          <div className="flex flex-col gap-3">
+            <Skeleton width="45%" />
+            <Skeleton width="70%" />
+            <Skeleton shape="waterline" />
+          </div>
+        </Section>
+
+        <Section title="Sheet, menu and toasts" note="One ink strip, one line, one action">
+          <div className="flex flex-wrap gap-4">
+            <Button variant="secondary" size="sm" onClick={() => setSheetOpen(true)}>
+              Open the sheet
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => toast({ title: "Published." })}
+            >
+              Toast
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                toast({
+                  title: "Upload didn't finish. Your recording is still here.",
+                  tone: "error",
+                  action: { label: "Try again", onClick: () => undefined },
+                })
+              }
+            >
+              Toast with an action
+            </Button>
+            <Menu
+              label="Wave actions"
+              items={[
+                { id: "save", label: TERMS.save, onSelect: () => undefined },
+                { id: "share", label: TERMS.share, onSelect: () => undefined },
+                { id: "report", label: TERMS.report, destructive: true, onSelect: () => undefined },
+              ]}
+              trigger={(props) => (
+                <Button {...props} variant="secondary" size="sm">
+                  Menu
+                </Button>
+              )}
+            />
+          </div>
+
+          <Sheet
+            open={sheetOpen}
+            onClose={() => setSheetOpen(false)}
+            title="Share this Wave"
+            description="The grabber is a waterline, not a grey capsule."
+            footer={
+              <Button fullWidth onClick={() => setSheetOpen(false)}>
+                Done
+              </Button>
+            }
+          >
+            <div className="flex flex-col gap-4">
+              <Waveform peaks={DEMO_PEAKS} height={32} readOnly label="Source clip" />
+              <p className="type-body-sm measure text-ink-muted">
+                A sheet is the default; a centred dialog only confirms something
+                irreversible.
+              </p>
+            </div>
+          </Sheet>
+        </Section>
+
+        <Section title="Keyboard" note="64px plus safe area, Record key on the bar">
+          <div className="relative h-24 overflow-hidden border border-hairline">
+            <BottomNav className="!absolute md:!block" />
+          </div>
+        </Section>
       </div>
     </div>
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
+interface SectionProps {
   title: string;
+  note: string;
   children: ReactNode;
-}) {
+}
+
+function Section({ title, note, children }: SectionProps) {
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-semibold tracking-[0.12em] text-fg-subtle uppercase">
-        {title}
-      </h2>
-      <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4">
-        {children}
+    <section className="akinti-page flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="type-title text-ink">{title}</h2>
+        <p className="type-caption text-ink-subtle">{note}</p>
       </div>
+      {children}
     </section>
   );
 }
 
-function Row({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-3">{children}</div>;
-}
-
-function ButtonsSection() {
+function TraceRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <Section title="Buttons">
-      <Row>
-        <Button variant="primary">Primary</Button>
-        <Button variant="secondary">Secondary</Button>
-        <Button variant="ghost">Ghost</Button>
-        <Button variant="danger">Danger</Button>
-      </Row>
-      <Row>
-        <Button size="sm">Small</Button>
-        <Button size="md">Medium</Button>
-        <Button size="lg">Large</Button>
-      </Row>
-      <Row>
-        <Button loading>Loading</Button>
-        <Button disabled>Disabled</Button>
-        <Button leadingIcon={<Handshake className="size-4" />}>{TERMS.requestDuet}</Button>
-      </Row>
-      <Row>
-        <IconButton label="Save" icon={<Bookmark className="size-4" />} />
-        <IconButton label="Save" icon={<Bookmark className="size-4" />} variant="secondary" />
-        <IconButton label="Save" icon={<Bookmark className="size-4" />} variant="primary" />
-        <IconButton label="Delete" icon={<Trash2 className="size-4" />} variant="danger" />
-        <IconButton
-          label="Explore"
-          icon={<Compass className="size-4" />}
-          variant="secondary"
-          showLabel
-        />
-      </Row>
-    </Section>
-  );
-}
-
-function IdentitySection() {
-  return (
-    <Section title="Identity and labels">
-      <Row>
-        <Avatar name="Akin Yilmaz" size="xs" />
-        <Avatar name="Maria" size="sm" />
-        <Avatar name="Alex Rivera" size="md" />
-        <Avatar name="Deniz" size="lg" ring />
-        <Avatar name="Sam" size="xl" />
-      </Row>
-      <Row>
-        <Badge>{TERMS.wave}</Badge>
-        <Badge tone="accent" icon={CREATION_TYPES.recorded.glyph}>
-          {CREATION_TYPES.recorded.label}
-        </Badge>
-        <Badge tone="accent" icon={CREATION_TYPES.uploaded.glyph}>
-          {CREATION_TYPES.uploaded.label}
-        </Badge>
-        <Badge tone="accent" icon={CREATION_TYPES.duet.glyph}>
-          {CREATION_TYPES.duet.label}
-        </Badge>
-        <Badge tone="success">{TERMS.openForDuet}</Badge>
-        <Badge tone="warning">Processing</Badge>
-        <Badge tone="danger">Failed</Badge>
-        <CountBadge count={3} label="unread messages" />
-        <CountBadge count={128} label="unread notifications" />
-      </Row>
-      <Row>
-        <span className="text-sm text-fg-muted">
-          Press <Kbd>Space</Kbd> to play, <Kbd>&larr;</Kbd> <Kbd>&rarr;</Kbd> to seek.
-        </span>
-      </Row>
-      <Row>
-        <Skeleton width="8rem" />
-        <Skeleton shape="circle" />
-        <Skeleton shape="block" width="10rem" />
-        <Spinner />
-        <VisuallyHidden>Hidden helper text for screen readers</VisuallyHidden>
-      </Row>
-    </Section>
-  );
-}
-
-function FormsSection() {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [visibility, setVisibility] = useState("everyone");
-  const [autoplay, setAutoplay] = useState(true);
-  const [duets, setDuets] = useState(false);
-
-  return (
-    <Section title="Forms">
-      <Input
-        id="kit-title"
-        label={`${TERMS.wave} title`}
-        placeholder="Give it a name"
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-        hint="Shown at the top of the card."
-      />
-      <Input
-        id="kit-search"
-        label={TERMS.search}
-        placeholder="Search creators"
-        leadingIcon={<Search className="size-4" />}
-      />
-      <Input
-        id="kit-error"
-        label="Username"
-        defaultValue="a"
-        error="Usernames must be at least 3 characters."
-      />
-      <Textarea
-        id="kit-description"
-        label="Description"
-        placeholder="Say something about this recording"
-        maxLength={280}
-        showCount
-        value={description}
-        onChange={(event) => setDescription(event.target.value)}
-      />
-      <Select
-        id="kit-visibility"
-        label={`${TERMS.wave} visibility`}
-        value={visibility}
-        onChange={(event) => setVisibility(event.target.value)}
-        options={[
-          { value: "everyone", label: "Everyone" },
-          { value: "followers", label: TERMS.followers },
-          { value: "only-me", label: "Only me" },
-        ]}
-        hint="This actually controls who can open it, not just what's shown on screen."
-      />
-      <Switch
-        checked={autoplay}
-        onCheckedChange={setAutoplay}
-        label="Autoplay next Wave"
-        description="Continue into the next Wave in the feed."
-      />
-      <Switch
-        checked={duets}
-        onCheckedChange={setDuets}
-        label={`Accept ${TERMS.duetRequests}`}
-        description="Anyone may ask to build on your Waves."
-      />
-    </Section>
-  );
-}
-
-const TAB_ITEMS = [
-  { value: "waves", label: TERMS.waves, count: 24 },
-  { value: "duets", label: TERMS.duets, count: 6 },
-  { value: "saved", label: TERMS.saved },
-];
-
-function NavigationSection() {
-  const [tab, setTab] = useState("waves");
-  const [segment, setSegment] = useState("trending");
-  const [chips, setChips] = useState<string[]>(["trending"]);
-
-  const toggleChip = (key: string) =>
-    setChips((current) =>
-      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
-    );
-
-  return (
-    <Section title="Navigation">
-      <Tabs
-        items={TAB_ITEMS}
-        value={tab}
-        onValueChange={setTab}
-        label="Profile sections"
-        idPrefix="kit-tabs"
-      />
-      {TAB_ITEMS.map((item) => (
-        <TabPanel
-          key={item.value}
-          id={tabPanelId("kit-tabs", item.value)}
-          labelledBy={tabId("kit-tabs", item.value)}
-          active={tab === item.value}
-          className="text-sm text-fg-muted"
-        >
-          {item.label} panel content.
-        </TabPanel>
-      ))}
-
-      <Tabs
-        items={[
-          { value: "trending", label: "Trending" },
-          { value: "new", label: "New" },
-          { value: "rising", label: "Rising" },
-        ]}
-        value={segment}
-        onValueChange={setSegment}
-        label="Explore ranking"
-        variant="segmented"
-        idPrefix="kit-segment"
-        className="self-start"
-      />
-
-      <Row>
-        {[
-          ["trending", "Trending"],
-          ["new", "New"],
-          ["original", "Original"],
-          ["open-for-duet", TERMS.openForDuet],
-        ].map(([key, label]) => (
-          <Chip key={key} selected={chips.includes(key)} onClick={() => toggleChip(key)}>
-            {label}
-          </Chip>
-        ))}
-      </Row>
-
-      <Menu
-        label="Wave actions"
-        items={[
-          { id: "save", label: TERMS.save, icon: <Bookmark className="size-4" />, onSelect: () => {} },
-          { id: "report", label: "Report", icon: <Flag className="size-4" />, onSelect: () => {} },
-          {
-            id: "delete",
-            label: "Delete",
-            icon: <Trash2 className="size-4" />,
-            destructive: true,
-            onSelect: () => {},
-          },
-        ]}
-        trigger={(props) => (
-          <IconButton
-            {...props}
-            label="More"
-            variant="secondary"
-            icon={<MoreHorizontal className="size-4" />}
-          />
-        )}
-      />
-    </Section>
-  );
-}
-
-function OverlaySection() {
-  const [open, setOpen] = useState(false);
-  const { toast } = useToast();
-
-  return (
-    <Section title="Overlays">
-      <Row>
-        <Button variant="secondary" onClick={() => setOpen(true)}>
-          Open sheet
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() => toast({ title: `${TERMS.wave} saved`, tone: "success" })}
-        >
-          Success toast
-        </Button>
-        <Button
-          variant="secondary"
-          onClick={() =>
-            toast({
-              title: "Upload failed",
-              description: "The file did not finish uploading.",
-              tone: "error",
-              action: { label: "Try again", onClick: () => {} },
-            })
-          }
-        >
-          Error toast
-        </Button>
-      </Row>
-
-      <Sheet
-        open={open}
-        onClose={() => setOpen(false)}
-        title={TERMS.requestDuet}
-        description="Ask this creator to build on their Wave with you."
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => setOpen(false)}>Send request</Button>
-          </div>
-        }
-      >
-        <Textarea
-          id="kit-duet-message"
-          label="Message"
-          placeholder="Tell them what you have in mind"
-          rows={4}
-        />
-      </Sheet>
-    </Section>
-  );
-}
-
-function StatesSection() {
-  return (
-    <Section title="Empty, error and loading states">
-      <EmptyState
-        title="Your feed is quiet"
-        description="Follow a few creators and their Waves land here."
-        icon={<Compass className="size-6" />}
-        action={<Button size="sm">Go to {TERMS.explore}</Button>}
-        secondaryAction={
-          <Button size="sm" variant="ghost">
-            {TERMS.create} {TERMS.aWave}
-          </Button>
-        }
-      />
-      <ErrorState onRetry={() => {}} />
-      <WaveCardSkeleton />
-    </Section>
-  );
-}
-
-function AudioSection() {
-  return (
-    <Section title="Audio">
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-fg-subtle">Waveform, bars (static)</p>
-        <Waveform peaks={DEMO_PEAKS} progress={0.42} duration={214} readOnly />
-      </div>
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-fg-subtle">Waveform, mirrored (static)</p>
-        <Waveform peaks={DEMO_PEAKS_B} progress={0.7} duration={96} variant="mirror" readOnly />
-      </div>
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-fg-subtle">
-          WavePlayer, default (silent demo asset)
-        </p>
-        <WavePlayer
-          waveId="kit-player"
-          src={SILENT_WAV}
-          peaks={DEMO_PEAKS}
-          duration={1}
-          title="Gallery demo"
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-fg-subtle">WavePlayer, compact</p>
-        <WavePlayer
-          waveId="kit-player-compact"
-          src={SILENT_WAV}
-          peaks={DEMO_PEAKS_B}
-          duration={1}
-          title="Gallery demo, compact"
-          variant="compact"
-        />
-      </div>
-    </Section>
-  );
-}
-
-/** Base64 body of `SILENT_WAV`, decoded to a real `Blob` for the components that need one. */
-function silentWavBlob(): Blob {
-  const base64 = SILENT_WAV.slice(SILENT_WAV.indexOf(",") + 1);
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: "audio/wav" });
-}
-
-function AudioCaptureSection() {
-  const [demoBlob] = useState<Blob>(() => silentWavBlob());
-  const [preset, setPreset] = useState<EnhancementPresetId>("natural");
-  const [advancedEq, setAdvancedEq] = useState<AdvancedEqSettings | null>(null);
-
-  return (
-    <Section title="Audio capture (Stage 4)">
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-fg-subtle">
-          RecorderPanel — asks for real microphone permission when pressed.
-        </p>
-        <RecorderPanel onComplete={() => {}} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-fg-subtle">UploadDropzone — validates format, size and duration.</p>
-        <UploadDropzone onFileAccepted={() => {}} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-fg-subtle">AudioPreview — plays a local blob via the global store.</p>
-        <AudioPreview blob={demoBlob} durationMs={1000} peaks={DEMO_PEAKS} title="Gallery demo take" />
-      </div>
-      <div className="flex flex-col gap-2">
-        <p className="text-xs text-fg-subtle">
-          EnhancementPicker — six presets, A/B preview, advanced EQ disclosure.
-        </p>
-        <EnhancementPicker
-          blob={demoBlob}
-          preset={preset}
-          onPresetChange={setPreset}
-          advancedEq={advancedEq}
-          onAdvancedEqChange={setAdvancedEq}
-        />
-      </div>
-    </Section>
-  );
-}
-
-function WaveSection() {
-  const { toast } = useToast();
-  const notify = (label: string) => () => toast({ title: label });
-
-  return (
-    <Section title="Wave card">
-      <WaveCard
-        wave={DEMO_WAVE}
-        onComment={notify(TERMS.comment)}
-        onSave={notify(TERMS.save)}
-        onShare={notify(TERMS.share)}
-        onRequestDuet={notify(TERMS.requestDuet)}
-      />
-      <WaveCard wave={DEMO_DUET} onRequestDuet={notify(TERMS.requestDuet)} />
-    </Section>
-  );
-}
-
-const COLOR_TOKENS = [
-  ["bg", "bg-bg"],
-  ["surface", "bg-surface"],
-  ["surface-muted", "bg-surface-muted"],
-  ["surface-inset", "bg-surface-inset"],
-  ["border-strong", "bg-border-strong"],
-  ["accent", "bg-accent"],
-  ["accent-soft", "bg-accent-soft"],
-  ["danger", "bg-danger"],
-  ["success", "bg-success"],
-  ["warning", "bg-warning"],
-  ["wave-track", "bg-wave-track"],
-  ["wave-progress", "bg-wave-progress"],
-];
-
-const RADIUS_TOKENS = [
-  ["xs", "rounded-xs"],
-  ["sm", "rounded-sm"],
-  ["md", "rounded-md"],
-  ["lg", "rounded-lg"],
-  ["xl", "rounded-xl"],
-  ["2xl", "rounded-2xl"],
-];
-
-function TokensSection() {
-  return (
-    <Section title="Design tokens">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {COLOR_TOKENS.map(([name, className]) => (
-          <div key={name} className="flex flex-col gap-1.5">
-            <span
-              className={cn("h-12 w-full rounded-md border border-border", className)}
-              aria-hidden="true"
-            />
-            <span className="font-mono text-[0.6875rem] text-fg-subtle">{name}</span>
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-3">
-        {RADIUS_TOKENS.map(([name, className]) => (
-          <div key={name} className="flex flex-col items-center gap-1.5">
-            <span
-              className={cn("size-14 border border-border-strong bg-surface-muted", className)}
-              aria-hidden="true"
-            />
-            <span className="font-mono text-[0.6875rem] text-fg-subtle">{name}</span>
-          </div>
-        ))}
-      </div>
-    </Section>
-  );
-}
-
-function FormattersSection() {
-  const [now] = useState(() => Date.now());
-  return (
-    <Section title="Formatters">
-      <ul className="space-y-1 font-mono text-xs text-fg-muted">
-        <li>formatDuration(214) = {formatDuration(214)}</li>
-        <li>formatDuration(3725) = {formatDuration(3725)}</li>
-        <li>formatCount(999) = {formatCount(999)}</li>
-        <li>formatCount(1234) = {formatCount(1234)}</li>
-        <li>formatCount(1284000) = {formatCount(1284000)}</li>
-        <li>timeAgo(-47 min) = {timeAgo(now - 1000 * 60 * 47, now)}</li>
-        <li>timeAgo(-3 days) = {timeAgo(now - 1000 * 60 * 60 * 24 * 3, now)}</li>
-      </ul>
-    </Section>
+    <div className="flex flex-col gap-2 border-b border-hairline pb-5">
+      <span className="type-caption text-ink-subtle">{label}</span>
+      {children}
+    </div>
   );
 }
