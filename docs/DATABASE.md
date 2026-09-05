@@ -35,6 +35,9 @@ instructions: `supabase/README.md`.
 | 24 | `creator_analytics` | `play_events.suspicious`, `flag_suspicious_play_events()`, `wave_listen_is_suspicious()`, `creator_overview()`/`creator_timeseries()`/`creator_wave_performance()`, `product_health()` (moderator-only) — spec §13, §27, §28, §40, §43 Stage 13 |
 | 25 | `composite_pagination_indexes` | Drop-and-recreate of the ordering index behind every keyset-paginated list helper (Waves' `published_at`, comments'/messages'/saves' `created_at`, notifications' `updated_at`, conversations' `last_message_at`), each now trailing an id (or, for `saves`, `wave_id`) tiebreaker column — see "Composite keyset cursors" below |
 | 26 | `composite_pagination_indexes_2` | Same treatment for the five helpers migration 25 left out of scope: `duet_requests`' recipient/requester indexes, `shares`' wave index, `follows`' followee/follower indexes (tiebreaker: the other side of the edge, `follows` having no surrogate id), and `reports`' reporter and moderation-queue indexes — see "Composite keyset cursors" below |
+| — | `fix_creator_wave_performance_ambiguous_wave_id` | Bug fix (42702 ambiguous column) in `creator_wave_performance()` |
+| 27 | `audio_enhancement_report` | `audio_assets.enhancement_report` jsonb (Wave B server-side polish pipeline — see "Enhancement report" in `AUDIO_ARCHITECTURE.md`); extends the `audio_assets_guard_update` write guard to cover it; `complete_audio_job` gains a 6th param `p_enhancement_report` (old 5-arg signature dropped, not overloaded) |
+| 28 | `backing_tracks` | `backing_tracks` (curated CC0/CC-BY + user-uploaded "open for vocals" instrumentals, spec §4), `waves.backing_track_id` (mutually exclusive with `parent_wave_id`), `list_backing_tracks()` keyset-paginated discovery RPC, RLS (public read for curated/open, owner write) |
 
 ## Entities
 
@@ -45,13 +48,21 @@ targets), `blocks` (directional storage, symmetric effect via
 
 **Audio:** `audio_assets` (original + processed paths in the private `audio`
 bucket, duration, mime, size, `peaks` jsonb, `processing_status`,
-`enhancement_preset`), `audio_processing_jobs` (the worker queue — see
-`AUDIO_ARCHITECTURE.md`).
+`enhancement_preset`, `enhancement_report` jsonb — which pipeline stages ran
+and what they measured, see "Enhancement report" in `AUDIO_ARCHITECTURE.md`),
+`audio_processing_jobs` (the worker queue — see `AUDIO_ARCHITECTURE.md`).
+
+**Backing tracks (spec §4):** `backing_tracks` — curated (seeded,
+`uploader_id null`) or user-uploaded ("open for vocals") instrumentals:
+`license` (`cc0 | cc_by | owner_upload`), `source_url` (required for
+`cc_by`), `bpm`/`musical_key`/`genre_tags` for discovery, `audio_asset_id`.
+Singing over one sets `waves.backing_track_id` (mutually exclusive with
+`parent_wave_id` — it is not a Duet of another Wave).
 
 **Content:** `waves` (the social object — creator, audio asset, title,
 visibility, per-Wave comment/duet permission overrides, duet lineage,
-trigger-maintained counters), `wave_collaborators` (`pending | accepted |
-declined`, never auto-accepted).
+`backing_track_id`, trigger-maintained counters), `wave_collaborators`
+(`pending | accepted | declined`, never auto-accepted).
 
 **Engagement:** `comments` (flat + one optional reply level via
 `parent_comment_id`), `saves`, `shares`, `play_events` (raw, append-only,

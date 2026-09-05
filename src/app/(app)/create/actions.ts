@@ -20,6 +20,7 @@ import {
   getAudioAssetById,
   markAudioAssetFailed,
 } from "@/lib/db/audioAssets";
+import { enqueueBackingTrackMixJob, requireBackingTrack } from "@/lib/db/backingTracks";
 import { createWave, inviteCollaborator } from "@/lib/db/waves";
 import { getProfileByUsername } from "@/lib/db/profiles";
 import { DatabaseError, ForbiddenError, NotFoundError } from "@/lib/db/types";
@@ -319,6 +320,8 @@ export interface PublishWaveArgs {
   duetPermission?: PermissionAudience | null;
   collaboratorUsernames?: readonly string[];
   categories?: readonly string[];
+  /** Sing over a curated/open backing track (spec §4) — see `publishWaveSchema`. */
+  backingTrackId?: string | null;
 }
 
 /**
@@ -326,6 +329,13 @@ export interface PublishWaveArgs {
  * asset and for it not to have failed processing outright — publishing
  * before processing finishes is fine (`mintPlaybackUrl` falls back to the
  * original file), publishing over a `failed` asset is not.
+ *
+ * When `backingTrackId` is set, this is a "sing over a track" publish (spec
+ * §4): the Wave is created with `backing_track_id` set and `parent_wave_id`
+ * left null (it is not a Duet of another WAVE), and a `mix_duet` job is
+ * enqueued that lays this Wave's vocal over the track's own audio using the
+ * existing Duet mixdown machinery — offset 0, the track gain-reduced by
+ * default (`enqueueBackingTrackMixJob`, `src/lib/db/backingTracks.ts`).
  */
 export async function publishWave(args: PublishWaveArgs): Promise<PublishWaveResult> {
   if (!isSupabaseConfigured()) {
@@ -358,6 +368,16 @@ export async function publishWave(args: PublishWaveArgs): Promise<PublishWaveRes
     };
   }
 
+  let trackAudioAssetId: string | null = null;
+  if (parsed.data.backingTrackId) {
+    try {
+      const track = await requireBackingTrack(db, parsed.data.backingTrackId);
+      trackAudioAssetId = track.audioAssetId;
+    } catch (err) {
+      return { ok: false, error: describeError(err, "That backing track could not be found.") };
+    }
+  }
+
   let waveId: string;
   try {
     const wave = await createWave(db, user.id, {
@@ -368,12 +388,28 @@ export async function publishWave(args: PublishWaveArgs): Promise<PublishWaveRes
       visibility: parsed.data.visibility,
       comment_permission: parsed.data.commentPermission,
       duet_permission: parsed.data.duetPermission,
+      backing_track_id: parsed.data.backingTrackId ?? null,
       content_origin: "original",
       tags: parsed.data.categories,
     });
     waveId = wave.id;
   } catch (err) {
     return { ok: false, error: describeError(err, "We couldn't publish this Wave. Try again.") };
+  }
+
+  if (trackAudioAssetId) {
+    try {
+      await enqueueBackingTrackMixJob(db, {
+        vocalAssetId: asset.id,
+        trackAudioAssetId,
+      });
+    } catch (err) {
+      // The Wave already published — a failed mixdown enqueue is not a
+      // publish failure (mirrors the collaborator-invite tolerance below).
+      // `mintPlaybackUrl` still falls back to the unmixed original in the
+      // meantime, never a fake "ready" mix.
+      console.error(`[publishWave] failed to enqueue backing-track mix for wave ${waveId}:`, err);
+    }
   }
 
   const skippedCollaborators: string[] = [];

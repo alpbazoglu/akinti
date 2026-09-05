@@ -33,6 +33,7 @@ const WAVE: Wave = {
   commentPermission: null,
   duetPermission: null,
   duet: { originalWaveId: null, parentWaveId: null, duetRequestId: null, depth: 0 },
+  backingTrackId: null,
   contentOrigin: "original",
   tags: ["idea"],
   counts: { plays: 12, replays: 2, comments: 1, saves: 3, shares: 0, duets: 0 },

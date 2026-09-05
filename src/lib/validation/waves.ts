@@ -24,6 +24,8 @@ export const createWaveSchema = z.object({
   /** null = inherit the creator's profile setting. */
   comment_permission: z.enum(COMMENT_AUDIENCES).nullable().default(null),
   duet_permission: z.enum(PERMISSION_AUDIENCES).nullable().default(null),
+  /** Set when this Wave is a vocal recorded over a backing track (spec §4). */
+  backing_track_id: uuidSchema.nullable().default(null),
   content_origin: z.enum(CONTENT_ORIGINS).default("original"),
   tags: tagsSchema.default([]),
 });
@@ -53,6 +55,15 @@ export const publishWaveSchema = z.object({
   duetPermission: z.enum(PERMISSION_AUDIENCES).nullable().default(null),
   collaboratorUsernames: usernameListSchema,
   categories: tagsSchema.default([]),
+  /**
+   * Sing over a curated/open backing track (spec §4). When set, `publishWave`
+   * creates the Wave with `backing_track_id` set (never `parent_wave_id` —
+   * this is not a Duet of another Wave) and enqueues a `mix_duet` job that
+   * mixes `assetId`'s vocal over the track's own audio asset, exactly like an
+   * ordinary Duet mixdown, with the track gain-reduced by default. See
+   * docs/AUDIO_ARCHITECTURE.md "Backing tracks".
+   */
+  backingTrackId: uuidSchema.nullable().default(null),
 });
 
 /** Publishing the Wave that comes out of a Duet. */

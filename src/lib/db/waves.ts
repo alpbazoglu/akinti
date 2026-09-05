@@ -410,6 +410,7 @@ export async function createWave(db: Db, creatorId: string, input: CreateWaveInp
       visibility: input.visibility,
       comment_permission: input.comment_permission,
       duet_permission: input.duet_permission,
+      backing_track_id: input.backing_track_id ?? null,
       content_origin: input.content_origin,
       tags: input.tags,
     })
