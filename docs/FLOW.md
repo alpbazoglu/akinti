@@ -38,3 +38,21 @@ Heard state is recorded server-side (existing play counting); "new for you" coun
 - Virtualised: render current ±1 only. `next/dynamic` for the comment sheet and share sheet.
 - Performance: first Wave server-rendered with peaks; audio starts on the first gesture; INP < 200 ms on swipe.
 - Analytics: impressions, completes, skips (position), replays, saves, duet taps → existing metrics tables or a `flow_events` table.
+
+## Implementation notes (as built, 6 Sept 2026)
+
+**Data** (migration `20260906110000_flow.sql`): `flow_impressions(user_id, wave_id, seen_at, completed, skipped_at_ms)`, owner-only RLS, no client write path. `get_flow_page(p_cursor jsonb, p_seed int, p_limit int)` is SECURITY INVOKER — every table it reads already has RLS that resolves correctly for the caller, so it can never show more than the caller's own queries against those tables already would. Ranking, in bucket order:
+
+1. Followed creators, unheard (`wave_listens`, the same "heard" definition Home's unheard mark uses), newest first.
+2. Duets whose `parent_wave_id`'s creator is the viewer — a strict superset of "answers to my Open Calls", since `answer_open_call()` always produces a Duet of the Open Call's Wave.
+3. Live-challenge entries, curated picks (rank 1-5) ranked ahead of plain entries.
+4. Rising (48h, `wave_trending_score`), diversified by creator and genre via a round-robin re-rank (`greatest(rank within creator, rank within genre)`) — a best-effort spread, not a hard per-page guarantee for a pathological distribution (one creator owning every rising Wave).
+5. An Open-Call/backing-track "invitation" spliced in at every 8th absolute session position, paginated independently by an `offset` derived from the cursor's `slot`. When the invitation pool is exhausted, that slot is omitted rather than repeating or fabricating one.
+
+The keyset cursor is `(bucket, score, id, slot)`; diversification/interleaving only reorders *within* one fetched page, so the cursor always advances by exactly the underlying ranked stream's own order, never skipping or repeating a row across pages. `record_flow_event` (impression/complete/skip/replay) is rate-limited via `check_rate_limit`, action `'flow_event'`, 600/hour. Saves and Duet taps ride the existing `saves`/`duet_requests` write paths (with `emitAnalyticsEvent`), not `record_flow_event` — the RPC's kind enum is exactly the four kinds above.
+
+**Screen**: `FlowScreen` is a `fixed inset-0 z-40` full-viewport takeover rendered from inside `(app)/layout.tsx`'s `{children}` — `AppShell`/the shared layout were out of this stage's ownership, so Flow covers the shell's chrome (top bar, keyboard nav, persistent player strip) from its own owned tree rather than by editing them. Swipe/wheel/tap/double-tap/long-press are unified on one Pointer Event handler at the track level; the trace's own drag (scrub) claims the gesture first and calls `stopPropagation` only once an actual drag (not a tap) is detected. `getFlowAnalyser`/`readFlowAmplitude` (`src/lib/audio/analyser.ts`) build one `AudioContext`/`MediaElementAudioSourceNode`/`AnalyserNode` graph the first time the playback store's `<audio>` element exists (after the first gesture) and reuse it — `createMediaElementSource` throws on a second call against the same element.
+
+**Navigation**: Flow is first in `KEYBOARD_ITEMS`/`RAIL_ITEMS`; Home is second. The actual post-login landing page is decided in two places, not one — `src/lib/supabase/middleware.ts` (an already-signed-in visit to `/login`) and `src/app/(auth)/actions.ts`'s `signIn` Server Action (the real form submission every sign-in takes) — both now default to Flow instead of Home.
+
+**Verified live** (`scripts/qa/flow-qa.mjs`, `docs/qa/flow/`): 19/20 checks against real seeded Waves on the live project, both 390×844 and 1280×800. One QA-only bug was found and fixed this pass: the swipe track's `translateY` used a percentage, which CSS resolves against the *track's own* height (up to 3x one screen, since it stacks up to 3 sections) rather than one section's height — every swipe overshot by up to 3x, which is what pushed the rail off-screen after the first navigation. Fixed by switching to `dvh` units.
