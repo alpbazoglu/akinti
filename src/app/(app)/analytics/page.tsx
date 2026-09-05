@@ -126,7 +126,7 @@ async function AnalyticsContent({ days }: { days: AnalyticsRangeDays }) {
           label={TERMS.plays}
           value={formatCount(overview.plays)}
           kind="meaningful"
-          hint="Deduplicated per listener, not raw playback pings."
+          hint="Counted once per listener, not every playback ping."
         />
         <StatTile
           label="Unique listeners"
@@ -147,13 +147,13 @@ async function AnalyticsContent({ days }: { days: AnalyticsRangeDays }) {
           label="Avg. listen time"
           value={formatAvgListenTime(overview.avgListenSeconds)}
           kind="raw"
-          hint="From the raw playback log, qualifying listens only."
+          hint="Average across listens that counted as a play."
         />
         <StatTile
           label="Completion rate"
           value={formatPercent(overview.completionRate)}
           kind="raw"
-          hint="Share of qualifying listens that reached 90%."
+          hint="Share of counted listens that reached 90% of the Wave."
         />
         <StatTile
           label="Follower change"

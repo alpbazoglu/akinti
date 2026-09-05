@@ -267,7 +267,7 @@ function FormsSection() {
           { value: "followers", label: TERMS.followers },
           { value: "only-me", label: "Only me" },
         ]}
-        hint="Enforced server-side, never only here."
+        hint="This actually controls who can open it, not just what's shown on screen."
       />
       <Switch
         checked={autoplay}

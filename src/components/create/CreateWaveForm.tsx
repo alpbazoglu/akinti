@@ -172,7 +172,7 @@ export function CreateWaveForm({
         value={visibility}
         onChange={(event) => setVisibility(event.target.value as WaveVisibility)}
         options={VISIBILITY_OPTIONS}
-        hint="Enforced server-side, not just hidden in the UI."
+        hint="This actually controls who can open it — not just what's shown on screen."
       />
 
       <Select
@@ -204,7 +204,7 @@ export function CreateWaveForm({
           onChange={(event) => setCollaboratorInput(event.target.value)}
           onKeyDown={handleCollaboratorKeyDown}
           onBlur={addCollaborator}
-          hint="Press Enter to add. They must accept before being credited (spec §16)."
+          hint="Press Enter to add. They must accept before being credited."
           disabled={collaborators.length >= MAX_COLLABORATORS}
         />
         {collaborators.length > 0 ? (

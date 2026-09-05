@@ -60,7 +60,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   return (
     <>
-      <PageHeader title={TERMS.search} description="Creators and Waves, matched deterministically (spec §24)." />
+      <PageHeader title={TERMS.search} description="Creators and Waves that match what you typed, most relevant first." />
       <SearchView initialQuery={query} initialProfiles={profiles} initialWaves={waves} initialError={loadError} />
     </>
   );

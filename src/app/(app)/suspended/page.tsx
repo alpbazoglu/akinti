@@ -58,7 +58,7 @@ export default async function SuspendedPage() {
         title="Your account is temporarily suspended"
         description={
           <>
-            A moderator suspended this account following a review (spec §26). You can browse{" "}
+            A moderator suspended this account following a review. You can browse{" "}
             {TERMS.brand} again after{" "}
             <span className="font-medium text-fg">{formatAbsoluteTime(suspendedUntil as string)}</span>.
             If you believe this is a mistake, contact support.

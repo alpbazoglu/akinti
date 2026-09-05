@@ -180,7 +180,7 @@ export function PrivacyForm({
           }}
           options={VISIBILITY_OPTIONS}
           disabled={isPending}
-          hint="Enforced server-side (spec §21) — you can still change it per Wave when publishing."
+          hint="This actually controls who can open it — you can still change it per Wave when publishing."
         />
       </section>
 

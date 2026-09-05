@@ -5,22 +5,24 @@ import { cn } from "@/lib/ui";
 export interface StatTileProps {
   label: string;
   value: string;
-  /** e.g. "Meaningful (deduplicated)" or "Raw event log". */
+  /** "meaningful" = counted once per listener; "raw" = a straight read of the play-event log. */
   kind?: "meaningful" | "raw";
   hint?: ReactNode;
   className?: string;
 }
 
 const KIND_LABEL: Record<NonNullable<StatTileProps["kind"]>, string> = {
-  meaningful: "Meaningful",
-  raw: "Raw",
+  meaningful: "Counted",
+  raw: "Estimate",
 };
 
 /**
  * One number, in context. Every tile names whether it counts a deduplicated
  * ("meaningful") signal or reads the raw event log (spec §27: "distinguish
  * raw events from meaningful/deduplicated metrics") — never just a bare
- * number with no indication of what it actually measures.
+ * number with no indication of what it actually measures. The tag itself
+ * stays in plain English ("Counted"/"Estimate") — the `hint` text underneath
+ * is where the actual, honest explanation lives.
  */
 export function StatTile({ label, value, kind, hint, className }: StatTileProps) {
   return (
