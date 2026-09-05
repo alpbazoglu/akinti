@@ -11,6 +11,8 @@ export const routes = {
   explore: () => "/explore",
   search: (q?: string) => (q && q.trim().length > 0 ? `/search?q=${enc(q.trim())}` : "/search"),
   create: () => "/create",
+  /** Browse the curated/open backing-track library (see also Explore's own "Tracks to sing over" lane). */
+  tracks: () => "/tracks",
   notifications: () => "/notifications",
   messages: () => "/messages",
   conversation: (conversationId: string) => `/messages/${enc(conversationId)}`,

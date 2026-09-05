@@ -1,48 +1,62 @@
 "use client";
 
 /**
- * Client-only Wave creation flow (spec §17, §18, §19, §36, §38).
+ * Client-only Wave creation flow (spec §17, §18, §19, §36, §38;
+ * `docs/design/SCREENS.md` §4).
  *
- * Steps: Record | Upload -> preview -> enhance -> details -> Publish.
+ * Steps, in order: Record | Upload -> Review (trim, recorded takes only) ->
+ * Enhance ("sounds like") -> Details -> Publish. Each step is its own
+ * component (`src/components/create/*Stage.tsx`); this file only owns the
+ * state that moves between them and the real publish sequence.
  *
- * `CreateWaveForm` (see `src/components/create/CreateWaveForm.tsx`) calls
- * its `onSubmit` prop with a fully assembled, fully typed `CreateWaveDraft`
- * (see `src/lib/audio/createDraft.ts`) the moment the user presses Publish.
+ * `CreateWaveForm` (see `src/components/create/CreateWaveForm.tsx`) calls its
+ * `onSubmit` prop with a fully assembled, fully typed `CreateWaveDraft` (see
+ * `src/lib/audio/createDraft.ts`) the moment the user presses Publish.
  * `runPublish` below drives the real server sequence — ticket -> upload ->
- * finalize -> publish -> redirect (`./actions.ts`) — with a real phase for
- * each step and a retry that resumes from the top on failure (spec §38,
- * §44: no fake success, no silent failure).
+ * finalize -> publish -> redirect (`./actions.ts`) — with a real, named stage
+ * for each step (`PublishProgress`) and a retry that resumes from the top on
+ * failure (spec §38, §44: no fake success, no silent failure).
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Upload as UploadIcon } from "@/components/ui/icons";
 
 import { PageHeader } from "@/components/layout";
-import { AudioPreview, EnhancementPicker, RecorderPanel } from "@/components/audio";
-import { CreateWaveForm, UploadDropzone } from "@/components/create";
-import { Button, ErrorState, TabPanel, Tabs, tabId, tabPanelId } from "@/components/ui";
 import {
+  CreateWaveForm,
+  EnhanceStage,
+  PublishProgress,
+  RecordStage,
+  ReviewStage,
+  UploadDropzone,
+  type CapturedTake,
+  type PublishStage,
+  type RecordStageBackingTrack,
+} from "@/components/create";
+import { Button } from "@/components/ui";
+import {
+  applyTrim,
   decodeToPeaks,
+  fullRange,
+  REVIEW_PEAK_BUCKETS,
+  STRIP_PEAK_BUCKETS,
   type AdvancedEqSettings,
   type CreatableCreationType,
+  type CreateWaveDraft,
   type EnhancementPresetId,
-  type RecorderResult,
+  type TrimRange,
 } from "@/lib/audio";
 import { AUDIO_BUCKET } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
-import type { CreateWaveDraft } from "@/lib/audio/createDraft";
 
 import { createUploadTicket, finalizeUpload, publishWave } from "./actions";
 
-const PREVIEW_PEAK_BUCKETS = 72;
-const TAB_ID_PREFIX = "create-capture";
-
-type Step = "capture" | "enhance" | "details";
+type Step = "capture" | "review" | "enhance" | "details";
 type CaptureMode = "record" | "upload";
 
+/** A take, however it arrived, before this flow has necessarily trimmed it. */
 interface CapturedAudio {
   readonly creationType: CreatableCreationType;
   readonly blob: Blob;
@@ -51,146 +65,201 @@ interface CapturedAudio {
   readonly sourceFileName: string | null;
 }
 
-type PublishPhase = "idle" | "uploading" | "finalizing" | "publishing" | "error";
+const FALLBACK_PEAKS = (buckets: number): readonly number[] => new Array(buckets).fill(0.2);
 
-const PHASE_LABEL: Record<Exclude<PublishPhase, "idle" | "error">, string> = {
-  uploading: "Uploading your Wave…",
-  finalizing: "Verifying your upload…",
-  publishing: "Publishing…",
-};
+export interface CreateFlowProps {
+  /** From `?track=<id>` (spec §4), already resolved server-side by `page.tsx`. */
+  initialBackingTrack: RecordStageBackingTrack | null;
+}
 
-export function CreateFlow() {
+export function CreateFlow({ initialBackingTrack }: CreateFlowProps) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("capture");
   const [captureMode, setCaptureMode] = useState<CaptureMode>("record");
+  const [backingTrack, setBackingTrack] = useState<RecordStageBackingTrack | null>(
+    initialBackingTrack,
+  );
+
+  // The take exactly as captured — recorded or uploaded — before any trim.
+  // Kept separately from `captured` (below) so "Re-record" on the Review
+  // step has the untrimmed original to discard, not something already cut.
+  const [rawTake, setRawTake] = useState<CapturedAudio | null>(null);
+  const [reviewPeaks, setReviewPeaks] = useState<readonly number[] | null>(null);
+  const [trimRange, setTrimRange] = useState<TrimRange | null>(null);
+  const [interrupted, setInterrupted] = useState(false);
+
+  // The take actually carried into Enhance and Details: `rawTake` after trim
+  // for a recording, or `rawTake` unchanged for an upload (spec §18 does not
+  // offer trim on an uploaded file — Review/trim is a recorder concept).
   const [captured, setCaptured] = useState<CapturedAudio | null>(null);
-  const [previewPeaks, setPreviewPeaks] = useState<readonly number[] | null>(null);
+  const [enhancePeaks, setEnhancePeaks] = useState<readonly number[] | null>(null);
+  const [stripPeaks, setStripPeaks] = useState<readonly number[] | null>(null);
+
   const [preset, setPreset] = useState<EnhancementPresetId>("natural");
   const [advancedEq, setAdvancedEq] = useState<AdvancedEqSettings | null>(null);
-  const [publishPhase, setPublishPhase] = useState<PublishPhase>("idle");
+
+  const [publishStage, setPublishStage] = useState<PublishStage | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [pendingDraft, setPendingDraft] = useState<CreateWaveDraft | null>(null);
 
-  useEffect(() => {
-    // Resetting to null on every new `captured` happens in the setters below
-    // (`handleRecorded`/`handleUploaded`/`startOver`), not here — this effect
-    // only kicks off the async decode and reports its result.
-    if (!captured) return;
-    let cancelled = false;
-    void decodeToPeaks(captured.blob, PREVIEW_PEAK_BUCKETS)
-      .then((peaks) => {
-        if (!cancelled) setPreviewPeaks(peaks);
-      })
-      .catch(() => {
-        // Preview-only: if decoding fails (unusual format, etc.) fall back to
-        // flat placeholder peaks rather than blocking the flow. The server
-        // regenerates real peaks from the processed file regardless.
-        if (!cancelled) setPreviewPeaks(new Array(PREVIEW_PEAK_BUCKETS).fill(0.2));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [captured]);
+  const startOver = useCallback(() => {
+    setRawTake(null);
+    setReviewPeaks(null);
+    setTrimRange(null);
+    setInterrupted(false);
+    setCaptured(null);
+    setEnhancePeaks(null);
+    setStripPeaks(null);
+    setPreset("natural");
+    setAdvancedEq(null);
+    setPublishStage(null);
+    setPublishError(null);
+    setPendingDraft(null);
+    setStep("capture");
+  }, []);
 
-  const handleRecorded = (result: RecorderResult) => {
-    setPreviewPeaks(null);
-    setCaptured({
+  const handleRecorded = useCallback((take: CapturedTake) => {
+    setRawTake({
       creationType: "recorded",
-      blob: result.blob,
-      mimeType: result.mimeType,
-      durationMs: result.durationMs,
+      blob: take.blob,
+      mimeType: take.mimeType,
+      durationMs: take.durationMs,
       sourceFileName: null,
     });
-    setStep("enhance");
-  };
+    setInterrupted(take.interrupted);
+    setTrimRange(fullRange(take.durationMs));
+    setReviewPeaks(null);
+    void decodeToPeaks(take.blob, REVIEW_PEAK_BUCKETS)
+      .then(setReviewPeaks)
+      .catch(() => setReviewPeaks(FALLBACK_PEAKS(REVIEW_PEAK_BUCKETS)));
+    setStep("review");
+  }, []);
 
-  const handleUploaded = (file: File, durationMs: number) => {
-    setPreviewPeaks(null);
-    setCaptured({
+  const handleUploaded = useCallback((file: File, durationMs: number) => {
+    const audio: CapturedAudio = {
       creationType: "uploaded",
       blob: file,
       mimeType: file.type || "application/octet-stream",
       durationMs,
       sourceFileName: file.name,
-    });
+    };
+    setRawTake(audio);
+    setCaptured(audio);
+    setEnhancePeaks(null);
+    void decodeToPeaks(file, REVIEW_PEAK_BUCKETS)
+      .then(setEnhancePeaks)
+      .catch(() => setEnhancePeaks(FALLBACK_PEAKS(REVIEW_PEAK_BUCKETS)));
     setStep("enhance");
-  };
+  }, []);
 
-  const startOver = () => {
-    setCaptured(null);
-    setPreviewPeaks(null);
-    setPreset("natural");
-    setAdvancedEq(null);
-    setPublishPhase("idle");
-    setPublishError(null);
-    setPendingDraft(null);
-    setStep("capture");
-  };
+  const handleReviewContinue = useCallback(() => {
+    const take = rawTake;
+    const range = trimRange;
+    if (!take || !range) return;
+    void (async () => {
+      const trimmed = await applyTrim(take.blob, take.mimeType, take.durationMs, range).catch(
+        () => ({ blob: take.blob, mimeType: take.mimeType, durationMs: take.durationMs }),
+      );
+      const next: CapturedAudio = {
+        creationType: take.creationType,
+        blob: trimmed.blob,
+        mimeType: trimmed.mimeType,
+        durationMs: trimmed.durationMs,
+        sourceFileName: take.sourceFileName,
+      };
+      setCaptured(next);
+      const peaks = await decodeToPeaks(next.blob, REVIEW_PEAK_BUCKETS).catch(() =>
+        FALLBACK_PEAKS(REVIEW_PEAK_BUCKETS),
+      );
+      setEnhancePeaks(peaks);
+      setStep("enhance");
+    })();
+  }, [rawTake, trimRange]);
 
-  const runPublish = async (draft: CreateWaveDraft): Promise<void> => {
-    setPendingDraft(draft);
-    setPublishError(null);
-    setPublishPhase("uploading");
+  const handleEnhanceContinue = useCallback(() => {
+    const take = captured;
+    if (!take) return;
+    void decodeToPeaks(take.blob, STRIP_PEAK_BUCKETS)
+      .then(setStripPeaks)
+      .catch(() => setStripPeaks(FALLBACK_PEAKS(STRIP_PEAK_BUCKETS)))
+      .finally(() => setStep("details"));
+  }, [captured]);
 
-    const ticket = await createUploadTicket({
-      mimeType: draft.audio.mimeType,
-      sizeBytes: draft.audio.blob.size,
-      durationMs: draft.audio.durationMs,
-      creationType: draft.audio.creationType,
-      enhancementPreset: draft.audio.enhancementPreset,
-    });
-    if (!ticket.ok) {
-      setPublishError(ticket.error);
-      setPublishPhase("error");
-      return;
-    }
+  const runPublish = useCallback(
+    async (draft: CreateWaveDraft): Promise<void> => {
+      setPendingDraft(draft);
+      setPublishError(null);
+      setPublishStage("uploading");
 
-    try {
-      const supabase = createClient();
-      const { error: uploadError } = await supabase.storage
-        .from(AUDIO_BUCKET)
-        .uploadToSignedUrl(ticket.path, ticket.uploadToken, draft.audio.blob, {
-          contentType: draft.audio.mimeType,
-        });
-      if (uploadError) {
-        setPublishError("The upload didn't complete. Try again.");
-        setPublishPhase("error");
+      const ticket = await createUploadTicket({
+        mimeType: draft.audio.mimeType,
+        sizeBytes: draft.audio.blob.size,
+        durationMs: draft.audio.durationMs,
+        creationType: draft.audio.creationType,
+        enhancementPreset: draft.audio.enhancementPreset,
+      });
+      if (!ticket.ok) {
+        setPublishError(ticket.error);
         return;
       }
-    } catch {
-      setPublishError("The upload didn't complete. Check your connection and try again.");
-      setPublishPhase("error");
-      return;
-    }
 
-    setPublishPhase("finalizing");
-    const finalized = await finalizeUpload(ticket.assetId, draft.audio.advancedEq ?? undefined);
-    if (!finalized.ok) {
-      setPublishError(finalized.error);
-      setPublishPhase("error");
-      return;
-    }
+      try {
+        const supabase = createClient();
+        const { error: uploadError } = await supabase.storage
+          .from(AUDIO_BUCKET)
+          .uploadToSignedUrl(ticket.path, ticket.uploadToken, draft.audio.blob, {
+            contentType: draft.audio.mimeType,
+          });
+        if (uploadError) {
+          setPublishError("The upload didn't complete. Try again.");
+          return;
+        }
+      } catch {
+        setPublishError("The upload didn't complete. Check your connection and try again.");
+        return;
+      }
 
-    setPublishPhase("publishing");
-    const published = await publishWave({
-      assetId: ticket.assetId,
-      title: draft.title,
-      description: draft.description || null,
-      creationType: draft.audio.creationType,
-      visibility: draft.visibility,
-      commentPermission: draft.commentPermission,
-      duetPermission: draft.duetPermission,
-      collaboratorUsernames: draft.collaboratorUsernames,
-      categories: draft.categories,
-    });
-    if (!published.ok) {
-      setPublishError(published.error);
-      setPublishPhase("error");
-      return;
-    }
+      setPublishStage("checking");
+      // A "sing over a track" Wave gets a `mix_duet` job from `publishWave`
+      // below, laid over the same audio asset — the ordinary `process_audio`
+      // job `finalizeUpload` would otherwise enqueue must be skipped so the
+      // two jobs never race the same `audio_assets` row. This is exactly the
+      // race a Duet contribution stem already had to avoid (see
+      // `finalizeUpload`'s doc comment and `docs/AUDIO_ARCHITECTURE.md`
+      // "Duet mixdown").
+      const finalized = await finalizeUpload(
+        ticket.assetId,
+        draft.audio.advancedEq ?? undefined,
+        backingTrack !== null,
+      );
+      if (!finalized.ok) {
+        setPublishError(finalized.error);
+        return;
+      }
 
-    router.push(routes.wave(published.waveId));
-  };
+      setPublishStage("queued");
+      const published = await publishWave({
+        assetId: ticket.assetId,
+        title: draft.title,
+        description: draft.description || null,
+        creationType: draft.audio.creationType,
+        visibility: draft.visibility,
+        commentPermission: draft.commentPermission,
+        duetPermission: draft.duetPermission,
+        collaboratorUsernames: draft.collaboratorUsernames,
+        categories: draft.categories,
+        backingTrackId: backingTrack?.id ?? null,
+      });
+      if (!published.ok) {
+        setPublishError(published.error);
+        return;
+      }
+
+      setPublishStage("done");
+      router.push(routes.wave(published.waveId));
+    },
+    [backingTrack, router],
+  );
 
   const handlePublish = (draft: CreateWaveDraft) => {
     void runPublish(draft);
@@ -200,106 +269,87 @@ export function CreateFlow() {
     if (pendingDraft) void runPublish(pendingDraft);
   };
 
-  const isSubmitting = publishPhase !== "idle" && publishPhase !== "error";
-
   return (
     <>
-      <PageHeader
-        title={`${TERMS.create} ${TERMS.aWave}`}
-      />
+      <PageHeader title={`${TERMS.create} ${TERMS.aWave}`} />
 
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 pb-24 sm:px-5">
         {step === "capture" ? (
-          <div className="flex flex-col gap-4">
-            <Tabs
-              items={[
-                { value: "record", label: TERMS.record, icon: <Mic className="size-4" /> },
-                { value: "upload", label: TERMS.upload, icon: <UploadIcon className="size-4" /> },
-              ]}
-              value={captureMode}
-              onValueChange={(value) => setCaptureMode(value as CaptureMode)}
-              label="Choose how to add audio"
-              variant="segmented"
-              idPrefix={TAB_ID_PREFIX}
-              className="self-start"
+          captureMode === "record" ? (
+            <RecordStage
+              onCaptured={handleRecorded}
+              onUpload={() => setCaptureMode("upload")}
+              onChooseTrack={() => router.push(routes.tracks())}
+              onClearTrack={() => {
+                setBackingTrack(null);
+                router.replace(routes.create());
+              }}
+              backingTrack={backingTrack}
             />
-            <TabPanel
-              id={tabPanelId(TAB_ID_PREFIX, "record")}
-              labelledBy={tabId(TAB_ID_PREFIX, "record")}
-              active={captureMode === "record"}
-            >
-              <RecorderPanel onComplete={handleRecorded} />
-            </TabPanel>
-            <TabPanel
-              id={tabPanelId(TAB_ID_PREFIX, "upload")}
-              labelledBy={tabId(TAB_ID_PREFIX, "upload")}
-              active={captureMode === "upload"}
-            >
-              <UploadDropzone onFileAccepted={handleUploaded} />
-            </TabPanel>
-          </div>
+          ) : (
+            <UploadDropzone
+              onFileAccepted={handleUploaded}
+              onRecord={() => setCaptureMode("record")}
+            />
+          )
         ) : null}
 
-        {step === "enhance" && captured ? (
+        {step === "review" && rawTake && trimRange && reviewPeaks ? (
+          <ReviewStage
+            blob={rawTake.blob}
+            durationMs={rawTake.durationMs}
+            peaks={reviewPeaks}
+            range={trimRange}
+            onRangeChange={setTrimRange}
+            onContinue={handleReviewContinue}
+            onRetake={startOver}
+            interrupted={interrupted}
+          />
+        ) : null}
+
+        {step === "enhance" && captured && enhancePeaks ? (
           <div className="flex flex-col gap-5">
-            {previewPeaks ? (
-              <AudioPreview
-                blob={captured.blob}
-                durationMs={captured.durationMs}
-                peaks={previewPeaks}
-                title="Your take"
-              />
-            ) : null}
-            <EnhancementPicker
+            <EnhanceStage
               blob={captured.blob}
+              peaks={enhancePeaks}
               preset={preset}
               onPresetChange={setPreset}
               advancedEq={advancedEq}
               onAdvancedEqChange={setAdvancedEq}
+              onContinue={handleEnhanceContinue}
             />
-            <div className="flex items-center justify-between gap-2">
-              <Button variant="ghost" onClick={startOver}>
-                Start over
-              </Button>
-              <Button onClick={() => setStep("details")}>Continue</Button>
-            </div>
+            <Button variant="ghost" onClick={startOver}>
+              Start over
+            </Button>
           </div>
         ) : null}
 
-        {step === "details" && captured && previewPeaks ? (
+        {step === "details" && captured && stripPeaks ? (
           <div className="flex flex-col gap-5">
-            <CreateWaveForm
-              audio={{
-                creationType: captured.creationType,
-                blob: captured.blob,
-                mimeType: captured.mimeType,
-                durationMs: captured.durationMs,
-                previewPeaks,
-                enhancementPreset: preset,
-                advancedEq,
-                sourceFileName: captured.sourceFileName,
-              }}
-              onSubmit={handlePublish}
-              submitting={isSubmitting}
-              submitLabel="Publish"
-            />
-            <Button variant="ghost" onClick={() => setStep("enhance")} disabled={isSubmitting}>
-              Back
-            </Button>
-
-            {isSubmitting ? (
-              <p aria-live="polite" className="text-center text-sm text-fg-muted">
-                {PHASE_LABEL[publishPhase as Exclude<PublishPhase, "idle" | "error">]}
-              </p>
-            ) : null}
-
-            {publishPhase === "error" && publishError ? (
-              <ErrorState
-                title="Publishing failed"
-                description={publishError}
-                onRetry={handleRetry}
-              />
-            ) : null}
+            {publishStage !== null ? (
+              <PublishProgress stage={publishStage} error={publishError} onRetry={handleRetry} />
+            ) : (
+              <>
+                <CreateWaveForm
+                  audio={{
+                    creationType: captured.creationType,
+                    blob: captured.blob,
+                    mimeType: captured.mimeType,
+                    durationMs: captured.durationMs,
+                    previewPeaks: stripPeaks,
+                    enhancementPreset: preset,
+                    advancedEq,
+                    sourceFileName: captured.sourceFileName,
+                  }}
+                  onSubmit={handlePublish}
+                  submitLabel="Publish"
+                  backingTrackTitle={backingTrack?.title ?? null}
+                />
+                <Button variant="ghost" onClick={() => setStep("enhance")}>
+                  Back
+                </Button>
+              </>
+            )}
           </div>
         ) : null}
       </div>
