@@ -3,13 +3,16 @@ import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
+import { ChallengeBackingTrack, EnterChallengeWavePicker } from "@/components/challenges";
+import { getCurrentUser } from "@/lib/auth/server";
+import { getBackingTrackById } from "@/lib/db/backingTracks";
 import {
   deriveChallengePhase,
   getChallengeBySlug,
   listChallengeEntries,
   listChallengePicks,
 } from "@/lib/db/challenges";
-import { getWavesByIds } from "@/lib/db/waves";
+import { getWavesByIds, listProfileWaves } from "@/lib/db/waves";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -17,6 +20,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 interface ChallengePageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ entriesCursor?: string }>;
 }
 
 const ENTRIES_PAGE_SIZE = 20;
@@ -28,8 +32,9 @@ const ENTRIES_PAGE_SIZE = 20;
  * (`src/app/(app)/challenges/actions.ts`) from whatever composer surface
  * that later work wires up — this page only displays.
  */
-export default async function ChallengePage({ params }: ChallengePageProps) {
+export default async function ChallengePage({ params, searchParams }: ChallengePageProps) {
   const { slug } = await params;
+  const { entriesCursor } = await searchParams;
 
   if (!isSupabaseConfigured()) {
     return (
@@ -49,9 +54,11 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
     notFound();
   }
 
-  const [picks, entryPage] = await Promise.all([
+  const [picks, entryPage, backingTrack, viewer] = await Promise.all([
     listChallengePicks(db, challenge.id),
-    listChallengeEntries(db, challenge.id, { limit: ENTRIES_PAGE_SIZE }),
+    listChallengeEntries(db, challenge.id, { limit: ENTRIES_PAGE_SIZE, cursor: entriesCursor ?? null }),
+    challenge.backingTrackId ? getBackingTrackById(db, challenge.backingTrackId) : Promise.resolve(null),
+    getCurrentUser(),
   ]);
 
   const waveIds = [...new Set([...picks.map((p) => p.waveId), ...entryPage.items.map((e) => e.waveId)])];
@@ -59,6 +66,15 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
   const waveById = new Map(waves.map((w) => [w.id, w]));
 
   const phase = deriveChallengePhase(challenge);
+
+  // "Enter an existing Wave" only makes sense while the challenge is
+  // actually open for entries (`can_enter_challenge` requires `status ===
+  // 'live'`, independent of the calendar `phase` above) and for a signed-in
+  // viewer with something to enter.
+  const eligibleWaves =
+    viewer && challenge.status === "live"
+      ? (await listProfileWaves(db, viewer.id, { limit: 50 })).items
+      : [];
 
   return (
     <>
@@ -73,6 +89,24 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
             {phase === "upcoming" ? "Starts" : phase === "ended" ? "Ended" : "Ends"}{" "}
             {new Date(phase === "upcoming" ? challenge.startsAt : challenge.endsAt).toLocaleDateString()}
           </p>
+
+          {backingTrack ? (
+            <ChallengeBackingTrack
+              assetId={backingTrack.audioAssetId}
+              title={backingTrack.title}
+              artistCredit={backingTrack.artistCredit}
+              durationMs={backingTrack.durationMs}
+            />
+          ) : null}
+
+          {viewer && challenge.status === "live" ? (
+            <EnterChallengeWavePicker
+              challengeId={challenge.id}
+              challengeSlug={challenge.slug}
+              waves={eligibleWaves.map((wave) => ({ id: wave.id, title: wave.title, publishedAt: wave.publishedAt }))}
+              className="pt-2"
+            />
+          ) : null}
         </div>
 
         <section className="flex flex-col gap-3">
@@ -119,6 +153,14 @@ export default async function ChallengePage({ params }: ChallengePageProps) {
               })}
             </ul>
           )}
+          {entryPage.nextCursor ? (
+            <Link
+              href={`${routes.challenge(challenge.slug)}?entriesCursor=${encodeURIComponent(entryPage.nextCursor)}`}
+              className="type-body-sm self-start text-ink underline"
+            >
+              Older entries
+            </Link>
+          ) : null}
         </section>
       </div>
     </>

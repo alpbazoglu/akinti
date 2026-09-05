@@ -42,6 +42,16 @@ export default async function ChallengesPage() {
     loadError = true;
   }
 
+  // Live first, then upcoming, then closed (spec item 4: "live first, then
+  // closed") — a stable sort so challenges within the same phase keep the
+  // RPC's own `starts_at` ordering.
+  const phaseRank: Record<ReturnType<typeof deriveChallengePhase>, number> = {
+    active: 0,
+    upcoming: 1,
+    ended: 2,
+  };
+  challenges = [...challenges].sort((a, b) => phaseRank[deriveChallengePhase(a)] - phaseRank[deriveChallengePhase(b)]);
+
   return (
     <>
       <PageHeader title={TERMS.challenges} />
