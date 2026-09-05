@@ -1,0 +1,462 @@
+"use client";
+
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+
+import { loadMoreFlow, sendFlowEvent } from "@/app/(app)/flow/actions";
+import { saveWave, unsaveWave } from "@/app/(app)/w/[id]/interactions";
+import { useToast } from "@/components/ui";
+import { routes } from "@/config/routes";
+import { usePlaybackSelector, usePlaybackStore, useWaveControls, useWavePlayback } from "@/lib/audio";
+import { emitAnalyticsEvent } from "@/lib/metrics";
+
+import { FlowEmptyState } from "./FlowEmptyState";
+import { FlowWaveView } from "./FlowWaveView";
+import type { FlowWave } from "./types";
+
+const ShareSheet = dynamic(() => import("@/components/share").then((mod) => mod.ShareSheet));
+const FlowCommentSheet = dynamic(() => import("./FlowCommentSheet").then((mod) => mod.FlowCommentSheet));
+
+export interface FlowScreenProps {
+  initialItems: readonly FlowWave[];
+  initialCursor: string | null;
+  initialError?: string | null;
+}
+
+/** One nav per physical gesture — the smallest distance/delta that counts as a deliberate swipe. */
+const SWIPE_THRESHOLD_PX = 56;
+const MOVE_THRESHOLD_PX = 10;
+const WHEEL_THRESHOLD = 32;
+const WHEEL_LOCKOUT_MS = 450;
+const LONG_PRESS_MS = 550;
+const DOUBLE_TAP_MS = 320;
+/** Keep signed URLs warm for the current Wave plus this many ahead (`docs/FLOW.md` "Prefetch signed URLs ... for the next 2"). */
+const PREFETCH_AHEAD = 2;
+/** Fetch another page once this few unseen Waves remain. */
+const LOAD_MORE_MARGIN = PREFETCH_AHEAD + 1;
+
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    target.closest('button, a, [role="slider"], input, textarea, [data-flow-trace]') !== null
+  );
+}
+
+/**
+ * Flow (`docs/FLOW.md`): the full-screen continuous listening feed.
+ *
+ * Owns the one active Wave's transport (via `useWaveControls`/
+ * `useWavePlayback` on the single global playback store), every gesture
+ * (swipe by touch/wheel, tap, double tap, long press, keyboard), prefetching
+ * signed URLs for the next two Waves, and firing `record_flow_event`
+ * impressions/completes/skips/replays. `FlowWaveView` only renders the
+ * current ±1 items it is handed — this component decides which those are.
+ */
+export function FlowScreen({ initialItems, initialCursor, initialError = null }: FlowScreenProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const store = usePlaybackStore();
+
+  const [items, setItems] = useState<FlowWave[]>(() => [...initialItems]);
+  const [cursor, setCursor] = useState<string | null>(initialCursor);
+  const [index, setIndex] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [loadError] = useState<string | null>(initialError);
+  const [savedById, setSavedById] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(initialItems.map((wave) => [wave.id, wave.isSaved])),
+  );
+  const [shareTarget, setShareTarget] = useState<FlowWave | null>(null);
+  const [commentTarget, setCommentTarget] = useState<FlowWave | null>(null);
+
+  // Session-seeded, stable for the life of this mount (`docs/FLOW.md`
+  // "session-seeded mix ... never repeats within a session"). `useState`'s
+  // lazy initializer is the one place an impure call like `Math.random` is
+  // allowed to run exactly once, unlike a bare `useRef(Math.random())`.
+  const [seed] = useState(() => Math.floor(Math.random() * 1_000_000));
+  const loadingMoreRef = useRef(false);
+  const urlCacheRef = useRef<Map<string, Promise<string | null>>>(new Map());
+  const wheelLockRef = useRef(0);
+  const gestureRef = useRef<{
+    downX: number;
+    downY: number;
+    moved: boolean;
+    longPressFired: boolean;
+    timer: ReturnType<typeof setTimeout> | null;
+  } | null>(null);
+  const lastTapAtRef = useRef(0);
+  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const activeWave = items[index] ?? null;
+  const playback = useWavePlayback(activeWave?.id ?? "", activeWave?.duration ?? 0);
+  // Read reactively (not `store.getState()`) so a mid-playback signed-URL
+  // refresh (`playbackStore.ts`'s own staleness handling) is picked up
+  // rather than leaving `controls` holding a stale `src` closure.
+  const activeSrc = usePlaybackSelector((state) => (playback.isActive ? state.src : null));
+  const controls = useWaveControls(
+    activeWave?.id ?? "",
+    activeSrc ?? "",
+    activeWave
+      ? {
+          title: activeWave.title,
+          creatorUsername: activeWave.creator.username,
+          duration: activeWave.duration,
+          peaks: activeWave.peaks,
+          assetId: activeWave.audioAssetId,
+        }
+      : undefined,
+  );
+
+  const ensureSignedUrl = useCallback((assetId: string): Promise<string | null> => {
+    const cache = urlCacheRef.current;
+    const existing = cache.get(assetId);
+    if (existing) return existing;
+    const request = fetch(`/api/audio/${assetId}/url`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`signed url request failed (${response.status})`);
+        const data = (await response.json()) as { url?: string };
+        return data.url ?? null;
+      })
+      .catch(() => null);
+    cache.set(assetId, request);
+    return request;
+  }, []);
+
+  // Prefetch the current + next two Waves' signed URLs.
+  useEffect(() => {
+    for (let offset = 0; offset <= PREFETCH_AHEAD; offset += 1) {
+      const wave = items[index + offset];
+      if (wave) void ensureSignedUrl(wave.audioAssetId);
+    }
+  }, [items, index, ensureSignedUrl]);
+
+  // Load another page once few unseen Waves remain.
+  useEffect(() => {
+    if (!cursor || loadingMoreRef.current) return;
+    if (items.length - 1 - index > LOAD_MORE_MARGIN) return;
+    loadingMoreRef.current = true;
+    void loadMoreFlow(cursor, seed)
+      .then((page) => {
+        setItems((current) => [...current, ...page.items]);
+        setCursor(page.nextCursor);
+        setSavedById((current) => {
+          const next = { ...current };
+          for (const wave of page.items) next[wave.id] = wave.isSaved;
+          return next;
+        });
+      })
+      .catch(() => {
+        // Quiet: the reader simply runs out of new Waves a little early.
+      })
+      .finally(() => {
+        loadingMoreRef.current = false;
+      });
+  }, [cursor, items.length, index, seed]);
+
+  // Fire-and-forget impression the moment a Wave becomes active.
+  const activeWaveId = activeWave?.id;
+  useEffect(() => {
+    if (!activeWaveId) return;
+    void sendFlowEvent(activeWaveId, "impression");
+  }, [activeWaveId]);
+
+  // Auto-play the newly active Wave once the session has started (the very
+  // first play is started directly by handleToggle, on the user's gesture).
+  useEffect(() => {
+    if (!hasStarted || !activeWave) return;
+    let cancelled = false;
+    void ensureSignedUrl(activeWave.audioAssetId).then((url) => {
+      if (cancelled || !url) return;
+      store.play(activeWave.id, url, {
+        title: activeWave.title,
+        creatorUsername: activeWave.creator.username,
+        duration: activeWave.duration,
+        peaks: activeWave.peaks,
+        assetId: activeWave.audioAssetId,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the Wave identity should restart playback, not every metric change
+  }, [activeWave?.id, hasStarted]);
+
+  // Auto-advance on end (linear, no bounce).
+  useEffect(() => {
+    return store.onEnded((event) => {
+      setItems((currentItems) => {
+        const currentIndex = currentItems.findIndex((wave) => wave.id === event.waveId);
+        if (currentIndex === -1) return currentItems;
+        void sendFlowEvent(event.waveId, "complete");
+        setIndex((current) => {
+          const next = currentIndex + 1;
+          return next < currentItems.length ? next : current;
+        });
+        return currentItems;
+      });
+    });
+  }, [store]);
+
+  const goToIndex = useCallback(
+    (nextIndex: number) => {
+      setItems((currentItems) => {
+        if (nextIndex < 0 || nextIndex >= currentItems.length) return currentItems;
+        const current = currentItems[index];
+        if (current && playback.isActive && playback.status !== "ended") {
+          void sendFlowEvent(current.id, "skip", Math.round(playback.currentTime * 1000));
+        }
+        setIndex(nextIndex);
+        return currentItems;
+      });
+    },
+    [index, playback.currentTime, playback.isActive, playback.status],
+  );
+
+  const goNext = useCallback(() => goToIndex(index + 1), [goToIndex, index]);
+  const goPrev = useCallback(() => goToIndex(index - 1), [goToIndex, index]);
+
+  const handleToggle = useCallback(() => {
+    if (!activeWave) return;
+    if (!hasStarted) {
+      setHasStarted(true);
+      void ensureSignedUrl(activeWave.audioAssetId).then((url) => {
+        if (!url) {
+          toast({ title: "This Wave's audio didn't load.", tone: "error" });
+          return;
+        }
+        store.play(activeWave.id, url, {
+          title: activeWave.title,
+          creatorUsername: activeWave.creator.username,
+          duration: activeWave.duration,
+          peaks: activeWave.peaks,
+          assetId: activeWave.audioAssetId,
+        });
+      });
+      return;
+    }
+    controls.toggle();
+  }, [activeWave, hasStarted, ensureSignedUrl, store, toast, controls]);
+
+  const handleReplay = useCallback(() => {
+    if (!activeWave || !hasStarted) return;
+    store.seek(0);
+    controls.play();
+    void sendFlowEvent(activeWave.id, "replay", 0);
+  }, [activeWave, hasStarted, store, controls]);
+
+  const handleSave = useCallback(() => {
+    if (!activeWave) return;
+    const willSave = !(savedById[activeWave.id] ?? activeWave.isSaved);
+    setSavedById((current) => ({ ...current, [activeWave.id]: willSave }));
+    const action = willSave ? saveWave(activeWave.id) : unsaveWave(activeWave.id);
+    void action.then((result) => {
+      if (!result.ok) {
+        setSavedById((current) => ({ ...current, [activeWave.id]: !willSave }));
+        toast({ title: result.error ?? "That save didn't stick. Try again.", tone: "error" });
+        return;
+      }
+      emitAnalyticsEvent({
+        name: willSave ? "wave_saved" : "wave_unsaved",
+        waveId: activeWave.id,
+        sessionId: "n/a",
+        at: Date.now(),
+      });
+    });
+  }, [activeWave, savedById, toast]);
+
+  const handleDuet = useCallback(() => {
+    if (!activeWave || !activeWave.canRequestDuet) return;
+    router.push(routes.waveDuet(activeWave.id));
+  }, [activeWave, router]);
+
+  const handleScrub = useCallback(
+    (ratio: number) => {
+      if (!activeWave || !hasStarted) return;
+      controls.seekToRatio(ratio);
+    },
+    [activeWave, hasStarted, controls],
+  );
+
+  const runLongPress = useCallback(() => {
+    handleSave();
+  }, [handleSave]);
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (isInteractiveTarget(event.target)) return;
+      const timer = setTimeout(() => {
+        const gesture = gestureRef.current;
+        if (gesture && !gesture.moved) {
+          gesture.longPressFired = true;
+          runLongPress();
+        }
+      }, LONG_PRESS_MS);
+      gestureRef.current = { downX: event.clientX, downY: event.clientY, moved: false, longPressFired: false, timer };
+    },
+    [runLongPress],
+  );
+
+  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+    const dx = Math.abs(event.clientX - gesture.downX);
+    const dy = Math.abs(event.clientY - gesture.downY);
+    if (!gesture.moved && Math.max(dx, dy) > MOVE_THRESHOLD_PX) {
+      gesture.moved = true;
+      if (gesture.timer) {
+        clearTimeout(gesture.timer);
+        gesture.timer = null;
+      }
+    }
+  }, []);
+
+  const handlePointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const gesture = gestureRef.current;
+      gestureRef.current = null;
+      if (!gesture) return;
+      if (gesture.timer) clearTimeout(gesture.timer);
+      if (gesture.longPressFired) return;
+      if (isInteractiveTarget(event.target)) return;
+
+      const dy = event.clientY - gesture.downY;
+      const dx = event.clientX - gesture.downX;
+
+      if (gesture.moved) {
+        if (Math.abs(dy) >= SWIPE_THRESHOLD_PX && Math.abs(dy) > Math.abs(dx)) {
+          if (dy < 0) goNext();
+          else goPrev();
+        }
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastTapAtRef.current < DOUBLE_TAP_MS) {
+        lastTapAtRef.current = 0;
+        if (singleTapTimerRef.current) {
+          clearTimeout(singleTapTimerRef.current);
+          singleTapTimerRef.current = null;
+        }
+        handleReplay();
+        return;
+      }
+      lastTapAtRef.current = now;
+      singleTapTimerRef.current = setTimeout(() => {
+        handleToggle();
+      }, DOUBLE_TAP_MS);
+    },
+    [goNext, goPrev, handleReplay, handleToggle],
+  );
+
+  const handleWheel = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (Math.abs(event.deltaY) < WHEEL_THRESHOLD) return;
+      const now = Date.now();
+      if (now - wheelLockRef.current < WHEEL_LOCKOUT_MS) return;
+      wheelLockRef.current = now;
+      if (event.deltaY > 0) goNext();
+      else goPrev();
+    },
+    [goNext, goPrev],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        goNext();
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        goPrev();
+      } else if (event.key === " ") {
+        event.preventDefault();
+        handleToggle();
+      }
+    },
+    [goNext, goPrev, handleToggle],
+  );
+
+  const windowed = useMemo(() => {
+    const list: { wave: FlowWave; position: -1 | 0 | 1 }[] = [];
+    const prev = items[index - 1];
+    const current = items[index];
+    const next = items[index + 1];
+    if (prev) list.push({ wave: prev, position: -1 });
+    if (current) list.push({ wave: current, position: 0 });
+    if (next) list.push({ wave: next, position: 1 });
+    return list;
+  }, [items, index]);
+
+  useEffect(() => {
+    return () => {
+      if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
+    };
+  }, []);
+
+  if (!activeWave) {
+    return <FlowEmptyState error={loadError} onRetry={() => router.refresh()} />;
+  }
+
+  return (
+    <div
+      // Fixed + a z-index above every shell chrome (`BottomNav`'s z-30 is
+      // the highest today) rather than editing `AppShell`/`(app)/layout.tsx`
+      // (out of this stage's ownership): Flow takes the whole viewport by
+      // covering the shell from inside its own owned tree, the same
+      // "immersive takeover from within `{children}`" shape a full-screen
+      // player or camera view would use in this app shell.
+      className="fixed inset-0 z-40 h-dvh w-full touch-none overflow-hidden bg-paper outline-none"
+      tabIndex={0}
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Flow"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onWheel={handleWheel}
+      onKeyDown={handleKeyDown}
+    >
+      <div
+        className="transition-transform duration-200 ease-linear"
+        style={{ transform: `translateY(-${windowed.findIndex((entry) => entry.position === 0) * 100}%)` }}
+      >
+        {windowed.map(({ wave, position }) => (
+          <div key={wave.id} className="h-dvh w-full">
+            <FlowWaveView
+              wave={{ ...wave, isSaved: savedById[wave.id] ?? wave.isSaved }}
+              isActive={position === 0}
+              hasStarted={hasStarted}
+              isPlaying={playback.isPlaying}
+              currentTime={playback.currentTime}
+              duration={playback.duration || wave.duration || 0}
+              loaded={playback.buffered}
+              upNextPeaks={position === 0 ? (items[index + 1]?.peaks ?? null) : null}
+              onToggle={handleToggle}
+              onScrub={handleScrub}
+              onReplay={handleReplay}
+              onSave={handleSave}
+              onComment={() => setCommentTarget(wave)}
+              onShare={() => setShareTarget(wave)}
+              onDuet={handleDuet}
+            />
+          </div>
+        ))}
+      </div>
+
+      {shareTarget ? (
+        <ShareSheet open onClose={() => setShareTarget(null)} wave={{ id: shareTarget.id, title: shareTarget.title }} />
+      ) : null}
+
+      {commentTarget ? (
+        <FlowCommentSheet
+          open
+          onClose={() => setCommentTarget(null)}
+          waveId={commentTarget.id}
+          waveCreatorId={commentTarget.creatorId}
+          commentCount={commentTarget.metrics.comments}
+        />
+      ) : null}
+    </div>
+  );
+}

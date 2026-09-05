@@ -1,0 +1,87 @@
+/**
+ * `get_flow_page`'s ranking (`{ waveId, bucket }[]`) → `FlowWave[]`, batched
+ * exactly like `hydrateWaveCards` (`src/lib/feed/hydrate.ts`) does for
+ * Home/Explore — one round trip per related table across the whole page,
+ * never one per Wave. Order is preserved: `getWavesByIds` does not
+ * guarantee it, so the ranking's own order drives the output, not the
+ * fetch's.
+ */
+
+import { resolveWavePeaks } from "@/lib/audio/peaks";
+import { getAudioAssetById } from "@/lib/db/audioAssets";
+import { getProfilesByIds } from "@/lib/db/profiles";
+import type { Db } from "@/lib/db/types";
+import { getWavesByIds, listSavedWaveIds } from "@/lib/db/waves";
+import type { FlowWave } from "@/components/flow";
+
+export interface RankedFlowId {
+  readonly waveId: string;
+  readonly bucket: number;
+}
+
+export async function hydrateFlowWaves(
+  db: Db,
+  ranked: readonly RankedFlowId[],
+  viewerId: string,
+): Promise<FlowWave[]> {
+  if (ranked.length === 0) {
+    return [];
+  }
+
+  const waveIds = ranked.map((entry) => entry.waveId);
+  const waves = await getWavesByIds(db, waveIds);
+  const waveById = new Map(waves.map((wave) => [wave.id, wave]));
+
+  const creatorIds = [...new Set(waves.map((wave) => wave.creatorId))];
+  const [creators, assets, savedWaveIds] = await Promise.all([
+    getProfilesByIds(db, creatorIds),
+    Promise.all(waves.map((wave) => getAudioAssetById(db, wave.audioAssetId))),
+    listSavedWaveIds(db, viewerId, waveIds),
+  ]);
+  const creatorById = new Map(creators.map((creator) => [creator.id, creator]));
+  const assetByWaveId = new Map(waves.map((wave, position) => [wave.id, assets[position]]));
+
+  const items: FlowWave[] = [];
+  for (const { waveId, bucket } of ranked) {
+    const wave = waveById.get(waveId);
+    if (!wave) continue;
+    const creator = creatorById.get(wave.creatorId);
+    const asset = assetByWaveId.get(wave.id);
+    // Data-integrity edge case (RLS hid the creator/asset, or it no longer
+    // resolves) — skip rather than render a broken Wave, matching
+    // `hydrateWaveCards`'s own rule.
+    if (!creator || !asset) continue;
+
+    items.push({
+      id: wave.id,
+      bucket,
+      title: wave.title,
+      publishedAt: wave.publishedAt,
+      creatorId: creator.id,
+      creator: {
+        username: creator.username,
+        displayName: creator.displayName ?? undefined,
+        avatarUrl: creator.avatarUrl,
+      },
+      creationType: wave.creationType,
+      duetMode: wave.duet.mode,
+      cypherOrder: wave.duet.cypherOrder,
+      genre: wave.tags[0] ?? null,
+      audioAssetId: asset.id,
+      peaks: resolveWavePeaks(asset.peaks?.data, asset.id, asset.peaks?.bits),
+      duration: asset.durationMs ? asset.durationMs / 1000 : undefined,
+      metrics: {
+        plays: wave.counts.plays,
+        replays: wave.counts.replays,
+        comments: wave.counts.comments,
+        saves: wave.counts.saves,
+        shares: wave.counts.shares,
+        duets: wave.counts.duets,
+      },
+      isSaved: savedWaveIds.has(wave.id),
+      canRequestDuet: wave.creatorId !== viewerId && wave.duetPermission !== "nobody",
+      isInvitation: bucket === 5,
+    });
+  }
+  return items;
+}

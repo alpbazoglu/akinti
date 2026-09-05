@@ -8,6 +8,8 @@ const enc = (segment: string): string => encodeURIComponent(segment);
 export const routes = {
   /* App */
   home: () => "/",
+  /** Flow (founder decision, 6 Sept 2026, `docs/FLOW.md`): the full-screen continuous listening feed, the default screen after login. */
+  flow: () => "/flow",
   explore: () => "/explore",
   search: (q?: string) => (q && q.trim().length > 0 ? `/search?q=${enc(q.trim())}` : "/search"),
   create: (params?: { track?: string; challenge?: string }) => {
