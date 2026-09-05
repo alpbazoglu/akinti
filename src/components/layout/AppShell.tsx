@@ -1,8 +1,11 @@
+"use client";
+
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/ui";
 
 import { BottomNav } from "./BottomNav";
+import { DesktopPlayerStrip, MobilePlayerStrip, useHasActivePersistentPlayer } from "./PersistentPlayer";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 
@@ -36,6 +39,12 @@ export function AppShell({
   aside,
   className,
 }: AppShellProps) {
+  // A playing Wave earns the right column even on a page that has nothing
+  // else contextual to put there — the persistent player is not "context"
+  // (SCREENS.md's "if there is nothing contextual to show, the column stays
+  // empty" is about the context list underneath it, not the player itself).
+  const hasPlayer = useHasActivePersistentPlayer();
+
   return (
     <div className="flex min-h-dvh w-full">
       <a
@@ -63,12 +72,16 @@ export function AppShell({
             {children}
           </main>
 
-          {aside ? (
-            <aside className="hidden w-75 shrink-0 py-8 lg:block">{aside}</aside>
+          {aside || hasPlayer ? (
+            <aside className="hidden w-75 shrink-0 flex-col gap-8 py-8 lg:flex">
+              <DesktopPlayerStrip />
+              {aside}
+            </aside>
           ) : null}
         </div>
       </div>
 
+      <MobilePlayerStrip />
       <BottomNav badges={badges} />
     </div>
   );
