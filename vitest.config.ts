@@ -13,6 +13,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // See `src/test/server-only-mock.ts`'s header comment.
+      "server-only": path.resolve(__dirname, "./src/test/server-only-mock.ts"),
     },
   },
 });
