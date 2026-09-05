@@ -232,6 +232,7 @@ Implemented at the database level:
   | `share` | `shares` | 30/minute per sharer |
   | `report` | `reports` | 20/day per reporter |
   | `audio_upload` | `audio_assets` | 10/hour per owner (covers Wave uploads, recordings and message-audio registrations alike) |
+  | `challenge_entry` | `challenge_entries` | 10/hour per user (`challenge_entries_guard`, migration `20260905130000_challenges.sql`; SQLSTATE `AKRTL`, same mapping as every other row here — see `docs/CHALLENGES.md`) |
 
   These are conservative starting numbers (spec §39: "start conservative"),
   chosen without production usage data — revisit once real traffic exists.

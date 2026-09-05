@@ -18,6 +18,7 @@
     "worker:once": "tsx --env-file-if-exists=.env.local scripts/worker.ts --once",
     "sidecar": "node scripts/run-sidecar.mjs",
     "seed:backing-tracks": "tsx --env-file-if-exists=.env.local scripts/seed-backing-tracks.ts",
+    "seed:challenges": "tsx --env-file-if-exists=.env.local scripts/seed-challenges.ts",
     "check-env": "tsx --env-file-if-exists=.env.local scripts/check-env.ts",
     "check-env:worker": "tsx --env-file-if-exists=.env.local scripts/check-env.ts --worker",
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/apply-migrations.ts",
