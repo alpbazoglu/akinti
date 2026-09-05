@@ -101,6 +101,21 @@ describe("buildDuetMixFilterComplex", () => {
     expect(result.filterComplex).toContain("[1:a]adelay=200:all=1,loudnorm=I=-14[contrib]");
     expect(result.filterComplex).not.toContain("equalizer");
   });
+
+  it("applies no gain to the reference stem by default (ordinary Duet)", () => {
+    const result = buildDuetMixFilterComplex({ offsetMs: 0, presetFilter: "loudnorm=I=-14" });
+    expect(result.filterComplex).toContain("[0:a]adelay=0:all=1[ref]");
+    expect(result.filterComplex).not.toContain("volume=");
+  });
+
+  it("attenuates the reference stem when referenceGainDb is set (backing-track mix, spec §4)", () => {
+    const result = buildDuetMixFilterComplex({
+      offsetMs: 0,
+      presetFilter: "loudnorm=I=-14",
+      referenceGainDb: -6,
+    });
+    expect(result.filterComplex).toContain("[0:a]adelay=0:all=1,volume=-6dB[ref]");
+  });
 });
 
 describe("parseMixDuetJobPayload", () => {
@@ -116,17 +131,28 @@ describe("parseMixDuetJobPayload", () => {
       referenceAssetId: "asset-1",
       offsetMs: -250,
       advancedEq: { 60: 3 },
+      referenceGainDb: 0,
     });
   });
 
-  it("defaults advancedEq to null and preset to undefined when absent", () => {
+  it("defaults advancedEq to null, referenceGainDb to 0, and preset to undefined when absent", () => {
     const parsed = parseMixDuetJobPayload({ reference_asset_id: "asset-1", offset_ms: 0 });
     expect(parsed).toEqual({
       preset: undefined,
       referenceAssetId: "asset-1",
       offsetMs: 0,
       advancedEq: null,
+      referenceGainDb: 0,
     });
+  });
+
+  it("reads a non-zero reference_gain_db (backing-track mix)", () => {
+    const parsed = parseMixDuetJobPayload({
+      reference_asset_id: "track-asset-1",
+      offset_ms: 0,
+      reference_gain_db: -6,
+    });
+    expect(parsed?.referenceGainDb).toBe(-6);
   });
 
   it("returns null for a payload missing the required fields", () => {

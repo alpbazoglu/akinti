@@ -75,6 +75,8 @@ export type AudioEnhancementPreset =
 export type AudioJobType = "process_audio" | "mix_duet";
 export type AudioJobStatus = "pending" | "processing" | "done" | "failed" | "cancelled";
 
+export type BackingTrackLicense = "cc0" | "cc_by" | "owner_upload";
+
 export type WaveCreationType = "recorded" | "uploaded" | "duet";
 export type WaveVisibility = "everyone" | "followers" | "only_me";
 export type ContentOrigin = "original" | "cover" | "licensed" | "unknown";
@@ -183,6 +185,8 @@ export type AudioAssetRow = {
   processing_error: string | null;
   enhancement_preset: AudioEnhancementPreset;
   checksum_sha256: string | null;
+  /** Server-owned (migration 20260905100000) — see docs/AUDIO_ARCHITECTURE.md "Enhancement report". */
+  enhancement_report: Json | null;
   created_at: string;
   updated_at: string;
   processed_at: string | null;
@@ -222,6 +226,8 @@ export type WaveRow = {
   parent_wave_id: string | null;
   duet_request_id: string | null;
   duet_depth: number;
+  /** Set when this Wave is a vocal recorded over a backing track (spec §4) — mutually exclusive with `parent_wave_id` (see `waves_not_duet_and_backing_track`, migration 20260905110000). */
+  backing_track_id: string | null;
   content_origin: ContentOrigin;
   tags: string[];
   play_count: number;
@@ -236,6 +242,24 @@ export type WaveRow = {
   deleted_at: string | null;
   /** Server-owned (migration 23) — set only by `resolve_report(..., 'hide_wave')`. Invisible to everyone but the creator and moderators; distinct from `deleted_at`. */
   hidden_at: string | null;
+};
+
+export type BackingTrackRow = {
+  id: string;
+  uploader_id: string | null;
+  title: string;
+  artist_credit: string;
+  license: BackingTrackLicense;
+  source_url: string | null;
+  audio_asset_id: string;
+  bpm: number | null;
+  musical_key: string | null;
+  genre_tags: string[];
+  duration_ms: number | null;
+  is_curated: boolean;
+  open_for_vocals: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 export type WaveCollaboratorRow = {
@@ -540,6 +564,7 @@ export interface Database {
               | "duet_permission"
               | "parent_wave_id"
               | "duet_request_id"
+              | "backing_track_id"
               | "content_origin"
               | "tags"
               | "published_at"
@@ -557,6 +582,28 @@ export interface Database {
             | "tags"
             | "deleted_at"
           >
+        >;
+        Relationships: Relationships;
+      };
+      backing_tracks: {
+        Row: BackingTrackRow;
+        Insert: Pick<BackingTrackRow, "title" | "artist_credit" | "license" | "audio_asset_id"> &
+          Partial<
+            Pick<
+              BackingTrackRow,
+              | "id"
+              | "uploader_id"
+              | "source_url"
+              | "bpm"
+              | "musical_key"
+              | "genre_tags"
+              | "duration_ms"
+              | "is_curated"
+              | "open_for_vocals"
+            >
+          >;
+        Update: Partial<
+          Pick<BackingTrackRow, "title" | "artist_credit" | "genre_tags" | "open_for_vocals">
         >;
         Relationships: Relationships;
       };
@@ -696,10 +743,22 @@ export interface Database {
           p_peaks: Json;
           p_duration_ms: number;
           p_result?: Json;
+          p_enhancement_report?: Json | null;
         };
         Returns: undefined;
       };
       fail_audio_job: { Args: { p_job_id: number; p_error: string }; Returns: undefined };
+      list_backing_tracks: {
+        Args: {
+          p_genre?: string | null;
+          p_key?: string | null;
+          p_bpm_min?: number | null;
+          p_bpm_max?: number | null;
+          p_cursor?: string | null;
+          p_limit?: number;
+        };
+        Returns: BackingTrackRow[];
+      };
       requeue_stalled_audio_jobs: { Args: { p_stall_after?: string }; Returns: number };
       expire_duet_requests: { Args: Record<string, never>; Returns: number };
       flag_suspicious_play_events: { Args: Record<string, never>; Returns: number };
@@ -775,6 +834,7 @@ export interface Database {
       audio_enhancement_preset: AudioEnhancementPreset;
       audio_job_type: AudioJobType;
       audio_job_status: AudioJobStatus;
+      backing_track_license: BackingTrackLicense;
       wave_creation_type: WaveCreationType;
       wave_visibility: WaveVisibility;
       content_origin: ContentOrigin;

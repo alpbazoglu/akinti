@@ -1,6 +1,6 @@
 # AKINTI — Audio Architecture
 
-## Pipeline (spec §34)
+## Pipeline (spec §34, Wave B "instant polish")
 
 ```
 Record (MediaRecorder) / Upload
@@ -8,9 +8,25 @@ Record (MediaRecorder) / Upload
    → Original file → PRIVATE `audio` storage bucket
    → audio_assets row created (processing_status = 'pending')
    → enqueue_audio_job() → audio_processing_jobs row
-   → scripts/worker.ts claims it, runs ffmpeg (normalize/enhance + peaks)
-   → Processed file → PRIVATE `audio` bucket, peaks → audio_assets.peaks jsonb
-   → complete_audio_job() flips processing_status → 'ready'
+   → scripts/worker.ts claims it and runs, in order:
+       1. clean   — sidecar POST /clean (DeepFilterNet3, else the sidecar's
+                     own ffmpeg `arnndn`), else this worker's own `arnndn`
+                     pass, else SKIPPED (never faked)
+       2. preset  — the existing ffmpeg filter chain (PRESET_FILTERS below),
+                     always runs, on whichever input step 1 produced
+       3. master  — sidecar POST /master (Matchering vs. a bundled reference),
+                     else ffmpeg's documented two-pass `loudnorm` recipe —
+                     ALWAYS produces a result, this stage is never skipped
+       4. encode  — ffmpeg to AAC/.m4a (unchanged)
+       5. peaks   — sidecar POST /peaks (librosa/soundfile), else this
+                     worker's own PCM-based extractor — ALWAYS produces a result
+   → Processed file → PRIVATE `audio` bucket
+   → complete_audio_job(..., p_enhancement_report) writes:
+       - peaks → audio_assets.peaks jsonb
+       - which stages ran + measured before/after LUFS + durations →
+         audio_assets.enhancement_report jsonb (migration
+         20260905100000_audio_enhancement_report.sql)
+       - processing_status → 'ready'
    → Playback: server mints a short-lived signed URL, never a raw path
 ```
 
@@ -18,6 +34,71 @@ Never inline in a request/response cycle — Vercel serverless functions have
 execution-time limits unsuitable for audio processing (spec §30), and the UI
 must show real `pending / processing / ready / failed` state, never a fake
 instant "done" (spec §19).
+
+### The sidecar (`sidecar/`, see `sidecar/README.md`)
+
+A FastAPI service next to the Node worker, giving it DeepFilterNet3/
+Matchering/librosa access with no Node equivalent. Called over local HTTP
+only — **never imported into the Node/Next.js codebase** — because
+Matchering is GPL-3.0 and this isolation keeps that GPL code out of the
+proprietary app entirely (`sidecar/README.md` "Why a separate process").
+
+Every stage the sidecar can help with has a real local fallback; the sidecar
+being down, slow, or wrong never fails a job by itself — it only downgrades
+that one stage. The decision logic (`try the sidecar, on any failure fall
+back`) is a testable, injectable module —
+`src/lib/audio/sidecarPipeline.ts` (`selectCleanStage`/`selectMasterStage`/
+`selectPeaksStage`, unit tested in `sidecarPipeline.test.ts` by mocking
+`fetch`) — `scripts/worker.ts` supplies the real ffmpeg-based fallbacks and
+the real `fetch`.
+
+| Endpoint | Sidecar backend | Local fallback | Ever skipped? |
+|---|---|---|---|
+| `/clean` | DeepFilterNet3, else sidecar's own `arnndn` | This worker's own ffmpeg `arnndn` pass (bundled model: `sidecar/models/rnnoise.rnnn`) | **Yes** — if neither the sidecar nor a local model is available, the stage is simply absent from `enhancement_report`, never faked |
+| `/master` | Matchering vs. a bundled reference master (`PRESET_REFERENCE_FAMILY` in `sidecar/app/dsp.py`) | ffmpeg's documented two-pass `loudnorm` recipe | No — local ffmpeg is already a hard requirement for this worker |
+| `/peaks` | librosa/soundfile | This worker's own PCM-based extractor (unchanged from before the sidecar existed) | No |
+| `/pitch-score` | librosa pYIN vs. a reference key or the track's own detected key | — (not on the `process_audio`/`mix_duet` critical path; a future "vocal coach" surface) | — |
+
+Env vars (`scripts/worker.ts`, `src/lib/audio/sidecarPipeline.ts`'s
+`sidecarConfigFromEnv`): `SIDECAR_URL` (default `http://127.0.0.1:8011`),
+`SIDECAR_TIMEOUT_MS` (default `120000`), `SIDECAR_RETRIES` (default `1`).
+
+**Running it locally:** `npm run sidecar` (uses `sidecar/.venv` if present,
+else `py -3`/`python3` on PATH — see `scripts/run-sidecar.mjs`), or directly:
+`cd sidecar && pip install -r requirements.txt && uvicorn app.main:app --host 127.0.0.1 --port 8011`.
+**In Docker:** `docker build -f Dockerfile.sidecar -t akinti-sidecar . && docker run -p 8011:8011 akinti-sidecar`
+(includes a Rust toolchain so `deepfilternet` has a real chance to build
+there, unlike the Windows dev machine this was verified on — see
+`sidecar/README.md` "What actually works on this machine"). `GET /health`
+is the source of truth for which capabilities are actually live in either
+environment.
+
+### Enhancement report
+
+`audio_assets.enhancement_report` (jsonb, migration
+`20260905100000_audio_enhancement_report.sql`) records exactly which
+backend ran each stage and what it measured — written once per completed
+job by `complete_audio_job`'s new `p_enhancement_report` parameter, alongside
+`peaks`/`processing_status`. Shape (`EnhancementReport`, `src/types/domain.ts`):
+
+```json
+{
+  "clean":  { "method": "arnndn", "lufsBefore": -28.4, "lufsAfter": -27.9, "durationMs": 812 },
+  "master": { "method": "loudnorm_two_pass", "lufsBefore": -27.9, "lufsAfter": -14.0, "durationMs": 640 },
+  "peaks":  { "method": "ffmpeg", "durationMs": 95 }
+}
+```
+
+A stage that did not run (sidecar unreachable and no local fallback
+applicable — only possible for `clean`) is simply **absent** from the
+object, never filled with a placeholder. `method` is always prefixed
+`sidecar:` when the sidecar produced that stage (e.g. `sidecar:deepfilternet3`,
+`sidecar:matchering`, `sidecar:librosa`) so a report is self-describing about
+which process actually did the work. Server-owned, like every other
+processing column — `audio_assets_guard_update` (migration 12, extended in
+migration 27) rejects a client attempt to set it directly; readable by
+anon/authenticated via the explicit column grant migration 15 already
+requires for anything on `audio_assets` that isn't a raw storage path.
 
 ## Upload sequence (spec §18, §36, §38)
 
@@ -415,6 +496,29 @@ finalize → publish sequence documented in "Upload sequence" above, with a
 distinct loading phase shown for each step and a retry that resumes from the
 top on failure — never a fake success toast (spec §38, §44).
 
+## Backing tracks (spec §4)
+
+Full write-up: `docs/BACKING_TRACKS.md` (schema, RLS, licenses of the 12
+seeded tracks, seeding script). Summary of the audio path: singing over a
+backing track is modelled as a Duet-of-the-track, reusing the Duet mixdown
+machinery below rather than inventing a second pipeline.
+
+`publishWave` (`src/app/(app)/create/actions.ts`), given a `backingTrackId`:
+creates the Wave with `backing_track_id` set and `parent_wave_id` left
+`null` (it is not a Duet of another WAVE — `waves_not_duet_and_backing_track`,
+migration `20260905110000_backing_tracks.sql`, keeps the two mutually
+exclusive), then calls `enqueueBackingTrackMixJob()`
+(`src/lib/db/backingTracks.ts`), which queues the *same* `mix_duet` job type
+as an ordinary Duet with `reference_asset_id` = the track's own audio asset,
+`offset_ms: 0` (vocal and track start together), and a new
+`reference_gain_db` field (default `-6`, `DEFAULT_BACKING_TRACK_GAIN_DB`) so
+the instrumental sits behind the vocal rather than at its own recorded level.
+`buildDuetMixFilterComplex` (`src/lib/duet/ffmpegChain.ts`) applies that gain
+as a `volume=<n>dB` filter on the reference stem before `amix` — `0` (an
+ordinary Duet) adds no filter at all, so existing Duet mixes are byte-for-byte
+unaffected. The contribution (vocal) stem goes through the same clean/master/
+peaks pipeline described above, exactly like any other `mix_duet` job.
+
 ## Duet mixdown
 
 Covered fully in `DUET_SPEC.md`. Summary: never trust client-side mixing.
@@ -425,7 +529,10 @@ delaying whichever stem needs it (`adelay` itself never receives a negative
 value), applies the chosen preset + advanced EQ to the new take alone before
 mixing, `amix`es it against the reference, and uploads the result as the new
 take's own `processed_path` — that rendered file is what the finished Duet
-Wave's `audio_asset_id` points at.
+Wave's `audio_asset_id` points at. The contribution stem is also routed
+through the clean stage (sidecar/`arnndn`/skip — see "The sidecar" above)
+before mixing, exactly like a `process_audio` job; the reference is left
+untouched, same as the preset/EQ rule below.
 
 ### Avoiding a duplicate `process_audio` job for a Duet contribution
 

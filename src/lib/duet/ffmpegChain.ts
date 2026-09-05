@@ -84,6 +84,15 @@ export interface DuetMixChainOptions {
   /** The chosen enhancement preset's base ffmpeg filter, e.g. `PRESET_FILTERS.studio`. */
   readonly presetFilter: string;
   readonly advancedEq?: AdvancedEqPayload | null;
+  /**
+   * Gain applied to the REFERENCE stem (`[0:a]`) before mixing, in dB.
+   * `0` for an ordinary Duet (the reference plays at its own level).
+   * Backing-track Waves (spec §4 — `publishWave`'s `backingTrackId`) default
+   * this to `-6` so the vocal, not the instrumental, sits in front — see
+   * `enqueueBackingTrackMixJob` in `src/lib/db/backingTracks.ts` and
+   * `docs/AUDIO_ARCHITECTURE.md` "Backing tracks".
+   */
+  readonly referenceGainDb?: number;
 }
 
 export interface DuetMixChainResult {
@@ -115,6 +124,7 @@ export function buildDuetMixFilterComplex(options: DuetMixChainOptions): DuetMix
   const offsetMs = Math.round(options.offsetMs);
   const contributionDelayMs = Math.max(0, offsetMs);
   const referenceDelayMs = Math.max(0, -offsetMs);
+  const referenceGainDb = options.referenceGainDb ?? 0;
 
   const advancedEqFilter = buildAdvancedEqFilter(options.advancedEq);
   const contributionFilters = [
@@ -125,9 +135,13 @@ export function buildDuetMixFilterComplex(options: DuetMixChainOptions): DuetMix
     .filter((step): step is string => Boolean(step))
     .join(",");
 
+  const referenceFilters = [`adelay=${referenceDelayMs}:all=1`, referenceGainDb !== 0 ? `volume=${referenceGainDb}dB` : null]
+    .filter((step): step is string => Boolean(step))
+    .join(",");
+
   const filterComplex =
     `[1:a]${contributionFilters}[contrib];` +
-    `[0:a]adelay=${referenceDelayMs}:all=1[ref];` +
+    `[0:a]${referenceFilters}[ref];` +
     `[ref][contrib]amix=inputs=2:duration=longest:dropout_transition=2[mixed]`;
 
   return {
@@ -144,6 +158,8 @@ export interface MixDuetJobPayload {
   readonly referenceAssetId: string;
   readonly offsetMs: number;
   readonly advancedEq: AdvancedEqPayload | null;
+  /** dB gain applied to the reference stem before mixing — see `DuetMixChainOptions.referenceGainDb`. `0` unless the payload sets it (backing-track mixes only). */
+  readonly referenceGainDb: number;
 }
 
 /** Returns `null` (rather than throwing) on a malformed payload so the caller can raise one clear error. */
@@ -161,6 +177,7 @@ export function parseMixDuetJobPayload(raw: unknown): MixDuetJobPayload | null {
   const advancedEqRaw = record.advanced_eq;
   const advancedEq =
     advancedEqRaw && typeof advancedEqRaw === "object" ? (advancedEqRaw as AdvancedEqPayload) : null;
+  const referenceGainDb = typeof record.reference_gain_db === "number" ? record.reference_gain_db : 0;
 
-  return { preset, referenceAssetId, offsetMs: offsetMsRaw, advancedEq };
+  return { preset, referenceAssetId, offsetMs: offsetMsRaw, advancedEq, referenceGainDb };
 }

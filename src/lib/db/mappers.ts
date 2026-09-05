@@ -10,6 +10,7 @@
 import type {
   AudioAssetRow,
   AudioProcessingJobRow,
+  BackingTrackRow,
   CommentRow,
   ConversationMemberRow,
   ConversationRow,
@@ -28,11 +29,13 @@ import type {
 import type {
   AudioAsset,
   AudioProcessingJob,
+  BackingTrack,
   Collaborator,
   Comment,
   Conversation,
   ConversationMember,
   DuetRequest,
+  EnhancementReport,
   Message,
   ModerationAction,
   Notification,
@@ -117,6 +120,7 @@ export function toAudioAsset(row: AudioAssetRow): AudioAsset {
     processingStatus: row.processing_status,
     processingError: row.processing_error,
     enhancementPreset: row.enhancement_preset,
+    enhancementReport: (row.enhancement_report as unknown as EnhancementReport | null) ?? null,
     createdAt: row.created_at,
     processedAt: row.processed_at,
   };
@@ -156,6 +160,7 @@ export function toWave(row: WaveRow): Wave {
       duetRequestId: row.duet_request_id,
       depth: row.duet_depth,
     },
+    backingTrackId: row.backing_track_id,
     contentOrigin: row.content_origin,
     tags: row.tags,
     counts: {
@@ -169,6 +174,25 @@ export function toWave(row: WaveRow): Wave {
     publishedAt: row.published_at,
     updatedAt: row.updated_at,
     hiddenAt: row.hidden_at,
+  };
+}
+
+export function toBackingTrack(row: BackingTrackRow): BackingTrack {
+  return {
+    id: row.id,
+    uploaderId: row.uploader_id,
+    title: row.title,
+    artistCredit: row.artist_credit,
+    license: row.license,
+    sourceUrl: row.source_url,
+    audioAssetId: row.audio_asset_id,
+    bpm: row.bpm,
+    musicalKey: row.musical_key,
+    genreTags: row.genre_tags,
+    durationMs: row.duration_ms,
+    isCurated: row.is_curated,
+    openForVocals: row.open_for_vocals,
+    createdAt: row.created_at,
   };
 }
 

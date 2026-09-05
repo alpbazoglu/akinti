@@ -43,6 +43,7 @@ const SAFE_AUDIO_ASSET_COLUMNS = [
   "processing_status",
   "processing_error",
   "enhancement_preset",
+  "enhancement_report",
   "checksum_sha256",
   "created_at",
   "updated_at",

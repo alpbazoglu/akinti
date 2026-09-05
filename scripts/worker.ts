@@ -46,6 +46,16 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
+  sidecarConfigFromEnv,
+  selectCleanStage,
+  selectMasterStage,
+  selectPeaksStage,
+  type CleanStageResult,
+  type EnhancementReport,
+  type EnhancementStageReport,
+  type MasterStageResult,
+} from "@/lib/audio/sidecarPipeline";
+import {
   buildDuetMixFilterComplex,
   buildProcessAudioFilterChain,
   parseMixDuetJobPayload,
@@ -65,6 +75,21 @@ const FFMPEG_BIN = process.env.FFMPEG_PATH ?? "ffmpeg";
 const FFPROBE_BIN = process.env.FFPROBE_PATH ?? "ffprobe";
 const POLL_INTERVAL_MS = Number(process.env.WORKER_POLL_INTERVAL_MS ?? 5000);
 const CLAIM_BATCH_SIZE = Number(process.env.WORKER_BATCH_SIZE ?? 3);
+
+/**
+ * The Python sidecar (`sidecar/`, see `sidecar/README.md`) that gives this
+ * worker DeepFilterNet3/Matchering/librosa access it has no Node equivalent
+ * for. Every stage that calls it has a real local fallback (arnndn, ffmpeg
+ * two-pass `loudnorm`, or the existing PCM-based peak extractor below) — the
+ * sidecar being unreachable, slow, or returning malformed JSON never fails a
+ * job by itself, it only downgrades that one stage. See
+ * docs/AUDIO_ARCHITECTURE.md "Pipeline" for the exact fallback matrix, and
+ * `sidecarConfigFromEnv` (`src/lib/audio/sidecarPipeline.ts`) for the exact
+ * env vars (`SIDECAR_URL`/`SIDECAR_TIMEOUT_MS`/`SIDECAR_RETRIES`).
+ */
+/** Bundled RNNoise model for the local `arnndn` fallback (see sidecar/README.md "Bundled assets"). */
+const RNNOISE_MODEL_PATH =
+  process.env.RNNOISE_MODEL_PATH ?? path.resolve(process.cwd(), "sidecar", "models", "rnnoise.rnnn");
 /** `--dry-run`: print planned ffmpeg commands, execute nothing, mutate no queue state. */
 const DRY_RUN = process.argv.includes("--dry-run");
 /** Run stalled-job / expired-request maintenance roughly once a minute. */
@@ -291,6 +316,195 @@ async function extractPeaks(filePath: string): Promise<PeaksPayload> {
 }
 
 /* ------------------------------------------------------------------------ */
+/* Sidecar client (sidecar/, see sidecar/README.md)                         */
+/*                                                                          */
+/* The sidecar-vs-fallback decision logic itself lives in                  */
+/* src/lib/audio/sidecarPipeline.ts (unit tested there, mocking `fetch` —   */
+/* see sidecarPipeline.test.ts) so it can be tested without spawning ffmpeg */
+/* or a real sidecar process. This section only supplies the real ffmpeg-  */
+/* based fallback implementations and adapts the result to this file's own */
+/* `PeaksPayload`/job-handling shapes.                                     */
+/* ------------------------------------------------------------------------ */
+
+const sidecarConfig = sidecarConfigFromEnv();
+
+/** One-pass EBU R128 measurement via ffmpeg's own `loudnorm` filter — used to report before/after LUFS regardless of which backend ran a stage. */
+function measureIntegratedLufs(filePath: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const proc = spawn(FFMPEG_BIN, [
+      "-hide_banner",
+      "-i",
+      filePath,
+      "-af",
+      "loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json",
+      "-f",
+      "null",
+      "-",
+    ]);
+    let stderr = "";
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    proc.on("error", () => resolve(null));
+    proc.on("close", () => {
+      const start = stderr.lastIndexOf("{");
+      const end = stderr.lastIndexOf("}");
+      if (start === -1 || end === -1) {
+        resolve(null);
+        return;
+      }
+      try {
+        const stats = JSON.parse(stderr.slice(start, end + 1)) as { input_i?: string };
+        const value = Number.parseFloat(stats.input_i ?? "");
+        resolve(Number.isFinite(value) ? value : null);
+      } catch {
+        resolve(null);
+      }
+    });
+  });
+}
+
+/** Local `arnndn` fallback for `selectCleanStage` (see sidecar/README.md "Bundled assets" for why the model must be referenced by bare filename with `cwd` set to its directory). */
+async function runArnndnFallback(
+  inputPath: string,
+  tmpDir: string,
+): Promise<{ outputPath: string; lufsBefore: number | null; lufsAfter: number | null }> {
+  const outputPath = path.join(tmpDir, "cleaned.wav");
+  const lufsBefore = await measureIntegratedLufs(inputPath);
+  await new Promise<void>((resolve, reject) => {
+    const proc = spawn(
+      FFMPEG_BIN,
+      [
+        "-hide_banner", "-loglevel", "error", "-y",
+        "-i", path.resolve(inputPath),
+        "-af", `arnndn=m=${path.basename(RNNOISE_MODEL_PATH)}`,
+        path.resolve(outputPath),
+      ],
+      { cwd: path.dirname(RNNOISE_MODEL_PATH) },
+    );
+    let stderr = "";
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    proc.on("error", reject);
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`ffmpeg arnndn exited with code ${code}: ${stderr.trim().slice(-2000)}`));
+        return;
+      }
+      resolve();
+    });
+  });
+  const lufsAfter = await measureIntegratedLufs(outputPath);
+  return { outputPath, lufsBefore, lufsAfter };
+}
+
+interface LoudnormMeasurement {
+  input_i: string;
+  input_tp: string;
+  input_lra: string;
+  input_thresh: string;
+  target_offset: string;
+}
+
+/** First pass of ffmpeg's documented two-pass `loudnorm` recipe: measure only, apply nothing. */
+function measureLoudnormForTwoPass(filePath: string): Promise<LoudnormMeasurement> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(FFMPEG_BIN, [
+      "-hide_banner",
+      "-i",
+      filePath,
+      "-af",
+      "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
+      "-f",
+      "null",
+      "-",
+    ]);
+    let stderr = "";
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    proc.on("error", reject);
+    proc.on("close", () => {
+      const start = stderr.lastIndexOf("{");
+      const end = stderr.lastIndexOf("}");
+      if (start === -1 || end === -1) {
+        reject(new Error("loudnorm measurement pass produced no parseable JSON"));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stderr.slice(start, end + 1)) as LoudnormMeasurement);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+}
+
+/** Local ffmpeg two-pass `loudnorm` fallback for `selectMasterStage`. */
+async function runLoudnormTwoPassFallback(
+  inputPath: string,
+  tmpDir: string,
+): Promise<{ outputPath: string; lufsBefore: number | null; lufsAfter: number | null }> {
+  const outputPath = path.join(tmpDir, "mastered.wav");
+  const lufsBefore = await measureIntegratedLufs(inputPath);
+  const measured = await measureLoudnormForTwoPass(inputPath);
+  await runFfmpeg([
+    "-hide_banner", "-loglevel", "error", "-y",
+    "-i", inputPath,
+    "-af",
+    `loudnorm=I=-14:TP=-1.5:LRA=11:measured_I=${measured.input_i}:measured_TP=${measured.input_tp}:` +
+      `measured_LRA=${measured.input_lra}:measured_thresh=${measured.input_thresh}:` +
+      `offset=${measured.target_offset}:linear=true:print_format=summary`,
+    "-ar", "48000",
+    outputPath,
+  ]);
+  const lufsAfter = await measureIntegratedLufs(outputPath);
+  return { outputPath, lufsBefore, lufsAfter };
+}
+
+function logSidecarFallback(stage: string, reason: string): void {
+  console.warn(`[worker] sidecar ${stage} unavailable (${reason}) — using local fallback`);
+}
+
+async function runCleanStage(inputPath: string, tmpDir: string): Promise<CleanStageResult | null> {
+  return selectCleanStage(
+    sidecarConfig,
+    inputPath,
+    tmpDir,
+    { modelAvailable: existsSync(RNNOISE_MODEL_PATH), run: runArnndnFallback },
+    fetch,
+    (reason) => logSidecarFallback("/clean", reason),
+  );
+}
+
+async function runMasterStage(
+  inputPath: string,
+  tmpDir: string,
+  preset: AudioEnhancementPreset,
+): Promise<MasterStageResult> {
+  return selectMasterStage(
+    sidecarConfig,
+    inputPath,
+    tmpDir,
+    preset,
+    { run: runLoudnormTwoPassFallback },
+    fetch,
+    (reason) => logSidecarFallback("/master", reason),
+  );
+}
+
+async function runPeaksStage(filePath: string): Promise<{ peaks: PeaksPayload; report: EnhancementStageReport }> {
+  return selectPeaksStage(
+    sidecarConfig,
+    filePath,
+    { run: extractPeaks },
+    fetch,
+    (reason) => logSidecarFallback("/peaks", reason),
+  );
+}
+
+/* ------------------------------------------------------------------------ */
 /* Storage I/O                                                              */
 /* ------------------------------------------------------------------------ */
 
@@ -357,34 +571,73 @@ async function runProcessAudioJob(
   const filterChain = buildProcessAudioFilterChain(basePresetFilter, payload.advanced_eq ?? null);
 
   const inputPath = path.join(tmpDir, `input${extensionOf(asset.original_path)}`);
+  const presetOutPath = path.join(tmpDir, "preset.wav");
   const outputPath = path.join(tmpDir, "output.m4a");
-  const ffmpegArgs = [
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-y",
-    "-i",
-    inputPath,
-    "-af",
-    filterChain,
-    "-c:a",
-    "aac",
-    "-b:a",
-    "160k",
-    outputPath,
-  ];
 
   if (DRY_RUN) {
+    // Sidecar stages are never invoked in --dry-run (no network calls, no
+    // queue/storage mutation) — this prints only the deterministic preset
+    // filter pass (against the undecoded original — the real run's clean
+    // stage would swap in a cleaned intermediate first), which is the one
+    // stage every run shares regardless of sidecar availability.
+    const previewArgs = [
+      "-hide_banner", "-loglevel", "error", "-y",
+      "-i", inputPath, "-af", filterChain, "-ar", "48000", presetOutPath,
+    ];
     console.log(`[worker] (dry-run) process_audio job ${job.id} — asset ${asset.id}`);
     console.log(`[worker] (dry-run)   source: ${asset.original_path}`);
-    console.log(`[worker] (dry-run)   command: ${formatFfmpegCommand(ffmpegArgs)}`);
+    console.log(`[worker] (dry-run)   pipeline: decode -> clean (sidecar/arnndn/skip) -> preset filter -> master (sidecar/loudnorm) -> encode -> peaks`);
+    console.log(`[worker] (dry-run)   preset filter command (pre-clean input shown): ${formatFfmpegCommand(previewArgs)}`);
     return;
   }
 
   await downloadToFile(admin, asset.original_path, inputPath);
-  await runFfmpeg(ffmpegArgs);
 
-  const [durationMs, peaks] = await Promise.all([probeDurationMs(outputPath), extractPeaks(outputPath)]);
+  // 1. Clean (denoise) — sidecar DeepFilterNet3/arnndn, else this worker's
+  //    own arnndn pass, else skipped entirely (never faked).
+  const cleanResult = await runCleanStage(inputPath, tmpDir);
+  const cleanedPath = cleanResult?.outputPath ?? inputPath;
+
+  // 2. Preset filter chain (existing behavior, spec §19) — always runs, on
+  //    whichever input the clean stage produced.
+  await runFfmpeg([
+    "-hide_banner", "-loglevel", "error", "-y",
+    "-i", cleanedPath,
+    "-af", filterChain,
+    "-ar", "48000",
+    presetOutPath,
+  ]);
+
+  // 3. Master — sidecar Matchering, else ffmpeg two-pass loudnorm. Always
+  //    produces an output; local ffmpeg is a hard requirement for this
+  //    worker regardless of the sidecar.
+  const masterResult = await runMasterStage(presetOutPath, tmpDir, preset);
+
+  // 4. Final encode to the format the rest of the app expects.
+  await runFfmpeg([
+    "-hide_banner", "-loglevel", "error", "-y",
+    "-i", masterResult.outputPath,
+    "-c:a", "aac", "-b:a", "160k",
+    outputPath,
+  ]);
+
+  // 5. Peaks — sidecar librosa/soundfile, else this worker's own PCM
+  //    extractor. Read from the pre-encode mastered WAV, not the final AAC/
+  //    m4a: `soundfile` (the sidecar's decoder) cannot open AAC at all, so
+  //    pointing it at `outputPath` would make every sidecar /peaks call fail
+  //    every time and always fall back — the WAV is the same audio, without
+  //    that lossy re-encode, and is what both the sidecar and the local
+  //    ffmpeg-based fallback can equally decode.
+  const [durationMs, peaksResult] = await Promise.all([
+    probeDurationMs(outputPath),
+    runPeaksStage(masterResult.outputPath),
+  ]);
+
+  const enhancementReport: EnhancementReport = {
+    ...(cleanResult ? { clean: cleanResult.report } : {}),
+    master: masterResult.report,
+    peaks: peaksResult.report,
+  };
 
   const processedPath = audioProcessedPath(asset.owner_id, asset.id, "m4a");
   await uploadFile(admin, processedPath, outputPath, "audio/mp4");
@@ -392,13 +645,14 @@ async function runProcessAudioJob(
   const { error: completeError } = await admin.rpc("complete_audio_job", {
     p_job_id: job.id,
     p_processed_path: processedPath,
-    p_peaks: peaks as unknown as Json,
+    p_peaks: peaksResult.peaks as unknown as Json,
     p_duration_ms: durationMs,
     p_result: {
       preset,
       filter: filterChain,
       advanced_eq_applied: Boolean(payload.advanced_eq),
     } as Json,
+    p_enhancement_report: enhancementReport as unknown as Json,
   });
   if (completeError) {
     throw new Error(`complete_audio_job failed: ${completeError.message}`);
@@ -453,34 +707,26 @@ async function runMixDuetJob(
   // non-negative value, so `buildDuetMixFilterComplex` resolves the sign by
   // choosing which stem gets delayed — never by passing a negative number to
   // `adelay` (see the file-header note in src/lib/duet/ffmpegChain.ts).
+  // `referenceGainDb` is 0 for an ordinary Duet; a backing-track Wave
+  // (spec §4, `enqueueBackingTrackMixJob` in src/lib/db/backingTracks.ts)
+  // sets it negative so the instrumental sits behind the vocal.
   const chain = buildDuetMixFilterComplex({
     offsetMs: payload.offsetMs,
     presetFilter,
     advancedEq: payload.advancedEq,
+    referenceGainDb: payload.referenceGainDb,
   });
 
+  const mixedWavPath = path.join(tmpDir, "mixed.wav");
   const outputPath = path.join(tmpDir, "mixed.m4a");
-  const ffmpegArgs = [
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-y",
-    "-i",
-    referenceInputPath,
-    "-i",
-    newTakeInputPath,
-    "-filter_complex",
-    chain.filterComplex,
-    "-map",
-    chain.outputMap,
-    "-c:a",
-    "aac",
-    "-b:a",
-    "192k",
-    outputPath,
-  ];
 
   if (DRY_RUN) {
+    const previewArgs = [
+      "-hide_banner", "-loglevel", "error", "-y",
+      "-i", referenceInputPath, "-i", newTakeInputPath,
+      "-filter_complex", chain.filterComplex, "-map", chain.outputMap,
+      "-c:a", "aac", "-b:a", "192k", outputPath,
+    ];
     console.log(
       `[worker] (dry-run) mix_duet job ${job.id} — contribution asset ${newTake.id} against reference ${reference.id}`,
     );
@@ -488,9 +734,11 @@ async function runMixDuetJob(
     console.log(`[worker] (dry-run)   contribution source: ${newTake.original_path}`);
     console.log(
       `[worker] (dry-run)   offset_ms=${payload.offsetMs} -> ` +
-        `contributionDelayMs=${chain.contributionDelayMs} referenceDelayMs=${chain.referenceDelayMs}`,
+        `contributionDelayMs=${chain.contributionDelayMs} referenceDelayMs=${chain.referenceDelayMs} ` +
+        `referenceGainDb=${payload.referenceGainDb}`,
     );
-    console.log(`[worker] (dry-run)   command: ${formatFfmpegCommand(ffmpegArgs)}`);
+    console.log(`[worker] (dry-run)   pipeline: clean contribution (sidecar/arnndn/skip) -> mix -> master (sidecar/loudnorm) -> encode -> peaks`);
+    console.log(`[worker] (dry-run)   mix command (contribution not yet cleaned): ${formatFfmpegCommand(previewArgs)}`);
     return;
   }
 
@@ -498,9 +746,46 @@ async function runMixDuetJob(
     downloadToFile(admin, referenceStoragePath, referenceInputPath),
     downloadToFile(admin, newTake.original_path, newTakeInputPath),
   ]);
-  await runFfmpeg(ffmpegArgs);
 
-  const [durationMs, peaks] = await Promise.all([probeDurationMs(outputPath), extractPeaks(outputPath)]);
+  // Route the contribution stem through the same cleanup process_audio uses
+  // (spec: "keep mix_duet working and route the contribution stem through
+  // the same cleanup") — the reference is left untouched, exactly like the
+  // existing "enhance the contribution, not the reference" rule for the
+  // preset/EQ above.
+  const cleanResult = await runCleanStage(newTakeInputPath, tmpDir);
+  const cleanedContributionPath = cleanResult?.outputPath ?? newTakeInputPath;
+
+  await runFfmpeg([
+    "-hide_banner", "-loglevel", "error", "-y",
+    "-i", referenceInputPath,
+    "-i", cleanedContributionPath,
+    "-filter_complex", chain.filterComplex,
+    "-map", chain.outputMap,
+    "-ar", "48000",
+    mixedWavPath,
+  ]);
+
+  const masterResult = await runMasterStage(mixedWavPath, tmpDir, preset);
+
+  await runFfmpeg([
+    "-hide_banner", "-loglevel", "error", "-y",
+    "-i", masterResult.outputPath,
+    "-c:a", "aac", "-b:a", "192k",
+    outputPath,
+  ]);
+
+  // Read peaks from the pre-encode mastered WAV, not the final AAC/m4a — see
+  // the matching comment in runProcessAudioJob.
+  const [durationMs, peaksResult] = await Promise.all([
+    probeDurationMs(outputPath),
+    runPeaksStage(masterResult.outputPath),
+  ]);
+
+  const enhancementReport: EnhancementReport = {
+    ...(cleanResult ? { clean: cleanResult.report } : {}),
+    master: masterResult.report,
+    peaks: peaksResult.report,
+  };
 
   // The mixed file becomes the new take's processed audio — that is the
   // asset the finished Duet Wave references (spec s15: a Duet references the
@@ -514,7 +799,7 @@ async function runMixDuetJob(
   const { error: completeError } = await admin.rpc("complete_audio_job", {
     p_job_id: job.id,
     p_processed_path: processedPath,
-    p_peaks: peaks as unknown as Json,
+    p_peaks: peaksResult.peaks as unknown as Json,
     p_duration_ms: durationMs,
     p_result: {
       preset,
@@ -523,8 +808,10 @@ async function runMixDuetJob(
       reference_asset_id: reference.id,
       contribution_delay_ms: chain.contributionDelayMs,
       reference_delay_ms: chain.referenceDelayMs,
+      reference_gain_db: payload.referenceGainDb,
       advanced_eq_applied: Boolean(payload.advancedEq),
     } as Json,
+    p_enhancement_report: enhancementReport as unknown as Json,
   });
   if (completeError) {
     throw new Error(`complete_audio_job failed: ${completeError.message}`);

@@ -15,6 +15,7 @@ import type {
   AudioJobStatus,
   AudioJobType,
   AudioProcessingStatus,
+  BackingTrackLicense,
   CollaboratorStatus,
   CommentAudience,
   ContentOrigin,
@@ -46,6 +47,7 @@ export type {
   AudioJobStatus,
   AudioJobType,
   AudioProcessingStatus,
+  BackingTrackLicense,
   CollaboratorStatus,
   CommentAudience,
   ContentOrigin,
@@ -78,6 +80,7 @@ export const PERMISSION_AUDIENCES = ["everyone", "followers", "following", "nobo
 export const COMMENT_AUDIENCES = ["everyone", "followers", "nobody"] as const;
 export const WAVE_VISIBILITIES = ["everyone", "followers", "only_me"] as const;
 export const WAVE_CREATION_TYPES = ["recorded", "uploaded", "duet"] as const;
+export const BACKING_TRACK_LICENSES = ["cc0", "cc_by", "owner_upload"] as const;
 export const CONTENT_ORIGINS = ["original", "cover", "licensed", "unknown"] as const;
 export const THEME_BACKGROUND_COLORS = ["ink", "slate", "sand", "mist", "plum", "forest"] as const;
 export const THEME_BACKGROUND_GRADIENTS = [
@@ -221,8 +224,27 @@ export interface AudioAsset {
   processingStatus: AudioProcessingStatus;
   processingError: string | null;
   enhancementPreset: AudioEnhancementPreset;
+  /** Which pipeline stages actually ran and what they measured — see docs/AUDIO_ARCHITECTURE.md "Enhancement report". `null` until `process_audio`/`mix_duet` completes. */
+  enhancementReport: EnhancementReport | null;
   createdAt: string;
   processedAt: string | null;
+}
+
+/** One measured pipeline stage in `AudioAsset.enhancementReport` (spec: never a faked/placeholder measurement). */
+export interface EnhancementReportStage {
+  method: string;
+  lufsBefore?: number | null;
+  lufsAfter?: number | null;
+  durationMs?: number;
+  [key: string]: unknown;
+}
+
+/** Shape written by `scripts/worker.ts`'s `runProcessAudioJob`/`runMixDuetJob` onto `complete_audio_job`'s `p_enhancement_report`. A stage that did not run is simply absent. */
+export interface EnhancementReport {
+  clean?: EnhancementReportStage;
+  master?: EnhancementReportStage;
+  peaks?: EnhancementReportStage;
+  [key: string]: EnhancementReportStage | undefined;
 }
 
 /** An asset plus the short-lived signed URL a browser may actually fetch. */
@@ -280,6 +302,8 @@ export interface Wave {
   commentPermission: CommentAudience | null;
   duetPermission: PermissionAudience | null;
   duet: WaveDuetLineage;
+  /** Set when this Wave is a vocal recorded over a backing track (spec §4) — mutually exclusive with `duet.parentWaveId`. */
+  backingTrackId: string | null;
   contentOrigin: ContentOrigin;
   tags: string[];
   counts: WaveCounts;
@@ -287,6 +311,33 @@ export interface Wave {
   updatedAt: string;
   /** Set only by `resolve_report(..., 'hide_wave')` (spec §26). Distinct from a soft delete — the creator still sees it, everyone else does not. */
   hiddenAt: string | null;
+}
+
+/**
+ * Curated (seeded, `uploaderId: null`) or user-uploaded ("open for vocals")
+ * instrumental — spec §4 "Backing tracks without licensing risk". Singing
+ * over one publishes a Wave with `backingTrackId` set (`publishWave`,
+ * `src/app/(app)/create/actions.ts`); the worker mixes the vocal over the
+ * track using the same `mix_duet` ffmpeg chain as an ordinary Duet, with the
+ * track as the (gain-reduced) reference stem.
+ */
+export interface BackingTrack {
+  id: string;
+  /** `null` for a curated/seeded track. */
+  uploaderId: string | null;
+  title: string;
+  artistCredit: string;
+  license: BackingTrackLicense;
+  /** Required when `license === 'cc_by'` (attribution must link back to the source). */
+  sourceUrl: string | null;
+  audioAssetId: string;
+  bpm: number | null;
+  musicalKey: string | null;
+  genreTags: string[];
+  durationMs: number | null;
+  isCurated: boolean;
+  openForVocals: boolean;
+  createdAt: string;
 }
 
 export interface Collaborator {
