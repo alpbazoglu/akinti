@@ -387,6 +387,31 @@ export type SubscriptionRow = {
   updated_at: string;
 };
 
+/** Flow (docs/FLOW.md) — owner-only ledger of what a viewer has been shown, migration 20260906110000. */
+export type FlowImpressionRow = {
+  user_id: string;
+  wave_id: string;
+  seen_at: string;
+  completed: boolean;
+  skipped_at_ms: number | null;
+};
+
+/**
+ * One row of the `get_flow_page` RPC result — see `src/lib/db/flow.ts`. Not
+ * a table row: `bucket`/`score` are this call's rank for `wave_id`, and
+ * `cursor_*` are the exact values the *next* call's cursor should carry
+ * (repeated on every row so the caller only ever needs the last one).
+ */
+export type FlowFeedRankRow = {
+  wave_id: string;
+  bucket: number;
+  score: number | null;
+  cursor_bucket: number | null;
+  cursor_score: number | null;
+  cursor_id: string | null;
+  cursor_slot: number;
+};
+
 /** Append-only webhook ledger. `(provider, event_id)` unique for idempotent replay. */
 export type BillingEventRow = {
   id: string;
@@ -831,6 +856,13 @@ export interface Database {
         Update: Partial<Pick<BillingEventRow, "processed_at">>;
         Relationships: Relationships;
       };
+      /** Written exclusively by the `record_flow_event` RPC — no direct client insert/update path (docs/FLOW.md). */
+      flow_impressions: {
+        Row: FlowImpressionRow;
+        Insert: never;
+        Update: never;
+        Relationships: Relationships;
+      };
       wave_collaborators: {
         Row: WaveCollaboratorRow;
         Insert: Pick<WaveCollaboratorRow, "wave_id" | "profile_id"> &
@@ -1092,6 +1124,15 @@ export interface Database {
         Returns: undefined;
       };
       record_rate_limit_event: { Args: { p_profile_id: string; p_action: string }; Returns: undefined };
+      get_flow_page: {
+        Args: { p_cursor?: Json | null; p_seed?: number; p_limit?: number };
+        Returns: FlowFeedRankRow[];
+      };
+      record_flow_event: {
+        Args: { p_wave_id: string; p_kind: string; p_position_ms?: number | null };
+        Returns: undefined;
+      };
+      count_flow_new: { Args: Record<string, never>; Returns: number };
     };
     Enums: {
       profile_privacy: ProfilePrivacy;
