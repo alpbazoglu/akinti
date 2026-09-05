@@ -20,6 +20,8 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import type { WaveSurferHandle } from "./waveSurfer";
+
 export type PlaybackStatus =
   | "idle"
   | "loading"
@@ -36,6 +38,12 @@ export interface PlaybackMeta {
   readonly creatorUsername?: string;
   /** Known duration in seconds, if the caller already has it. */
   readonly duration?: number;
+  /**
+   * Stored peaks for this Wave, when the asset has them. Passing them keeps
+   * WaveSurfer from fetching the audio a second time to decode a shape we
+   * already know (`docs/design/DESIGN.md` §6.4).
+   */
+  readonly peaks?: readonly number[];
 }
 
 export interface PlaybackState {
@@ -50,6 +58,17 @@ export interface PlaybackState {
   readonly error: string | null;
   readonly volume: number;
   readonly muted: boolean;
+  /**
+   * How much of the active Wave has buffered, `0..1`. The unloaded region of a
+   * trace is drawn at 40% alpha so a partial buffer shows what it has
+   * (§6.2, `mobile-guidelines.md` rule 29).
+   */
+  readonly buffered: number;
+  /**
+   * Real peaks for the active Wave, decoded from the audio when the asset had
+   * none stored. `null` means "keep drawing what the caller gave us".
+   */
+  readonly peaks: readonly number[] | null;
 }
 
 export interface PlaybackProgressEvent {
@@ -81,6 +100,8 @@ export interface PlaybackAudioElement {
   muted: boolean;
   preload: string;
   crossOrigin: string | null;
+  /** Buffered time ranges, when the element exposes them. */
+  readonly buffered?: TimeRanges;
   play(): Promise<void> | void;
   pause(): void;
   load?(): void;
@@ -104,6 +125,8 @@ const INITIAL_STATE: PlaybackState = {
   error: null,
   volume: 1,
   muted: false,
+  buffered: 0,
+  peaks: null,
 };
 
 const MEDIA_EVENTS = [
@@ -115,6 +138,7 @@ const MEDIA_EVENTS = [
   "play",
   "pause",
   "waiting",
+  "progress",
   "timeupdate",
   "ended",
   "error",
@@ -139,6 +163,8 @@ export class PlaybackStore {
   private readonly createAudio: () => PlaybackAudioElement;
   private audio: PlaybackAudioElement | null = null;
   private boundHandlers: { type: string; handler: () => void }[] = [];
+  private waveSurfer: WaveSurferHandle | null = null;
+  private waveSurferToken = 0;
 
   constructor(options: PlaybackStoreOptions = {}) {
     this.createAudio = options.createAudio ?? defaultCreateAudio;
@@ -206,11 +232,15 @@ export class PlaybackStore {
         currentTime: 0,
         duration: safeDuration(meta.duration ?? 0),
         error: null,
+        buffered: 0,
+        peaks: null,
       });
+      this.attachAnalysis(audio, meta);
     } else {
       this.setState({ meta, status: "loading", error: null });
     }
 
+    this.publishMediaSession(meta);
     void this.startPlayback(audio);
   }
 
@@ -264,6 +294,7 @@ export class PlaybackStore {
   stop(): void {
     this.audio?.pause();
     if (this.audio) this.audio.currentTime = 0;
+    this.detachAnalysis();
     this.setState({
       waveId: null,
       src: null,
@@ -272,6 +303,8 @@ export class PlaybackStore {
       currentTime: 0,
       duration: 0,
       error: null,
+      buffered: 0,
+      peaks: null,
     });
   }
 
@@ -288,6 +321,7 @@ export class PlaybackStore {
 
   /** Detach listeners and release the media element. */
   destroy(): void {
+    this.detachAnalysis();
     this.detachHandlers();
     this.audio?.pause();
     this.audio = null;
@@ -300,6 +334,83 @@ export class PlaybackStore {
   /* ---------------------------------------------------------------- */
   /* Internals                                                         */
   /* ---------------------------------------------------------------- */
+
+  /** The one media element, once it exists. Nothing else may create another. */
+  getMediaElement(): PlaybackAudioElement | null {
+    return this.audio;
+  }
+
+  /**
+   * Bind the single WaveSurfer instance to the single `<audio>`
+   * (`docs/research/libraries.md` §2). Imported dynamically, so it never
+   * enters the initial bundle (`mobile-guidelines.md` rule 44), and replaced
+   * rather than stacked when the active Wave changes.
+   */
+  private attachAnalysis(audio: PlaybackAudioElement, meta: PlaybackMeta): void {
+    this.detachAnalysis();
+    if (typeof document === "undefined") return;
+
+    const token = (this.waveSurferToken += 1);
+    const waveId = this.state.waveId;
+
+    void import("./waveSurfer")
+      .then(({ attachWaveSurfer }) =>
+        attachWaveSurfer(audio, {
+          peaks: meta.peaks,
+          duration: meta.duration,
+          onPeaks: (peaks) => {
+            // A late decode must not repaint a Wave the reader has moved on from.
+            if (token !== this.waveSurferToken || this.state.waveId !== waveId) return;
+            this.setState({ peaks });
+          },
+        }),
+      )
+      .then((handle) => {
+        if (token !== this.waveSurferToken) {
+          handle?.destroy();
+          return;
+        }
+        this.waveSurfer = handle;
+      })
+      .catch(() => {
+        // Analysis is an upgrade, never a dependency: playback is already
+        // running on the media element by the time this resolves.
+      });
+  }
+
+  private detachAnalysis(): void {
+    this.waveSurferToken += 1;
+    this.waveSurfer?.destroy();
+    this.waveSurfer = null;
+  }
+
+  /**
+   * Lock-screen and notification-shade controls (§8.4,
+   * `mobile-guidelines.md` rule 30). Artwork is deliberately absent: a Wave
+   * has no cover image, and inventing one would be the stock-art this product
+   * does not have (§10).
+   */
+  private publishMediaSession(meta: PlaybackMeta): void {
+    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+    const session = navigator.mediaSession;
+
+    try {
+      session.metadata = new MediaMetadata({
+        title: meta.title ?? "Wave",
+        artist: meta.creatorUsername ? `@${meta.creatorUsername}` : "AKINTI",
+        album: "AKINTI",
+      });
+      session.setActionHandler("play", () => this.resume());
+      session.setActionHandler("pause", () => this.pause());
+      session.setActionHandler("seekto", (details) => {
+        if (typeof details.seekTime === "number") this.seek(details.seekTime);
+      });
+      session.setActionHandler("seekbackward", () => this.seek(this.state.currentTime - 15));
+      session.setActionHandler("seekforward", () => this.seek(this.state.currentTime + 15));
+    } catch {
+      // Media Session is best-effort: Safari rejects some handlers outright.
+    }
+  }
 
   private ensureAudio(): PlaybackAudioElement | null {
     if (this.audio) return this.audio;
@@ -371,6 +482,14 @@ export class PlaybackStore {
       case "waiting":
         this.setState({ status: "buffering" });
         break;
+      case "progress": {
+        const duration = safeDuration(audio.duration) || this.state.duration;
+        const ranges = audio.buffered;
+        if (!ranges || duration <= 0 || ranges.length === 0) break;
+        const end = ranges.end(ranges.length - 1);
+        this.setState({ buffered: Math.min(1, Math.max(0, end / duration)) });
+        break;
+      }
       case "play":
       case "playing":
         this.setState({ status: "playing", error: null });
@@ -479,6 +598,10 @@ export interface WavePlaybackSnapshot {
   readonly currentTime: number;
   readonly duration: number;
   readonly error: string | null;
+  /** Buffered fraction, `0..1`. `1` for a Wave that is not the active one. */
+  readonly buffered: number;
+  /** Decoded peaks for the active Wave, or `null` to keep the stored shape. */
+  readonly peaks: readonly number[] | null;
 }
 
 /** Playback state scoped to a single Wave. */
@@ -496,6 +619,14 @@ export function useWavePlayback(waveId: string, fallbackDuration = 0): WavePlayb
   const error = usePlaybackSelector((state) =>
     state.waveId === waveId ? state.error : null,
   );
+  // A Wave that is not playing has nothing to say about buffering, so it draws
+  // its full trace rather than a 40%-alpha unloaded region.
+  const buffered = usePlaybackSelector((state) =>
+    state.waveId === waveId ? state.buffered : 1,
+  );
+  const peaks = usePlaybackSelector((state) =>
+    state.waveId === waveId ? state.peaks : null,
+  );
 
   return {
     isActive,
@@ -505,6 +636,8 @@ export function useWavePlayback(waveId: string, fallbackDuration = 0): WavePlayb
     currentTime,
     duration,
     error,
+    buffered: isActive && status !== "idle" ? buffered : 1,
+    peaks,
   };
 }
 
@@ -514,14 +647,15 @@ export function useWaveControls(waveId: string, src: string, meta?: PlaybackMeta
   const title = meta?.title;
   const creatorUsername = meta?.creatorUsername;
   const duration = meta?.duration;
+  const peaks = meta?.peaks;
 
   const play = useCallback(() => {
-    store.play(waveId, src, { title, creatorUsername, duration });
-  }, [store, waveId, src, title, creatorUsername, duration]);
+    store.play(waveId, src, { title, creatorUsername, duration, peaks });
+  }, [store, waveId, src, title, creatorUsername, duration, peaks]);
 
   const toggle = useCallback(() => {
-    store.toggle(waveId, src, { title, creatorUsername, duration });
-  }, [store, waveId, src, title, creatorUsername, duration]);
+    store.toggle(waveId, src, { title, creatorUsername, duration, peaks });
+  }, [store, waveId, src, title, creatorUsername, duration, peaks]);
 
   const pause = useCallback(() => {
     store.pause();

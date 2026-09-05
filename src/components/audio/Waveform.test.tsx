@@ -101,8 +101,16 @@ describe("Waveform", () => {
     expect(onSeek).not.toHaveBeenCalled();
   });
 
-  it("renders one bar per peak", () => {
-    const { container } = render(<Waveform peaks={placeholderPeaks(12, 1)} readOnly />);
-    expect(container.querySelectorAll("span[aria-hidden='true']")).toHaveLength(12);
+  it("draws the trace on a canvas sized to the requested height", () => {
+    // The trace is one Canvas 2D primitive, not a row of DOM nodes
+    // (DESIGN.md 6.4), so the bars are asserted in waterline.test.ts and this
+    // only checks that the surface exists and is the size the caller asked for.
+    const { container } = render(
+      <Waveform peaks={placeholderPeaks(12, 1)} height={56} readOnly />,
+    );
+    const canvas = container.querySelector("canvas");
+    expect(canvas).not.toBeNull();
+    expect(canvas).toHaveAttribute("aria-hidden", "true");
+    expect(canvas?.style.height).toBe("56px");
   });
 });

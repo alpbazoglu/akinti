@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Mic, MicOff, Pause, Play, RotateCcw, Square, TriangleAlert } from "lucide-react";
+import { Mic, MicOff, Pause, Play, RotateCcw, Square, TriangleAlert } from "@/components/ui/icons";
 
 import { useRecorder, type RecorderResult, type RecorderStatus } from "@/lib/audio";
 import { Button, IconButton } from "@/components/ui";

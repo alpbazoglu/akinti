@@ -50,9 +50,42 @@ export function placeholderPeaks(count = 64, seed = 1): number[] {
 export function resolveWavePeaks(
   data: readonly number[] | null | undefined,
   seedKey: string,
+  bits: number = DEFAULT_PEAK_BITS,
 ): number[] {
   if (data && data.length > 0) {
-    return [...data];
+    return normalizePeaks(data, bits);
   }
   return placeholderPeaks(64, hashSeed(seedKey));
+}
+
+/** The bit depth the worker writes into `audio_assets.peaks.bits` today. */
+export const DEFAULT_PEAK_BITS = 8;
+
+/**
+ * Bring stored peaks onto the `0..1` scale the renderer draws in.
+ *
+ * The worker exports quantised amplitudes at the declared bit depth — 8 bits
+ * means `0..255`, not `0..1` — and every drawing surface in the product
+ * (`src/components/audio/waterline.ts`) treats an amplitude of 1 as full
+ * height. Handing it raw 8-bit values made every audible bar clip to the top
+ * of the trace, which is the solid block the QA screenshots showed, and is a
+ * different failure from the flat line: both hide the shape of the audio.
+ *
+ * Data that is already normalised passes through untouched, so this is safe on
+ * both the stored format and on peaks decoded in the browser.
+ */
+export function normalizePeaks(
+  data: readonly number[],
+  bits: number = DEFAULT_PEAK_BITS,
+): number[] {
+  const values = data.map((value) => (Number.isFinite(value) ? Math.abs(value) : 0));
+  const max = values.reduce((peak, value) => (value > peak ? value : peak), 0);
+  if (max <= 1) {
+    return values;
+  }
+  // Full scale for the declared depth, never the loudest sample: dividing by
+  // the observed maximum would stretch a quiet take to look loud, and
+  // `DESIGN_DNA.json` is explicit that peak data is resampled, never stretched.
+  const fullScale = Math.max(1, 2 ** Math.max(1, Math.round(bits)) - 1);
+  return values.map((value) => Math.min(1, value / fullScale));
 }

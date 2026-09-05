@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -12,27 +11,36 @@ import {
 import { placeholderPeaks } from "@/lib/audio/peaks";
 import { cn, formatDuration } from "@/lib/ui";
 
+import { WaveformCanvas } from "./WaveformCanvas";
+import type { WaterlineState } from "./waterline";
+
 export { placeholderPeaks };
 
-export type WaveformVariant = "bars" | "mirror";
-
 export interface WaveformProps {
-  /** Normalised peak amplitudes, `0..1`, one per bar. */
+  /** Normalised peak amplitudes, `0..1`. Real peaks from the asset; the
+   * deterministic placeholder only while the worker is still processing. */
   peaks: readonly number[];
+  /** The collaborator's trace for a Duet, drawn downward in ink (§6.2). */
+  duetPeaks?: readonly number[];
   /** Playback position as a ratio of the total duration, `0..1`. */
   progress?: number;
+  /** Buffered fraction, `0..1`. A partial buffer draws at 40% alpha (§6.2). */
+  loaded?: number;
   /** Total duration in seconds; used for the accessible value text. */
   duration?: number;
   /** Called with a `0..1` ratio on click, drag and keyboard seek. */
   onSeek?: (ratio: number) => void;
-  variant?: WaveformVariant;
-  /** Bar area height in pixels. */
+  /** Trace height in CSS pixels. All geometry follows from it (§6.1). */
   height?: number;
+  /** `dormant` before anything is loaded, `duet` for the mirrored pair. */
+  state?: WaterlineState;
   /** Accessible name for the seek control. */
   label?: string;
   /** Renders as a static picture: no seeking, not focusable. */
   readOnly?: boolean;
   disabled?: boolean;
+  /** Applies the 24px edge fade, for a trace that bleeds past the page edges. */
+  fullBleed?: boolean;
   className?: string;
 }
 
@@ -46,37 +54,41 @@ function clamp01(value: number): number {
 }
 
 /**
- * The visual anchor of a Wave (spec section 20). Renders stored peak data —
- * it never decodes audio — so a card is cheap to render and identical on the
- * server and the client.
+ * The waterline as an operable control (§6, §8.4).
  *
- * Exposed as an ARIA slider so the waveform is a real, operable seek control
- * for keyboard and screen-reader users, not just a picture (spec section 29).
+ * Tap anywhere on the trace to play from that point: the trace *is* the
+ * scrubber, and there is never a separate slider with a filled track (§8.4,
+ * §12.30). Drag tracks the finger exactly, linearly, at zero duration.
+ *
+ * Exposed as an ARIA slider so the trace is a real seek control for keyboard
+ * and screen-reader users rather than a picture, and the playhead — not the
+ * colour — carries the played/unplayed boundary (§6.2).
  */
 export function Waveform({
   peaks,
+  duetPeaks,
   progress = 0,
+  loaded = 1,
   duration = 0,
   onSeek,
-  variant = "bars",
-  height = 48,
+  height = 56,
+  state,
   label = "Seek",
   readOnly = false,
   disabled = false,
+  fullBleed = false,
   className,
 }: WaveformProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const interactive = Boolean(onSeek) && !readOnly && !disabled;
 
-  const normalised = useMemo(
-    () => peaks.map((peak) => clamp01(Math.abs(peak))),
-    [peaks],
-  );
-
   const ratio = clamp01(progress);
   const percent = Math.round(ratio * 100);
   const currentSeconds = duration > 0 ? ratio * duration : 0;
+
+  const resolvedState: WaterlineState =
+    state ?? (peaks.length === 0 ? "dormant" : ratio > 0 ? "playing" : "unplayed");
 
   const ratioFromClientX = useCallback((clientX: number): number => {
     const rect = trackRef.current?.getBoundingClientRect();
@@ -142,8 +154,6 @@ export function Waveform({
       ? `${formatDuration(currentSeconds)} of ${formatDuration(duration)}`
       : `${percent}%`;
 
-  const barCount = normalised.length;
-
   return (
     <div
       ref={trackRef}
@@ -163,33 +173,26 @@ export function Waveform({
       onKeyDown={handleKeyDown}
       style={{ height }}
       className={cn(
-        "relative flex w-full gap-[2px] rounded-sm select-none",
-        variant === "mirror" ? "items-center" : "items-end",
-        interactive && "cursor-pointer touch-none",
-        interactive && "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+        "relative w-full select-none",
+        // A trace is the largest target on its screen, so it takes the whole
+        // width and the pointer becomes an I-beam over it (§12.10, DNA cursor).
+        interactive && "cursor-col-resize touch-none",
+        interactive &&
+          "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink",
         disabled && "opacity-55",
+        fullBleed && "akinti-edge-fade",
         className,
       )}
     >
-      {barCount === 0 ? (
-        <span className="h-[2px] w-full rounded-full bg-wave-track" aria-hidden="true" />
-      ) : (
-        normalised.map((peak, index) => {
-          const played = barCount > 1 ? index / (barCount - 1) <= ratio : ratio > 0;
-          const barHeight = Math.max(6, Math.round(peak * 100));
-          return (
-            <span
-              key={index}
-              aria-hidden="true"
-              style={{ height: `${barHeight}%` }}
-              className={cn(
-                "min-w-[2px] flex-1 rounded-full transition-colors duration-75",
-                played ? "bg-wave-progress" : "bg-wave-track",
-              )}
-            />
-          );
-        })
-      )}
+      <WaveformCanvas
+        peaks={peaks}
+        duetPeaks={duetPeaks}
+        progress={ratio}
+        loaded={loaded}
+        state={resolvedState}
+        height={height}
+        playhead={resolvedState === "playing" || resolvedState === "duet"}
+      />
     </div>
   );
 }

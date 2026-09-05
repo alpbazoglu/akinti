@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { ChevronDown, Pause, Play } from "lucide-react";
+import { ChevronDown, Pause, Play } from "@/components/ui/icons";
 
 import {
   ADVANCED_EQ_BANDS,
