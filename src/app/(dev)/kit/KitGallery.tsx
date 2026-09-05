@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import { Waveform, WaveformCanvas, placeholderPeaks } from "@/components/audio";
+import { Waveform, WaveformCanvas, placeholderPeaks, type TraceHue } from "@/components/audio";
 import { PageHeader } from "@/components/layout";
 import { BottomNav } from "@/components/layout/BottomNav";
 import {
@@ -68,36 +68,54 @@ const MONO_SCALE: readonly { token: string; spec: string; className: string }[] 
   { token: "mono-sm", spec: "12 / 15 · 500 · wdth 87.5", className: "type-mono-sm" },
 ];
 
+/** docs/design/COLOR_V2.md — tinted water grounds and the current, the brand hue. */
 const LIGHT_SWATCHES: readonly { token: string; hex: string; use: string }[] = [
-  { token: "paper", hex: "#EFEFEC", use: "The page. Every screen." },
-  { token: "paper-raised", hex: "#F6F6F4", use: "Sheets and menus only." },
-  { token: "paper-sunk", hex: "#E4E4E0", use: "Pressed rows, inset fields." },
-  { token: "ink", hex: "#191A17", use: "Body, headlines, glyphs, playheads." },
-  { token: "ink-muted", hex: "#52534C", use: "Secondary prose, meta." },
-  { token: "ink-subtle", hex: "#6A6B63", use: "Captions, counts, timestamps." },
-  { token: "hairline", hex: "#D6D6D1", use: "Row dividers, input borders." },
-  { token: "hairline-strong", hex: "#B4B4AD", use: "Line keys, the dormant tick row." },
+  { token: "paper", hex: "#E9EFEC", use: "The page. Every screen." },
+  { token: "paper-raised", hex: "#DEE7E3", use: "Sheets, rails and inputs (\"paper-2\")." },
+  { token: "paper-sunk", hex: "#D3E0D9", use: "Pressed rows, inset fields." },
+  { token: "ink", hex: "#0F1A18", use: "Body, headlines, glyphs, playheads." },
+  { token: "ink-muted", hex: "#33443F", use: "Secondary prose, meta." },
+  { token: "ink-subtle", hex: "#4E625C", use: "Captions, counts, timestamps." },
+  { token: "hairline", hex: "#C3D1CB", use: "Row dividers, input borders." },
+  { token: "hairline-strong", hex: "#A9BDB4", use: "Line keys, the dormant tick row." },
+  { token: "current", hex: "#0E6B6B", use: "Idle trace, primary keys, links, focus, active underline." },
+  { token: "current-2", hex: "#0A4F50", use: "Pressed/hover depth of the current." },
+  { token: "foam", hex: "#B9DED8", use: "Subtle fills. Unplayed trace on dark, not here." },
+  { token: "sand", hex: "#8C6418", use: "Backing-track marks, Cypher order, warnings." },
+  { token: "danger", hex: "#9A2E1E", use: "Destructive/error text and hairlines only, never a fill." },
   { token: "signal", hex: "#DE3C11", use: "Graphic only. Live audio, nothing else." },
-  { token: "signal-deep", hex: "#A32A08", use: "Error text." },
-  { token: "signal-wash", hex: "#FAE3DC", use: "The one tinted field: a pending request." },
-  { token: "wave-rest", hex: "#B4B4AD", use: "The idle tick row." },
-  { token: "wave-dormant", hex: "#86877E", use: "The unplayed part of every trace." },
 ];
 
 const DARK_SWATCHES: readonly { token: string; hex: string; use: string }[] = [
-  { token: "paper", hex: "#131412", use: "The page." },
-  { token: "paper-raised", hex: "#1C1D19", use: "Sheets and menus." },
-  { token: "paper-sunk", hex: "#0C0D0B", use: "Pressed rows, inset fields." },
-  { token: "ink", hex: "#EDEDE8", use: "Body, headlines, glyphs, playheads." },
-  { token: "ink-muted", hex: "#A0A199", use: "Secondary prose." },
-  { token: "ink-subtle", hex: "#7E7F77", use: "Captions." },
-  { token: "hairline", hex: "#292A26", use: "Row dividers." },
-  { token: "hairline-strong", hex: "#3F403A", use: "Line keys, idle ticks." },
+  { token: "paper", hex: "#0F1614", use: "The page." },
+  { token: "paper-raised", hex: "#16201D", use: "Sheets, rails and inputs (\"paper-2\")." },
+  { token: "paper-sunk", hex: "#0B100E", use: "Pressed rows, inset fields." },
+  { token: "ink", hex: "#E6EFEC", use: "Body, headlines, glyphs, playheads." },
+  { token: "ink-muted", hex: "#B8C8C2", use: "Secondary prose." },
+  { token: "ink-subtle", hex: "#8FA39C", use: "Captions." },
+  { token: "hairline", hex: "#243330", use: "Row dividers." },
+  { token: "hairline-strong", hex: "#33463F", use: "Line keys, idle ticks." },
+  { token: "current", hex: "#3FB5B0", use: "Idle trace, primary keys, links, focus, active underline." },
+  { token: "current-2", hex: "#2B8D89", use: "Pressed/hover depth of the current." },
+  { token: "foam", hex: "#3E7972", use: "The unplayed trace on dark." },
+  { token: "sand", hex: "#E0B25A", use: "Backing-track marks, Cypher order, warnings." },
+  { token: "danger", hex: "#F07A62", use: "Destructive/error text and hairlines only, never a fill." },
   { token: "signal", hex: "#FF5C33", use: "Live audio." },
-  { token: "signal-deep", hex: "#FF9376", use: "Error text." },
-  { token: "signal-wash", hex: "#2A140E", use: "The pending-request strip." },
-  { token: "wave-rest", hex: "#3F403A", use: "Idle tick row." },
-  { token: "wave-dormant", hex: "#63645D", use: "Unplayed trace." },
+];
+
+/** Every `TraceHue` (`docs/design/COLOR_V2.md` "Colour by mode and genre"), so a drift between a mode/genre label and its actual token shows up here first. */
+const HUES: readonly { hue: TraceHue; label: string }[] = [
+  { hue: "current", label: "the default — Layer Duet, and everything else" },
+  { hue: "atisma", label: "Atışma reply segments (reed green)" },
+  { hue: "cypher-1", label: "Cypher verse 1 (the current)" },
+  { hue: "cypher-2", label: "Cypher verse 2 (reed green)" },
+  { hue: "cypher-3", label: "Cypher verse 3 (sand)" },
+  { hue: "cypher-4", label: "Cypher verse 4 (deep-water blue, hue < 225°)" },
+  { hue: "genre-pop", label: "genre tint — pop" },
+  { hue: "genre-rap", label: "genre tint — rap/trap" },
+  { hue: "genre-arabesk", label: "genre tint — arabesk" },
+  { hue: "genre-turku", label: "genre tint — türkü/halk" },
+  { hue: "genre-rock", label: "genre tint — rock" },
 ];
 
 const RADII: readonly { token: string; value: string; means: string }[] = [
@@ -145,7 +163,7 @@ export function KitGallery() {
   }, [theme]);
 
   const swatches = theme === "dark" ? DARK_SWATCHES : LIGHT_SWATCHES;
-  const ground = theme === "dark" ? "#131412" : "#EFEFEC";
+  const ground = theme === "dark" ? "#0F1614" : "#E9EFEC";
 
   return (
     <div className="min-h-dvh bg-paper pb-32">
@@ -196,7 +214,7 @@ export function KitGallery() {
 
         <Section
           title="Palette"
-          note={theme === "dark" ? "Gece · contrast on #131412" : "Gündüz · contrast on #EFEFEC"}
+          note={theme === "dark" ? "Gece · contrast on #0F1614" : "Gündüz · contrast on #E9EFEC"}
         >
           <ul className="flex flex-col divide-y divide-hairline">
             {swatches.map((swatch) => {
@@ -295,7 +313,7 @@ export function KitGallery() {
           </div>
         </Section>
 
-        <Section title="Chips, tabs and badges" note="Active is a 2px ink underbar">
+        <Section title="Chips, tabs and badges" note="Active is a 2px current underbar">
           <div className="flex gap-5 overflow-x-auto">
             {["trending", "new", "rising", "open for duet"].map((value) => (
               <Chip key={value} selected={filter === value} onClick={() => setFilter(value)}>
@@ -433,6 +451,17 @@ export function KitGallery() {
           <TraceRow label="separator · drawn from the ending Wave's own peaks">
             <WaveSeparator peaks={DEMO_PEAKS} />
           </TraceRow>
+        </Section>
+
+        <Section
+          title="Hues"
+          note="docs/design/COLOR_V2.md — the unplayed trace only; played stays Signal"
+        >
+          {HUES.map((row) => (
+            <TraceRow key={row.hue} label={`${row.hue} · ${row.label}`}>
+              <WaveformCanvas peaks={DEMO_PEAKS} height={40} state="unplayed" hue={row.hue} />
+            </TraceRow>
+          ))}
         </Section>
 
         <Section title="Wave" note="Rail-hung, no card, non-zero metrics only">
