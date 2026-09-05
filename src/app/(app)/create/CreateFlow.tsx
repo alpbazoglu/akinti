@@ -300,7 +300,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
     <>
       <PageHeader title={`${TERMS.create} ${TERMS.aWave}`} />
 
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 pb-24 sm:px-5">
+      <div className="akinti-page flex w-full max-w-xl flex-col gap-6 pb-24">
         {step === "capture" ? (
           captureMode === "record" ? (
             <RecordStage

@@ -274,7 +274,7 @@ function StepSayIt({ onNext }: { onNext: () => void }) {
           posted yet.
         </h1>
 
-        <div className="flex flex-col items-center gap-4 py-4">
+        <div className="flex flex-col items-start gap-4 py-4">
           <button
             type="button"
             aria-label={mic === "recording" ? "Recording a 3 second trial" : "Hold to try recording"}
@@ -303,7 +303,7 @@ function StepSayIt({ onNext }: { onNext: () => void }) {
           </button>
 
           {mic === "denied" ? (
-            <div className="flex flex-col items-center gap-2 text-center">
+            <div className="flex flex-col items-start gap-2 text-left">
               <p className="type-body-sm max-w-[34ch] text-ink-muted">
                 AKINTI needs the microphone to record. You can still upload audio you already have.
               </p>
@@ -318,7 +318,7 @@ function StepSayIt({ onNext }: { onNext: () => void }) {
               </details>
             </div>
           ) : (
-            <p className="type-body-sm max-w-[30ch] text-center text-ink-muted">
+            <p className="type-body-sm max-w-[30ch] text-left text-ink-muted">
               Hold to try it. We keep nothing until you choose to publish.
             </p>
           )}
