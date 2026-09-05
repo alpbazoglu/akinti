@@ -118,11 +118,13 @@ export {
   ADVANCED_EQ_BANDS,
   ADVANCED_EQ_MAX_GAIN_DB,
   ENHANCEMENT_PRESETS,
+  PRO_ENHANCEMENT_PRESETS,
   clampEqGain,
   createAdvancedEqGraph,
   createPreviewGraph,
   defaultAdvancedEqSettings,
   getEnhancementPreset,
+  isProOnlyEnhancementPresetId,
   type AdvancedEqBandHz,
   type AdvancedEqSettings,
   type EnhancementPreset,
@@ -132,6 +134,8 @@ export {
   type PreviewCompressorStep,
   type PreviewConvolverStep,
   type PreviewGainStep,
+  type ProEnhancementPreset,
+  type ProEnhancementPresetId,
 } from "./enhancement";
 export {
   WAVE_CATEGORY_OPTIONS,

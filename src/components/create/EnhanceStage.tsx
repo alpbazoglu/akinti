@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { EnhancementPicker, Waveform } from "@/components/audio";
+import { ProGate } from "@/components/pro/ProGate";
 import { Button } from "@/components/ui";
 import {
+  PRO_ENHANCEMENT_PRESETS,
   REVIEW_PEAK_BUCKETS,
   decodeTake,
   renderPolishedPeaks,
@@ -61,6 +63,9 @@ export function EnhanceStage({
   const [polishedPeaks, setPolishedPeaks] = useState<readonly number[] | null>(null);
   const [mode, setMode] = useState<PolishMode>("polished");
   const [morphing, setMorphing] = useState(false);
+  // The paywall moment (PRODUCT_V2 §4/§5): which Pro-only sound's row was
+  // tapped, so `ProGate`'s opening line can name it — `null` means closed.
+  const [proGateFeature, setProGateFeature] = useState<string | null>(null);
 
   // Decode once, render per preset. Both are cancelled cleanly if the user
   // moves on before the render finishes.
@@ -151,6 +156,37 @@ export function EnhanceStage({
         advancedEq={advancedEq}
         onAdvancedEqChange={onAdvancedEqChange}
         onModeChange={handleModeChange}
+      />
+
+      {/* AKINTI Pro sounds (PRODUCT_V2 §4/§5): the same 56px row as the six
+          free sounds above, marked "Pro". Tapping one never selects it —
+          it opens the paywall moment instead (`ProGate`), the sheet that
+          explains AKINTI Pro and links to the real Pro screen. There is no
+          modal on app open, ever: this only ever opens from this tap. */}
+      <div role="group" aria-label="AKINTI Pro sounds" className="flex flex-col">
+        {PRO_ENHANCEMENT_PRESETS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setProGateFeature(item.label)}
+            className={cn(
+              "flex h-14 items-center gap-4 border-t border-hairline px-3 text-left",
+              "transition-colors duration-[--dur-micro] hover:bg-paper-sunk/50",
+              "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+            )}
+          >
+            <span aria-hidden="true" className="size-3 shrink-0 rounded-full border border-hairline-strong" />
+            <span className="type-subhead min-w-28 text-ink">{item.label}</span>
+            <span className="type-caption truncate text-ink-subtle">{item.description}</span>
+            <span className="type-caption ml-auto shrink-0 text-ink-subtle">Pro</span>
+          </button>
+        ))}
+      </div>
+
+      <ProGate
+        open={proGateFeature !== null}
+        onClose={() => setProGateFeature(null)}
+        featureLabel={proGateFeature ?? undefined}
       />
 
       <Button size="lg" fullWidth onClick={onContinue}>
