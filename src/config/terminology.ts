@@ -81,6 +81,7 @@ export const TERMS = {
   upload: "Upload",
 
   /* Navigation */
+  flow: "Flow",
   home: "Home",
   explore: "Explore",
   create: "Create",

@@ -9,6 +9,7 @@ import { useCurrentUser } from "@/lib/auth";
 import { useUnreadMessages } from "@/lib/messages";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
+import { useFlowNewCount } from "@/components/flow";
 
 import { KEYBOARD_ITEMS } from "./navItems";
 
@@ -35,6 +36,7 @@ export function BottomNav({ badges, className }: BottomNavProps) {
   const pathname = usePathname();
   const { profile } = useCurrentUser();
   const { count: unreadMessages } = useUnreadMessages(profile?.id ?? null);
+  const flowNew = useFlowNewCount(profile?.id ?? null);
 
   return (
     <nav
@@ -55,7 +57,9 @@ export function BottomNav({ badges, className }: BottomNavProps) {
                 : routes.login(pathname)
               : item.href;
           const active = isActiveRoute(pathname, href);
-          const badge = badges?.[item.key] ?? (item.key === "messages" ? unreadMessages : 0);
+          const badge =
+            badges?.[item.key] ??
+            (item.key === "messages" ? unreadMessages : item.key === "flow" ? flowNew : 0);
 
           if (item.record) {
             return (

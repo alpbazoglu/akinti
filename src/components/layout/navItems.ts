@@ -1,4 +1,4 @@
-import { Compass, House, MessageCircle, User, type IconComponent } from "@/components/ui/icons";
+import { Compass, House, MessageCircle, Play, User, type IconComponent } from "@/components/ui/icons";
 
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
@@ -18,13 +18,17 @@ export interface NavItem {
 }
 
 /**
- * The keyboard (§8.1): Home, Explore, Record, Messages, You.
+ * The keyboard (§8.1): Flow, Home, Explore, Record, Messages, You.
  *
- * Five keys, labels always visible at 11px. Notifications moved to the top bar
- * when Messages took its slot: Messages is a conversation the reader owes a
- * reply to, Notifications is a log, and the thumb belongs to the former.
+ * Six keys, labels always visible at 11px. Flow (`docs/FLOW.md`, founder
+ * decision 6 Sept 2026) is the full-screen continuous feed and the default
+ * screen after login; Home keeps the original follow-only list. Notifications
+ * moved to the top bar when Messages took its slot: Messages is a
+ * conversation the reader owes a reply to, Notifications is a log, and the
+ * thumb belongs to the former.
  */
 export const KEYBOARD_ITEMS: readonly NavItem[] = [
+  { key: "flow", label: TERMS.flow, href: routes.flow(), icon: Play },
   { key: "home", label: TERMS.home, href: routes.home(), icon: House },
   { key: "explore", label: TERMS.explore, href: routes.explore(), icon: Compass },
   { key: "create", label: TERMS.record, href: routes.create(), record: true },

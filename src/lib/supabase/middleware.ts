@@ -10,7 +10,7 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL, isSupabaseConfigured } from "./config"
  * Refresh the Supabase session for an incoming request, then apply the route
  * protection matrix (spec §8/§32): unauthenticated → `/login?next=`,
  * authenticated-but-not-onboarded → `/onboarding`, authenticated visiting
- * `/login`/`/signup` → home. Public routes (`isPublicRoute`,
+ * `/login`/`/signup` → Flow (`docs/FLOW.md`). Public routes (`isPublicRoute`,
  * `src/config/routes.ts`) are never redirected — browsing them is not gated.
  *
  * This is a UX convenience, not the authorization boundary: it can run on a
@@ -59,7 +59,9 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   const { pathname, search } = request.nextUrl;
 
   if (userId && (pathname === routes.login() || pathname === routes.signup())) {
-    return redirectWithCookies(new URL(routes.home(), request.url), response);
+    // Flow (`docs/FLOW.md`, founder decision 6 Sept 2026) is the default
+    // screen after login; the follow-only list stays reachable as Home.
+    return redirectWithCookies(new URL(routes.flow(), request.url), response);
   }
 
   if (!isPublicRoute(pathname)) {

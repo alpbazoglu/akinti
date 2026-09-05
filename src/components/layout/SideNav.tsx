@@ -11,6 +11,7 @@ import { useUnreadNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
 import { Bell, Settings } from "@/components/ui/icons";
+import { useFlowNewCount } from "@/components/flow";
 
 import { RAIL_ITEMS } from "./navItems";
 import { UserMenu } from "./UserMenu";
@@ -33,6 +34,7 @@ export function SideNav({ badges, className }: SideNavProps) {
   const { profile } = useCurrentUser();
   const { count: unreadNotifications } = useUnreadNotifications(profile?.id ?? null);
   const { count: unreadMessages } = useUnreadMessages(profile?.id ?? null);
+  const flowNew = useFlowNewCount(profile?.id ?? null);
 
   const railLink = cn(
     "akinti-press flex h-12 items-center gap-4 rounded-key px-3 transition-colors",
@@ -67,7 +69,7 @@ export function SideNav({ badges, className }: SideNavProps) {
                 : item.href;
             const active = isActiveRoute(pathname, href);
             const Icon = item.icon;
-            const liveBadge = item.key === "messages" ? unreadMessages : 0;
+            const liveBadge = item.key === "messages" ? unreadMessages : item.key === "flow" ? flowNew : 0;
             const badge = badges?.[item.key] ?? liveBadge;
 
             return (
