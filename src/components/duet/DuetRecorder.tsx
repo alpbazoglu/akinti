@@ -51,7 +51,6 @@ import { AtismaTurnRecorder } from "./AtismaTurnRecorder";
 import { DuetModePicker } from "./DuetModePicker";
 
 const FALLBACK_PEAKS = new Array(REVIEW_PEAK_BUCKETS).fill(0.2) as number[];
-const UPLOAD_NOT_AVAILABLE = "Duets are recorded live against the original — there's no upload here.";
 
 type Stage = "mode" | "capture" | "review" | "enhance" | "details";
 
@@ -84,7 +83,6 @@ export function DuetRecorder({
 
   const [stage, setStage] = useState<Stage>("mode");
   const [mode, setMode] = useState<DuetMode>("layer");
-  const [notice, setNotice] = useState<string | null>(null);
 
   const [take, setTake] = useState<WorkingTake | null>(null);
   const [trimRange, setTrimRange] = useState<TrimRange | null>(null);
@@ -272,10 +270,12 @@ export function DuetRecorder({
             {mode === "layer" ? (
               <RecordStage
                 onCaptured={(captured) => handleLayerOrCypherCaptured(captured, captured.startOffsetMs)}
-                onUpload={() => setNotice(UPLOAD_NOT_AVAILABLE)}
-                onChooseTrack={() => setNotice(UPLOAD_NOT_AVAILABLE)}
+                onUpload={() => {}}
+                onChooseTrack={() => {}}
                 onClearTrack={() => {}}
                 backingTrack={backingTrack}
+                hideUpload
+                hideChooseTrack
               />
             ) : mode === "cypher" ? (
               <>
@@ -284,10 +284,12 @@ export function DuetRecorder({
                 </p>
                 <RecordStage
                   onCaptured={(captured) => handleLayerOrCypherCaptured(captured, 0)}
-                  onUpload={() => setNotice(UPLOAD_NOT_AVAILABLE)}
-                  onChooseTrack={() => setNotice(UPLOAD_NOT_AVAILABLE)}
+                  onUpload={() => {}}
+                  onChooseTrack={() => {}}
                   onClearTrack={() => {}}
                   backingTrack={null}
+                  hideUpload
+                  hideChooseTrack
                 />
               </>
             ) : (
@@ -299,8 +301,6 @@ export function DuetRecorder({
                 onComplete={handleAtismaComplete}
               />
             )}
-
-            {notice ? <p className="type-caption text-ink-subtle">{notice}</p> : null}
           </section>
         ) : null}
 

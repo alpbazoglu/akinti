@@ -14,12 +14,9 @@
  * take and handed to the parent as a `DuetSegment[]` ready for
  * `publishDuetWave`.
  *
- * `RecordStage` has no "no upload / no track" mode — its `onUpload`/
- * `onChooseTrack` props exist for the ordinary create flow, where both are
- * meaningful. Neither applies to a Duet turn (a Duet is always recorded
- * live, against a fixed original), so both are wired to show an inline note
- * instead of navigating anywhere, rather than forking a component this stage
- * does not own. Reported in this stage's final report as a limitation.
+ * `RecordStage`'s `hideUpload`/`hideChooseTrack` props hide "Upload a file
+ * instead" and "Sing over a track" entirely — neither applies to a Duet turn
+ * (a Duet is always recorded live, against a fixed original).
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -66,7 +63,6 @@ export function AtismaTurnRecorder({
   const [takes, setTakes] = useState<AtismaTurnTake[]>([]);
   const [playing, setPlaying] = useState(false);
   const [assembleError, setAssembleError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,8 +153,6 @@ export function AtismaTurnRecorder({
         setPhase("error");
       });
   };
-
-  const blockedNotice = "Duets are recorded live against the original — there's no upload or track here.";
 
   if (originalLoadError) {
     return <ErrorState title="The original couldn't be loaded" description={originalLoadError} className={className} />;
@@ -269,14 +263,14 @@ export function AtismaTurnRecorder({
           <RecordStage
             key={`turn-${turnIndex}`}
             onCaptured={handleCaptured}
-            onUpload={() => setNotice(blockedNotice)}
-            onChooseTrack={() => setNotice(blockedNotice)}
+            onUpload={() => {}}
+            onChooseTrack={() => {}}
             onClearTrack={() => {}}
             backingTrack={null}
+            hideUpload
+            hideChooseTrack
           />
         )}
-
-        {notice ? <p className="type-caption text-ink-subtle">{notice}</p> : null}
       </div>
 
       <audio

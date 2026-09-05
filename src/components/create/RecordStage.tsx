@@ -57,6 +57,19 @@ export interface RecordStageProps {
   onChooseTrack: () => void;
   onClearTrack: () => void;
   backingTrack: RecordStageBackingTrack | null;
+  /**
+   * Hide "Upload a file instead" entirely, rather than showing it and having
+   * `onUpload` explain why it does nothing. A Duet is always recorded live
+   * against a fixed original — there is no upload path to switch to.
+   */
+  hideUpload?: boolean;
+  /**
+   * Hide "Sing over a track" entirely (shown only when `backingTrack` is
+   * `null`), for the same reason: an atışma/cypher turn has no separate track
+   * to choose. `layer` mode still shows the original as `backingTrack`, which
+   * is unaffected by this flag.
+   */
+  hideChooseTrack?: boolean;
   className?: string;
 }
 
@@ -93,6 +106,8 @@ export function RecordStage({
   onChooseTrack,
   onClearTrack,
   backingTrack,
+  hideUpload = false,
+  hideChooseTrack = false,
   className,
 }: RecordStageProps) {
   const store = usePlaybackStore();
@@ -455,7 +470,7 @@ export function RecordStage({
             onClear={onClearTrack}
             disabled={live || counting}
           />
-        ) : (
+        ) : hideChooseTrack ? null : (
           <RailRow>
             <button
               type="button"
@@ -521,17 +536,19 @@ export function RecordStage({
           </RailRow>
         ) : null}
 
-        <RailRow>
-          <button
-            type="button"
-            onClick={onUpload}
-            disabled={live || counting}
-            className="type-body-sm flex w-full items-center gap-3 text-left text-ink disabled:opacity-55"
-          >
-            <Upload className="size-4 shrink-0 text-ink-subtle" aria-hidden="true" />
-            Upload a file instead
-          </button>
-        </RailRow>
+        {hideUpload ? null : (
+          <RailRow>
+            <button
+              type="button"
+              onClick={onUpload}
+              disabled={live || counting}
+              className="type-body-sm flex w-full items-center gap-3 text-left text-ink disabled:opacity-55"
+            >
+              <Upload className="size-4 shrink-0 text-ink-subtle" aria-hidden="true" />
+              Upload a file instead
+            </button>
+          </RailRow>
+        )}
       </div>
     </section>
   );
