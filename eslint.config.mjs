@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Python virtualenv / vendored deps for sidecar/ (sidecar/README.md) —
+    // never JS/TS, and large enough that lint had no business walking them.
+    "sidecar/.venv/**",
+    "sidecar/**/site-packages/**",
   ]),
 ]);
 
