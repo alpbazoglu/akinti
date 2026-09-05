@@ -17,14 +17,22 @@
  * `RecordStage`'s `hideUpload`/`hideChooseTrack` props hide "Upload a file
  * instead" and "Sing over a track" entirely — neither applies to a Duet turn
  * (a Duet is always recorded live, against a fixed original).
+ *
+ * The original plays through the single global playback store, the same as
+ * every other Wave in this product (CLAUDE.md: "exactly one global playback
+ * store and one `<audio>`") rather than a raw `<audio>` element of its own —
+ * a synthetic `atisma-original:<assetId>` id keeps it out of `PersistentPlayer`
+ * (which already excludes `backing-track:` ids the same way) while still
+ * routing through the one media element everything else shares.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Waveform } from "@/components/audio";
 import { RecordStage, type CapturedTake } from "@/components/create";
 import { Button, ErrorState } from "@/components/ui";
 import { Pause, Play } from "@/components/ui/icons";
+import { usePlaybackStore, useWaveControls, useWavePlayback } from "@/lib/audio";
 import { formatDuration } from "@/lib/ui";
 import type { DuetSegment } from "@/types/domain";
 
@@ -53,7 +61,8 @@ export function AtismaTurnRecorder({
   onComplete,
   className,
 }: AtismaTurnRecorderProps) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const store = usePlaybackStore();
+  const waveId = useMemo(() => `atisma-original:${originalAssetId}`, [originalAssetId]);
 
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [originalLoadError, setOriginalLoadError] = useState<string | null>(null);
@@ -61,8 +70,14 @@ export function AtismaTurnRecorder({
   const [phase, setPhase] = useState<Phase>("setup");
   const [turnIndex, setTurnIndex] = useState(0);
   const [takes, setTakes] = useState<AtismaTurnTake[]>([]);
-  const [playing, setPlaying] = useState(false);
   const [assembleError, setAssembleError] = useState<string | null>(null);
+
+  const { toggle } = useWaveControls(waveId, originalUrl ?? "", {
+    title: originalTitle,
+    duration: originalDurationMs / 1000,
+    assetId: originalAssetId,
+  });
+  const playback = useWavePlayback(waveId, originalDurationMs / 1000);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +95,14 @@ export function AtismaTurnRecorder({
       cancelled = true;
     };
   }, [originalAssetId]);
+
+  // Leave the original paused when this recorder unmounts (a turn change,
+  // navigating away) rather than letting it keep playing out of the store.
+  useEffect(() => {
+    return () => {
+      if (store.getState().waveId === waveId) store.pause();
+    };
+  }, [store, waveId]);
 
   const boundaries = useMemo(() => {
     const marks: number[] = [];
@@ -106,12 +129,16 @@ export function AtismaTurnRecorder({
   };
 
   const playTurn = () => {
-    const el = audioRef.current;
-    if (!el || !originalUrl) return;
-    el.currentTime = turnStartMs / 1000;
-    void el.play().catch(() => {
-      // Autoplay was blocked — the Play button below still lets the user start it manually.
+    if (!originalUrl) return;
+    // Seek to this turn's start before/while (re)starting playback of the
+    // same Wave — the store's own segment-range convention (RecordStage's
+    // backing-track transport does the same `play` + `seek` pairing).
+    store.play(waveId, originalUrl, {
+      title: originalTitle,
+      duration: originalDurationMs / 1000,
+      assetId: originalAssetId,
     });
+    store.seek(turnStartMs / 1000);
   };
 
   useEffect(() => {
@@ -119,15 +146,20 @@ export function AtismaTurnRecorder({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per turn transition, not on every originalUrl/turnStartMs re-render
   }, [phase, turnIndex]);
 
-  const handleTimeUpdate = () => {
-    const el = audioRef.current;
-    if (!el || phase !== "listening") return;
-    if (el.currentTime * 1000 >= turnEndMs) {
-      el.pause();
-      setPlaying(false);
-      setPhase("recording");
+  // Segment-range playback: stop exactly at this turn's end, the same
+  // boundary the raw `<audio onTimeUpdate>` handler used to enforce.
+  useEffect(() => {
+    if (phase !== "listening" || !playback.isActive) return;
+    if (playback.currentTime * 1000 >= turnEndMs) {
+      store.pause();
     }
-  };
+  }, [phase, playback.isActive, playback.currentTime, turnEndMs, store]);
+
+  // "Skip ahead and record my reply" and entering the recording phase must
+  // never leave the original audible into the mic (review2 #4).
+  useEffect(() => {
+    if (phase === "recording" && store.getState().waveId === waveId) store.pause();
+  }, [phase, store, waveId]);
 
   const handleCaptured = (take: CapturedTake) => {
     const nextTakes = [...takes, { blob: take.blob, durationMs: take.durationMs }];
@@ -152,6 +184,11 @@ export function AtismaTurnRecorder({
         setAssembleError("Your replies couldn't be put together. Try recording this atışma again.");
         setPhase("error");
       });
+  };
+
+  const skipToRecording = () => {
+    if (store.getState().waveId === waveId) store.pause();
+    setPhase("recording");
   };
 
   if (originalLoadError) {
@@ -193,9 +230,6 @@ export function AtismaTurnRecorder({
             {originalUrl ? "Start the first turn" : "Loading the original…"}
           </Button>
         </div>
-        <audio ref={audioRef} src={originalUrl ?? undefined}>
-          <track kind="captions" />
-        </audio>
       </section>
     );
   }
@@ -240,22 +274,12 @@ export function AtismaTurnRecorder({
             <Button
               variant="secondary"
               size="lg"
-              leadingIcon={playing ? <Pause className="size-4" /> : <Play className="size-4" />}
-              onClick={() => {
-                const el = audioRef.current;
-                if (!el) return;
-                if (playing) {
-                  el.pause();
-                  setPlaying(false);
-                } else {
-                  void el.play();
-                  setPlaying(true);
-                }
-              }}
+              leadingIcon={playback.isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
+              onClick={toggle}
             >
-              {playing ? "Playing their turn" : "Play their turn"}
+              {playback.isPlaying ? "Playing their turn" : "Play their turn"}
             </Button>
-            <Button variant="ghost" onClick={() => setPhase("recording")}>
+            <Button variant="ghost" onClick={skipToRecording}>
               Skip ahead and record my reply
             </Button>
           </div>
@@ -272,16 +296,6 @@ export function AtismaTurnRecorder({
           />
         )}
       </div>
-
-      <audio
-        ref={audioRef}
-        src={originalUrl ?? undefined}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={() => setPlaying(false)}
-        onPause={() => setPlaying(false)}
-      >
-        <track kind="captions" />
-      </audio>
     </section>
   );
 }

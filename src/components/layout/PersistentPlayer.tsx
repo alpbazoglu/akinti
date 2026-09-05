@@ -53,11 +53,13 @@ interface ActivePlayback {
 
 /**
  * A reference track playing behind an active recording (`RecordStage`'s
- * "sing over a track") is not a Wave the reader is listening to — the strip
- * never claims one of these, whatever page it is mounted on.
+ * "sing over a track") or the original Wave being replayed turn-by-turn
+ * inside an atışma capture (`AtismaTurnRecorder`) is not a Wave the reader is
+ * listening to — the strip never claims one of these, whatever page it is
+ * mounted on.
  */
 function isBackingTrackId(waveId: string): boolean {
-  return waveId.startsWith("backing-track:");
+  return waveId.startsWith("backing-track:") || waveId.startsWith("atisma-original:");
 }
 
 function useActivePlayback(): ActivePlayback | null {
