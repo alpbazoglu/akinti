@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useReducer, useState } from "react";
+import Link from "next/link";
 import { Compass } from "lucide-react";
 
 import { loadExploreCategory } from "@/app/(app)/explore/actions";
+import { routes } from "@/config/routes";
+import { TERMS } from "@/config/terminology";
 import { Button, EmptyState, Tabs, tabPanelId, tabId } from "@/components/ui";
 import type { WaveCardContainerWave } from "@/components/wave";
 import { EXPLORE_CATEGORIES, EXPLORE_CATEGORY_META, createInitialFeedState, feedReducer, type ExploreCategory } from "@/lib/feed";
@@ -39,18 +42,28 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
 
   const loadCategory = useCallback((category: ExploreCategory, cursor: string | null) => {
     dispatch({ type: "start", category });
-    void loadExploreCategory(category, cursor).then((result) => {
-      if (result.ok && result.data) {
-        dispatch({
-          type: "success",
-          category,
-          items: result.data.items,
-          cursor: result.data.nextCursor,
-        });
-      } else {
-        dispatch({ type: "error", category, error: result.error ?? "Could not load this category." });
-      }
-    });
+    void loadExploreCategory(category, cursor).then(
+      (result) => {
+        if (result.ok && result.data) {
+          dispatch({
+            type: "success",
+            category,
+            items: result.data.items,
+            cursor: result.data.nextCursor,
+          });
+        } else {
+          dispatch({ type: "error", category, error: result.error ?? "Could not load this category." });
+        }
+      },
+      // The Server Action call itself can reject — a network drop, a dev-server
+      // chunk error, anything short of the `{ ok, error }` contract
+      // `loadExploreCategory` returns for its own handled failures. Without
+      // this, a tab that hits one of those never leaves "loading": nothing
+      // else transitions its status away from the skeleton it started in.
+      () => {
+        dispatch({ type: "error", category, error: "Could not load this category. Check your connection and try again." });
+      },
+    );
   }, []);
 
   const handleTabChange = useCallback(
@@ -117,7 +130,14 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
                 <Button variant="secondary" size="sm" onClick={() => loadCategory(active, null)}>
                   Try again
                 </Button>
-              ) : undefined
+              ) : (
+                <Link
+                  href={routes.create()}
+                  className="text-sm font-medium text-accent underline underline-offset-2"
+                >
+                  Be the first — record a {TERMS.wave}
+                </Link>
+              )
             }
           />
         ) : (

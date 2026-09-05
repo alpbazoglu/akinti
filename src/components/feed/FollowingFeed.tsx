@@ -26,13 +26,21 @@ export function FollowingFeed({ initialItems, initialCursor }: FollowingFeedProp
     }
     const cursor = state.cursor;
     dispatch({ type: "loadMoreStart" });
-    void loadFollowingFeed(cursor).then((result) => {
-      if (result.ok && result.data) {
-        dispatch({ type: "loadMoreSuccess", items: result.data.items, cursor: result.data.nextCursor });
-      } else {
-        dispatch({ type: "loadMoreError", error: result.error ?? "Could not load more Waves. Try again." });
-      }
-    });
+    void loadFollowingFeed(cursor).then(
+      (result) => {
+        if (result.ok && result.data) {
+          dispatch({ type: "loadMoreSuccess", items: result.data.items, cursor: result.data.nextCursor });
+        } else {
+          dispatch({ type: "loadMoreError", error: result.error ?? "Could not load more Waves. Try again." });
+        }
+      },
+      // A rejected Server Action call (network drop, dev-server chunk error)
+      // must still leave "loading", or the list is stuck showing a skeleton
+      // forever with no way to retry — see the identical fix in `ExploreView`.
+      () => {
+        dispatch({ type: "loadMoreError", error: "Could not load more Waves. Check your connection and try again." });
+      },
+    );
   }, [state.cursor, state.status]);
 
   return (
