@@ -1,6 +1,5 @@
 
 import { PageHeader } from "@/components/layout";
-import { EmptyState } from "@/components/ui";
 import { SearchView } from "@/components/feed";
 import type { WaveCardContainerWave } from "@/components/wave";
 import { TERMS } from "@/config/terminology";
@@ -18,11 +17,12 @@ interface SearchPageProps {
 }
 
 /**
- * `/search?q=` (spec s24): server-rendered first page (so a shared
- * `/search?q=x` link and `curl` both get real results, not an empty shell),
- * `SearchView` takes over for further typing with a debounced re-search.
- * Public, like Explore — an anonymous visitor still gets exactly the
- * RLS-visible slice via `searchAll` (`src/lib/db/search.ts`).
+ * Search (SCREENS.md §4).
+ *
+ * The first page of results is rendered on the server, so a shared
+ * `/search?q=…` link opens on real results rather than an empty shell;
+ * `SearchView` takes over for further typing. Public, like Explore: an
+ * anonymous visitor gets exactly the slice RLS allows, never a special case.
  */
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const { q } = await searchParams;
@@ -32,10 +32,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     return (
       <>
         <PageHeader title={TERMS.search} />
-        <EmptyState
-          title="This isn't connected to a backend yet"
-          description="Supabase environment variables aren't set, so search can't run here."
-        />
+        <p className="akinti-page type-body measure text-ink-muted">
+          Search isn&apos;t reachable from this build.
+        </p>
       </>
     );
   }
@@ -51,15 +50,20 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       const result = await searchAll(supabase, { query, limit: 20 });
       profiles = result.profiles;
       waves = await hydrateWaveCards(supabase, result.waves, user?.id ?? null);
-    } catch (error) {
-      loadError = error instanceof Error ? error.message : "Something went wrong.";
+    } catch {
+      loadError = "Search didn't run. Try again.";
     }
   }
 
   return (
     <>
       <PageHeader title={TERMS.search} />
-      <SearchView initialQuery={query} initialProfiles={profiles} initialWaves={waves} initialError={loadError} />
+      <SearchView
+        initialQuery={query}
+        initialProfiles={profiles}
+        initialWaves={waves}
+        initialError={loadError}
+      />
     </>
   );
 }

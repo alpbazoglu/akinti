@@ -1,14 +1,20 @@
 "use client";
 
-import { useCallback, useReducer, useState } from "react";
 import Link from "next/link";
+import { useCallback, useReducer, useState } from "react";
 
 import { loadExploreCategory } from "@/app/(app)/explore/actions";
+import { Tabs, tabId, tabPanelId } from "@/components/ui";
+import type { WaveCardContainerWave } from "@/components/wave";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
-import { Button, EmptyState, Tabs, tabPanelId, tabId } from "@/components/ui";
-import type { WaveCardContainerWave } from "@/components/wave";
-import { EXPLORE_CATEGORIES, EXPLORE_CATEGORY_META, createInitialFeedState, feedReducer, type ExploreCategory } from "@/lib/feed";
+import {
+  EXPLORE_CATEGORIES,
+  EXPLORE_CATEGORY_META,
+  createInitialFeedState,
+  feedReducer,
+  type ExploreCategory,
+} from "@/lib/feed";
 
 import { WaveFeedList } from "./WaveFeedList";
 
@@ -24,11 +30,49 @@ const TAB_ITEMS = EXPLORE_CATEGORIES.map((key) => ({
 }));
 
 /**
- * Explore's category tabs + Wave list (spec s10). One `feedReducer` instance
- * per mounted category tab (`useReducer` keyed by category via a `Map`),
- * loaded lazily the first time a tab is opened — so switching tabs never
- * re-fetches a category the viewer already loaded, and nothing beyond the
- * active tab's first page fetches eagerly (spec s35).
+ * What each lane says when it has nothing, and the one action that repairs
+ * it. Never "No data" and never a shrug (§8.14, `mobile-guidelines.md` 6-7).
+ */
+const EMPTY_COPY: Readonly<
+  Record<ExploreCategory, { line: string; action: { label: string; href: string } }>
+> = {
+  trending: {
+    line: "Nothing is trending yet. Trending needs a few hours of listening behind it.",
+    action: { label: "Hear what is new", href: routes.explore() },
+  },
+  new: {
+    line: "No new Waves in the last while.",
+    action: { label: `Record ${TERMS.aWave}`, href: routes.create() },
+  },
+  rising: {
+    line: "Nothing is rising this hour. Rising resets every 60 minutes.",
+    action: { label: "Show Trending instead", href: routes.explore() },
+  },
+  original: {
+    line: "No original compositions here yet.",
+    action: { label: `Record ${TERMS.aWave}`, href: routes.create() },
+  },
+  voices: {
+    line: "No spoken Waves here yet.",
+    action: { label: `Record ${TERMS.aWave}`, href: routes.create() },
+  },
+  compositions: {
+    line: "No music here yet.",
+    action: { label: `Record ${TERMS.aWave}`, href: routes.create() },
+  },
+  open_for_duet: {
+    line: "Nobody is open for a Duet right now.",
+    action: { label: "Find people to follow", href: routes.explore() },
+  },
+};
+
+/**
+ * Explore's filter row and stream (SCREENS.md §3).
+ *
+ * One 40px row, horizontally scrollable, the active lane marked by a 2px ink
+ * underbar rather than a filled pill (§8.8, §12.4). One `feedReducer` per
+ * lane, loaded the first time that lane is opened, so switching back never
+ * refetches what the reader already has.
  */
 export function ExploreView({ initialCategory, initialItems, initialCursor }: ExploreViewProps) {
   const [active, setActive] = useState<ExploreCategory>(initialCategory);
@@ -37,7 +81,8 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
     initialCategoryStates(initialCategory, initialItems, initialCursor),
   );
 
-  const state = statesByCategory.get(active) ?? createInitialFeedState<WaveCardContainerWave>([], null);
+  const state =
+    statesByCategory.get(active) ?? createInitialFeedState<WaveCardContainerWave>([], null);
 
   const loadCategory = useCallback((category: ExploreCategory, cursor: string | null) => {
     dispatch({ type: "start", category });
@@ -51,16 +96,19 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
             cursor: result.data.nextCursor,
           });
         } else {
-          dispatch({ type: "error", category, error: result.error ?? "Could not load this category." });
+          dispatch({
+            type: "error",
+            category,
+            error: result.error ?? "Couldn't reach the stream.",
+          });
         }
       },
-      // The Server Action call itself can reject — a network drop, a dev-server
-      // chunk error, anything short of the `{ ok, error }` contract
-      // `loadExploreCategory` returns for its own handled failures. Without
-      // this, a tab that hits one of those never leaves "loading": nothing
-      // else transitions its status away from the skeleton it started in.
+      // The Server Action call itself can reject — a network drop, a
+      // dev-server chunk error, anything short of the `{ ok, error }`
+      // contract. Without this, a lane that hits one of those never leaves
+      // "loading": nothing else moves its status away from the skeleton.
       () => {
-        dispatch({ type: "error", category, error: "Could not load this category. Check your connection and try again." });
+        dispatch({ type: "error", category, error: "Couldn't reach the stream." });
       },
     );
   }, []);
@@ -69,12 +117,11 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
     (value: string) => {
       const category = value as ExploreCategory;
       setActive(category);
-      const existing = statesByCategory.get(category);
-      if (!existing) {
+      if (!statesByCategory.get(category)) {
         loadCategory(category, null);
       }
     },
-    [loadCategory, setActive, statesByCategory],
+    [loadCategory, statesByCategory],
   );
 
   const handleLoadMore = useCallback(() => {
@@ -84,60 +131,50 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
     loadCategory(active, state.cursor);
   }, [active, loadCategory, state.cursor, state.status]);
 
-  const baseId = "explore-categories";
+  const baseId = "explore-lanes";
+  const empty = EMPTY_COPY[active];
+  const isEmpty = state.items.length === 0 && state.status !== "loading";
 
   return (
-    <div className="flex flex-col gap-3">
-      <Tabs
-        items={TAB_ITEMS}
-        value={active}
-        onValueChange={handleTabChange}
-        label="Explore categories"
-        idPrefix={baseId}
-        className="px-4 sm:px-5"
-      />
+    <div className="flex flex-col pt-8">
+      <div className="akinti-page sticky top-top-bar z-10 bg-paper md:top-0">
+        <Tabs
+          items={TAB_ITEMS}
+          value={active}
+          onValueChange={handleTabChange}
+          label="Explore lanes"
+          idPrefix={baseId}
+        />
+      </div>
+
       <div
         role="tabpanel"
         id={tabPanelId(baseId, active)}
         aria-labelledby={tabId(baseId, active)}
-        className="focus-visible:outline-2 focus-visible:outline-ring"
+        className="pt-2 focus-visible:outline-2 focus-visible:outline-ink"
       >
-        {state.status === "loading" && state.items.length === 0 ? (
-          <WaveFeedList
-            items={[]}
-            status="loading"
-            error={null}
-            hasMore={false}
-            onLoadMore={() => {}}
-            className="mx-auto w-full max-w-2xl px-4 pb-16 sm:px-5"
-          />
-        ) : state.items.length === 0 && state.status !== "loading" ? (
-          <EmptyState
-            title={
-              state.status === "error"
-                ? "Could not load this category"
-                : `No ${EXPLORE_CATEGORY_META[active].label.toLowerCase()} Waves yet`
-            }
-            description={
-              state.status === "error"
-                ? (state.error ?? "Try again.")
-                : EXPLORE_CATEGORY_META[active].description
-            }
-            action={
-              state.status === "error" ? (
-                <Button variant="secondary" size="sm" onClick={() => loadCategory(active, null)}>
-                  Try again
-                </Button>
-              ) : (
-                <Link
-                  href={routes.create()}
-                  className="text-sm font-medium text-accent underline underline-offset-2"
-                >
-                  Be the first — record a {TERMS.wave}
-                </Link>
-              )
-            }
-          />
+        {isEmpty ? (
+          <div className="akinti-page flex flex-col items-start gap-4 py-8">
+            <p className="type-body measure text-ink">
+              {state.status === "error" ? (state.error ?? "Couldn't reach the stream.") : empty.line}
+            </p>
+            {state.status === "error" ? (
+              <button
+                type="button"
+                onClick={() => loadCategory(active, null)}
+                className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                Try again
+              </button>
+            ) : (
+              <Link
+                href={empty.action.href}
+                className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                {empty.action.label}
+              </Link>
+            )}
+          </div>
         ) : (
           <WaveFeedList
             items={state.items}
@@ -145,7 +182,7 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
             error={state.error}
             hasMore={state.cursor !== null}
             onLoadMore={handleLoadMore}
-            className="mx-auto w-full max-w-2xl px-4 pb-16 sm:px-5"
+            endLabel="That is the end of this lane."
           />
         )}
       </div>
@@ -154,14 +191,22 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
 }
 
 /* -------------------------------------------------------------------------- */
-/* Local state: one FeedState per category, keyed by category                 */
+/* Local state: one FeedState per lane, keyed by lane                          */
 /* -------------------------------------------------------------------------- */
 
-type CategoryStates = Map<ExploreCategory, ReturnType<typeof createInitialFeedState<WaveCardContainerWave>>>;
+type CategoryStates = Map<
+  ExploreCategory,
+  ReturnType<typeof createInitialFeedState<WaveCardContainerWave>>
+>;
 
 type CategoriesAction =
   | { type: "start"; category: ExploreCategory }
-  | { type: "success"; category: ExploreCategory; items: WaveCardContainerWave[]; cursor: string | null }
+  | {
+      type: "success";
+      category: ExploreCategory;
+      items: WaveCardContainerWave[];
+      cursor: string | null;
+    }
   | { type: "error"; category: ExploreCategory; error: string };
 
 function initialCategoryStates(
@@ -175,7 +220,8 @@ function initialCategoryStates(
 }
 
 function categoriesReducer(state: CategoryStates, action: CategoriesAction): CategoryStates {
-  const current = state.get(action.category) ?? createInitialFeedState<WaveCardContainerWave>([], null);
+  const current =
+    state.get(action.category) ?? createInitialFeedState<WaveCardContainerWave>([], null);
   const next = new Map(state);
   switch (action.type) {
     case "start":
@@ -184,14 +230,20 @@ function categoriesReducer(state: CategoryStates, action: CategoriesAction): Cat
     case "success":
       next.set(
         action.category,
-        feedReducer(current, { type: "loadMoreSuccess", items: action.items, cursor: action.cursor }),
+        feedReducer(current, {
+          type: "loadMoreSuccess",
+          items: action.items,
+          cursor: action.cursor,
+        }),
       );
       return next;
     case "error":
-      next.set(action.category, feedReducer(current, { type: "loadMoreError", error: action.error }));
+      next.set(
+        action.category,
+        feedReducer(current, { type: "loadMoreError", error: action.error }),
+      );
       return next;
     default:
       return state;
   }
 }
-

@@ -7,7 +7,7 @@ import { UserCheck, UserPlus } from "@/components/ui/icons";
 import { cancelFollowRequest, follow, unfollow } from "@/app/(app)/u/[username]/actions";
 import { routes } from "@/config/routes";
 import type { FollowStatus } from "@/types/domain";
-import { Button } from "@/components/ui";
+import { Button, type ButtonSize } from "@/components/ui";
 import { resolveFollowButtonState } from "@/lib/ui";
 
 export interface FollowButtonProps {
@@ -15,6 +15,10 @@ export interface FollowButtonProps {
   initialFollowStatus: FollowStatus | null;
   isSignedIn: boolean;
   followsViewer?: boolean;
+  /** `sm` on a profile header, `xs` inside the Explore creator tile. */
+  size?: ButtonSize;
+  /** Drops the leading glyph where the key has to fit a 128px tile. */
+  hideIcon?: boolean;
   className?: string;
 }
 
@@ -29,6 +33,8 @@ export function FollowButton({
   initialFollowStatus,
   isSignedIn,
   followsViewer = false,
+  size = "sm",
+  hideIcon = false,
   className,
 }: FollowButtonProps) {
   const router = useRouter();
@@ -89,17 +95,22 @@ export function FollowButton({
       <Button
         type="button"
         variant={state.isMuted ? "secondary" : "primary"}
-        size="sm"
+        size={size}
+        fullWidth={hideIcon}
         onClick={handleClick}
         loading={isPending}
         leadingIcon={
-          state.isMuted ? <UserCheck className="size-4" /> : <UserPlus className="size-4" />
+          hideIcon ? undefined : state.isMuted ? (
+            <UserCheck className="size-4" />
+          ) : (
+            <UserPlus className="size-4" />
+          )
         }
       >
         {state.label}
       </Button>
       {error ? (
-        <p role="alert" className="mt-1 text-xs text-danger">
+        <p role="alert" className="type-caption mt-1 text-signal-deep">
           {error}
         </p>
       ) : null}
