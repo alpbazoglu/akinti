@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { Flag } from "lucide-react";
 
-import { Badge, EmptyState, type BadgeTone } from "@/components/ui";
+import { Badge, EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { formatAbsoluteTime } from "@/lib/ui";
 import type { Report, ReportReason, ReportStatus, ReportTargetType } from "@/types/domain";
@@ -23,13 +22,6 @@ const TARGET_LABELS: Record<ReportTargetType, string> = {
   message: "Message",
 };
 
-const STATUS_TONES: Record<ReportStatus, BadgeTone> = {
-  open: "warning",
-  reviewing: "accent",
-  actioned: "success",
-  dismissed: "neutral",
-};
-
 const STATUS_LABELS: Record<ReportStatus, string> = {
   open: "Open",
   reviewing: "Reviewing",
@@ -48,7 +40,6 @@ export function ReportQueueList({ reports, selectedReportId, queryString }: Repo
   if (reports.length === 0) {
     return (
       <EmptyState
-        icon={<Flag className="size-5" />}
         title="Nothing in the queue"
         description="No reports match these filters right now."
       />
@@ -74,7 +65,7 @@ export function ReportQueueList({ reports, selectedReportId, queryString }: Repo
                 <span className="text-sm font-medium text-fg">
                   {TARGET_LABELS[report.targetType]} · {REASON_LABELS[report.reason]}
                 </span>
-                <Badge tone={STATUS_TONES[report.status]}>{STATUS_LABELS[report.status]}</Badge>
+                <Badge>{STATUS_LABELS[report.status]}</Badge>
               </div>
               {report.details ? (
                 <p className="line-clamp-2 text-sm text-fg-muted">{report.details}</p>

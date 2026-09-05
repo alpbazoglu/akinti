@@ -5,24 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { claimReportAction, dismissReportAction, resolveReportAction } from "@/app/(app)/moderation/actions";
-import { Badge, Button, Select, Sheet, Textarea, useToast, type BadgeTone, type SelectOption } from "@/components/ui";
+import { Badge, Button, Select, Sheet, Textarea, useToast, type SelectOption } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { applicableActionsFor, canTransition } from "@/lib/moderation/stateMachine";
 import { formatAbsoluteTime } from "@/lib/ui";
-import type { ModerationActionType, ReportStatus } from "@/types/domain";
+import type { ModerationActionType } from "@/types/domain";
 
 import type { ReportDetail } from "@/lib/db/moderation";
 
 export interface ReportDetailSheetProps {
   detail: ReportDetail;
 }
-
-const STATUS_TONES: Record<ReportStatus, BadgeTone> = {
-  open: "warning",
-  reviewing: "accent",
-  actioned: "success",
-  dismissed: "neutral",
-};
 
 const ACTION_LABELS: Record<ModerationActionType, string> = {
   none: "No action (reviewed only)",
@@ -123,7 +116,7 @@ export function ReportDetailSheet({ detail }: ReportDetailSheetProps) {
     >
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between gap-3">
-          <Badge tone={STATUS_TONES[report.status]}>{report.status}</Badge>
+          <Badge>{report.status}</Badge>
           <span className="text-xs text-fg-subtle">Reason: {report.reason}</span>
         </div>
 

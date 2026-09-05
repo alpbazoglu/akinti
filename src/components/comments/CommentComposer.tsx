@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "@/components/ui/icons";
 
 import { createComment } from "@/app/(app)/w/[id]/interactions";
 import { emitAnalyticsEvent } from "@/lib/metrics";

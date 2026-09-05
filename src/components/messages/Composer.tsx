@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { Mic, Send, TriangleAlert, X } from "lucide-react";
+import { Mic, Send, TriangleAlert, X } from "@/components/ui/icons";
 
 import {
   createMessageAudioTicket,

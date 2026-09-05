@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/components/ui/icons";
 
 import { updatePrivacy } from "@/app/(app)/settings/actions";
 import { routes } from "@/config/routes";
@@ -118,7 +118,7 @@ export function PrivacyForm({
             <span className="flex items-center gap-2 text-fg">
               Pending follow requests
               {pendingFollowRequestCount > 0 ? (
-                <Badge tone="accent">{pendingFollowRequestCount}</Badge>
+                <Badge>{pendingFollowRequestCount}</Badge>
               ) : null}
             </span>
             <ChevronRight className="size-4 text-fg-subtle" aria-hidden="true" />

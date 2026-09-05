@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Ban, Flag, MoreHorizontal } from "lucide-react";
+import { Ban, Flag, MoreHorizontal } from "@/components/ui/icons";
 
 import { block, unblock } from "@/app/(app)/u/[username]/actions";
 import { TERMS } from "@/config/terminology";

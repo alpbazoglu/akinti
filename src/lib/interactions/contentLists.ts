@@ -104,7 +104,7 @@ export async function hydrateContentWaveCards(
       collaborators,
       creationType: wave.creationType,
       audioAssetId: wave.audioAssetId,
-      peaks: resolveWavePeaks(asset?.peaks?.data, wave.audioAssetId),
+      peaks: resolveWavePeaks(asset?.peaks?.data, wave.audioAssetId, asset?.peaks?.bits),
       duration: asset?.durationMs ? asset.durationMs / 1000 : undefined,
       metrics: {
         plays: wave.counts.plays,

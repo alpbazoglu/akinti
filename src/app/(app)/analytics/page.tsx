@@ -49,7 +49,6 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
     <>
       <PageHeader
         title="Analytics"
-        description="Your Plays, listeners and Wave performance. No Likes — ever."
         actions={<RangeSwitcher current={days} section="creator" />}
       />
       {isSupabaseConfigured() ? (

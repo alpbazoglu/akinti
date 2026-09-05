@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "@/components/ui/icons";
 
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";

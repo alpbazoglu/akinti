@@ -1,4 +1,3 @@
-import { AudioLines } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -34,7 +33,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       <>
         <PageHeader title={TERMS.search} />
         <EmptyState
-          icon={<AudioLines className="size-6" />}
           title="This isn't connected to a backend yet"
           description="Supabase environment variables aren't set, so search can't run here."
         />
@@ -60,7 +58,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   return (
     <>
-      <PageHeader title={TERMS.search} description="Creators and Waves that match what you typed, most relevant first." />
+      <PageHeader title={TERMS.search} />
       <SearchView initialQuery={query} initialProfiles={profiles} initialWaves={waves} initialError={loadError} />
     </>
   );

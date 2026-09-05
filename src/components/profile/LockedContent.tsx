@@ -1,4 +1,3 @@
-import { Lock } from "lucide-react";
 
 import { TERMS } from "@/config/terminology";
 import { EmptyState } from "@/components/ui";
@@ -18,7 +17,6 @@ export interface LockedContentProps {
 export function LockedContent({ username, requested = false }: LockedContentProps) {
   return (
     <EmptyState
-      icon={<Lock className="size-6" />}
       title="This profile is private"
       description={
         requested

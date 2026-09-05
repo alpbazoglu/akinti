@@ -70,7 +70,7 @@ export default async function ModerationPage({ searchParams }: ModerationPagePro
 
   return (
     <>
-      <PageHeader title="Moderation queue" description="Reports awaiting review. Nothing is ever auto-actioned." />
+      <PageHeader title="Moderation queue" />
       <div className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
         <ModerationQueueFilters />
         <ReportQueueList

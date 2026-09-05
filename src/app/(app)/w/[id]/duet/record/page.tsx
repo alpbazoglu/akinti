@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { Handshake } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -44,7 +43,6 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
       <>
         <PageHeader title={`Record your ${TERMS.duet}`} />
         <EmptyState
-          icon={<Handshake className="size-6" />}
           title="This isn't connected to a backend yet"
           description="Supabase environment variables aren't set, so Duets can't be recorded here."
         />
@@ -93,7 +91,6 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
     <>
       <PageHeader
         title={`Record your ${TERMS.duet}`}
-        description={`Against "${originalWave.title}" by @${creator?.username ?? "unknown"}`}
       />
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-24 sm:px-5">
         <DuetRecorder
@@ -101,7 +98,7 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
           originalAssetId={original.id}
           originalTitle={originalWave.title}
           originalCreatorUsername={creator?.username ?? "unknown"}
-          originalPeaks={resolveWavePeaks(original.peaks?.data, original.id)}
+          originalPeaks={resolveWavePeaks(original.peaks?.data, original.id, original.peaks?.bits)}
           originalDurationMs={original.durationMs ?? 0}
         />
       </div>
@@ -113,7 +110,7 @@ function UnavailableState({ description }: { description: string }) {
   return (
     <>
       <PageHeader title={`Record your ${TERMS.duet}`} />
-      <EmptyState icon={<Handshake className="size-6" />} title="Can't record this Duet right now" description={description} />
+      <EmptyState title="Can't record this Duet right now" description={description} />
     </>
   );
 }

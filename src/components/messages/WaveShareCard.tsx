@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "@/components/ui/icons";
 
 import { getSharedWaveCard } from "@/app/(app)/messages/actions";
 import { routes } from "@/config/routes";

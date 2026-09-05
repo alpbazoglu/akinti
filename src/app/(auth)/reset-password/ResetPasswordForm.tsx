@@ -14,7 +14,7 @@ export function ResetPasswordForm() {
 
   if (state.ok && state.message) {
     return (
-      <div className="px-5 py-5">
+      <div>
         <EmptyState
           size="sm"
           title="Password updated"
@@ -42,7 +42,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4 px-5 py-5" noValidate>
+    <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-6" noValidate>
       <p className="text-sm text-fg-muted">Choose a new password for your account.</p>
       <Input
         id="password"
@@ -65,7 +65,7 @@ export function ResetPasswordForm() {
       />
 
       {state.formError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="type-body-sm text-signal-deep">
           {state.formError}
         </p>
       ) : null}

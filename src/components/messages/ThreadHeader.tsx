@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/components/ui/icons";
 
 import { routes } from "@/config/routes";
 import { Avatar } from "@/components/ui";

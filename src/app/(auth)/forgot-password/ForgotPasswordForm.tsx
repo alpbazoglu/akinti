@@ -13,7 +13,7 @@ export function ForgotPasswordForm() {
 
   if (state.ok && state.message) {
     return (
-      <div className="px-5 py-5">
+      <div>
         <EmptyState
           size="sm"
           title="Check your email"
@@ -29,7 +29,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 px-5 py-5" noValidate>
+    <form action={formAction} className="flex flex-col gap-6" noValidate>
       <p className="text-sm text-fg-muted">
         Enter the email on your account and we will send you a link to reset your password.
       </p>
@@ -44,7 +44,7 @@ export function ForgotPasswordForm() {
       />
 
       {state.formError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="type-body-sm text-signal-deep">
           {state.formError}
         </p>
       ) : null}

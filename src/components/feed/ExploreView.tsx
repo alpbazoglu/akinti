@@ -2,7 +2,6 @@
 
 import { useCallback, useReducer, useState } from "react";
 import Link from "next/link";
-import { Compass } from "lucide-react";
 
 import { loadExploreCategory } from "@/app/(app)/explore/actions";
 import { routes } from "@/config/routes";
@@ -114,7 +113,6 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
           />
         ) : state.items.length === 0 && state.status !== "loading" ? (
           <EmptyState
-            icon={<Compass className="size-6" />}
             title={
               state.status === "error"
                 ? "Could not load this category"

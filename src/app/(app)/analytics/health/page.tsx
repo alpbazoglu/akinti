@@ -53,7 +53,6 @@ export default async function AnalyticsHealthPage({ searchParams }: HealthPagePr
     <>
       <PageHeader
         title="Product health"
-        description="Platform-wide activation, retention and discovery signals — separate from creator analytics."
         actions={<RangeSwitcher current={days} section="health" />}
       />
       <div className="px-4 pb-8 sm:px-5">

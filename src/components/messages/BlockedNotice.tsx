@@ -1,4 +1,4 @@
-import { Ban } from "lucide-react";
+import { Ban } from "@/components/ui/icons";
 
 /** Shown above a blocked-either-way thread (spec §26) — the composer is disabled alongside this. */
 export function BlockedNotice() {

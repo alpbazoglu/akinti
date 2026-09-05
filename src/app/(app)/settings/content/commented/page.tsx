@@ -1,4 +1,3 @@
-import { MessageSquare } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -33,13 +32,12 @@ export default async function CommentedContentPage() {
 
   return (
     <>
-      <PageHeader title="Commented" description={`${TERMS.waves} you've left a ${TERMS.comment.toLowerCase()} on.`} />
+      <PageHeader title="Commented" />
       <div className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
         <ContentWaveList
           initialItems={page.items}
           initialCursor={page.nextCursor}
           loadMore={loadCommentedWaves}
-          emptyIcon={<MessageSquare className="size-5" />}
           emptyTitle="No comments yet"
           emptyDescription={`Waves you comment on will show up here.`}
         />

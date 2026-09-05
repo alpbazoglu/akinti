@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Download } from "lucide-react";
+import { Download } from "@/components/ui/icons";
 
 import { exportAccountData } from "@/app/(app)/settings/actions";
 import { Button, useToast } from "@/components/ui";

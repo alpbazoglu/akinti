@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Mic, UserPlus } from "lucide-react";
+import { Mic, UserPlus } from "@/components/ui/icons";
 
 import { completeOnboarding, followSuggestedCreator } from "./actions";
 import { routes } from "@/config/routes";

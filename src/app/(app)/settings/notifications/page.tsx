@@ -23,7 +23,7 @@ export default async function NotificationsSettingsPage() {
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="Notifications" description="Choose what you want to hear about." />
+        <PageHeader title="Notifications" />
         <EmptyState
           title="Backend not configured"
           description="Notification preferences are unavailable in this environment."
@@ -39,7 +39,6 @@ export default async function NotificationsSettingsPage() {
     <>
       <PageHeader
         title="Notifications"
-        description="Choose what you want to hear about. Saves and Shares always notify — there's no toggle for those yet."
       />
       <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
         <NotificationsForm initialPreferences={profile?.notificationPreferences ?? {}} />

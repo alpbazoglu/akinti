@@ -1,6 +1,6 @@
 "use client";
 
-import { Link as LinkIcon } from "lucide-react";
+import { Link as LinkIcon } from "@/components/ui/icons";
 
 import { TERMS } from "@/config/terminology";
 import { IconButton, useToast } from "@/components/ui";

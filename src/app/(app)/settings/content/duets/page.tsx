@@ -1,4 +1,3 @@
-import { Handshake } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -33,13 +32,12 @@ export default async function MyDuetsContentPage() {
 
   return (
     <>
-      <PageHeader title={TERMS.duets} description={`Every ${TERMS.duet.toLowerCase()} you've published.`} />
+      <PageHeader title={TERMS.duets} />
       <div className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
         <ContentWaveList
           initialItems={page.items}
           initialCursor={page.nextCursor}
           loadMore={loadMyDuets}
-          emptyIcon={<Handshake className="size-5" />}
           emptyTitle={`No ${TERMS.duets.toLowerCase()} yet`}
           emptyDescription={`Duets you publish will show up here, credited back to the original ${TERMS.wave.toLowerCase()}.`}
         />

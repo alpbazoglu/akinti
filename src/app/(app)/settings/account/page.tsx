@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { LogOut } from "@/components/ui/icons";
 import { redirect } from "next/navigation";
 
 import { signOut } from "@/app/(auth)/actions";
@@ -39,7 +39,7 @@ export default async function AccountSettingsPage() {
 
   return (
     <>
-      <PageHeader title="Account" description="Your identity, password and session." />
+      <PageHeader title="Account" />
 
       <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
         <section className="rounded-xl border border-border bg-surface p-5">

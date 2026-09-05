@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Flag, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react";
+import { Flag, MessageSquare, MoreHorizontal, Trash2 } from "@/components/ui/icons";
 
 import { deleteComment, loadReplies } from "@/app/(app)/w/[id]/interactions";
 import { emitAnalyticsEvent } from "@/lib/metrics";

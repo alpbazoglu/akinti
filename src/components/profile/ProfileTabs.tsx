@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AudioLines, Handshake, Mic } from "lucide-react";
-
+import { Mic } from "@/components/ui/icons";
 import { TERMS } from "@/config/terminology";
 import { routes } from "@/config/routes";
 import { WaveCardContainer, type WaveCardContainerWave } from "@/components/wave";
@@ -42,7 +41,6 @@ export function ProfileTabs({ waves, duets, isSelf, username }: ProfileTabsProps
         {waves.length === 0 ? (
           <EmptyState
             size="sm"
-            icon={<AudioLines className="size-5" />}
             title={isSelf ? `You haven't published a ${TERMS.wave.toLowerCase()} yet` : `No ${TERMS.waves.toLowerCase()} yet`}
             description={isSelf ? "Record or upload your first Wave to get started." : undefined}
             action={
@@ -76,7 +74,6 @@ export function ProfileTabs({ waves, duets, isSelf, username }: ProfileTabsProps
         {duets.length === 0 ? (
           <EmptyState
             size="sm"
-            icon={<Handshake className="size-5" />}
             title={`No ${TERMS.duets.toLowerCase()} yet`}
             description={
               isSelf

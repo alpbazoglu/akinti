@@ -2,24 +2,24 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CircleCheck, CircleX, Clock, Mic2, TriangleAlert, XCircle } from "lucide-react";
+import { CircleCheck, CircleX, Clock, Mic2, TriangleAlert, XCircle } from "@/components/ui/icons";
 
 import { getDuetRequestCard } from "@/app/(app)/messages/actions";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
-import { Badge, Skeleton, type BadgeTone } from "@/components/ui";
+import { Badge, Skeleton } from "@/components/ui";
 import type { DuetRequest, DuetRequestStatus, Wave } from "@/types/domain";
 
 export interface DuetRequestCardProps {
   duetRequestId: string;
 }
 
-const STATUS_META: Record<DuetRequestStatus, { label: string; tone: BadgeTone; icon: typeof Mic2 }> = {
-  pending: { label: "Pending", tone: "accent", icon: Clock },
-  accepted: { label: "Accepted", tone: "success", icon: CircleCheck },
-  declined: { label: "Declined", tone: "danger", icon: CircleX },
-  cancelled: { label: "Cancelled", tone: "neutral", icon: XCircle },
-  expired: { label: "Expired", tone: "neutral", icon: Clock },
+const STATUS_META: Record<DuetRequestStatus, { label: string; icon: typeof Mic2 }> = {
+  pending: { label: "Pending", icon: Clock },
+  accepted: { label: "Accepted", icon: CircleCheck },
+  declined: { label: "Declined", icon: CircleX },
+  cancelled: { label: "Cancelled", icon: XCircle },
+  expired: { label: "Expired", icon: Clock },
 };
 
 /**
@@ -71,7 +71,6 @@ export function DuetRequestCard({ duetRequestId }: DuetRequestCardProps) {
 
   const { request, wave } = state;
   const meta = STATUS_META[request.status];
-  const StatusIcon = meta.icon;
 
   const content = (
     <div className="flex w-64 flex-col gap-2 rounded-xl border border-border p-3">
@@ -80,7 +79,7 @@ export function DuetRequestCard({ duetRequestId }: DuetRequestCardProps) {
         {TERMS.duetRequest}
       </div>
       {wave ? <p className="truncate text-xs text-fg-muted">{wave.title}</p> : null}
-      <Badge tone={meta.tone} icon={<StatusIcon className="size-3.5" aria-hidden="true" />}>
+      <Badge>
         {meta.label}
       </Badge>
     </div>

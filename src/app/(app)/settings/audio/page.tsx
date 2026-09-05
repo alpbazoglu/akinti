@@ -18,7 +18,7 @@ export default async function AudioSettingsPage() {
 
   return (
     <>
-      <PageHeader title="Audio" description="Playback preferences, autoplay and audio quality." />
+      <PageHeader title="Audio" />
       <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
         <AudioPreferencesForm />
       </div>

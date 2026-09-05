@@ -31,7 +31,6 @@ export default async function NotificationsPage() {
     <>
       <PageHeader
         title={TERMS.notifications}
-        description="Follows, comments, saves, shares and Duet activity."
       />
       {loadError || !initial ? (
         <ErrorState description={loadError ?? "We could not load your notifications right now."} />

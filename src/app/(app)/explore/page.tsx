@@ -1,4 +1,4 @@
-import { AudioLines, Search } from "lucide-react";
+import { Search } from "@/components/ui/icons";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout";
@@ -34,7 +34,6 @@ export default async function ExplorePage() {
       <>
         <PageHeader title={TERMS.explore} />
         <EmptyState
-          icon={<AudioLines className="size-6" />}
           title="This isn't connected to a backend yet"
           description="Supabase environment variables aren't set, so discovery can't run here."
         />
@@ -78,7 +77,6 @@ export default async function ExplorePage() {
     <>
       <PageHeader
         title={TERMS.explore}
-        description={`Trending, new and rising ${TERMS.waves.toLowerCase()}, plus creators ${TERMS.openForDuet.toLowerCase()}.`}
         actions={
           <Link
             href={routes.search()}

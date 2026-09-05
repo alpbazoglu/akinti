@@ -27,11 +27,11 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
   const isRedirecting = state.ok && Boolean(state.redirectTo);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 px-5 py-5" noValidate>
+    <form action={formAction} className="flex flex-col gap-6" noValidate>
       {next ? <input type="hidden" name="next" value={next} /> : null}
 
       {initialError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="type-body-sm text-signal-deep">
           {initialError}
         </p>
       ) : null}
@@ -56,7 +56,7 @@ export function LoginForm({ next, initialError }: LoginFormProps) {
       />
 
       {state.formError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="type-body-sm text-signal-deep">
           {state.formError}
         </p>
       ) : null}

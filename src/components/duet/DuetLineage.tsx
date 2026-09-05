@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Handshake } from "lucide-react";
+import { Handshake } from "@/components/ui/icons";
 
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";

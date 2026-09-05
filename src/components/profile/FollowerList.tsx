@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Users } from "lucide-react";
 
 import { routes } from "@/config/routes";
 import type { Profile } from "@/types/domain";
@@ -16,7 +15,6 @@ export function FollowerList({ profiles, emptyTitle, emptyDescription }: Followe
   if (profiles.length === 0) {
     return (
       <EmptyState
-        icon={<Users className="size-6" />}
         title={emptyTitle}
         description={emptyDescription}
       />

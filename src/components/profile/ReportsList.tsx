@@ -1,7 +1,6 @@
-import { Flag } from "lucide-react";
 
 import type { Report, ReportReason, ReportStatus, ReportTargetType } from "@/types/domain";
-import { Badge, EmptyState, type BadgeTone } from "@/components/ui";
+import { Badge, EmptyState } from "@/components/ui";
 import { formatAbsoluteTime } from "@/lib/ui";
 
 export interface ReportsListProps {
@@ -25,13 +24,6 @@ const TARGET_LABELS: Record<ReportTargetType, string> = {
   message: "Message",
 };
 
-const STATUS_TONES: Record<ReportStatus, BadgeTone> = {
-  open: "neutral",
-  reviewing: "warning",
-  actioned: "success",
-  dismissed: "neutral",
-};
-
 const STATUS_LABELS: Record<ReportStatus, string> = {
   open: "Open",
   reviewing: "Reviewing",
@@ -45,7 +37,6 @@ export function ReportsList({ reports }: ReportsListProps) {
     return (
       <EmptyState
         size="sm"
-        icon={<Flag className="size-5" />}
         title="No reports filed"
         description="Reports you submit are reviewed by our team. Nothing is auto-actioned on a single report."
       />
@@ -60,7 +51,7 @@ export function ReportsList({ reports }: ReportsListProps) {
             <span className="text-sm font-medium text-fg">
               {TARGET_LABELS[report.targetType]} · {REASON_LABELS[report.reason]}
             </span>
-            <Badge tone={STATUS_TONES[report.status]}>{STATUS_LABELS[report.status]}</Badge>
+            <Badge>{STATUS_LABELS[report.status]}</Badge>
           </div>
           {report.details ? (
             <p className="text-sm text-fg-muted">{report.details}</p>

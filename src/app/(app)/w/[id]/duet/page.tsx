@@ -1,4 +1,3 @@
-import { Handshake } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -46,7 +45,6 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
       <>
         <PageHeader title={TERMS.requestDuet} />
         <EmptyState
-          icon={<Handshake className="size-6" />}
           title="This isn't connected to a backend yet"
           description="Supabase environment variables aren't set, so Duet Requests can't be sent here."
         />
@@ -65,7 +63,6 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
       <>
         <PageHeader title={TERMS.requestDuet} />
         <EmptyState
-          icon={<Handshake className="size-6" />}
           title="This is your own Wave"
           description="You don't request a Duet on your own Wave — record one directly from it instead."
         />
@@ -92,7 +89,6 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
       <>
         <PageHeader title={TERMS.requestDuet} />
         <EmptyState
-          icon={<Handshake className="size-6" />}
           title="You can't request a Duet on this Wave"
           description="The creator may have Duets turned off for you, you may be blocked, the Wave may be private, or you already have a pending request for it."
         />
@@ -112,7 +108,7 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
     },
     creationType: wave.creationType,
     audioAssetId: asset.id,
-    peaks: resolveWavePeaks(asset.peaks?.data, asset.id),
+    peaks: resolveWavePeaks(asset.peaks?.data, asset.id, asset.peaks?.bits),
     duration: asset.durationMs ? asset.durationMs / 1000 : undefined,
     metrics: {
       plays: wave.counts.plays,
@@ -132,7 +128,6 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
     <>
       <PageHeader
         title={TERMS.requestDuet}
-        description={`Send @${creator.username} a Duet Request for this ${TERMS.wave.toLowerCase()}.`}
       />
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-16 sm:px-5">
@@ -148,7 +143,6 @@ function UnavailableState() {
     <>
       <PageHeader title={TERMS.requestDuet} />
       <EmptyState
-        icon={<Handshake className="size-6" />}
         title={`This ${TERMS.wave.toLowerCase()} isn't available`}
         description="It may have been deleted, made private, or the link is wrong."
       />

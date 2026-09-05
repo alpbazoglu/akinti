@@ -27,7 +27,6 @@ export default async function MessagesPage() {
     <>
       <PageHeader
         title={TERMS.messages}
-        description="Private conversations, audio messages and Duet coordination."
       />
       {loadError || !initial ? (
         <ErrorState description={loadError ?? "We could not load your messages right now."} />

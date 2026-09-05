@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "@/components/ui/icons";
 
 import { PageHeader } from "@/components/layout";
 import { BlockedList, ReportsList } from "@/components/profile";
@@ -41,7 +41,7 @@ export default async function SafetySettingsPage() {
 
   return (
     <>
-      <PageHeader title="Safety" description="Blocked users and the reports you've filed." />
+      <PageHeader title="Safety" />
       <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
         {isMod ? (
           <Link

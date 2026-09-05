@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { UserX } from "lucide-react";
 
 import { unblockUser } from "@/app/(app)/settings/actions";
 import { routes } from "@/config/routes";
@@ -22,7 +21,6 @@ export function BlockedList({ blocked }: BlockedListProps) {
     return (
       <EmptyState
         size="sm"
-        icon={<UserX className="size-5" />}
         title="No blocked accounts"
         description="Accounts you block cannot view your profile, message you, or send Duet Requests."
       />

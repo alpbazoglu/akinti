@@ -39,7 +39,6 @@ export default async function AppearanceSettingsPage() {
     <>
       <PageHeader
         title="Appearance"
-        description="Background, gradient, pattern and accent — a curated set of presets, chosen so text always stays readable."
       />
       <div className="px-4 pb-8 sm:px-5">
         <AppearanceForm

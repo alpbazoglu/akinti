@@ -42,7 +42,6 @@ export default async function PrivacySettingsPage() {
     <>
       <PageHeader
         title="Privacy"
-        description="Profile visibility, who can message you, who can send Duet Requests, default Wave visibility."
       />
       <div className="px-4 pb-8 sm:px-5">
         <PrivacyForm

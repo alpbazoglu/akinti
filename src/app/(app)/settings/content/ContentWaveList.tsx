@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition } from "react";
 
 import { WaveCardContainer } from "@/components/wave";
 import { Button, EmptyState } from "@/components/ui";
@@ -12,7 +12,6 @@ export interface ContentWaveListProps {
   initialItems: ContentWaveCard[];
   initialCursor: string | null;
   loadMore: (cursor: string | null) => Promise<ContentListResult>;
-  emptyIcon?: ReactNode;
   emptyTitle: string;
   emptyDescription: string;
 }
@@ -27,7 +26,6 @@ export function ContentWaveList({
   initialItems,
   initialCursor,
   loadMore,
-  emptyIcon,
   emptyTitle,
   emptyDescription,
 }: ContentWaveListProps) {
@@ -51,7 +49,7 @@ export function ContentWaveList({
   };
 
   if (items.length === 0) {
-    return <EmptyState size="sm" icon={emptyIcon} title={emptyTitle} description={emptyDescription} />;
+    return <EmptyState size="sm" title={emptyTitle} description={emptyDescription} />;
   }
 
   return (

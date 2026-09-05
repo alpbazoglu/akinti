@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "@/components/ui/icons";
 
 import { formatAbsoluteTime } from "@/lib/ui";
 import { formatMessageTime } from "@/lib/messages";

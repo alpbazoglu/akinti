@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "@/components/ui/icons";
 
 import { WavePlayer } from "@/components/audio";
 import { Spinner } from "@/components/ui";

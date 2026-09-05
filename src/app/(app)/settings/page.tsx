@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/components/ui/icons";
 
 import { PageHeader } from "@/components/layout";
 import { SETTINGS_SECTIONS, routes } from "@/config/routes";
@@ -14,7 +14,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader title={TERMS.settings} description="Account, privacy, notifications, content, audio and safety." />
+      <PageHeader title={TERMS.settings} />
       <nav aria-label={TERMS.settings} className="px-4 pb-6 sm:px-5">
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
           {SETTINGS_SECTIONS.map((section) => (

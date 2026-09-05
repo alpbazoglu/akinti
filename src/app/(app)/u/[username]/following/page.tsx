@@ -1,4 +1,3 @@
-import { UserX } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { FollowerList, LockedContent } from "@/components/profile";
@@ -40,7 +39,7 @@ export default async function FollowingPage({ params }: FollowingPageProps) {
     return (
       <>
         <PageHeader title={TERMS.following} />
-        <EmptyState icon={<UserX className="size-6" />} title="Profile unavailable" description="This profile doesn't exist, or isn't available to you." />
+        <EmptyState title="Profile unavailable" description="This profile doesn't exist, or isn't available to you." />
       </>
     );
   }
@@ -50,7 +49,7 @@ export default async function FollowingPage({ params }: FollowingPageProps) {
 
   return (
     <>
-      <PageHeader title={TERMS.following} description={`Accounts @${profile.username} follows.`} />
+      <PageHeader title={TERMS.following} />
       {canSeeContent ? (
         <div className="px-4 pb-8 sm:px-5">
           <FollowerList

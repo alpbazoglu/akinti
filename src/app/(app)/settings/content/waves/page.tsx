@@ -1,4 +1,3 @@
-import { AudioLines } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -33,13 +32,12 @@ export default async function MyWavesContentPage() {
 
   return (
     <>
-      <PageHeader title={TERMS.waves} description={`Every ${TERMS.wave.toLowerCase()} you've published.`} />
+      <PageHeader title={TERMS.waves} />
       <div className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
         <ContentWaveList
           initialItems={page.items}
           initialCursor={page.nextCursor}
           loadMore={loadMyWaves}
-          emptyIcon={<AudioLines className="size-5" />}
           emptyTitle={`You haven't published a ${TERMS.wave.toLowerCase()} yet`}
           emptyDescription="Record or upload your first Wave to get started."
         />

@@ -9,7 +9,7 @@
  * events collapsed into this row, and `actor` is the most recent actor. This
  * module only turns that into English.
  */
-import type { LucideIcon } from "lucide-react";
+import type { IconComponent } from "@/components/ui/icons";
 import {
   Bell,
   Bookmark,
@@ -24,7 +24,7 @@ import {
   UserPlus,
   Users,
   UserRoundPlus,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 import { routes } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
@@ -37,10 +37,10 @@ export interface FormattedNotification {
   body: string;
   /** Where a click on this notification should navigate. */
   href: string;
-  icon: LucideIcon;
+  icon: IconComponent;
 }
 
-const ICONS: Record<NotificationType, LucideIcon> = {
+const ICONS: Record<NotificationType, IconComponent> = {
   follow: UserPlus,
   follow_request: UserRoundPlus,
   comment: MessageSquare,

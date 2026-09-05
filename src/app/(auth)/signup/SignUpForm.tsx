@@ -14,7 +14,7 @@ export function SignUpForm() {
 
   if (state.ok && state.message) {
     return (
-      <div className="px-5 py-5">
+      <div>
         <EmptyState
           size="sm"
           title="Check your email"
@@ -30,7 +30,7 @@ export function SignUpForm() {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 px-5 py-5" noValidate>
+    <form action={formAction} className="flex flex-col gap-6" noValidate>
       <Input
         id="username"
         name="username"
@@ -62,7 +62,7 @@ export function SignUpForm() {
       />
 
       {state.formError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="type-body-sm text-signal-deep">
           {state.formError}
         </p>
       ) : null}

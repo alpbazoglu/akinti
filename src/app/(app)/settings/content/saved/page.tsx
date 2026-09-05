@@ -1,4 +1,3 @@
-import { Bookmark } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -33,13 +32,12 @@ export default async function SavedContentPage() {
 
   return (
     <>
-      <PageHeader title="Saved" description={`${TERMS.waves} you've saved for later.`} />
+      <PageHeader title="Saved" />
       <div className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
         <ContentWaveList
           initialItems={page.items}
           initialCursor={page.nextCursor}
           loadMore={loadSavedWaves}
-          emptyIcon={<Bookmark className="size-5" />}
           emptyTitle="Nothing saved yet"
           emptyDescription={`Tap ${TERMS.save} on any ${TERMS.wave.toLowerCase()} to collect it here.`}
         />

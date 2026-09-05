@@ -70,7 +70,7 @@ export async function hydrateProfileWaves(db: Db, waves: readonly Wave[]): Promi
       return {
         wave,
         audioAssetId: wave.audioAssetId,
-        peaks: resolveWavePeaks(asset.peaks?.data, asset.id),
+        peaks: resolveWavePeaks(asset.peaks?.data, asset.id, asset.peaks?.bits),
         durationMs: asset.durationMs,
         collaborators,
       };

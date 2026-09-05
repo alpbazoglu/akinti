@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useId, useRef, useState, type DragEvent } from "react";
-import { Upload } from "lucide-react";
+import { Upload } from "@/components/ui/icons";
 
 import { getDurationMs, validateFile } from "@/lib/audio";
 import { Spinner } from "@/components/ui";

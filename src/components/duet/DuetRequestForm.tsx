@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Handshake } from "lucide-react";
+import { Handshake } from "@/components/ui/icons";
 
 import { Button, ErrorState, Textarea } from "@/components/ui";
 import { routes } from "@/config/routes";

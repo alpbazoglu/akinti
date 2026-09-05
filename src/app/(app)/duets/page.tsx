@@ -1,4 +1,3 @@
-import { Handshake } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -30,7 +29,6 @@ export default async function DuetsPage() {
       <>
         <PageHeader title={TERMS.duetRequests} />
         <EmptyState
-          icon={<Handshake className="size-6" />}
           title="This isn't connected to a backend yet"
           description="Supabase environment variables aren't set, so Duet Requests can't be loaded here."
         />
@@ -64,7 +62,7 @@ export default async function DuetsPage() {
 
   return (
     <>
-      <PageHeader title={TERMS.duetRequests} description="Everyone waiting on a Duet, and everyone waiting on you." />
+      <PageHeader title={TERMS.duetRequests} />
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-16 sm:px-5">
         <DuetRequestsView
           received={toListItems(received.items, waveById, profileById, "requesterId")}

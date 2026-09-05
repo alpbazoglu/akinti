@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { UserRound } from "lucide-react";
 
 import { acceptFollowRequest, declineFollowRequest } from "@/app/(app)/u/[username]/actions";
 import { routes } from "@/config/routes";
@@ -22,7 +21,6 @@ export function FollowRequestsList({ requests }: FollowRequestsListProps) {
     return (
       <EmptyState
         size="sm"
-        icon={<UserRound className="size-5" />}
         title="No pending follow requests"
         description="When someone requests to follow your private account, they'll show up here."
       />

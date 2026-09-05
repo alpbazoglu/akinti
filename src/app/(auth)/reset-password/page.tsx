@@ -14,8 +14,8 @@ export default async function ResetPasswordPage() {
   const user = configured ? await getCurrentUser() : null;
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
-      <h1 className="border-b border-border px-5 py-4 text-base font-semibold text-fg">Set a new password</h1>
+    <div className="flex flex-col gap-6">
+      <h1 className="type-display text-ink">Set a new password</h1>
       {!configured ? (
         <EmptyState
           size="sm"

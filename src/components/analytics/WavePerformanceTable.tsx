@@ -53,7 +53,7 @@ export function WavePerformanceTable({ waves }: WavePerformanceTableProps) {
                     className="flex flex-col gap-1 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     <span className="truncate font-medium text-fg">{wave.title}</span>
-                    <Badge tone="accent" icon={creationType.glyph} className="w-fit">
+                    <Badge className="w-fit">
                       {creationType.label}
                     </Badge>
                   </Link>

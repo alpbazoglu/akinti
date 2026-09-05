@@ -24,7 +24,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Pause, Play, RotateCcw, Square } from "lucide-react";
+import { Mic, Pause, Play, RotateCcw, Square } from "@/components/ui/icons";
 
 import { AudioPreview, EnhancementPicker, Waveform } from "@/components/audio";
 import { Button, ErrorState } from "@/components/ui";

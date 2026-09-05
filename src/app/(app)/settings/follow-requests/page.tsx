@@ -27,7 +27,7 @@ export default async function FollowRequestsPage() {
 
   return (
     <>
-      <PageHeader title="Follow requests" description="People asking to follow your private account." />
+      <PageHeader title="Follow requests" />
       <div className="px-4 pb-8 sm:px-5">
         <FollowRequestsList requests={requests.items} />
       </div>

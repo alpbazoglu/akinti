@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AudioLines, Handshake } from "lucide-react";
+import { Handshake } from "@/components/ui/icons";
 
 import { PageHeader } from "@/components/layout";
 import { CommentsSection } from "@/components/comments";
@@ -35,12 +35,6 @@ export async function generateMetadata({ params }: WavePageProps) {
   return { title: `${TERMS.wave} ${id}` };
 }
 
-const COLLABORATOR_STATUS_TONE: Record<CollaboratorStatus, "success" | "warning" | "neutral"> = {
-  accepted: "success",
-  pending: "warning",
-  declined: "neutral",
-};
-
 const COLLABORATOR_STATUS_LABEL: Record<CollaboratorStatus, string> = {
   accepted: "Accepted",
   pending: "Invited",
@@ -56,7 +50,6 @@ export default async function WavePage({ params }: WavePageProps) {
       <>
         <PageHeader title={TERMS.wave} />
         <EmptyState
-          icon={<AudioLines className="size-6" />}
           title="This isn't connected to a backend yet"
           description="Supabase environment variables aren't set, so Waves can't be loaded here."
         />
@@ -139,7 +132,7 @@ export default async function WavePage({ params }: WavePageProps) {
     collaborators: acceptedCollaboratorPeople,
     creationType: wave.creationType,
     audioAssetId: asset.id,
-    peaks: resolveWavePeaks(asset.peaks?.data, asset.id),
+    peaks: resolveWavePeaks(asset.peaks?.data, asset.id, asset.peaks?.bits),
     duration: asset.durationMs ? asset.durationMs / 1000 : undefined,
     metrics: {
       plays: wave.counts.plays,
@@ -157,7 +150,6 @@ export default async function WavePage({ params }: WavePageProps) {
     <>
       <PageHeader
         title={TERMS.wave}
-        description={`By @${creator.username}`}
         actions={isCreator ? <WaveOwnerMenu wave={wave} redirectAfterDeleteHref={routes.profile(creator.username)} /> : undefined}
       />
 
@@ -168,7 +160,7 @@ export default async function WavePage({ params }: WavePageProps) {
           initialError={asset.processingError}
         />
 
-        <WaveCardContainer wave={cardWave} />
+        <WaveCardContainer wave={cardWave} variant="detail" />
 
         <CommentsSection
           waveId={wave.id}
@@ -203,7 +195,6 @@ function UnavailableState() {
     <>
       <PageHeader title={TERMS.wave} />
       <EmptyState
-        icon={<AudioLines className="size-6" />}
         title={`This ${TERMS.wave.toLowerCase()} isn't available`}
         description="It may have been deleted, made private, or the link is wrong."
       />
@@ -283,7 +274,7 @@ function CollaboratorsSection({
               ) : (
                 <span className="text-fg-muted">Unknown</span>
               )}
-              <Badge tone={COLLABORATOR_STATUS_TONE[collaborator.status]}>
+              <Badge>
                 {COLLABORATOR_STATUS_LABEL[collaborator.status]}
               </Badge>
             </li>

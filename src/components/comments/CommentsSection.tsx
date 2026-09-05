@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare } from "@/components/ui/icons";
 
 import { loadComments, type CommentPermissionState } from "@/app/(app)/w/[id]/interactions";
 import { useCurrentUser } from "@/lib/auth";
@@ -76,7 +76,6 @@ export function CommentsSection({
       {comments.length === 0 ? (
         <EmptyState
           size="sm"
-          icon={<MessageSquare className="size-5" />}
           title={`No ${TERMS.comments.toLowerCase()} yet`}
           description={`Be the first to say something about this ${TERMS.wave.toLowerCase()}.`}
         />

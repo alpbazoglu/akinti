@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
-import { ArrowLeft, Check, Link as LinkIcon, MessageCircle, Send, Share2 } from "lucide-react";
+import { ArrowLeft, Check, Link as LinkIcon, MessageCircle, Send, Share2 } from "@/components/ui/icons";
 
 import { loadMoreConversations, shareWaveToConversation } from "@/app/(app)/messages/actions";
 import { recordShare } from "@/app/(app)/w/[id]/interactions";
@@ -226,7 +226,6 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
       ) : conversations && conversations.length === 0 ? (
         <EmptyState
           size="sm"
-          icon={<Send className="size-5" />}
           title="No conversations yet"
           description="Start a conversation first, then you can share Waves into it."
         />

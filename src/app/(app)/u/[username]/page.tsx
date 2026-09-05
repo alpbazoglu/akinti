@@ -1,4 +1,3 @@
-import { UserX } from "lucide-react";
 
 import { PageHeader } from "@/components/layout";
 import { LockedContent, ProfileHeader, ProfileTabs } from "@/components/profile";
@@ -86,7 +85,6 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       <>
         <PageHeader title={`@${username}`} />
         <EmptyState
-          icon={<UserX className="size-6" />}
           title="Profile unavailable"
           description="This profile doesn't exist, or isn't available to you."
         />

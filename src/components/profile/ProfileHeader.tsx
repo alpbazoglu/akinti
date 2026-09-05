@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChartColumn, Pencil } from "lucide-react";
+import { ChartColumn, Pencil } from "@/components/ui/icons";
 
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";

@@ -55,7 +55,7 @@ export function toCardWave(
     collaborators,
     creationType: wave.creationType,
     audioAssetId: asset.id,
-    peaks: resolveWavePeaks(asset.peaks?.data, asset.id),
+    peaks: resolveWavePeaks(asset.peaks?.data, asset.id, asset.peaks?.bits),
     duration: asset.durationMs ? asset.durationMs / 1000 : undefined,
     metrics: {
       plays: wave.counts.plays,

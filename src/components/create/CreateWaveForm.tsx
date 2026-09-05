@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
-import { X } from "lucide-react";
+import { X } from "@/components/ui/icons";
 
 import {
   WAVE_CATEGORY_OPTIONS,

@@ -7,7 +7,7 @@
  * keystroke) so the search is shareable and survives a refresh.
  */
 
-import { Search } from "lucide-react";
+import { Search } from "@/components/ui/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -118,7 +118,6 @@ export function SearchView({ initialQuery, initialProfiles, initialWaves, initia
 
       {trimmedQuery.length === 0 ? (
         <EmptyState
-          icon={<Search className="size-6" />}
           title="Search AKINTI"
           description={`Find ${TERMS.creators.toLowerCase()} by name or username, or ${TERMS.waves.toLowerCase()} by title or description.`}
         />

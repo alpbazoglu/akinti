@@ -3,9 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, Handshake, Mic, X } from "lucide-react";
-
-import { Avatar, Badge, type BadgeTone, Button, EmptyState, TabPanel, Tabs, tabId, tabPanelId } from "@/components/ui";
+import { Check, Mic, X } from "@/components/ui/icons";
+import { Avatar, Badge, Button, EmptyState, TabPanel, Tabs, tabId, tabPanelId } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { cn, timeAgo } from "@/lib/ui";
@@ -38,14 +37,6 @@ export interface DuetRequestsViewProps {
 type Tab = "received" | "sent";
 
 const TAB_ID_PREFIX = "duets";
-
-const STATUS_TONE: Record<DuetRequestStatus, BadgeTone> = {
-  pending: "warning",
-  accepted: "success",
-  declined: "neutral",
-  cancelled: "neutral",
-  expired: "neutral",
-};
 
 const STATUS_LABEL: Record<DuetRequestStatus, string> = {
   pending: "Pending",
@@ -96,7 +87,6 @@ function RequestList({
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<Handshake className="size-6" />}
         title={`No ${variant === "received" ? "received" : "sent"} ${TERMS.duetRequests.toLowerCase()}`}
         description={emptyDescription}
         size="sm"
@@ -154,7 +144,7 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
           <p className="text-xs text-fg-subtle">{timeAgo(item.createdAt)}</p>
           {item.message ? <p className="mt-1 text-sm text-fg-muted">&ldquo;{item.message}&rdquo;</p> : null}
         </div>
-        <Badge tone={STATUS_TONE[item.status]}>{STATUS_LABEL[item.status]}</Badge>
+        <Badge>{STATUS_LABEL[item.status]}</Badge>
       </div>
 
       {error ? (

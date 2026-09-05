@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { UserCheck, UserPlus } from "lucide-react";
+import { UserCheck, UserPlus } from "@/components/ui/icons";
 
 import { cancelFollowRequest, follow, unfollow } from "@/app/(app)/u/[username]/actions";
 import { routes } from "@/config/routes";

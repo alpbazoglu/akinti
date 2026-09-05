@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { MessageCircleOff } from "lucide-react";
 
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
@@ -36,7 +35,6 @@ export default async function NewConversationPage({ searchParams }: NewConversat
       <>
         <PageHeader title="New message" />
         <EmptyState
-          icon={<MessageCircleOff className="size-6" />}
           title="No one to message"
           description="Open a profile and choose Message to start a conversation."
           action={
@@ -59,7 +57,6 @@ export default async function NewConversationPage({ searchParams }: NewConversat
     <>
       <PageHeader title="New message" />
       <EmptyState
-        icon={<MessageCircleOff className="size-6" />}
         title="Can't start this conversation"
         description={result.error ?? "This account can't be messaged right now."}
         action={

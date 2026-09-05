@@ -15,11 +15,11 @@ export default async function LogInPage({ searchParams }: LoginPageProps) {
   const { next, error } = await searchParams;
 
   return (
-    <div className="rounded-xl border border-border bg-surface">
-      <h1 className="border-b border-border px-5 py-4 text-base font-semibold text-fg">Log in</h1>
+    <div className="flex flex-col gap-6">
+      <h1 className="type-display text-ink">Log in</h1>
       {isSupabaseConfigured() ? (
         <>
-          <p className="px-5 pt-4 text-sm text-fg-muted">Sign in with your email and password.</p>
+          <p className="type-body-sm measure text-ink-muted">Sign in with your email and password.</p>
           <LoginForm next={next} initialError={error === "callback_failed" ? CALLBACK_ERROR_MESSAGE : undefined} />
         </>
       ) : (

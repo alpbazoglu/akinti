@@ -1,4 +1,4 @@
-import { AudioLines, Mic } from "lucide-react";
+
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout";
@@ -30,7 +30,6 @@ export default async function HomePage() {
       <>
         <PageHeader title={TERMS.home} />
         <EmptyState
-          icon={<AudioLines className="size-6" />}
           title="This isn't connected to a backend yet"
           description="Supabase environment variables aren't set, so the feed can't be loaded here."
         />
@@ -53,13 +52,12 @@ export default async function HomePage() {
 
   return (
     <>
-      <PageHeader title={TERMS.home} description={`${TERMS.waves} from the creators you follow.`} />
+      <PageHeader title={TERMS.home} />
 
       {loadError ? (
         <ErrorState description={loadError} />
       ) : initialItems.length === 0 ? (
         <EmptyState
-          icon={<Mic className="size-6" />}
           title="Your feed is quiet"
           description={`Follow a few creators and their ${TERMS.waves} land here. Not sure where to start? ${TERMS.explore} has the rest of the network.`}
           action={

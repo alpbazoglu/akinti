@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Search } from "lucide-react";
+import { Search } from "@/components/ui/icons";
 
 import { loadMoreConversations } from "@/app/(app)/messages/actions";
 import { Button, EmptyState, Input } from "@/components/ui";

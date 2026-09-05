@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Upload as UploadIcon } from "lucide-react";
+import { Mic, Upload as UploadIcon } from "@/components/ui/icons";
 
 import { PageHeader } from "@/components/layout";
 import { AudioPreview, EnhancementPicker, RecorderPanel } from "@/components/audio";
@@ -206,7 +206,6 @@ export function CreateFlow() {
     <>
       <PageHeader
         title={`${TERMS.create} ${TERMS.aWave}`}
-        description={`${TERMS.record} straight into ${TERMS.brand}, or ${TERMS.upload.toLowerCase()} audio you already have.`}
       />
 
       <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 pb-24 sm:px-5">

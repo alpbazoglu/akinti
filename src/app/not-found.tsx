@@ -1,6 +1,5 @@
 "use client";
 
-import { Compass } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { routes } from "@/config/routes";
@@ -20,7 +19,6 @@ export default function NotFound() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-surface px-4">
       <EmptyState
-        icon={<Compass className="size-6" aria-hidden="true" />}
         title="Page not found"
         description={`This page doesn't exist, or it may have moved. ${BRAND} lives at the links inside the app — try Home or Explore instead.`}
         action={
