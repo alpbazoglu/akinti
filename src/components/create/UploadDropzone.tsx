@@ -125,6 +125,7 @@ export function UploadDropzone({ onFileAccepted, onRecord, className }: UploadDr
           id={inputId}
           type="file"
           accept="audio/*"
+          aria-label="Choose an audio file to upload"
           className="sr-only"
           onChange={(event) => {
             handleFiles(event.target.files);
