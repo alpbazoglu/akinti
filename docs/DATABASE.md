@@ -45,6 +45,7 @@ instructions: `supabase/README.md`.
 | 33 | `duet_v2_backing_track_lineage` | `waves_after_insert_backing_track_credit()` trigger (credits a backing track's uploader as an already-accepted collaborator the moment a Wave publishes over their track), `list_waves_on_track()` keyset RPC (Wave D) |
 | 34 | `challenges` | `challenges`/`challenge_entries`/`challenge_picks` (Prompts & challenges, spec §4 — weekly theme + backing track, curated Top 5), `can_enter_challenge()` predicate, `challenge_entries_guard` (owns/rate-limits entries via `check_rate_limit`, action `'challenge_entry'`), `list_challenges()`/`get_challenge()`/`list_challenge_entries()`/`enter_challenge()` RPCs, `list_waves_by_hashtag()` (hashtag pages — reuses `waves.tags`, no new tagging mechanism) — full write-up: `docs/CHALLENGES.md` |
 | 35 | `rate_limit_challenge_entry` | Bug fix: `rate_limit_events_action_known` (migration 21) didn't list `'challenge_entry'`, so `challenge_entries_guard`'s `record_rate_limit_event(..., 'challenge_entry')` call (migration 34) failed every `enter_challenge()` in production with a check-constraint violation. Drops and re-adds the constraint including `'challenge_entry'`. Regression-guarded by `scripts/verify-live-challenges.ts`'s `e2e:enter_challenge` check, which signs in as a throwaway user and actually calls `enter_challenge()` rather than a service-role shortcut (`is_service_request()` would otherwise skip the exact code path that broke) |
+| 36 | `challenge_entries_visibility` | Security fix (review2 #1, P0): `challenge_entries_select`/`challenge_picks_select` (migration 34) gated only on the challenge's `status`, so a private/hidden Wave's entry — or a blocked entrant's — was readable by anyone once its challenge went `live`, despite both tables being granted `select` to `anon`. Both policies recreated to also require `can_view_wave(wave_id)` on the general read branch, keeping the `user_id = auth.uid()`/`is_moderator()` escapes exactly as they were (matches `comments_select`'s `can_view_wave` gate). `list_challenge_entries()` and `listChallengePicks` (`src/lib/db/challenges.ts`) are both SECURITY INVOKER/plain selects with no RLS bypass of their own, so this migration alone closes the read path for both — no function body changes needed. Also fixes review2 #17 (P2): `enter_challenge()`'s idempotency lookup ran before any authorization check, so a direct RPC call could probe whether an arbitrary `wave_id` had entered a challenge whose entries RLS would otherwise hide, and could hand back another user's entry id; the `can_enter_challenge` check now runs first and the lookup is scoped to `user_id = auth.uid()`. Regression-guarded by `scripts/verify-live-challenges.ts`'s `rls:private-entry-visibility` check (a private Wave's entry: invisible to anon, invisible to another signed-in user, visible to its owner) |
 
 ## Entities
 
@@ -95,7 +96,11 @@ duet_request`, payload shape enforced by a CHECK constraint per `kind`).
 `backing_track_id`/`duet_mode`, `status` `draft | live | closed`),
 `challenge_entries` (a Wave submitted to a challenge, unique per
 `(challenge, wave)`), `challenge_picks` (the curated Top 5, unique per
-`(challenge, rank)` and `(challenge, wave)`). Hashtag pages
+`(challenge, rank)` and `(challenge, wave)`). Reading either table requires
+`can_view_wave(wave_id)` in addition to the challenge being `live`/`closed`
+(migration 36; the entrant/moderator escapes are unaffected) — a private,
+hidden, or blocked-creator Wave's entry is exactly as unreachable as it
+would be anywhere else in this schema. Hashtag pages
 (`list_waves_by_hashtag`) reuse `waves.tags` — no separate tagging
 mechanism. Full write-up: `docs/CHALLENGES.md`.
 

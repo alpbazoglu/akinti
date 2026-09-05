@@ -119,6 +119,11 @@ policy backing it. Highlights:
   `can_view_wave`/`can_view_audio_asset` — a private Wave is unreachable via
   guessed IDs, the feed/search RPCs, or a share link, because every one of
   those read paths is still filtered by the same RLS policy underneath.
+  `challenge_entries_select`/`challenge_picks_select` (migration 36,
+  `20260905150000_challenge_entries_visibility.sql`) key off `can_view_wave`
+  the same way — entering a Wave into a live challenge never widens who can
+  see it, matching "sharing a Wave into a conversation never widens its
+  visibility" below.
 - `saves` has no policy letting anyone but the saver read their own saves —
   Saves are private; only the aggregate `waves.save_count` is public.
 - `play_events`/`wave_listens` have **no client write policy at all**. The
@@ -534,6 +539,7 @@ Non-followee attempts to accept/decline a follow request        → DENIED (`fol
 Blocked user sends a message via direct API call, bypassing UI → DENIED (`messages_guard_insert`, even in an existing thread)
 Audio message asset id guessed by a non-member                 → ACCESS DENIED (`can_view_audio_asset`)
 Wave made private after being shared into a conversation       → message card no longer resolves it, `/w/[id]` denies directly
+Private/hidden/blocked-creator Wave entered into a live challenge → challenge_entries/challenge_picks row ACCESS DENIED to anon and to any other viewer (owner/moderator still see it)
 ```
 
 ## Audit 2026-09-04 (Stage 14 — security & performance audit)
@@ -702,3 +708,45 @@ Eager per-Wave signed-URL minting on `/u/[username]` (fixed), the
 reported), and the `/explore`/`/u/[username]`/`/w/[id]` caching question
 (reviewed, not safely cacheable as built — reported) are documented there
 rather than duplicated in this file.
+
+## Audit 2026-09-05 (`docs/qa/review2/REVIEW.md`, commit `059c634`) — backend findings fixed
+
+### 1. Challenge entries/picks leaked private Waves (P0) — fixed
+
+`challenge_entries_select`/`challenge_picks_select`
+(`20260905130000_challenges.sql`) gated only on the challenge's `status in
+('live', 'closed')`, and both tables are granted `select` to `anon`. A
+private, moderator-hidden, or blocked-creator Wave entered into a live
+challenge was therefore readable — `user_id` + `wave_id` — by a signed-out
+visitor or a blocked account, a new discovery surface the "reached via
+search/Explore/Home feed queries → never appears" row above didn't cover.
+Fixed in `20260905150000_challenge_entries_visibility.sql`: both policies
+now additionally require `can_view_wave(wave_id)` on the general read
+branch, matching `comments_select`'s shape; the `user_id = auth.uid()` and
+`is_moderator()` escapes are unchanged. `list_challenge_entries()`
+(SECURITY INVOKER) and `listChallengePicks` (`src/lib/db/challenges.ts`, a
+plain `.from().select()`) both ride on this RLS directly, so no function
+body needed to change. Same migration also fixes review2 #17 (P2):
+`enter_challenge()`'s idempotency lookup ran before its
+`can_enter_challenge` authorization check and was unscoped by caller, so a
+direct RPC call could probe another user's entry for a wave/challenge pair
+RLS would otherwise hide — the check now runs first and the lookup is
+scoped to `user_id = auth.uid()`. Regression-guarded by
+`scripts/verify-live-challenges.ts`'s `rls:private-entry-visibility` check.
+
+### 2. Account deletion left every recording in storage (P1) — fixed
+
+`deleteAccount` (`src/app/(app)/settings/actions.ts`) called
+`auth.admin.deleteUser(user.id)` and relied on the `profiles -> auth.users`
+cascade, which only removes database rows — nothing removed the account's
+objects in the private `audio` bucket or the public `avatars` bucket, so
+every recording an account ever uploaded stayed in storage indefinitely
+with no row left pointing at it. Fixed by listing and removing
+`audio/<uid>/**` and `avatars/<uid>/**` (`src/lib/storage/userObjects.ts` —
+paginated, recursive since `audio/<uid>/<assetId>/<file>` nests one level
+deeper than `avatars/<uid>/<file>`, batched removal) with the admin client
+**before** `deleteUser` is called; if either bucket's cleanup fails, the
+account is not deleted and the action returns a `formError` instead, the
+same "storage failure never silently leaves an orphan, but also never masks
+itself as success" standard `deleteWaveDetails` (`w/[id]/actions.ts`)
+already holds for a single Wave's cleanup.
