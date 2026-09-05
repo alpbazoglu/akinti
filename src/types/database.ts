@@ -109,6 +109,9 @@ export type NotificationType =
   /** Wave D: fired when someone answers a creator's open call — see docs/DUET_SPEC.md "Open calls". */
   | "open_call_answered";
 
+/** Prompts & challenges (PRODUCT_V2 §4). `draft` is moderator/author-only; `live`/`closed` are publicly readable. */
+export type ChallengeStatus = "draft" | "live" | "closed";
+
 export type ReportTargetType = "wave" | "comment" | "profile" | "message";
 export type ReportReason =
   | "spam"
@@ -298,6 +301,44 @@ export type DuetTreeNodeRow = {
   published_at: string;
   play_count: number;
   duet_count: number;
+};
+
+/** Prompts & challenges (PRODUCT_V2 §4, migration 20260905130000). See `src/lib/db/challenges.ts`. */
+export type ChallengeRow = {
+  id: string;
+  slug: string;
+  title: string;
+  brief: string;
+  /** Stored without a leading '#', lowercase — matches `list_waves_by_hashtag(hashtag)`. */
+  hashtag: string;
+  starts_at: string;
+  ends_at: string;
+  backing_track_id: string | null;
+  duet_mode: DuetMode | null;
+  status: ChallengeStatus;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChallengeEntryRow = {
+  id: string;
+  challenge_id: string;
+  wave_id: string;
+  user_id: string;
+  created_at: string;
+};
+
+/** The curated Top 5 for a challenge. */
+export type ChallengePickRow = {
+  id: string;
+  challenge_id: string;
+  wave_id: string;
+  /** 1..5 */
+  rank: number;
+  picked_by: string | null;
+  note: string | null;
+  created_at: string;
 };
 
 export type WaveCollaboratorRow = {
@@ -654,6 +695,45 @@ export interface Database {
         Update: Partial<Pick<OpenCallRow, "prompt" | "deadline_at" | "is_open">>;
         Relationships: Relationships;
       };
+      challenges: {
+        Row: ChallengeRow;
+        Insert: Pick<ChallengeRow, "slug" | "title" | "brief" | "hashtag" | "starts_at" | "ends_at"> &
+          Partial<
+            Pick<
+              ChallengeRow,
+              "id" | "backing_track_id" | "duet_mode" | "status" | "created_by"
+            >
+          >;
+        Update: Partial<
+          Pick<
+            ChallengeRow,
+            | "title"
+            | "brief"
+            | "hashtag"
+            | "starts_at"
+            | "ends_at"
+            | "backing_track_id"
+            | "duet_mode"
+            | "status"
+          >
+        >;
+        Relationships: Relationships;
+      };
+      challenge_entries: {
+        Row: ChallengeEntryRow;
+        Insert: Pick<ChallengeEntryRow, "challenge_id" | "wave_id"> &
+          Partial<Pick<ChallengeEntryRow, "id" | "user_id">>;
+        /** No client update path — an entry is entered or withdrawn (deleted), never edited. */
+        Update: never;
+        Relationships: Relationships;
+      };
+      challenge_picks: {
+        Row: ChallengePickRow;
+        Insert: Pick<ChallengePickRow, "challenge_id" | "wave_id" | "rank"> &
+          Partial<Pick<ChallengePickRow, "id" | "picked_by" | "note">>;
+        Update: Partial<Pick<ChallengePickRow, "rank" | "note">>;
+        Relationships: Relationships;
+      };
       wave_collaborators: {
         Row: WaveCollaboratorRow;
         Insert: Pick<WaveCollaboratorRow, "wave_id" | "profile_id"> &
@@ -881,6 +961,24 @@ export interface Database {
         Args: { p_track_id: string; p_cursor?: string | null; p_limit?: number };
         Returns: WaveRow[];
       };
+      list_challenges: {
+        Args: { p_status?: string | null; p_cursor?: string | null; p_limit?: number };
+        Returns: ChallengeRow[];
+      };
+      get_challenge: { Args: { p_slug: string }; Returns: ChallengeRow };
+      can_enter_challenge: {
+        Args: { p_challenge_id: string; p_wave_id: string };
+        Returns: boolean;
+      };
+      list_challenge_entries: {
+        Args: { p_challenge_id: string; p_cursor?: string | null; p_limit?: number };
+        Returns: ChallengeEntryRow[];
+      };
+      enter_challenge: { Args: { p_challenge_id: string; p_wave_id: string }; Returns: string };
+      list_waves_by_hashtag: {
+        Args: { p_tag: string; p_cursor?: string | null; p_limit?: number };
+        Returns: WaveRow[];
+      };
     };
     Enums: {
       profile_privacy: ProfilePrivacy;
@@ -909,6 +1007,7 @@ export interface Database {
       report_reason: ReportReason;
       report_status: ReportStatus;
       moderation_action_type: ModerationActionType;
+      challenge_status: ChallengeStatus;
     };
     CompositeTypes: Record<never, never>;
   };

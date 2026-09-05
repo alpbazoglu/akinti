@@ -11,6 +11,9 @@ import type {
   AudioAssetRow,
   AudioProcessingJobRow,
   BackingTrackRow,
+  ChallengeEntryRow,
+  ChallengePickRow,
+  ChallengeRow,
   CommentRow,
   ConversationMemberRow,
   ConversationRow,
@@ -31,6 +34,9 @@ import type {
   AudioAsset,
   AudioProcessingJob,
   BackingTrack,
+  Challenge,
+  ChallengeEntry,
+  ChallengePick,
   Collaborator,
   Comment,
   Conversation,
@@ -235,6 +241,46 @@ export function toOpenCall(row: OpenCallRow): OpenCall {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     closedAt: row.closed_at,
+  };
+}
+
+export function toChallenge(row: ChallengeRow): Challenge {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    brief: row.brief,
+    hashtag: row.hashtag,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    backingTrackId: row.backing_track_id,
+    duetMode: row.duet_mode,
+    status: row.status,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export function toChallengeEntry(row: ChallengeEntryRow): ChallengeEntry {
+  return {
+    id: row.id,
+    challengeId: row.challenge_id,
+    waveId: row.wave_id,
+    userId: row.user_id,
+    createdAt: row.created_at,
+  };
+}
+
+export function toChallengePick(row: ChallengePickRow): ChallengePick {
+  return {
+    id: row.id,
+    challengeId: row.challenge_id,
+    waveId: row.wave_id,
+    rank: row.rank,
+    pickedBy: row.picked_by,
+    note: row.note,
+    createdAt: row.created_at,
   };
 }
 

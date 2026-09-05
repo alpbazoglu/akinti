@@ -30,6 +30,12 @@ export const routes = {
   duetRecord: (waveId: string, requestId: string) =>
     `/w/${enc(waveId)}/duet/record?request=${enc(requestId)}`,
 
+  /* Prompts & challenges (§4 "weekly theme + backing track, curated Top 5, hashtag pages") */
+  challenges: () => "/challenges",
+  challenge: (slug: string) => `/challenges/${enc(slug)}`,
+  /** Hashtag pages — reuses `waves.tags`, not owned by the challenges tables. */
+  hashtag: (tag: string) => `/hashtag/${enc(tag)}`,
+
   /* Creator analytics + product health (§27, §28) */
   analytics: (days?: number) => (days ? `/analytics?days=${days}` : "/analytics"),
   /** Moderators only — 404 otherwise (spec §28, mirrors `/moderation`). */
@@ -114,6 +120,8 @@ const PUBLIC_ROUTE_PREFIXES: readonly Href[] = [
            // this only skips the page-style redirect branch.
   "/w/", // Wave detail — visibility is enforced server-side, not by gating the route
   "/u/", // Profile pages — same
+  "/challenges", // Prompts & challenges (§4) — a live/closed challenge is public, RLS-gated
+  "/hashtag/", // Hashtag pages (§4) — reuses waves.tags, public the same way /explore is
 ];
 
 export function isPublicRoute(pathname: string): boolean {

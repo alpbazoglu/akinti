@@ -91,6 +91,12 @@ export const TERMS = {
   logOut: "Log out",
   onboarding: "Get started",
 
+  /* Prompts & challenges (§4) */
+  challenge: "Challenge",
+  challenges: "Challenges",
+  enterChallenge: "Enter challenge",
+  topFive: "Top 5",
+
   /* Playback */
   playAction: "Play",
   pauseAction: "Pause",

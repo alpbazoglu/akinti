@@ -43,6 +43,7 @@ instructions: `supabase/README.md`.
 | 31 | `duet_v2_modes` | `duet_mode` enum (`layer \| atisma \| cypher`), `waves.duet_mode`/`segments`/`cypher_order`, `validate_duet_segments()`, `waves_derive_duet_lineage()` extended to derive mode default/cypher_order/segment validation, chain-depth ceiling tightened 32 → 6, `waves_guard_update()` extended to lock the three new columns (Wave D) |
 | 32 | `duet_v2_chain_rpc` | `duet_tree(root_wave_id)` — the full chain, `can_view_wave`-filtered per node (Wave D) |
 | 33 | `duet_v2_backing_track_lineage` | `waves_after_insert_backing_track_credit()` trigger (credits a backing track's uploader as an already-accepted collaborator the moment a Wave publishes over their track), `list_waves_on_track()` keyset RPC (Wave D) |
+| 34 | `challenges` | `challenges`/`challenge_entries`/`challenge_picks` (Prompts & challenges, spec §4 — weekly theme + backing track, curated Top 5), `can_enter_challenge()` predicate, `challenge_entries_guard` (owns/rate-limits entries via `check_rate_limit`, action `'challenge_entry'`), `list_challenges()`/`get_challenge()`/`list_challenge_entries()`/`enter_challenge()` RPCs, `list_waves_by_hashtag()` (hashtag pages — reuses `waves.tags`, no new tagging mechanism) — full write-up: `docs/CHALLENGES.md` |
 
 ## Entities
 
@@ -88,6 +89,14 @@ expired`, `expires_at`). Full schema and lifecycle: `DUET_SPEC.md`.
 **Messaging:** `conversations` (`direct` deduped via `direct_key`, or
 `group`), `conversation_members`, `messages` (`text | audio | wave_share |
 duet_request`, payload shape enforced by a CHECK constraint per `kind`).
+
+**Prompts & challenges (spec §4):** `challenges` (weekly theme, optional
+`backing_track_id`/`duet_mode`, `status` `draft | live | closed`),
+`challenge_entries` (a Wave submitted to a challenge, unique per
+`(challenge, wave)`), `challenge_picks` (the curated Top 5, unique per
+`(challenge, rank)` and `(challenge, wave)`). Hashtag pages
+(`list_waves_by_hashtag`) reuse `waves.tags` — no separate tagging
+mechanism. Full write-up: `docs/CHALLENGES.md`.
 
 **Notifications/moderation:** `notifications` (grouped by `group_key`; see
 below), `reports` (`open → reviewing → actioned | dismissed`, never
@@ -273,6 +282,12 @@ the request/accept round trip, not the underlying permission rules.
 (migration 33) both re-check `can_view_wave` per row rather than once at the
 top, the same "SECURITY DEFINER re-implements the RLS filter explicitly"
 pattern `list_backing_tracks`/`list_open_calls` use.
+
+`can_enter_challenge(challenge_id, wave_id)` (migration 34) joins this set
+for Prompts & challenges: the challenge must be `live` and the caller must
+own the Wave. Both `challenge_entries_insert` RLS and the `enter_challenge()`
+RPC call it rather than each re-implementing it — full write-up:
+`docs/CHALLENGES.md`.
 
 `is_moderator(profile_id default auth.uid())` (migration 23) joins this set:
 `can_view_wave()` calls it to admit moderators to a hidden Wave,

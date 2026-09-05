@@ -16,6 +16,7 @@ import type {
   AudioJobType,
   AudioProcessingStatus,
   BackingTrackLicense,
+  ChallengeStatus,
   CollaboratorStatus,
   CommentAudience,
   ContentOrigin,
@@ -49,6 +50,7 @@ export type {
   AudioJobType,
   AudioProcessingStatus,
   BackingTrackLicense,
+  ChallengeStatus,
   CollaboratorStatus,
   CommentAudience,
   ContentOrigin,
@@ -85,6 +87,8 @@ export const WAVE_CREATION_TYPES = ["recorded", "uploaded", "duet"] as const;
 /** Wave D. `layer` is the original simultaneous mix. */
 export const DUET_MODES = ["layer", "atisma", "cypher"] as const;
 export const BACKING_TRACK_LICENSES = ["cc0", "cc_by", "owner_upload"] as const;
+/** Prompts & challenges (PRODUCT_V2 §4). `draft` is moderator/author-only. */
+export const CHALLENGE_STATUSES = ["draft", "live", "closed"] as const;
 export const CONTENT_ORIGINS = ["original", "cover", "licensed", "unknown"] as const;
 export const THEME_BACKGROUND_COLORS = ["ink", "slate", "sand", "mist", "plum", "forest"] as const;
 export const THEME_BACKGROUND_GRADIENTS = [
@@ -355,6 +359,53 @@ export interface BackingTrack {
   durationMs: number | null;
   isCurated: boolean;
   openForVocals: boolean;
+  createdAt: string;
+}
+
+/**
+ * A weekly theme (PRODUCT_V2 §4 "Prompts & challenges"): a title/brief,
+ * optionally paired with a backing track and a recommended Duet mode (e.g. an
+ * "Atışma call"), tagged with a hashtag that doubles as its discovery page
+ * (`list_waves_by_hashtag`, migration 20260905130000 — reuses `Wave.tags`,
+ * no separate tagging mechanism). `status` gates visibility: `draft` is
+ * moderator/author-only, `live`/`closed` are public.
+ */
+export interface Challenge {
+  id: string;
+  slug: string;
+  title: string;
+  brief: string;
+  /** Stored without a leading '#'. */
+  hashtag: string;
+  startsAt: string;
+  endsAt: string;
+  backingTrackId: string | null;
+  /** Informational only — never enforced against a submitted entry. */
+  duetMode: DuetMode | null;
+  status: ChallengeStatus;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** One Wave entered into a `Challenge` (`enterChallenge`, `src/lib/db/challenges.ts`). */
+export interface ChallengeEntry {
+  id: string;
+  challengeId: string;
+  waveId: string;
+  userId: string;
+  createdAt: string;
+}
+
+/** The curated Top 5 for a challenge — an editorial ranking, never a public leaderboard (no gamification, spec §12 rule 35). */
+export interface ChallengePick {
+  id: string;
+  challengeId: string;
+  waveId: string;
+  /** 1..5 */
+  rank: number;
+  pickedBy: string | null;
+  note: string | null;
   createdAt: string;
 }
 
