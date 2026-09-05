@@ -2,6 +2,7 @@
 import { PageHeader } from "@/components/layout";
 import { LockedContent, ProfileHeader, ProfileTabs } from "@/components/profile";
 import { EmptyState } from "@/components/ui";
+import { SIGNATURE_SOURCE_LIMIT, composeSignature } from "@/components/feed";
 import type { WaveCardContainerWave } from "@/components/wave";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getFollowStatus, isFollowing } from "@/lib/db/follows";
@@ -116,10 +117,18 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     );
   }
 
+  // The signature (SCREENS.md §8): a trace generated from this person's own
+  // last 12 Waves, newest first — `waveCards` is already ordered that way,
+  // so no extra query is needed beyond what the tabs already fetch.
+  const signature = canSeeContent
+    ? composeSignature(waveCards.slice(0, SIGNATURE_SOURCE_LIMIT).map((card) => card.peaks))
+    : [];
+
   return (
     <>
       <ProfileHeader
         profile={profile}
+        signature={signature}
         viewer={{
           isSelf,
           isSignedIn: viewerUser !== null,

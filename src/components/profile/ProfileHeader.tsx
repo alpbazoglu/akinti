@@ -1,22 +1,28 @@
 import Link from "next/link";
 import { ChartColumn, Pencil } from "@/components/ui/icons";
 
+import { WaveformCanvas } from "@/components/audio";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import type { FollowStatus, Profile } from "@/types/domain";
 import { Avatar } from "@/components/ui";
-import { cn, formatCount, resolveProfileTheme } from "@/lib/ui";
+import { cn, formatCount } from "@/lib/ui";
 
 import { FollowButton } from "./FollowButton";
 import { ProfileOverflowMenu } from "./ProfileOverflowMenu";
 import { ShareProfileButton } from "./ShareProfileButton";
 
 /** Matches `Button`'s `variant="secondary" size="sm"` — used here because these are real
- *  navigations (Edit profile, Message), not actions, and must render as `<a>`, not `<button>`. */
+ *  navigations (Edit profile, Message), not actions, and must render as `<a>`, not `<button>`.
+ *  Key radius, hairline border, no fill: the same ink-line "key" look as everywhere else
+ *  (§8.7) — never a pill (§12.4). */
 const SECONDARY_LINK_BUTTON =
-  "inline-flex h-8 items-center gap-1.5 rounded-full border border-border-strong bg-surface px-3 " +
-  "text-[0.8125rem] font-medium text-fg transition-colors hover:bg-surface-muted " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "akinti-press inline-flex h-9 items-center gap-1.5 rounded-key border border-hairline-strong px-3 " +
+  "type-caption font-medium text-ink transition-colors hover:bg-paper-sunk " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
+/** Trace height for the signature banner (§8): a real waveform, not a hero image. */
+const SIGNATURE_HEIGHT = 96;
 
 export interface ProfileHeaderViewerState {
   isSelf: boolean;
@@ -31,33 +37,46 @@ export interface ProfileHeaderViewerState {
 export interface ProfileHeaderProps {
   profile: Profile;
   viewer: ProfileHeaderViewerState;
+  /** This person's signature (SCREENS.md §8): composed from their own last 12
+   *  Waves, newest first. Empty when they haven't published yet. */
+  signature?: readonly number[];
   className?: string;
 }
 
-/**
- * Profile header (spec §21): themed banner, avatar, identity, counts, and
- * the Follow/Message/Share/Block/Report action row. Creation-type-agnostic —
- * this component knows nothing about Recorded/Uploaded/Duet, that lives
- * entirely on `WaveCard`.
- */
-export function ProfileHeader({ profile, viewer, className }: ProfileHeaderProps) {
-  const theme = resolveProfileTheme(profile.theme);
-  const name = profile.displayName ?? profile.username;
-  const bannerLayers = [theme.gradient.css, theme.pattern.backgroundImage].filter(
-    (layer): layer is string => layer !== null,
+/** The dormant signature, before anyone has published a Wave (§8.2): a row
+ *  of ink-hairline ticks at rest, never a fake shape. */
+function DormantSignature() {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex h-full items-center gap-2 px-5"
+      style={{ height: SIGNATURE_HEIGHT }}
+    >
+      {Array.from({ length: 28 }, (_, index) => (
+        <span key={index} className="h-px w-3 shrink-0 bg-hairline-strong" />
+      ))}
+    </div>
   );
+}
+
+/**
+ * Profile header (SCREENS.md §8): the signature trace as cover art, avatar,
+ * identity, counts, and the Follow/Message/Share/Block/Report action row.
+ * Creation-type-agnostic — this component knows nothing about
+ * Recorded/Uploaded/Duet, that lives entirely on `WaveCard`.
+ */
+export function ProfileHeader({ profile, viewer, signature = [], className }: ProfileHeaderProps) {
+  const name = profile.displayName ?? profile.username;
 
   return (
     <div className={cn("flex flex-col", className)}>
-      <div
-        aria-hidden="true"
-        style={{
-          backgroundColor: theme.background.hex,
-          backgroundImage: bannerLayers.length > 0 ? bannerLayers.join(", ") : undefined,
-          backgroundSize: theme.pattern.backgroundSize ?? undefined,
-        }}
-        className="h-28 w-full sm:h-36"
-      />
+      <div className="w-full bg-paper-sunk" style={{ height: SIGNATURE_HEIGHT }}>
+        {signature.length > 0 ? (
+          <WaveformCanvas peaks={signature} height={SIGNATURE_HEIGHT} state="unplayed" />
+        ) : (
+          <DormantSignature />
+        )}
+      </div>
 
       <div className="flex flex-col gap-4 px-4 pb-2 sm:px-5">
         <div className="flex items-end justify-between gap-3">
@@ -112,6 +131,13 @@ export function ProfileHeader({ profile, viewer, className }: ProfileHeaderProps
           {profile.bio ? (
             <p className="mt-1 max-w-prose text-sm leading-relaxed whitespace-pre-line text-fg-muted">
               {profile.bio}
+            </p>
+          ) : null}
+          {viewer.isSelf ? (
+            <p className="type-caption text-ink-subtle">
+              {signature.length > 0
+                ? "Your signature, from your last 12 Waves."
+                : "Your signature appears once you publish."}
             </p>
           ) : null}
         </div>
