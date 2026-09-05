@@ -6,8 +6,24 @@ import { cn } from "@/lib/ui";
 
 import { Spinner } from "./Spinner";
 
+/**
+ * Keys, not buttons (`docs/design/DESIGN.md` §8.7).
+ *
+ * Three looks and no more:
+ *   ink  - ink field, paper label. The single most important action on a screen.
+ *   line - 1px hairline-strong, no fill, ink label. Secondary actions.
+ *   text - ink label with a 1px hairline underline offset 3px. Tertiary and
+ *          destructive, so "Delete account" is a sentence and not a red pill.
+ *
+ * The v1 variant names are the public API and map onto those three:
+ * `primary` is the ink key, `secondary` the line key, `ghost` and `danger` the
+ * text key. Nothing is a pill (§12.4) and nothing is coloured except a
+ * destructive label, which uses the AA-safe Signal (§4.4).
+ */
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
-export type ButtonSize = "sm" | "md" | "lg";
+
+/** 52 / 44 / 40 / 32px tall, per §8.7. */
+export type ButtonSize = "lg" | "md" | "sm" | "xs";
 
 export interface ButtonProps extends ComponentPropsWithRef<"button"> {
   variant?: ButtonVariant;
@@ -17,29 +33,45 @@ export interface ButtonProps extends ComponentPropsWithRef<"button"> {
   /** Announced while `loading` is true. */
   loadingLabel?: string;
   leadingIcon?: ReactNode;
+  /**
+   * Trailing glyph. Never an arrow appended to a label and never an icon in a
+   * circle (§8.7) — this exists for counters and state marks.
+   */
   trailingIcon?: ReactNode;
   fullWidth?: boolean;
 }
 
 const BASE =
-  "relative inline-flex select-none items-center justify-center gap-2 rounded-full font-medium " +
-  "transition-[background-color,border-color,color,box-shadow] duration-150 " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring " +
+  "akinti-press relative inline-flex select-none items-center justify-center gap-2 " +
+  "rounded-key type-subhead whitespace-nowrap " +
+  "transition-[background-color,border-color,color] duration-[--dur-micro] " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
   "disabled:cursor-not-allowed disabled:opacity-55";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary:
-    "bg-accent text-fg-on-accent shadow-xs hover:bg-accent-hover active:bg-accent-active",
-  secondary:
-    "border border-border-strong bg-surface text-fg hover:bg-surface-muted active:bg-surface-inset",
-  ghost: "text-fg-muted hover:bg-surface-muted hover:text-fg active:bg-surface-inset",
-  danger: "bg-danger text-white shadow-xs hover:bg-danger-hover",
+  primary: "bg-ink text-on-ink",
+  secondary: "border border-hairline-strong text-ink",
+  ghost:
+    "text-ink underline decoration-hairline-strong decoration-1 underline-offset-[3px] " +
+    "hover:decoration-ink",
+  danger:
+    "text-signal-deep underline decoration-signal-deep/60 decoration-1 underline-offset-[3px] " +
+    "hover:decoration-signal-deep",
 };
 
 const SIZES: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-[0.8125rem]",
-  md: "h-10 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
+  lg: "h-13 px-6",
+  md: "h-11 px-5",
+  sm: "h-10 px-4",
+  xs: "h-8 px-3 type-caption",
+};
+
+/** Text keys are a sentence, not a field: they carry no side padding. */
+const TEXT_KEY_SIZES: Record<ButtonSize, string> = {
+  lg: "h-13 px-0",
+  md: "h-11 px-0",
+  sm: "h-10 px-0",
+  xs: "h-8 px-0 type-caption",
 };
 
 export function Button({
@@ -56,6 +88,8 @@ export function Button({
   type = "button",
   ...props
 }: ButtonProps) {
+  const isTextKey = variant === "ghost" || variant === "danger";
+
   return (
     <button
       {...props}
@@ -65,7 +99,7 @@ export function Button({
       className={cn(
         BASE,
         VARIANTS[variant],
-        SIZES[size],
+        (isTextKey ? TEXT_KEY_SIZES : SIZES)[size],
         fullWidth && "w-full",
         className,
       )}
@@ -75,9 +109,7 @@ export function Button({
           <Spinner size={size === "lg" ? "md" : "sm"} label={loadingLabel} />
         </span>
       ) : null}
-      <span
-        className={cn("inline-flex items-center gap-2", loading && "invisible")}
-      >
+      <span className={cn("inline-flex items-center gap-2", loading && "invisible")}>
         {leadingIcon ? (
           <span aria-hidden="true" className="inline-flex shrink-0">
             {leadingIcon}

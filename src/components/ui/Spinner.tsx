@@ -14,9 +14,14 @@ export interface SpinnerProps {
 const SIZES: Record<SpinnerSize, string> = {
   sm: "size-3.5 border-[1.5px]",
   md: "size-5 border-2",
-  lg: "size-8 border-2",
+  lg: "size-7 border-2",
 };
 
+/**
+ * Only ever for a bounded action expected to take under two seconds — saving a
+ * title, submitting a comment. A feed gets a skeleton, never a spinner
+ * (§8.15, `mobile-guidelines.md` rule 36).
+ */
 export function Spinner({ size = "md", label = "Loading", className }: SpinnerProps) {
   return (
     <span
@@ -28,7 +33,7 @@ export function Spinner({ size = "md", label = "Loading", className }: SpinnerPr
         aria-hidden="true"
         className={cn(
           "inline-block rounded-full border-current border-t-transparent",
-          "motion-safe:[animation:akinti-spin_0.7s_linear_infinite]",
+          "motion-safe:animate-spin",
           SIZES[size],
         )}
       />

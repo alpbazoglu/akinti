@@ -1,6 +1,10 @@
 import { cn } from "@/lib/ui";
 
-export type SkeletonShape = "line" | "block" | "circle";
+/**
+ * `waterline` is the shape a trace leaves behind: a flat 6px line in
+ * `wave-rest`. Never a fake waveform, never a shimmer (§8.15, §12.32).
+ */
+export type SkeletonShape = "line" | "block" | "circle" | "waterline";
 
 export interface SkeletonProps {
   shape?: SkeletonShape;
@@ -12,26 +16,27 @@ export interface SkeletonProps {
 }
 
 const SHAPES: Record<SkeletonShape, string> = {
-  line: "rounded-sm h-3",
-  block: "rounded-md h-24",
-  circle: "rounded-full size-10",
+  line: "h-3 rounded-label bg-paper-sunk",
+  block: "h-24 rounded-field bg-paper-sunk",
+  // The rail carries a squircle avatar, so its placeholder is one too (§8.10).
+  circle: "size-11 rounded-[15px] bg-paper-sunk",
+  waterline: "h-1.5 w-full rounded-none bg-wave-rest",
 };
 
 /**
- * Placeholder block for loading states. Decorative: the surrounding region
- * should carry the `aria-busy` / status announcement.
+ * Placeholder shaped to the final layout (§8.15). Decorative: the surrounding
+ * region carries the `aria-busy` / status announcement.
+ *
+ * There is no pulse and no shimmer here on purpose. A shimmering skeleton is
+ * an infinite animation, and the record lamp is the only infinite animation in
+ * the product (§12.34).
  */
 export function Skeleton({ shape = "line", width, height, className }: SkeletonProps) {
   return (
     <span
       aria-hidden="true"
       style={{ width, height }}
-      className={cn(
-        "block bg-surface-inset",
-        "motion-safe:[animation:akinti-pulse_1.6s_ease-in-out_infinite]",
-        SHAPES[shape],
-        className,
-      )}
+      className={cn("block", SHAPES[shape], className)}
     />
   );
 }

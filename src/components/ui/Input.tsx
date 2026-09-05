@@ -3,6 +3,7 @@ import type { ComponentPropsWithRef, ReactNode } from "react";
 import { cn } from "@/lib/ui";
 
 import { CONTROL_BASE, Field, controlBorder, describedBy } from "./Field";
+import { Check } from "./icons";
 
 export interface InputProps
   extends Omit<ComponentPropsWithRef<"input">, "size"> {
@@ -15,6 +16,11 @@ export interface InputProps
   leadingIcon?: ReactNode;
   /** Control rendered inside the field, on the trailing edge. */
   trailingSlot?: ReactNode;
+  /**
+   * An availability confirmation: a small Signal tick inside the field, not a
+   * green banner (§8.9). Ignored when `trailingSlot` is supplied.
+   */
+  confirmed?: boolean;
   containerClassName?: string;
 }
 
@@ -26,12 +32,14 @@ export function Input({
   error,
   leadingIcon,
   trailingSlot,
+  confirmed = false,
   required,
   className,
   containerClassName,
   ...props
 }: InputProps) {
   const hasError = Boolean(error);
+  const showTick = confirmed && !trailingSlot && !hasError;
 
   return (
     <Field
@@ -47,7 +55,7 @@ export function Input({
         {leadingIcon ? (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute left-3 inline-flex text-fg-subtle"
+            className="pointer-events-none absolute left-3.5 inline-flex text-ink-subtle"
           >
             {leadingIcon}
           </span>
@@ -71,15 +79,21 @@ export function Input({
           className={cn(
             CONTROL_BASE,
             controlBorder(hasError),
-            "h-10",
-            leadingIcon && "pl-9",
-            trailingSlot && "pr-11",
+            "h-12",
+            leadingIcon && "pl-10",
+            (trailingSlot || showTick) && "pr-11",
             className,
           )}
         />
         {trailingSlot ? (
-          <span className="absolute right-1.5 inline-flex items-center">
-            {trailingSlot}
+          <span className="absolute right-2 inline-flex items-center">{trailingSlot}</span>
+        ) : null}
+        {showTick ? (
+          <span
+            aria-hidden="true"
+            className="absolute right-3.5 inline-flex items-center text-signal"
+          >
+            <Check className="size-4" />
           </span>
         ) : null}
       </div>

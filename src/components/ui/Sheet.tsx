@@ -1,18 +1,12 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
-import { X } from "lucide-react";
+import type { ReactNode } from "react";
+import { Drawer } from "vaul";
 
 import { cn } from "@/lib/ui";
 
 import { IconButton } from "./IconButton";
+import { X } from "./icons";
 
 export interface SheetProps {
   open: boolean;
@@ -20,24 +14,26 @@ export interface SheetProps {
   title: string;
   description?: string;
   children: ReactNode;
-  /** Rendered in a sticky footer, typically the confirm/cancel buttons. */
+  /** Rendered in a sticky footer, typically the confirm/cancel keys. */
   footer?: ReactNode;
   /** Hide the title visually while keeping it as the accessible name. */
   hideTitle?: boolean;
   className?: string;
 }
 
-const FOCUSABLE =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), ' +
-  'select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 /**
- * A bottom sheet on mobile, a centred dialog from `sm` up (spec section 36).
+ * The bottom sheet (§8.6).
  *
- * Implements the dialog pattern by hand rather than pulling in a dependency:
- * `role="dialog"` + `aria-modal`, Escape to close, focus moved in on open and
- * restored on close, Tab cycling contained inside the panel, and the page
- * behind it inert to scrolling.
+ * 24px top corners, `paper-raised` fill, level-1 elevation, a 42% ink scrim
+ * and the 380ms spring from §7.1. Dismissible by drag, by scrim tap and by
+ * Escape. A centred dialog is used only to confirm something irreversible, so
+ * this is a sheet at every breakpoint rather than a dialog above `sm`.
+ *
+ * Built on `vaul` (`docs/research/libraries.md` §5) so the drag physics, the
+ * focus trap, the scroll lock and the inert background come from Radix Dialog
+ * rather than from hand-rolled keyboard handling.
+ *
+ * The grabber is a 24px waterline, not a grey capsule.
  */
 export function Sheet({
   open,
@@ -49,122 +45,69 @@ export function Sheet({
   hideTitle = false,
   className,
 }: SheetProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
-  const baseId = useId();
-  const titleId = `${baseId}-title`;
-  const descriptionId = `${baseId}-description`;
-
-  useEffect(() => {
-    if (!open) return;
-
-    previouslyFocused.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-    const panel = panelRef.current;
-    const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
-    (first ?? panel)?.focus();
-
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = overflow;
-      previouslyFocused.current?.focus();
-    };
-  }, [open]);
-
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        onClose();
-        return;
-      }
-
-      if (event.key !== "Tab") return;
-
-      const panel = panelRef.current;
-      if (!panel) return;
-
-      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (element) => element.offsetParent !== null || element === document.activeElement,
-      );
-      if (focusable.length === 0) {
-        event.preventDefault();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement;
-
-      if (event.shiftKey && (active === first || active === panel)) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    },
-    [onClose],
-  );
-
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <button
-        type="button"
-        aria-label="Close"
-        tabIndex={-1}
-        onClick={onClose}
-        className="absolute inset-0 cursor-default bg-overlay motion-safe:[animation:akinti-fade-in_150ms_ease-out]"
-      />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descriptionId : undefined}
-        tabIndex={-1}
-        onKeyDown={handleKeyDown}
-        className={cn(
-          "relative flex max-h-[88dvh] w-full flex-col overflow-hidden bg-surface shadow-lg",
-          "rounded-t-2xl sm:max-w-lg sm:rounded-2xl",
-          "motion-safe:[animation:akinti-slide-up_180ms_ease-out]",
-          className,
-        )}
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
-          <div className={cn("min-w-0", hideTitle && "sr-only")}>
-            <h2 id={titleId} className="text-base font-semibold text-fg">
-              {title}
-            </h2>
-            {description ? (
-              <p id={descriptionId} className="mt-1 text-sm text-fg-muted">
-                {description}
-              </p>
-            ) : null}
+    <Drawer.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="akinti-scrim fixed inset-0 z-50" />
+        <Drawer.Content
+          // Radix warns when a dialog carries an `aria-describedby` pointing at
+          // a `Description` that was never rendered. When this sheet has no
+          // description, explicitly clearing the attribute is Radix's own
+          // escape hatch; when it does, the context wiring is left alone.
+          {...(description ? {} : { "aria-describedby": undefined })}
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col outline-none",
+            "rounded-t-sheet bg-paper-raised shadow-sheet",
+            "mx-auto w-full sm:max-w-lg",
+            className,
+          )}
+        >
+          {/* The grabber is a waterline: a 24px trace, not a capsule (§8.6). */}
+          <div className="flex justify-center pt-3 pb-1">
+            <span aria-hidden="true" className="flex h-2 w-6 items-end gap-px">
+              <span className="h-1 flex-1 bg-hairline-strong" />
+              <span className="h-2 flex-1 bg-hairline-strong" />
+              <span className="h-1.5 flex-1 bg-hairline-strong" />
+              <span className="h-2 flex-1 bg-hairline-strong" />
+              <span className="h-1 flex-1 bg-hairline-strong" />
+              <span className="h-1.5 flex-1 bg-hairline-strong" />
+            </span>
           </div>
-          <IconButton
-            label="Close"
-            icon={<X className="size-4" />}
-            onClick={onClose}
-            className="-mr-2 -mt-1"
-          />
-        </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-
-        {footer ? (
-          <div className="akinti-safe-bottom border-t border-border bg-surface px-5 py-3">
-            {footer}
+          <div className="akinti-page flex items-start justify-between gap-5 pt-2 pb-4">
+            <div className={cn("min-w-0", hideTitle && "sr-only")}>
+              <Drawer.Title className="type-heading text-ink">{title}</Drawer.Title>
+              {description ? (
+                <Drawer.Description className="type-body-sm measure mt-1 text-ink-muted">
+                  {description}
+                </Drawer.Description>
+              ) : null}
+            </div>
+            <Drawer.Close asChild>
+              <IconButton
+                label="Close"
+                icon={<X className="size-5" />}
+                className="-mt-1 -mr-2"
+              />
+            </Drawer.Close>
           </div>
-        ) : (
-          <div className="akinti-safe-bottom" />
-        )}
-      </div>
-    </div>
+
+          <div className="akinti-page min-h-0 flex-1 overflow-y-auto pb-5">{children}</div>
+
+          {footer ? (
+            <div className="akinti-page akinti-safe-bottom border-t border-hairline pt-4 pb-4">
+              {footer}
+            </div>
+          ) : (
+            <div className="akinti-safe-bottom" />
+          )}
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }

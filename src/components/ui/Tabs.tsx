@@ -18,7 +18,11 @@ export interface TabsProps {
   onValueChange: (value: string) => void;
   /** Names the tablist for screen readers. */
   label: string;
-  /** `underline` for page-level tabs, `segmented` for compact switches. */
+  /**
+   * `underline` is the 40px page-level filter row; `segmented` is the same
+   * marking at a compact 32px. Both mark the active item with a 2px ink
+   * underbar - never a filled coloured pill (DESIGN.md 8.8, 12.4).
+   */
   variant?: "underline" | "segmented";
   /** Supply a stable prefix when you render matching <TabPanel>s. */
   idPrefix?: string;
@@ -91,9 +95,7 @@ export function Tabs({
       onKeyDown={handleKeyDown}
       className={cn(
         "flex items-center overflow-x-auto",
-        isSegmented
-          ? "gap-1 rounded-full bg-surface-muted p-1"
-          : "gap-1 border-b border-border",
+        isSegmented ? "gap-5" : "gap-5 border-b border-hairline",
         className,
       )}
     >
@@ -111,23 +113,14 @@ export function Tabs({
             disabled={item.disabled}
             onClick={() => onValueChange(item.value)}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 text-sm font-medium whitespace-nowrap",
-              "transition-colors duration-150",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              "akinti-press inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap",
+              "border-b-2 transition-colors duration-[--dur-micro]",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
               "disabled:cursor-not-allowed disabled:opacity-55",
-              isSegmented
-                ? cn(
-                    "h-8 rounded-full px-3.5",
-                    selected
-                      ? "bg-surface text-fg shadow-xs"
-                      : "text-fg-muted hover:text-fg",
-                  )
-                : cn(
-                    "h-10 rounded-t-sm border-b-2 px-3.5",
-                    selected
-                      ? "border-accent text-fg"
-                      : "border-transparent text-fg-muted hover:text-fg",
-                  ),
+              isSegmented ? "h-8 type-caption" : "h-10 type-subhead",
+              selected
+                ? "border-ink text-ink"
+                : "border-transparent text-ink-muted hover:text-ink",
             )}
           >
             {item.icon ? (
@@ -137,7 +130,7 @@ export function Tabs({
             ) : null}
             {item.label}
             {typeof item.count === "number" ? (
-              <span className="text-fg-subtle tabular-nums">{item.count}</span>
+              <span className="type-mono-sm text-ink-subtle">{item.count}</span>
             ) : null}
           </button>
         );
@@ -171,7 +164,7 @@ export function TabPanel({ id, labelledBy, active, children, className }: TabPan
       aria-labelledby={labelledBy}
       hidden={!active}
       tabIndex={0}
-      className={cn("focus-visible:outline-2 focus-visible:outline-ring", className)}
+      className={cn("focus-visible:outline-2 focus-visible:outline-ink", className)}
     >
       {active ? children : null}
     </div>

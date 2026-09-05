@@ -174,9 +174,9 @@ export function Menu({ trigger, items, label, align = "end", className }: MenuPr
           aria-labelledby={triggerId}
           onKeyDown={handleMenuKeyDown}
           className={cn(
-            "absolute top-[calc(100%+0.375rem)] z-40 min-w-52 overflow-hidden rounded-lg",
-            "border border-border bg-surface-raised py-1 shadow-md",
-            "motion-safe:[animation:akinti-fade-in_120ms_ease-out]",
+            "absolute top-[calc(100%+0.5rem)] z-40 min-w-52 overflow-hidden rounded-key",
+            "bg-paper-raised py-1 shadow-sheet",
+            "motion-safe:akinti-enter",
             align === "end" ? "right-0" : "left-0",
           )}
         >
@@ -195,15 +195,15 @@ export function Menu({ trigger, items, label, align = "end", className }: MenuPr
                 close();
               }}
               className={cn(
-                "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm",
-                "transition-colors duration-100 focus-visible:outline-none",
+                "flex w-full items-center gap-3 px-4 py-3 text-left type-body-sm",
+                "transition-colors duration-[--dur-micro] focus-visible:outline-none",
                 "disabled:cursor-not-allowed disabled:opacity-55",
-                item.destructive ? "text-danger" : "text-fg",
-                "hover:bg-surface-muted focus:bg-surface-muted",
+                item.destructive ? "text-signal-deep" : "text-ink",
+                "hover:bg-paper-sunk focus:bg-paper-sunk",
               )}
             >
               {item.icon ? (
-                <span aria-hidden="true" className="inline-flex text-fg-subtle">
+                <span aria-hidden="true" className="inline-flex text-ink-subtle">
                   {item.icon}
                 </span>
               ) : null}

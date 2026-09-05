@@ -14,8 +14,9 @@ export interface ChipProps
 }
 
 /**
- * A toggleable filter pill, e.g. the Explore categories
- * (Trending, New, Rising, Open for Duet).
+ * A filter chip (§8.8). A filter row is one 40px row, horizontally scrollable,
+ * and the active item is marked by a **2px ink underbar** — never a filled
+ * coloured pill (§12.4). Unselected chips are 6px-radius hairline tags.
  */
 export function Chip({
   children,
@@ -32,13 +33,13 @@ export function Chip({
       type={type}
       aria-pressed={selected}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3",
-        "text-[0.8125rem] font-medium whitespace-nowrap transition-colors duration-150",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        "akinti-press inline-flex h-10 shrink-0 items-center gap-1.5 px-3",
+        "type-caption whitespace-nowrap transition-colors duration-[--dur-micro]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
         "disabled:cursor-not-allowed disabled:opacity-55",
         selected
-          ? "border-accent bg-accent-soft text-accent-soft-fg"
-          : "border-border bg-surface text-fg-muted hover:border-border-strong hover:text-fg",
+          ? "border-b-2 border-ink text-ink"
+          : "rounded-tag border border-hairline text-ink-muted hover:border-hairline-strong hover:text-ink",
         className,
       )}
     >
@@ -49,7 +50,7 @@ export function Chip({
       ) : null}
       {children}
       {typeof count === "number" ? (
-        <span className="text-fg-subtle tabular-nums">{count}</span>
+        <span className="type-mono-sm text-ink-subtle">{count}</span>
       ) : null}
     </button>
   );

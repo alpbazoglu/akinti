@@ -7,17 +7,25 @@ export interface AvatarProps {
   name: string;
   src?: string | null;
   size?: AvatarSize;
-  /** Ring treatment used to mark the active speaker on a Wave card. */
+  /**
+   * Marks audio that is live or unheard for this person. This is one of the
+   * five places Signal is allowed to appear (§4.1) — never use it to decorate.
+   */
   ring?: boolean;
   className?: string;
 }
 
+/**
+ * Squircles, not circles (§8.10). The person is a label on the rail, not a
+ * bubble, and the radius grows with the square so every avatar shares one
+ * corner curvature rather than one corner radius.
+ */
 const SIZES: Record<AvatarSize, string> = {
-  xs: "size-6 text-[0.625rem]",
-  sm: "size-8 text-xs",
-  md: "size-10 text-sm",
-  lg: "size-14 text-base",
-  xl: "size-20 text-xl",
+  xs: "size-6 rounded-[7px] text-[0.5625rem]",
+  sm: "size-8 rounded-[12px] text-[0.75rem]",
+  md: "size-11 rounded-[15px] text-[0.9375rem]",
+  lg: "size-12 rounded-[16px] text-[1rem]",
+  xl: "size-16 rounded-[20px] text-[1.375rem]",
 };
 
 export function Avatar({ name, src, size = "md", ring = false, className }: AvatarProps) {
@@ -26,9 +34,10 @@ export function Avatar({ name, src, size = "md", ring = false, className }: Avat
   return (
     <span
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full",
-        "bg-surface-inset font-semibold text-fg-muted select-none",
-        ring && "ring-2 ring-accent ring-offset-2 ring-offset-surface",
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden",
+        // Fallback initials: Archivo 500, ink-muted on paper-sunk (§8.10).
+        "bg-paper-sunk font-medium text-ink-muted select-none",
+        ring && "outline-2 outline-offset-2 outline-signal",
         SIZES[size],
         className,
       )}

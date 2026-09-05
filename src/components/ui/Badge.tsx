@@ -2,51 +2,40 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/ui";
 
-export type BadgeTone = "neutral" | "accent" | "success" | "warning" | "danger";
+/**
+ * `neutral` is the whole system: a hairline tag in ink (§8.11). `signal` exists
+ * for the two marks that genuinely describe live audio — unheard audio and
+ * "open for Duet" — and is drawn as a Signal dot beside an ink label, never as
+ * a Signal fill carrying text (§4.4).
+ */
+export type BadgeTone = "neutral" | "signal";
 export type BadgeSize = "sm" | "md";
 
 export interface BadgeProps {
   children: ReactNode;
   tone?: BadgeTone;
   size?: BadgeSize;
-  /** Small decorative glyph or icon shown before the label. */
-  icon?: ReactNode;
   className?: string;
 }
 
-const TONES: Record<BadgeTone, string> = {
-  neutral: "bg-surface-muted text-fg-muted",
-  accent: "bg-accent-soft text-accent-soft-fg",
-  success: "bg-success-soft text-success",
-  warning: "bg-warning-soft text-warning",
-  danger: "bg-danger-soft text-danger-soft-fg",
-};
-
-const SIZES: Record<BadgeSize, string> = {
-  sm: "h-5 gap-1 px-2 text-[0.6875rem]",
-  md: "h-6 gap-1.5 px-2.5 text-xs",
-};
-
-export function Badge({
-  children,
-  tone = "neutral",
-  size = "sm",
-  icon,
-  className,
-}: BadgeProps) {
+/**
+ * Recorded / Uploaded / Duet and every other tag in the product (§8.11):
+ * a 2px-radius hairline tag, ink only, sentence case, 11px, 6px of horizontal
+ * padding, 20px tall. Never filled, never tinted, never a pill, never
+ * full-bleed across a row.
+ */
+export function Badge({ children, tone = "neutral", size = "sm", className }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full font-medium whitespace-nowrap",
-        TONES[tone],
-        SIZES[size],
+        "inline-flex items-center gap-1.5 rounded-label border border-hairline-strong",
+        "type-micro text-ink whitespace-nowrap",
+        size === "sm" ? "h-5 px-1.5" : "h-6 px-2",
         className,
       )}
     >
-      {icon ? (
-        <span aria-hidden="true" className="inline-flex leading-none">
-          {icon}
-        </span>
+      {tone === "signal" ? (
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-signal" />
       ) : null}
       {children}
     </span>
@@ -61,7 +50,11 @@ export interface CountBadgeProps {
   className?: string;
 }
 
-/** Small numeric indicator, e.g. the unread badge on the Messages icon. */
+/**
+ * Small numeric indicator, e.g. the unread mark on Messages. An ink field with
+ * a paper numeral in the tabular mono, at label radius — never a coloured dot,
+ * because a coloured dot here would be Signal outside audio state (§12.3).
+ */
 export function CountBadge({ count, label, max = 99, className }: CountBadgeProps) {
   if (count <= 0) return null;
   const display = count > max ? `${max}+` : String(count);
@@ -69,8 +62,8 @@ export function CountBadge({ count, label, max = 99, className }: CountBadgeProp
   return (
     <span
       className={cn(
-        "inline-flex min-w-4 items-center justify-center rounded-full bg-accent px-1",
-        "text-[0.625rem] leading-4 font-semibold text-fg-on-accent",
+        "inline-flex h-4 min-w-4 items-center justify-center rounded-label bg-ink px-1",
+        "type-mono-sm text-on-ink",
         className,
       )}
     >

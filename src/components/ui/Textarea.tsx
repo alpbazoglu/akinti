@@ -15,6 +15,10 @@ export interface TextareaProps extends ComponentPropsWithRef<"textarea"> {
   containerClassName?: string;
 }
 
+/** Counters appear only above 80% of the limit (§8.9). */
+const COUNTER_THRESHOLD = 0.8;
+
+/** Textareas are 96px minimum and grow (§8.9). */
 export function Textarea({
   id,
   label,
@@ -32,6 +36,8 @@ export function Textarea({
 }: TextareaProps) {
   const hasError = Boolean(error);
   const used = typeof value === "string" ? value.length : 0;
+  const nearLimit =
+    typeof maxLength === "number" && maxLength > 0 && used / maxLength >= COUNTER_THRESHOLD;
 
   return (
     <Field
@@ -52,11 +58,11 @@ export function Textarea({
         required={required}
         aria-invalid={hasError || undefined}
         aria-describedby={describedBy(id, Boolean(hint), hasError)}
-        className={cn(CONTROL_BASE, controlBorder(hasError), "resize-y py-2", className)}
+        className={cn(CONTROL_BASE, controlBorder(hasError), "min-h-24 resize-y py-3", className)}
       />
-      {showCount && typeof maxLength === "number" ? (
-        <p className="text-right text-xs text-fg-subtle tabular-nums" aria-hidden="true">
-          {used} / {maxLength}
+      {showCount && typeof maxLength === "number" && nearLimit ? (
+        <p className="type-mono-sm text-right text-ink-subtle" aria-hidden="true">
+          {used}/{maxLength}
         </p>
       ) : null}
     </Field>

@@ -15,12 +15,19 @@ export { Field, type FieldProps } from "./Field";
 export {
   IconButton,
   type IconButtonProps,
+  type IconButtonShape,
   type IconButtonSize,
   type IconButtonVariant,
 } from "./IconButton";
 export { Input, type InputProps } from "./Input";
 export { Kbd, type KbdProps } from "./Kbd";
 export { Menu, type MenuItem, type MenuProps, type MenuTriggerProps } from "./Menu";
+export {
+  RecordKey,
+  type RecordKeyProps,
+  type RecordKeySize,
+  type RecordKeyState,
+} from "./RecordKey";
 export { Select, type SelectOption, type SelectProps } from "./Select";
 export { Sheet, type SheetProps } from "./Sheet";
 export { Skeleton, type SkeletonProps, type SkeletonShape } from "./Skeleton";
@@ -46,3 +53,4 @@ export {
   type ToastTone,
 } from "./Toast";
 export { VisuallyHidden, type VisuallyHiddenProps } from "./VisuallyHidden";
+export { ICON_SIZE, type IconComponent, type IconSize } from "./icons";

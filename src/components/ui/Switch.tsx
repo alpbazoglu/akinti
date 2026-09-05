@@ -17,8 +17,9 @@ export interface SwitchProps {
 }
 
 /**
- * An on/off control. Uses `role="switch"` on a real button so keyboard
- * activation (Space/Enter) and state announcement come from the platform.
+ * An on/off control: 52x32 with a 10px-radius travel, ink when on
+ * (`DESIGN_DNA.json` component_notes). Uses `role="switch"` on a real button so
+ * keyboard activation and state announcement come from the platform.
  */
 export function Switch({
   checked,
@@ -36,13 +37,13 @@ export function Switch({
   const descriptionId = `${switchId}-description`;
 
   return (
-    <div className={cn("flex items-start justify-between gap-4", className)}>
+    <div className={cn("flex items-start justify-between gap-5", className)}>
       <div className={cn("min-w-0", hideLabel && "sr-only")}>
-        <span id={labelId} className="block text-sm font-medium text-fg">
+        <span id={labelId} className="type-subhead block text-ink">
           {label}
         </span>
         {description ? (
-          <span id={descriptionId} className="mt-0.5 block text-xs text-fg-subtle">
+          <span id={descriptionId} className="type-caption measure mt-1 block text-ink-subtle">
             {description}
           </span>
         ) : null}
@@ -57,19 +58,18 @@ export function Switch({
         disabled={disabled}
         onClick={() => onCheckedChange(!checked)}
         className={cn(
-          "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border border-transparent",
-          "transition-colors duration-150",
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          "akinti-press relative inline-flex h-8 w-13 shrink-0 items-center rounded-field border",
+          "transition-colors duration-[--dur-micro]",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
           "disabled:cursor-not-allowed disabled:opacity-55",
-          checked ? "bg-accent" : "bg-surface-inset",
+          checked ? "border-ink bg-ink" : "border-hairline-strong bg-transparent",
         )}
       >
         <span
           aria-hidden="true"
           className={cn(
-            "inline-block size-5 rounded-full bg-surface shadow-xs ring-1 ring-border-strong",
-            "transition-transform duration-150",
-            checked ? "translate-x-[1.375rem]" : "translate-x-0.5",
+            "inline-block size-6 rounded-[7px] transition-transform duration-[--dur-micro]",
+            checked ? "translate-x-[1.5rem] bg-paper" : "translate-x-[0.1875rem] bg-hairline-strong",
           )}
         />
       </button>

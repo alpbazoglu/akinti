@@ -1,20 +1,9 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
-import { CircleAlert, CircleCheck, Info, X } from "lucide-react";
+import { useCallback, useMemo, useRef, type ReactNode } from "react";
+import { Toaster, toast as sonnerToast } from "sonner";
 
 import { cn } from "@/lib/ui";
-
-import { IconButton } from "./IconButton";
 
 export type ToastTone = "info" | "success" | "error";
 
@@ -40,137 +29,119 @@ export interface ToastApi {
   dismiss: (id: string) => void;
 }
 
-const ToastContext = createContext<ToastApi | null>(null);
-
-const DEFAULT_DURATION = 5000;
-
-const TONE_ICONS: Record<ToastTone, ReactNode> = {
-  info: <Info className="size-4 text-accent" />,
-  success: <CircleCheck className="size-4 text-success" />,
-  error: <CircleAlert className="size-4 text-danger" />,
-};
-
 export interface ToastProviderProps {
   children: ReactNode;
 }
 
-export function ToastProvider({ children }: ToastProviderProps) {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
-  const counter = useRef(0);
+/** Auto-dismiss at 4s, or persist if it carries an action (§8.13). */
+const DEFAULT_DURATION = 4000;
+const PERSIST = Number.POSITIVE_INFINITY;
 
-  const dismiss = useCallback((id: string) => {
-    const timer = timers.current.get(id);
-    if (timer) {
-      clearTimeout(timer);
-      timers.current.delete(id);
-    }
-    setToasts((current) => current.filter((item) => item.id !== id));
-  }, []);
-
-  const toast = useCallback(
-    (options: ToastOptions) => {
-      counter.current += 1;
-      const id = `toast-${counter.current}`;
-      const duration = options.duration ?? DEFAULT_DURATION;
-
-      setToasts((current) => [...current, { ...options, id }]);
-
-      if (duration > 0) {
-        timers.current.set(
-          id,
-          setTimeout(() => dismiss(id), duration),
-        );
-      }
-      return id;
-    },
-    [dismiss],
-  );
-
-  useEffect(() => {
-    const pending = timers.current;
-    return () => {
-      for (const timer of pending.values()) clearTimeout(timer);
-      pending.clear();
-    };
-  }, []);
-
-  const api = useMemo<ToastApi>(() => ({ toast, dismiss }), [toast, dismiss]);
-
-  return (
-    <ToastContext.Provider value={api}>
-      {children}
-      <ToastViewport toasts={toasts} onDismiss={dismiss} />
-    </ToastContext.Provider>
-  );
+interface ToastStripProps extends ToastOptions {
+  id: string;
 }
 
-export function useToast(): ToastApi {
-  const api = useContext(ToastContext);
-  if (!api) {
-    throw new Error("useToast must be used inside <ToastProvider>.");
-  }
-  return api;
-}
-
-interface ToastViewportProps {
-  toasts: readonly Toast[];
-  onDismiss: (id: string) => void;
-}
-
-function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
+/**
+ * A single 44px ink strip pinned above the keyboard (§8.13).
+ *
+ * One line of text, at most one action, no icon, no progress bar, no
+ * celebration. The verb matches the action exactly: Publish produces
+ * "Published.", Save produces "Saved."
+ *
+ * `tone` survives as an accessibility signal rather than a colour one — an
+ * error is announced assertively. Nothing here is tinted: the strip is ink in
+ * both themes, because a coloured toast would be an accent outside audio state
+ * (§4.4, §12.3).
+ */
+function ToastStrip({ id, title, description, tone, action }: ToastStripProps) {
   return (
     <div
-      aria-live="polite"
-      aria-atomic="false"
+      role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "pointer-events-none fixed inset-x-0 z-60 flex flex-col items-center gap-2 px-4",
-        "bottom-[calc(var(--akinti-bottom-nav-h)+1rem)] sm:bottom-6 sm:items-end sm:px-6",
+        "pointer-events-auto flex min-h-11 w-full items-center gap-4 rounded-key bg-ink px-4 py-2.5",
+        "type-body-sm text-on-ink",
       )}
     >
-      {toasts.map((item) => (
-        <div
-          key={item.id}
-          role={item.tone === "error" ? "alert" : "status"}
+      <div className="min-w-0 flex-1">
+        <p className="truncate">{title}</p>
+        {description ? (
+          <p className="type-caption mt-0.5 truncate text-on-ink opacity-70">{description}</p>
+        ) : null}
+      </div>
+      {action ? (
+        <button
+          type="button"
+          onClick={() => {
+            action.onClick();
+            sonnerToast.dismiss(id);
+          }}
           className={cn(
-            "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-lg border border-border",
-            "bg-surface-raised px-4 py-3 shadow-md",
-            "motion-safe:[animation:akinti-slide-up_180ms_ease-out]",
+            "type-subhead shrink-0 text-on-ink underline decoration-1 underline-offset-[3px]",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper",
           )}
         >
-          <span aria-hidden="true" className="mt-0.5 inline-flex shrink-0">
-            {TONE_ICONS[item.tone ?? "info"]}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-fg">{item.title}</p>
-            {item.description ? (
-              <p className="mt-0.5 text-sm text-fg-muted">{item.description}</p>
-            ) : null}
-            {item.action ? (
-              <button
-                type="button"
-                onClick={() => {
-                  item.action?.onClick();
-                  onDismiss(item.id);
-                }}
-                className={cn(
-                  "mt-1.5 text-sm font-medium text-accent underline underline-offset-2",
-                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                )}
-              >
-                {item.action.label}
-              </button>
-            ) : null}
-          </div>
-          <IconButton
-            label="Dismiss"
-            size="sm"
-            icon={<X className="size-3.5" />}
-            onClick={() => onDismiss(item.id)}
-            className="-mr-1.5 -mt-1"
-          />
-        </div>
-      ))}
+          {action.label}
+        </button>
+      ) : null}
     </div>
   );
+}
+
+/** Clears the keyboard and the home indicator (`mobile-guidelines.md` rule 51). */
+const TOAST_OFFSET =
+  "calc(var(--akinti-keyboard-h) + env(safe-area-inset-bottom, 0px) + 16px)";
+
+/**
+ * Mounts the toast viewport once at the root.
+ *
+ * `sonner` (`docs/research/libraries.md` §5) supplies the queue, the timers,
+ * the swipe-to-dismiss and the `aria-live` region; every pixel of the strip
+ * itself is ours, through `toast.custom` and `unstyled`, so sonner's own card
+ * with its icon and border never renders.
+ *
+ * One toast is visible at a time. A stack of toasts is a queue the reader did
+ * not ask for.
+ */
+export function ToastProvider({ children }: ToastProviderProps) {
+  return (
+    <>
+      {children}
+      <Toaster
+        position="bottom-center"
+        visibleToasts={1}
+        gap={0}
+        offset={TOAST_OFFSET}
+        mobileOffset={TOAST_OFFSET}
+        toastOptions={{ unstyled: true, classNames: { toast: "w-full" } }}
+        className="w-full max-w-[calc(100%-2.5rem)] sm:max-w-sm"
+      />
+    </>
+  );
+}
+
+/**
+ * The toast API. Deliberately the same shape it had before the swap to
+ * `sonner`, so every call site keeps reading `const { toast } = useToast()`.
+ */
+export function useToast(): ToastApi {
+  const counter = useRef(0);
+
+  const toast = useCallback((options: ToastOptions) => {
+    counter.current += 1;
+    const id = `toast-${counter.current}-${Date.now()}`;
+    const requested = options.duration ?? (options.action ? PERSIST : DEFAULT_DURATION);
+
+    sonnerToast.custom(() => <ToastStrip {...options} id={id} />, {
+      id,
+      duration: requested === 0 ? PERSIST : requested,
+    });
+
+    return id;
+  }, []);
+
+  const dismiss = useCallback((id: string) => {
+    sonnerToast.dismiss(id);
+  }, []);
+
+  return useMemo<ToastApi>(() => ({ toast, dismiss }), [toast, dismiss]);
 }

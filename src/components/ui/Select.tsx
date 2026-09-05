@@ -1,9 +1,9 @@
 import type { ComponentPropsWithRef, ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/ui";
 
 import { CONTROL_BASE, Field, controlBorder, describedBy } from "./Field";
+import { ChevronDown } from "./icons";
 
 export interface SelectOption {
   readonly value: string;
@@ -62,7 +62,7 @@ export function Select({
           className={cn(
             CONTROL_BASE,
             controlBorder(hasError),
-            "h-10 appearance-none pr-9",
+            "h-12 appearance-none pr-10",
             className,
           )}
         >
@@ -79,7 +79,7 @@ export function Select({
         </select>
         <ChevronDown
           aria-hidden="true"
-          className="pointer-events-none absolute right-3 size-4 text-fg-subtle"
+          className="pointer-events-none absolute right-3.5 size-4 text-ink-subtle"
         />
       </div>
     </Field>
