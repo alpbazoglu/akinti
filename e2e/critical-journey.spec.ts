@@ -89,7 +89,7 @@ test.describe("critical journey (spec §46)", () => {
       // --- Comments, saves, shares (from the Wave detail page) ------------
       await page.goto(`/w/${originalWaveId}`);
 
-      await page.getByLabel("Write a comment").fill("Great Wave!");
+      await page.getByLabel("Add a comment").fill("Great Wave!");
       await page.getByRole("button", { name: "Post" }).click();
       await expect(page.getByText("Great Wave!")).toBeVisible({ timeout: 10_000 });
 
@@ -128,13 +128,32 @@ test.describe("critical journey (spec §46)", () => {
       await page.getByRole("link", { name: "Record your Duet" }).click();
       await expect(page).toHaveURL(/\/w\/[^/]+\/duet\/record\?request=/);
 
-      const recordButton = page.getByRole("button", { name: "Record your contribution" });
-      await expect(recordButton).toBeEnabled({ timeout: 15_000 });
-      await recordButton.click();
+      // "Layer" is the pre-selected Duet mode (DuetModePicker's default) and
+      // is the right one for this test.
+      const modeContinue = page.getByRole("button", { name: "Continue" });
+      await expect(modeContinue).toBeEnabled({ timeout: 15_000 });
+      await modeContinue.click();
 
-      // Let the fake mic device actually capture something before stopping.
+      // RecordStage (`src/components/create/RecordStage.tsx`, shared with
+      // `/create`) is a single hold-or-tap key: a tap arms the mic, a second
+      // tap starts a 3-beat count-in (`countdown` record preference defaults
+      // to true) before capture actually begins.
+      await page.getByRole("button", { name: "Arm the microphone" }).click();
+      await page.getByRole("button", { name: "Start recording" }).click();
+
+      // Let the count-in finish and the fake mic device actually capture
+      // something before stopping.
+      const stopButton = page.getByRole("button", { name: "Stop recording" });
+      await expect(stopButton).toBeVisible({ timeout: 10_000 });
       await page.waitForTimeout(1500);
-      await page.getByRole("button", { name: "Stop" }).click();
+      await stopButton.click();
+
+      // Layer mode goes capture -> review (trim) -> enhance -> details
+      // (DuetRecorder.tsx's stage comment) — two more "Continue"s, the same
+      // shared `ReviewStage`/`EnhanceStage` components `/create` uses, before
+      // the Title field appears.
+      await page.getByRole("button", { name: "Continue" }).click(); // review -> enhance
+      await page.getByRole("button", { name: "Continue" }).click(); // enhance -> details
 
       const duetTitle = `Journey Duet ${Date.now().toString(36)}`;
       await expect(page.getByLabel("Title")).toBeVisible({ timeout: 10_000 });
@@ -172,7 +191,11 @@ test.describe("critical journey (spec §46)", () => {
       userB = await signUpAndOnboard(page, "private-b");
 
       await page.goto(`/w/${waveId}`);
-      await expect(page.getByText(/isn't available/i)).toBeVisible();
+      // `WavePage`'s `UnavailableState` (`src/app/(app)/w/[id]/page.tsx`) reads
+      // "This Wave was removed by its creator, or it is not open to you." —
+      // not the duet page's "isn't available" copy, which lives on a
+      // different route (`/w/[id]/duet`).
+      await expect(page.getByText(/was removed by its creator, or it is not open to you/i)).toBeVisible();
 
       const response = await page.request.get(`/api/audio/${assetId}/url`);
       expect(response.status()).toBe(404);

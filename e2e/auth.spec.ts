@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-import { createConfirmedUser, deleteTestUser, type ConfirmedTestUser } from "./helpers/supabaseAdmin";
+import { createConfirmedUser, deleteTestUser } from "./helpers/supabaseAdmin";
+import { logIn, onboardWithLogin } from "./helpers/flows";
 
 /**
  * Signup → onboarding → logout → login, end to end, against a real Supabase
@@ -19,31 +20,6 @@ import { createConfirmedUser, deleteTestUser, type ConfirmedTestUser } from "./h
  * the Supabase admin API (`e2e/helpers/supabaseAdmin.ts`, `email_confirm:
  * true`) and signs in through the real `/login` form — see `docs/TESTING.md`.
  */
-
-async function logIn(page: import("@playwright/test").Page, user: ConfirmedTestUser) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(user.email);
-  await page.getByLabel("Password").fill(user.password);
-  await page.getByRole("button", { name: "Log in" }).click();
-}
-
-async function completeOnboarding(page: import("@playwright/test").Page, user: ConfirmedTestUser) {
-  await expect(page).toHaveURL(/\/onboarding/);
-  await expect(page.getByLabel("Username")).toHaveValue(user.username);
-  await page.getByRole("button", { name: "Continue" }).click(); // step 1 -> 2 (interests)
-
-  await page.getByRole("button", { name: "Singing" }).click();
-  await page.getByRole("button", { name: "Continue" }).click(); // step 2 -> 3 (creators)
-
-  await page.getByRole("button", { name: "Continue" }).click(); // step 3 -> 4 (first Wave)
-
-  await page.getByRole("button", { name: /Skip, take me to Home/i }).click();
-
-  // Onboarding is genuinely skippable (spec §8) but always finishes, so the
-  // very next protected-route visit never bounces back to /onboarding.
-  await expect(page).toHaveURL("/");
-  await expect(page.getByRole("button", { name: /account menu/i })).toBeVisible();
-}
 
 test.describe("auth", () => {
   test("submitting the real signup form asks an unconfirmed address to check its email", async ({ page }) => {
@@ -83,8 +59,8 @@ test.describe("auth", () => {
   }) => {
     const user = await createConfirmedUser({ tag: "loop" });
     try {
-      await logIn(page, user);
-      await completeOnboarding(page, user);
+      await onboardWithLogin(page, user);
+      await expect(page.getByRole("button", { name: /account menu/i })).toBeVisible();
 
       // --- Sign out ------------------------------------------------------------
       await page.getByRole("button", { name: /account menu/i }).click();

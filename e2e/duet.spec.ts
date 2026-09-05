@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 import { createConfirmedUser, deleteTestUser, type ConfirmedTestUser } from "./helpers/supabaseAdmin";
+import {
+  logIn,
+  logOut,
+  onboardWithLogin,
+  publishOriginalWave,
+  signUpAndOnboard,
+} from "./helpers/flows";
 
 /**
  * End-to-end coverage of the Duet lifecycle (spec §15, §46): request ->
@@ -43,109 +50,15 @@ test.use({
   },
 });
 
-/** A minimal, real, decodable WAV file — silence, but valid PCM (RIFF/WAVE header the worker/browser both accept). */
-function makeWavFile(name: string, durationSeconds = 1, sampleRate = 8000): { name: string; mimeType: string; buffer: Buffer } {
-  const numSamples = Math.floor(durationSeconds * sampleRate);
-  const dataSize = numSamples * 2; // 16-bit mono PCM
-  const buffer = Buffer.alloc(44 + dataSize);
-  buffer.write("RIFF", 0, "ascii");
-  buffer.writeUInt32LE(36 + dataSize, 4);
-  buffer.write("WAVE", 8, "ascii");
-  buffer.write("fmt ", 12, "ascii");
-  buffer.writeUInt32LE(16, 16); // PCM sub-chunk size
-  buffer.writeUInt16LE(1, 20); // PCM format tag
-  buffer.writeUInt16LE(1, 22); // mono
-  buffer.writeUInt32LE(sampleRate, 24);
-  buffer.writeUInt32LE(sampleRate * 2, 28); // byte rate
-  buffer.writeUInt16LE(2, 32); // block align
-  buffer.writeUInt16LE(16, 34); // bits per sample
-  buffer.write("data", 36, "ascii");
-  buffer.writeUInt32LE(dataSize, 40);
-  // Remaining bytes stay zeroed — silent PCM data, which is all a real
-  // decoder needs to accept the file; loudness is irrelevant to this test.
-  return { name, mimeType: "audio/wav", buffer };
-}
-
-/**
- * Signs in (through the real UI) and walks the onboarding flow for an
- * already-created account. `handle_new_user` creates the `profiles` row
- * synchronously on admin-API user creation, so a caller that only needs the
- * *profile to exist* (e.g. so another user can navigate to `/u/<username>`)
- * can call `createConfirmedUser` directly and skip this until later — see
- * the "blocked user" test below, which needs User B's profile to exist
- * before User B ever logs in.
- */
-async function onboardWithLogin(page: import("@playwright/test").Page, user: ConfirmedTestUser): Promise<void> {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(user.email);
-  await page.getByLabel("Password").fill(user.password);
-  await page.getByRole("button", { name: "Log in" }).click();
-
-  await expect(page).toHaveURL(/\/onboarding/);
-  await page.getByRole("button", { name: "Continue" }).click(); // step 1 -> 2 (interests)
-  await page.getByRole("button", { name: "Singing" }).click();
-  await page.getByRole("button", { name: "Continue" }).click(); // step 2 -> 3 (creators)
-  await page.getByRole("button", { name: "Continue" }).click(); // step 3 -> 4 (first Wave)
-  await page.getByRole("button", { name: /Skip, take me to Home/i }).click();
-
-  await expect(page).toHaveURL("/");
-}
-
-/** Creates the account through the admin API (live project requires email confirmation), then signs in and onboards through the real UI. */
-async function signUpAndOnboard(
-  page: import("@playwright/test").Page,
-  tag: string,
-): Promise<ConfirmedTestUser> {
-  const user = await createConfirmedUser({ tag: `duet-${tag}` });
-  await onboardWithLogin(page, user);
-  return user;
-}
-
-async function logOut(page: import("@playwright/test").Page) {
-  await page.getByRole("button", { name: /account menu/i }).click();
-  await page.getByRole("menuitem", { name: "Log out" }).click();
-  await expect(page).toHaveURL(/\/login/);
-}
-
-async function logIn(page: import("@playwright/test").Page, user: ConfirmedTestUser) {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill(user.email);
-  await page.getByLabel("Password").fill(user.password);
-  await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL("/");
-}
-
-/** Publishes an original Wave via Upload (not Record) — no mic needed for the original creator. */
-async function publishOriginalWave(
-  page: import("@playwright/test").Page,
-  title: string,
-  options: { duetPermission?: "everyone" | "followers" | "following" | "nobody" } = {},
-): Promise<string> {
-  await page.goto("/create");
-  // The Record/Upload switch is no longer a tab bar (Wave B rebuilt `/create`
-  // on `RecordStage`/`UploadDropzone` per `docs/design/SCREENS.md` §4) — the
-  // record screen's own "Upload a file instead" row is how you get there.
-  await page.getByRole("button", { name: "Upload a file instead" }).click();
-
-  const file = makeWavFile(`${title.replace(/\s+/g, "-").toLowerCase()}.wav`);
-  await page.locator('input[type="file"]').setInputFiles(file);
-
-  await page.getByRole("button", { name: "Continue" }).click(); // enhance -> details
-
-  await page.getByLabel("Title").fill(title);
-  if (options.duetPermission) {
-    await page.getByLabel("Who can request a duet").selectOption(options.duetPermission);
-  }
-  await page.getByRole("button", { name: "Publish", exact: true }).click();
-
-  await expect(page).toHaveURL(/\/w\/[^/]+$/, { timeout: 20_000 });
-  const match = /\/w\/([^/]+)$/.exec(new URL(page.url()).pathname);
-  if (!match) throw new Error(`unexpected post-publish URL: ${page.url()}`);
-  return match[1];
-}
-
 test.describe("duet", () => {
   test("request -> accept -> record -> publish produces a linked Duet Wave", async ({ page }) => {
+    // Two full sign-up-and-onboard passes, a login/logout cycle per user, and
+    // the mode -> capture (with a real 3-beat count-in) -> review -> enhance
+    // -> details -> publish chain add up past the 30s default comfortably —
+    // `e2e/critical-journey.spec.ts`'s equivalent (bigger) flow sets its own
+    // budget the same way.
+    test.setTimeout(90_000);
+
     let userA: ConfirmedTestUser | undefined;
     let userB: ConfirmedTestUser | undefined;
     try {
@@ -182,15 +95,34 @@ test.describe("duet", () => {
       await page.getByRole("link", { name: "Record your Duet" }).click();
       await expect(page).toHaveURL(/\/w\/[^/]+\/duet\/record\?request=/);
 
-      // The original must actually load before "Record" is enabled (spec §38
-      // "original unavailable" — DuetRecorder.tsx gates on this).
-      const recordButton = page.getByRole("button", { name: "Record your contribution" });
-      await expect(recordButton).toBeEnabled({ timeout: 15_000 });
-      await recordButton.click();
+      // The original must actually load before the mode picker's "Continue"
+      // is enabled (spec §38 "original unavailable" — DuetRecorder.tsx gates
+      // on this). "Layer" is the pre-selected Duet mode (DuetModePicker's
+      // default) and is the right one for this test.
+      const modeContinue = page.getByRole("button", { name: "Continue" });
+      await expect(modeContinue).toBeEnabled({ timeout: 15_000 });
+      await modeContinue.click();
 
-      // Let the fake mic device actually capture something before stopping.
+      // RecordStage (`src/components/create/RecordStage.tsx`, shared with
+      // `/create`) is a single hold-or-tap key: a tap arms the mic, a second
+      // tap starts a 3-beat count-in (`countdown` record preference defaults
+      // to true) before capture actually begins.
+      await page.getByRole("button", { name: "Arm the microphone" }).click();
+      await page.getByRole("button", { name: "Start recording" }).click();
+
+      // Let the count-in finish and the fake mic device actually capture
+      // something before stopping.
+      const stopButton = page.getByRole("button", { name: "Stop recording" });
+      await expect(stopButton).toBeVisible({ timeout: 10_000 });
       await page.waitForTimeout(1500);
-      await page.getByRole("button", { name: "Stop" }).click();
+      await stopButton.click();
+
+      // Layer mode goes capture -> review (trim) -> enhance -> details
+      // (DuetRecorder.tsx's stage comment) — two more "Continue"s, the same
+      // shared `ReviewStage`/`EnhanceStage` components `/create` uses, before
+      // the Title field appears.
+      await page.getByRole("button", { name: "Continue" }).click(); // review -> enhance
+      await page.getByRole("button", { name: "Continue" }).click(); // enhance -> details
 
       await expect(page.getByLabel("Title")).toBeVisible({ timeout: 10_000 });
       await page.getByLabel("Title").fill(`Duet by ${userB.username}`);
