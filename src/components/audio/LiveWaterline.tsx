@@ -37,10 +37,10 @@ function readColors(element: Element): WaterlineColors {
   const styles = getComputedStyle(element);
   const read = (name: string, fallback: string) => styles.getPropertyValue(name).trim() || fallback;
   return {
-    rest: read("--akinti-wave-rest", "#b4b4ad"),
-    dormant: read("--akinti-wave-dormant", "#86877e"),
+    rest: read("--akinti-wave-rest", "#a9bdb4"),
+    dormant: read("--akinti-wave-dormant", "#0e6b6b"),
     played: read("--akinti-signal", "#de3c11"),
-    ink: read("--akinti-ink", "#191a17"),
+    ink: read("--akinti-ink", "#0f1a18"),
   };
 }
 

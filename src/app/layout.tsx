@@ -87,9 +87,12 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // Mirrors `--akinti-paper` in both themes (`docs/design/COLOR_V2.md`,
+  // `src/app/globals.css`) — the v2 tinted water grounds, not the retired
+  // v1 warm-neutral pair.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#efefec" },
-    { media: "(prefers-color-scheme: dark)", color: "#131412" },
+    { media: "(prefers-color-scheme: light)", color: "#e9efec" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f1614" },
   ],
 };
 
