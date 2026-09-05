@@ -111,6 +111,14 @@ const PUBLIC_EXACT_ROUTES: readonly Href[] = [
   // page itself still requires a session (via `getCurrentUser`, never
   // `requireUser`, to avoid a redirect loop back to itself).
   routes.suspended(),
+  // The Serwist offline fallback (`src/app/~offline/page.tsx`,
+  // `src/app/sw.ts`'s `fallbacks.entries`). Without this, the Service
+  // Worker's install-time precache fetch for `/~offline` — made with
+  // whatever cookies happen to exist, often none — got redirected to
+  // `/login` and cached THAT as the "offline" response: every visitor,
+  // signed in or not, saw the login page instead of the real offline state
+  // the instant the network genuinely failed.
+  "/~offline",
 ];
 
 /** Prefix-matched public routes: OAuth/callback plumbing and public content. */

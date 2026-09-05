@@ -25,7 +25,13 @@ export const config = {
     /*
      * Everything except static assets and files with an extension. Without
      * this, the session refresh would run for every CSS, JS and image request.
+     * `webmanifest` matters beyond "one fewer wasted session-refresh": without
+     * it, `src/app/manifest.ts`'s route fell through to the route-protection
+     * redirect and served the `/login` HTML page instead of JSON to any
+     * unauthenticated request — which is exactly how a browser's own
+     * installability check (and any PWA tooling) fetches it, breaking
+     * `beforeinstallprompt`/Add to Home Screen for every signed-out visitor.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|map|woff2?|mp3|m4a|ogg|wav|webm)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|map|woff2?|mp3|m4a|ogg|wav|webm|webmanifest)$).*)",
   ],
 };
