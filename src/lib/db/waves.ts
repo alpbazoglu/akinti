@@ -14,7 +14,9 @@ import type {
   InviteCollaboratorInput,
   UpdateWaveInput,
 } from "@/lib/validation/waves";
-import type { Collaborator, CollaboratorStatus, Page, Wave } from "@/types/domain";
+import type { DuetSegment } from "@/lib/duet/ffmpegChain";
+import type { Collaborator, CollaboratorStatus, DuetMode, Page, Wave } from "@/types/domain";
+import type { Json } from "@/types/database";
 
 import { getProfilesByIds } from "./profiles";
 import { toCollaborator, toWave } from "./mappers";
@@ -231,6 +233,29 @@ export async function listNewWaves(db: Db, params: CursorParams = {}): Promise<P
   return { items: page.items.map(toWave), nextCursor: page.nextCursor };
 }
 
+/**
+ * Track page → "Waves on this track" (Wave D / spec §4). `list_waves_on_track`
+ * (migration 20260905120400) is can_view_wave-filtered per row and keyset
+ * paginated the same way as every other RPC-backed list here.
+ */
+export async function listWavesOnTrack(
+  db: Db,
+  trackId: string,
+  params: { cursor?: string | null; limit?: number } = {},
+): Promise<Page<Wave>> {
+  const limit = clampLimit(params.limit);
+  const result = await db.rpc("list_waves_on_track", {
+    p_track_id: trackId,
+    p_cursor: params.cursor ?? null,
+    p_limit: limit,
+  });
+  const rows = unwrap("listWavesOnTrack", { data: result.data ?? [], error: result.error });
+  const items = rows.map(toWave);
+  const nextCursor =
+    rows.length === limit ? encodeCursor(items[items.length - 1].publishedAt, items[items.length - 1].id) : null;
+  return { items, nextCursor };
+}
+
 /** Explore → Trending (spec s10): the deterministic, time-decayed score from migration 14. */
 export async function listTrendingWaves(
   db: Db,
@@ -420,6 +445,19 @@ export async function createWave(db: Db, creatorId: string, input: CreateWaveInp
 }
 
 /**
+ * Wave D — `duet_mode`/`segments` layered onto `CreateDuetWaveInput` (owned
+ * by `src/lib/validation/waves.ts`, a file this stage does not touch) via
+ * intersection rather than editing that schema directly. `cypher_order` is
+ * never accepted here: `waves_derive_duet_lineage` derives it server-side
+ * from the parent, exactly like `duet_depth`.
+ */
+export type CreateDuetWaveInputV2 = CreateDuetWaveInput & {
+  duet_mode?: DuetMode;
+  /** Required when `duet_mode === 'atisma'`; already validated by `publishDuetWaveSchema` before this is called. */
+  segments?: DuetSegment[] | null;
+};
+
+/**
  * Publish the Wave produced by a Duet.
  *
  * `waves_guard_insert` (migration 12) independently verifies the referenced
@@ -430,7 +468,7 @@ export async function createWave(db: Db, creatorId: string, input: CreateWaveInp
 export async function createDuetWave(
   db: Db,
   creatorId: string,
-  input: CreateDuetWaveInput,
+  input: CreateDuetWaveInputV2,
 ): Promise<Wave> {
   const result = await db
     .from("waves")
@@ -445,6 +483,11 @@ export async function createDuetWave(
       duet_permission: input.duet_permission,
       parent_wave_id: input.parent_wave_id,
       duet_request_id: input.duet_request_id,
+      duet_mode: input.duet_mode ?? "layer",
+      // `DuetSegment[]` structurally satisfies `Json` (string/number fields
+      // only) but isn't nominally assignable to it — see the matching cast
+      // in `enqueueDuetMixJob` (src/lib/db/duets.ts).
+      segments: (input.duet_mode === "atisma" ? (input.segments ?? null) : null) as unknown as Json,
       content_origin: input.content_origin,
       tags: input.tags,
     })
