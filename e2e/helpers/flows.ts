@@ -86,7 +86,7 @@ export async function publishOriginalWave(
 
   await page.getByLabel("Title").fill(title);
   if (options.visibility) {
-    await page.getByLabel("Wave visibility").selectOption(options.visibility);
+    await page.getByLabel("Who can hear it").selectOption(options.visibility);
   }
   if (options.commentPermission) {
     await page.getByLabel("Who can comment").selectOption(options.commentPermission);
