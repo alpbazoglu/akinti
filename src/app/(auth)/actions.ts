@@ -137,7 +137,9 @@ export async function signIn(
     }
   }
 
-  return { ok: true, redirectTo: next ?? routes.home() };
+  // Flow (`docs/FLOW.md`, founder decision 6 Sept 2026) is the default
+  // screen after login; the follow-only list stays reachable as Home.
+  return { ok: true, redirectTo: next ?? routes.flow() };
 }
 
 export async function signOut(): Promise<AuthActionResult> {

@@ -418,11 +418,17 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
       onKeyDown={handleKeyDown}
     >
       <div
-        className="transition-transform duration-200 ease-linear"
-        style={{ transform: `translateY(-${windowed.findIndex((entry) => entry.position === 0) * 100}%)` }}
+        className="transition-transform duration-150 ease-linear"
+        // `dvh`, not `%`: a percentage `translateY` resolves against the
+        // element's OWN height (here, the stacked track's — up to 3x a
+        // single screen), not one section's height, so `-100%` overshot by
+        // up to 3x instead of moving exactly one screen.
+        style={{
+          transform: `translateY(-${windowed.findIndex((entry) => entry.position === 0) * 100}dvh)`,
+        }}
       >
         {windowed.map(({ wave, position }) => (
-          <div key={wave.id} className="h-dvh w-full">
+          <div key={wave.id} className="h-dvh w-full" data-flow-active={position === 0} aria-hidden={position !== 0}>
             <FlowWaveView
               wave={{ ...wave, isSaved: savedById[wave.id] ?? wave.isSaved }}
               isActive={position === 0}

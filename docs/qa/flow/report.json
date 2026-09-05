@@ -1,0 +1,114 @@
+{
+  "base": "http://localhost:3588",
+  "findings": [
+    {
+      "label": "mobile: sign in",
+      "ok": true
+    },
+    {
+      "label": "mobile: Flow renders a Wave with a trace",
+      "ok": true
+    },
+    {
+      "label": "mobile: first gesture starts audio (transport shows Pause)",
+      "ok": true
+    },
+    {
+      "label": "mobile: trace repaints while playing (canvas pixels changed between frames)",
+      "ok": true,
+      "detail": "36945020 -> 922210186"
+    },
+    {
+      "label": "mobile: swipe up advances to the next Wave",
+      "ok": true,
+      "detail": "\"Wave D demo — atisma duet\" -> \"Wave D demo — layer duet\""
+    },
+    {
+      "label": "mobile: swipe response under 200ms (INP-style, pointerup to DOM update)",
+      "ok": true,
+      "detail": "11.6ms"
+    },
+    {
+      "label": "mobile: double tap replays (readout resets near 0:00)",
+      "ok": true,
+      "detail": "0:01 / 0:03"
+    },
+    {
+      "label": "mobile: Duet opens the request flow",
+      "ok": true,
+      "detail": "http://localhost:3588/w/f26fda85-b0bb-4371-8e7a-1055e58eb7c7/duet"
+    },
+    {
+      "label": "mobile: zero console errors",
+      "ok": true,
+      "detail": "0 error(s)"
+    },
+    {
+      "label": "desktop: sign in",
+      "ok": true
+    },
+    {
+      "label": "desktop: Flow renders a Wave with a trace",
+      "ok": true
+    },
+    {
+      "label": "desktop: first gesture starts audio (transport shows Pause)",
+      "ok": true
+    },
+    {
+      "label": "desktop: trace repaints while playing (canvas pixels changed between frames)",
+      "ok": true,
+      "detail": "1037263743 -> 314373336"
+    },
+    {
+      "label": "desktop: swipe up advances to the next Wave",
+      "ok": true,
+      "detail": "\"Flow QA seed wave 2\" -> \"Flow QA seed wave 4\""
+    },
+    {
+      "label": "desktop: swipe response under 200ms (INP-style, pointerup to DOM update)",
+      "ok": true,
+      "detail": "21.3ms"
+    },
+    {
+      "label": "desktop: wheel swipe advances",
+      "ok": true,
+      "detail": "\"Flow QA seed wave 4\" -> \"Flow QA seed wave 1\""
+    },
+    {
+      "label": "desktop: keyboard ArrowUp goes back",
+      "ok": false,
+      "detail": "\"Flow QA seed wave 1\" -> \"Flow QA seed wave 1\""
+    },
+    {
+      "label": "desktop: double tap replays (readout resets near 0:00)",
+      "ok": true,
+      "detail": "0:01 / 0:05"
+    },
+    {
+      "label": "desktop: Duet opens the request flow",
+      "ok": true,
+      "detail": "http://localhost:3588/w/a36f1702-bc68-4031-881c-221849bd774e/duet"
+    },
+    {
+      "label": "desktop: zero console errors",
+      "ok": true,
+      "detail": "0 error(s)"
+    }
+  ],
+  "consoleErrors": [],
+  "failedRequests": [],
+  "axeResults": [
+    {
+      "label": "mobile flow",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "desktop flow",
+      "total": 0,
+      "serious": []
+    }
+  ],
+  "notReached": []
+}
