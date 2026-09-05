@@ -130,4 +130,14 @@ describe("ProfileHeader", () => {
     expect(screen.getByRole("link", { name: /10 Followers/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /5 Following/i })).toBeInTheDocument();
   });
+
+  it("shows the Pro mark next to the handle only when isPro is true", () => {
+    renderHeader({ profile: makeProfile(), viewer: viewer(), isPro: true });
+    expect(screen.getByText("Pro")).toBeInTheDocument();
+  });
+
+  it("never shows the Pro mark for a non-Pro profile", () => {
+    renderHeader({ profile: makeProfile(), viewer: viewer() });
+    expect(screen.queryByText("Pro")).toBeNull();
+  });
 });

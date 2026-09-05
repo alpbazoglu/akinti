@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui";
 import { SIGNATURE_SOURCE_LIMIT, composeSignature, deriveGenreHue } from "@/components/feed";
 import type { WaveCardContainerWave } from "@/components/wave";
 import { getCurrentUser } from "@/lib/auth/server";
+import { isPro } from "@/lib/billing/entitlements";
 import { getFollowStatus, isFollowing } from "@/lib/db/follows";
 import { canViewProfileContent, getProfileByUsername } from "@/lib/db/profiles";
 import { listProfileDuetCards, listProfileWaveCards, type ProfileWaveCard } from "@/lib/db/profileWaves";
@@ -94,10 +95,14 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   }
 
   const isSelf = viewerUser?.id === profile.id;
-  const [followStatus, followsViewer, canSeeContent] = await Promise.all([
+  const [followStatus, followsViewer, canSeeContent, profileIsPro] = await Promise.all([
     !isSelf && viewerUser ? getFollowStatus(supabase, viewerUser.id, profile.id) : Promise.resolve(null),
     !isSelf && viewerUser ? isFollowing(supabase, profile.id, viewerUser.id) : Promise.resolve(false),
     isSelf ? Promise.resolve(true) : canViewProfileContent(supabase, profile.id),
+    // AKINTI Pro mark (Wave F, PRODUCT_V2 §5) — best-effort: a lookup failure
+    // (e.g. Supabase configured without the Wave F migration applied yet)
+    // just hides the mark, never breaks the profile page.
+    isPro(supabase, profile.id).catch(() => false),
   ]);
 
   let waveCards: WaveCardContainerWave[] = [];
@@ -139,6 +144,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         profile={profile}
         signature={signature}
         hue={signatureHue}
+        isPro={profileIsPro}
         viewer={{
           isSelf,
           isSignedIn: viewerUser !== null,

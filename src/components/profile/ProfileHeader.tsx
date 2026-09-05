@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChartColumn, Pencil } from "@/components/ui/icons";
 
 import { WaveformCanvas, type TraceHue } from "@/components/audio";
+import { ProMark } from "@/components/pro/ProMark";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import type { FollowStatus, Profile } from "@/types/domain";
@@ -47,6 +48,13 @@ export interface ProfileHeaderProps {
    * tags. Omitted draws the plain current, as it always has.
    */
   hue?: TraceHue;
+  /**
+   * AKINTI Pro (Wave F, PRODUCT_V2 §5) — from `withIsPro`
+   * (`src/lib/db/mappers.ts`), which the caller composes from
+   * `isPro(db, profile.id)` (`src/lib/billing/entitlements.ts`). Draws the
+   * ink `ProMark` next to the handle; never rendered for a non-Pro profile.
+   */
+  isPro?: boolean;
   className?: string;
 }
 
@@ -72,7 +80,14 @@ function DormantSignature() {
  * Creation-type-agnostic — this component knows nothing about
  * Recorded/Uploaded/Duet, that lives entirely on `WaveCard`.
  */
-export function ProfileHeader({ profile, viewer, signature = [], hue, className }: ProfileHeaderProps) {
+export function ProfileHeader({
+  profile,
+  viewer,
+  signature = [],
+  hue,
+  isPro = false,
+  className,
+}: ProfileHeaderProps) {
   const name = profile.displayName ?? profile.username;
 
   return (
@@ -134,7 +149,10 @@ export function ProfileHeader({ profile, viewer, signature = [], hue, className 
 
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold text-fg">{name}</h1>
-          <p className="text-sm text-fg-subtle">@{profile.username}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-fg-subtle">@{profile.username}</p>
+            {isPro ? <ProMark /> : null}
+          </div>
           {profile.bio ? (
             <p className="mt-1 max-w-prose text-sm leading-relaxed whitespace-pre-line text-fg-muted">
               {profile.bio}

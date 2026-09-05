@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { WavePlayer } from "@/components/audio";
+import { ProMark } from "@/components/pro/ProMark";
 import { Avatar, Badge, Button, IconButton, Skeleton } from "@/components/ui";
 import { Bookmark, MessageSquare, Share2 } from "@/components/ui/icons";
 import {
@@ -23,6 +24,8 @@ export interface WaveCardPerson {
   readonly username: string;
   readonly displayName?: string;
   readonly avatarUrl?: string | null;
+  /** AKINTI Pro (Wave F, PRODUCT_V2 §5) — from `withIsPro` (`src/lib/db/mappers.ts`). Draws the ink `ProMark`, detail variant only. */
+  readonly isPro?: boolean;
 }
 
 /** Social signals shown on a Wave. There is no Like signal. */
@@ -153,6 +156,7 @@ export function WaveCard({
             <span className="type-caption truncate text-ink-subtle">
               @{wave.creator.username}
             </span>
+            {detail && wave.creator.isPro ? <ProMark /> : null}
             <time
               dateTime={toIsoString(wave.createdAt)}
               title={formatAbsoluteTime(wave.createdAt)}

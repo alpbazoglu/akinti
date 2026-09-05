@@ -62,6 +62,7 @@ export { PencilSimple as Pencil } from "@phosphor-icons/react/dist/ssr/PencilSim
 export { Play } from "@phosphor-icons/react/dist/ssr/Play";
 export { Plus } from "@phosphor-icons/react/dist/ssr/Plus";
 export { Prohibit as Ban } from "@phosphor-icons/react/dist/ssr/Prohibit";
+export { SealCheck } from "@phosphor-icons/react/dist/ssr/SealCheck";
 export { ShareNetwork as Share2 } from "@phosphor-icons/react/dist/ssr/ShareNetwork";
 export { ShieldCheck } from "@phosphor-icons/react/dist/ssr/ShieldCheck";
 export { SignOut as LogOut } from "@phosphor-icons/react/dist/ssr/SignOut";
