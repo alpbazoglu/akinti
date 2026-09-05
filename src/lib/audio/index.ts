@@ -84,6 +84,7 @@ export {
   decodeTake,
   describePolishGraph,
   renderPolishedPeaks,
+  type NoiseReductionStatus,
   type PolishMode,
   type PolishNodeSpec,
 } from "./preview";

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { Switch } from "@/components/ui";
 import { ChevronDown, Pause, Play } from "@/components/ui/icons";
 import {
   ADVANCED_EQ_BANDS,
@@ -13,6 +14,7 @@ import {
   usePlaybackStore,
   type AdvancedEqSettings,
   type EnhancementPresetId,
+  type NoiseReductionStatus,
   type PolishMode,
 } from "@/lib/audio";
 import { cn } from "@/lib/ui";
@@ -62,6 +64,9 @@ export function EnhancementPicker({
   const [playing, setPlaying] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
+  // Off by default (PRODUCT_V2.md §3's "optional RNNoise WASM toggle").
+  const [noiseReduction, setNoiseReduction] = useState(false);
+  const [noiseStatus, setNoiseStatus] = useState<NoiseReductionStatus>("off");
 
   const url = useMemo(() => URL.createObjectURL(blob), [blob]);
 
@@ -139,7 +144,21 @@ export function EnhancementPicker({
     void play(nextMode);
   };
 
+  const handleNoiseReductionChange = (on: boolean) => {
+    setNoiseReduction(on);
+    setNoiseStatus(on ? "loading" : "off");
+    void engine.setNoiseReduction(on).then(() => {
+      setNoiseStatus(engine.noiseReductionStatus);
+    });
+  };
+
   const advancedEqId = `${reactId}-advanced-eq`;
+  const noiseReductionDescription =
+    noiseStatus === "loading"
+      ? "Cleaning up background noise…"
+      : noiseStatus === "unavailable"
+        ? "Not available in this browser. Your Wave is still cleaned up after you publish."
+        : "Runs an on-device filter while you compare. Your recording keeps the original sound.";
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
@@ -208,6 +227,15 @@ export function EnhancementPicker({
             </button>
           );
         })}
+      </div>
+
+      <div className="border-t border-hairline pt-4">
+        <Switch
+          label="Reduce background noise"
+          description={noiseReductionDescription}
+          checked={noiseReduction}
+          onCheckedChange={handleNoiseReductionChange}
+        />
       </div>
 
       <div className="border-t border-hairline pt-4">

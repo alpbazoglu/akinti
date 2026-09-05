@@ -70,3 +70,14 @@ export function buildCaptureConstraints(
  * when the engine refuses.
  */
 export const MONITOR_SAMPLE_RATE = 48_000;
+
+/**
+ * Where the vendored RNNoise files are served from (`public/noise-suppressor/`).
+ * Shared by every place that loads the worklet — the live recording monitor
+ * (`./monitor.ts`) and the Enhance screen's polish preview
+ * (`./preview/PolishPreview.ts`) — so there is exactly one set of paths to
+ * keep in sync with what actually ships under `public/`.
+ */
+export const RNNOISE_WORKLET_URL = "/noise-suppressor/rnnoise-worklet.js";
+export const RNNOISE_WASM_URL = "/noise-suppressor/rnnoise.wasm";
+export const RNNOISE_WASM_SIMD_URL = "/noise-suppressor/rnnoise_simd.wasm";

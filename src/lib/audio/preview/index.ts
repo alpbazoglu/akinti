@@ -10,5 +10,5 @@ export {
   type PolishNodeSpec,
   type PolishReverbSpec,
 } from "./graph";
-export { PolishPreview, type PolishMode } from "./PolishPreview";
+export { PolishPreview, type NoiseReductionStatus, type PolishMode } from "./PolishPreview";
 export { MAX_RENDER_SECONDS, decodeTake, renderPolishedPeaks } from "./renderPeaks";

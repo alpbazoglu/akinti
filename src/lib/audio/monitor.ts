@@ -28,7 +28,12 @@
  * lifecycle is testable and so a redraw never rebuilds an audio graph.
  */
 
-import { MONITOR_SAMPLE_RATE } from "./constraints";
+import {
+  MONITOR_SAMPLE_RATE,
+  RNNOISE_WASM_SIMD_URL,
+  RNNOISE_WASM_URL,
+  RNNOISE_WORKLET_URL,
+} from "./constraints";
 import {
   CLIPPING_DB,
   describePitch,
@@ -36,11 +41,6 @@ import {
   rmsToDb,
   type PitchReading,
 } from "./pitch";
-
-/** Where the vendored RNNoise files are served from (`public/noise-suppressor/`). */
-const RNNOISE_WORKLET_URL = "/noise-suppressor/rnnoise-worklet.js";
-const RNNOISE_WASM_URL = "/noise-suppressor/rnnoise.wasm";
-const RNNOISE_WASM_SIMD_URL = "/noise-suppressor/rnnoise_simd.wasm";
 
 /** 2048 samples at 48 kHz is ~43ms: long enough for the lowest sung note. */
 const ANALYSER_FFT_SIZE = 2048;

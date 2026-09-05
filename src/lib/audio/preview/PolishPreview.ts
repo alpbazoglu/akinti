@@ -24,11 +24,20 @@
  * created lazily inside the play gesture, per `mobile-guidelines.md` rule 24.
  */
 
+import {
+  RNNOISE_WASM_SIMD_URL,
+  RNNOISE_WASM_URL,
+  RNNOISE_WORKLET_URL,
+} from "../constraints";
 import type { AdvancedEqSettings, EnhancementPresetId } from "../enhancement";
 
 import { buildPolishGraph, describePolishGraph } from "./graph";
 
 export type PolishMode = "original" | "polished";
+
+/** `PolishPreview.noiseReductionStatus`: honest state for the RNNoise toggle
+ * (PRODUCT_V2.md §3's "optional RNNoise WASM toggle"), off by default. */
+export type NoiseReductionStatus = "off" | "loading" | "on" | "unavailable";
 
 /**
  * Crossfade length. Short enough to read as "the same moment, processed
@@ -52,6 +61,13 @@ export class PolishPreview {
   private mode: PolishMode = "polished";
   private preset: EnhancementPresetId = "natural";
   private advancedEq: AdvancedEqSettings | null = null;
+
+  /** Requested state, independent of whether the worklet has actually loaded. */
+  private noiseReduction = false;
+  private suppressor: AudioNode | null = null;
+  private suppressorUnavailable = false;
+  /** Bumps on every load attempt, so a slow/late load cannot land after the toggle went back off. */
+  private noiseReductionGeneration = 0;
 
   /**
    * True once the graph is live. `false` means this browser would not give us
@@ -84,6 +100,7 @@ export class PolishPreview {
       this.source = source;
       this.originalGain = originalGain;
       this.rebuildBranch(this.mode === "polished" ? 1 : 0);
+      if (this.noiseReduction) void this.enableSuppressor();
       return true;
     } catch {
       this.destroy();
@@ -131,9 +148,39 @@ export class PolishPreview {
     if (this.source) this.rebuildBranch(this.mode === "polished" ? 1 : 0);
   }
 
+  /**
+   * Insert or remove RNNoise at the head of the polished branch, ahead of the
+   * preset chain — a preview of the same on-device filter `LiveMonitor` runs
+   * for "I'm in a noisy room" while recording, applied here instead to
+   * whichever take is being compared. Off by default; loads the WASM
+   * worklet lazily, only once switched on, and never touches the file that
+   * gets uploaded (`scripts/worker.ts` always runs its own server-side
+   * denoise regardless of this toggle).
+   */
+  async setNoiseReduction(on: boolean): Promise<void> {
+    this.noiseReduction = on;
+    if (!on) {
+      this.destroySuppressor();
+      if (this.source) this.rebuildBranch(this.mode === "polished" ? 1 : 0);
+      return;
+    }
+    this.suppressorUnavailable = false;
+    if (!this.context) return; // Picked up by `connect()` once a context exists.
+    await this.enableSuppressor();
+  }
+
+  /** Honest state for the toggle's own copy — never a silent no-op. */
+  get noiseReductionStatus(): NoiseReductionStatus {
+    if (!this.noiseReduction) return "off";
+    if (this.suppressor) return "on";
+    if (this.suppressorUnavailable) return "unavailable";
+    return "loading";
+  }
+
   /** Tear the whole graph down and close the context. Idempotent. */
   destroy(): void {
     this.detachBranch();
+    this.destroySuppressor();
     this.originalGain?.disconnect();
     this.source?.disconnect();
     this.originalGain = null;
@@ -177,7 +224,19 @@ export class PolishPreview {
     head.gain.value = 1;
     source.connect(head);
 
-    const end = buildPolishGraph(context, head, describePolishGraph(this.preset, this.advancedEq));
+    // RNNoise, when loaded, sits ahead of the preset chain so the comparison
+    // is "with/without background noise, then the chosen sound" rather than
+    // the other way round. The node persists across rebuilds (recreating it
+    // per preset change would reset its internal state), so it is detached
+    // from its previous downstream target before joining the new branch.
+    let chainInput: AudioNode = head;
+    if (this.suppressor) {
+      this.suppressor.disconnect();
+      head.connect(this.suppressor);
+      chainInput = this.suppressor;
+    }
+
+    const end = buildPolishGraph(context, chainInput, describePolishGraph(this.preset, this.advancedEq));
 
     const out = context.createGain();
     out.gain.value = previous ? 0 : targetGain;
@@ -202,6 +261,7 @@ export class PolishPreview {
       () => {
         try {
           source.disconnect(stale.head);
+          stale.head.disconnect();
           stale.out.disconnect();
         } catch {
           // Context already closed.
@@ -217,9 +277,59 @@ export class PolishPreview {
     if (!branch) return;
     try {
       this.source?.disconnect(branch.head);
+      branch.head.disconnect();
       branch.out.disconnect();
     } catch {
       // Context already closed.
+    }
+  }
+
+  /**
+   * Load the RNNoise WASM worklet and splice it into the polished branch.
+   * Resolves once the node is running, or immediately when it cannot be
+   * loaded — in which case `noiseReductionStatus` reports `"unavailable"`
+   * rather than silently leaving the toggle on with nothing behind it.
+   */
+  private async enableSuppressor(): Promise<void> {
+    const context = this.context;
+    if (!context) return;
+    if (this.suppressor) {
+      if (this.source) this.rebuildBranch(this.mode === "polished" ? 1 : 0);
+      return;
+    }
+
+    const generation = (this.noiseReductionGeneration += 1);
+    try {
+      const { loadRnnoise, RnnoiseWorkletNode } = await import("@sapphi-red/web-noise-suppressor");
+      const [wasmBinary] = await Promise.all([
+        loadRnnoise({ url: RNNOISE_WASM_URL, simdUrl: RNNOISE_WASM_SIMD_URL }),
+        context.audioWorklet.addModule(RNNOISE_WORKLET_URL),
+      ]);
+      if (generation !== this.noiseReductionGeneration || !this.noiseReduction || this.context !== context) {
+        return;
+      }
+      this.suppressor = new RnnoiseWorkletNode(context, { maxChannels: 1, wasmBinary });
+      this.suppressorUnavailable = false;
+      if (this.source) this.rebuildBranch(this.mode === "polished" ? 1 : 0);
+    } catch {
+      // WASM blocked, no AudioWorklet, or the fetch failed: the comparison
+      // keeps working unprocessed rather than failing the whole screen.
+      this.suppressor = null;
+      this.suppressorUnavailable = true;
+    }
+  }
+
+  private destroySuppressor(): void {
+    this.noiseReductionGeneration += 1;
+    const node = this.suppressor;
+    this.suppressor = null;
+    this.suppressorUnavailable = false;
+    if (!node) return;
+    try {
+      node.disconnect();
+      (node as AudioNode & { destroy?: () => void }).destroy?.();
+    } catch {
+      // Already gone with its context.
     }
   }
 }
