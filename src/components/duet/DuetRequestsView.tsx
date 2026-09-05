@@ -46,6 +46,14 @@ const STATUS_LABEL: Record<DuetRequestStatus, string> = {
   expired: "Expired",
 };
 
+/** A Link styled as a secondary key (`akinti-press`/`rounded-key`, DESIGN.md §8.7) — the same treatment `w/[id]/page.tsx` uses for its "View lineage" link, since `Button` itself only renders a `<button>`. */
+const LINK_KEY =
+  "akinti-press inline-flex h-10 w-fit items-center gap-2 rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
+/** The ink-filled equivalent of `Button variant="primary"`, for a Link that needs the same weight as "Accept". */
+const LINK_KEY_PRIMARY =
+  "akinti-press inline-flex h-10 w-fit items-center gap-2 rounded-key bg-ink px-4 type-subhead text-on-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
 /** Tabs + list for `/duets` (spec §15 deliverable 2). Data-fetching stays in the Server Component; this only renders and calls the Server Actions. */
 export function DuetRequestsView({ received, sent }: DuetRequestsViewProps) {
   const [tab, setTab] = useState<Tab>("received");
@@ -95,7 +103,7 @@ function RequestList({
   }
 
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
       {items.map((item) => (
         <li key={item.id}>
           <RequestRow item={item} variant={variant} />
@@ -124,36 +132,47 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4">
-      <div className="flex items-start gap-3">
-        <Link href={routes.profile(item.counterpart.username)} className="shrink-0">
-          <Avatar name={name} src={item.counterpart.avatarUrl} size="md" />
-        </Link>
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <p className="truncate text-sm text-fg">
-            <Link href={routes.profile(item.counterpart.username)} className="font-medium hover:underline">
+    <div className="akinti-rail py-4">
+      <Link href={routes.profile(item.counterpart.username)} className="self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+        <Avatar name={name} src={item.counterpart.avatarUrl} size="md" />
+      </Link>
+
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex flex-col gap-1">
+          <p className="type-body-sm measure text-ink">
+            <Link
+              href={routes.profile(item.counterpart.username)}
+              className="type-subhead text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
               {name}
             </Link>{" "}
-            <span className="text-fg-subtle">
-              {variant === "received" ? "wants to Duet on" : "was asked to Duet on"}
+            <span className="text-ink-muted">
+              {variant === "received" ? "wants to duet on" : "was asked to duet on"}
             </span>{" "}
-            <Link href={routes.wave(item.waveId)} className="font-medium hover:underline">
+            <Link
+              href={routes.wave(item.waveId)}
+              className="type-subhead text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            >
               {item.waveTitle}
             </Link>
           </p>
-          <p className="text-xs text-fg-subtle">{timeAgo(item.createdAt)}</p>
-          {item.message ? <p className="mt-1 text-sm text-fg-muted">&ldquo;{item.message}&rdquo;</p> : null}
+          <div className="flex items-center gap-2">
+            <time dateTime={item.createdAt} className="type-mono-sm text-ink-subtle">
+              {timeAgo(item.createdAt)}
+            </time>
+            <Badge>{STATUS_LABEL[item.status]}</Badge>
+          </div>
+          {item.message ? <p className="type-body-sm measure mt-1 text-ink-muted">&ldquo;{item.message}&rdquo;</p> : null}
         </div>
-        <Badge>{STATUS_LABEL[item.status]}</Badge>
+
+        {error ? (
+          <p role="alert" className="type-caption text-signal-deep">
+            {error}
+          </p>
+        ) : null}
+
+        <RequestActions item={item} variant={variant} isPending={isPending} runAction={runAction} />
       </div>
-
-      {error ? (
-        <p role="alert" className="text-xs text-danger">
-          {error}
-        </p>
-      ) : null}
-
-      <RequestActions item={item} variant={variant} isPending={isPending} runAction={runAction} />
     </div>
   );
 }
@@ -206,19 +225,13 @@ function RequestActions({
   if (variant === "sent" && item.status === "accepted") {
     if (item.resultingWaveId) {
       return (
-        <Link
-          href={routes.wave(item.resultingWaveId)}
-          className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-accent hover:underline"
-        >
+        <Link href={routes.wave(item.resultingWaveId)} className={LINK_KEY}>
           View your Duet
         </Link>
       );
     }
     return (
-      <Link
-        href={routes.duetRecord(item.waveId, item.id)}
-        className="inline-flex w-fit items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-fg-on-accent hover:bg-accent-hover"
-      >
+      <Link href={routes.duetRecord(item.waveId, item.id)} className={LINK_KEY_PRIMARY}>
         <Mic className="size-4" aria-hidden="true" />
         Record your Duet
       </Link>
