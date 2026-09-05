@@ -151,7 +151,7 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
         role="tabpanel"
         id={tabPanelId(baseId, active)}
         aria-labelledby={tabId(baseId, active)}
-        className="pt-2 focus-visible:outline-2 focus-visible:outline-ink"
+        className="pt-2 focus-visible:outline-2 focus-visible:outline-tide"
       >
         {isEmpty ? (
           <div className="akinti-page flex flex-col items-start gap-4 py-8">
@@ -162,14 +162,14 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
               <button
                 type="button"
                 onClick={() => loadCategory(active, null)}
-                className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
               >
                 Try again
               </button>
             ) : (
               <Link
                 href={empty.action.href}
-                className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
               >
                 {empty.action.label}
               </Link>

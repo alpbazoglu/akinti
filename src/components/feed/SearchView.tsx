@@ -162,7 +162,7 @@ export function SearchView({
                   <button
                     type="button"
                     onClick={() => runRecent(item)}
-                    className="min-w-0 flex-1 truncate py-4 text-left type-body text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="min-w-0 flex-1 truncate py-4 text-left type-body text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
                   >
                     {item}
                   </button>
@@ -189,7 +189,7 @@ export function SearchView({
           <button
             type="button"
             onClick={() => search(trimmedQuery)}
-            className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
           >
             Try again
           </button>
@@ -205,7 +205,7 @@ export function SearchView({
           </p>
           <Link
             href={routes.explore()}
-            className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
           >
             Browse {TERMS.explore}
           </Link>
@@ -224,7 +224,7 @@ export function SearchView({
                     <li key={profile.id}>
                       <Link
                         href={routes.profile(profile.username)}
-                        className="akinti-rail akinti-page items-center border-b border-hairline py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
+                        className="akinti-rail akinti-page items-center border-b border-hairline py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tide"
                       >
                         <Avatar name={name} src={profile.avatarUrl} size="md" />
                         <span className="flex min-w-0 flex-col">

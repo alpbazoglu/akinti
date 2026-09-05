@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChartColumn, Pencil } from "@/components/ui/icons";
 
-import { WaveformCanvas } from "@/components/audio";
+import { WaveformCanvas, type TraceHue } from "@/components/audio";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import type { FollowStatus, Profile } from "@/types/domain";
@@ -19,7 +19,7 @@ import { ShareProfileButton } from "./ShareProfileButton";
 const SECONDARY_LINK_BUTTON =
   "akinti-press inline-flex h-9 items-center gap-1.5 rounded-key border border-hairline-strong px-3 " +
   "type-caption font-medium text-ink transition-colors hover:bg-paper-sunk " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide";
 
 /** Trace height for the signature banner (§8): a real waveform, not a hero image. */
 const SIGNATURE_HEIGHT = 96;
@@ -40,6 +40,13 @@ export interface ProfileHeaderProps {
   /** This person's signature (SCREENS.md §8): composed from their own last 12
    *  Waves, newest first. Empty when they haven't published yet. */
   signature?: readonly number[];
+  /**
+   * The creator's dominant genre tint for the signature trace
+   * (`docs/design/COLOR_V2.md` "Profile signature trace"), derived by the
+   * caller with `deriveGenreHue` (`@/components/feed`) from the same Waves'
+   * tags. Omitted draws the plain current, as it always has.
+   */
+  hue?: TraceHue;
   className?: string;
 }
 
@@ -65,14 +72,14 @@ function DormantSignature() {
  * Creation-type-agnostic — this component knows nothing about
  * Recorded/Uploaded/Duet, that lives entirely on `WaveCard`.
  */
-export function ProfileHeader({ profile, viewer, signature = [], className }: ProfileHeaderProps) {
+export function ProfileHeader({ profile, viewer, signature = [], hue, className }: ProfileHeaderProps) {
   const name = profile.displayName ?? profile.username;
 
   return (
     <div className={cn("flex flex-col", className)}>
       <div className="w-full bg-paper-sunk" style={{ height: SIGNATURE_HEIGHT }}>
         {signature.length > 0 ? (
-          <WaveformCanvas peaks={signature} height={SIGNATURE_HEIGHT} state="unplayed" />
+          <WaveformCanvas peaks={signature} height={SIGNATURE_HEIGHT} state="unplayed" hue={hue} />
         ) : (
           <DormantSignature />
         )}

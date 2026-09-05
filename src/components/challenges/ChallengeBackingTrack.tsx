@@ -66,16 +66,21 @@ export function ChallengeBackingTrack({
 
   return (
     <div className={cn("flex items-center gap-3 border-t border-hairline py-3", className)}>
+      {/* Secondary (hairline) shape with a sand-tinted glyph: the
+          backing-track mark is sand, distinct from a Wave's own transport,
+          which is the current (`docs/design/COLOR_V2.md` "Challenges"). */}
       <IconButton
         label={isPlaying ? `Pause ${title}` : `Play ${title}`}
         icon={
-          isPlaying ? (
-            <Pause className="size-5" weight="fill" />
-          ) : (
-            <Play className="size-5 translate-x-px" weight="fill" />
-          )
+          <span className="text-sand">
+            {isPlaying ? (
+              <Pause className="size-5" weight="fill" />
+            ) : (
+              <Play className="size-5 translate-x-px" weight="fill" />
+            )}
+          </span>
         }
-        variant="primary"
+        variant="secondary"
         shape="round"
         size="md"
         onClick={() => void handleToggle()}

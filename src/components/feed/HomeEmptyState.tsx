@@ -48,13 +48,13 @@ export function HomeEmptyState({ waves }: HomeEmptyStateProps) {
       <div className="flex flex-col items-start gap-4">
         <Link
           href={routes.explore()}
-          className="akinti-press inline-flex h-11 items-center rounded-key border border-hairline-strong px-5 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="akinti-press inline-flex h-11 items-center rounded-key border border-hairline-strong px-5 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
         >
           Find people to follow
         </Link>
         <Link
           href={routes.create()}
-          className="type-body-sm text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="type-body-sm text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
         >
           Record your first {TERMS.wave}
         </Link>

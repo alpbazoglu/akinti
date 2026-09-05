@@ -62,7 +62,15 @@ export function EnterChallengeWavePicker({
 
   return (
     <div className={className}>
-      <Button variant="secondary" onClick={() => setOpen(true)}>
+      {/* This picker only ever mounts while its challenge is open for entries
+          (`[slug]/page.tsx` gates it on `status === "live"`), so the current
+          dot beside the label is the live challenge mark itself
+          (`docs/design/COLOR_V2.md` "Challenges"). */}
+      <Button
+        variant="secondary"
+        leadingIcon={<span aria-hidden="true" className="size-1.5 rounded-full bg-tide" />}
+        onClick={() => setOpen(true)}
+      >
         {TERMS.enterExistingWave}
       </Button>
 

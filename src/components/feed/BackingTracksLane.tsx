@@ -211,7 +211,7 @@ function TrackRow({ track }: { track: BackingTrackCard }) {
           </p>
           <Link
             href={`${routes.create()}?track=${encodeURIComponent(track.id)}`}
-            className="type-caption text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="type-caption text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
           >
             Sing over this
           </Link>

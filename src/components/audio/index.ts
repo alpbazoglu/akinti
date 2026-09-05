@@ -9,6 +9,7 @@ export {
   drawWaterline,
   geometryFor,
   resamplePeaks,
+  type TraceHue,
   type WaterlineColors,
   type WaterlineGeometry,
   type WaterlineState,

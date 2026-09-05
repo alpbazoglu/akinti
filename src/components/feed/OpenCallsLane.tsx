@@ -56,7 +56,7 @@ export function OpenCallsLane({ calls }: OpenCallsLaneProps) {
                 ) : null}
                 <Link
                   href={routes.waveDuet(call.waveId)}
-                  className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
                 >
                   Answer this call
                 </Link>

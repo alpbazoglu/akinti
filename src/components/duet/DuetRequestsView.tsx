@@ -48,11 +48,11 @@ const STATUS_LABEL: Record<DuetRequestStatus, string> = {
 
 /** A Link styled as a secondary key (`akinti-press`/`rounded-key`, DESIGN.md §8.7) — the same treatment `w/[id]/page.tsx` uses for its "View lineage" link, since `Button` itself only renders a `<button>`. */
 const LINK_KEY =
-  "akinti-press inline-flex h-10 w-fit items-center gap-2 rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "akinti-press inline-flex h-10 w-fit items-center gap-2 rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide";
 
-/** The ink-filled equivalent of `Button variant="primary"`, for a Link that needs the same weight as "Accept". */
+/** The current-filled equivalent of `Button variant="primary"`, for a Link that needs the same weight as "Accept" (COLOR_V2 "Buttons": primary = current fill, paper text). */
 const LINK_KEY_PRIMARY =
-  "akinti-press inline-flex h-10 w-fit items-center gap-2 rounded-key bg-ink px-4 type-subhead text-on-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+  "akinti-press inline-flex h-10 w-fit items-center gap-2 rounded-key bg-tide px-4 type-subhead text-on-ink transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide";
 
 /** Tabs + list for `/duets` (spec §15 deliverable 2). Data-fetching stays in the Server Component; this only renders and calls the Server Actions. */
 export function DuetRequestsView({ received, sent }: DuetRequestsViewProps) {
@@ -133,7 +133,7 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
 
   return (
     <div className="akinti-rail py-4">
-      <Link href={routes.profile(item.counterpart.username)} className="self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">
+      <Link href={routes.profile(item.counterpart.username)} className="self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide">
         <Avatar name={name} src={item.counterpart.avatarUrl} size="md" />
       </Link>
 
@@ -142,7 +142,7 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
           <p className="type-body-sm measure text-ink">
             <Link
               href={routes.profile(item.counterpart.username)}
-              className="type-subhead text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="type-subhead text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
             >
               {name}
             </Link>{" "}
@@ -151,7 +151,7 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
             </span>{" "}
             <Link
               href={routes.wave(item.waveId)}
-              className="type-subhead text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              className="type-subhead text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
             >
               {item.waveTitle}
             </Link>

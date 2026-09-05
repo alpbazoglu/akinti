@@ -39,14 +39,14 @@ export function DuetModePicker({ value, onChange, modes = ALL_MODES, className }
             onClick={() => onChange(mode)}
             className={cn(
               "akinti-press flex w-full items-start gap-3 border-t border-hairline py-4 text-left last:border-b",
-              "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+              "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tide",
             )}
           >
             <span
               aria-hidden="true"
               className={cn(
                 "mt-1 size-3.5 shrink-0 rounded-full border",
-                selected ? "border-ink bg-ink" : "border-hairline-strong bg-transparent",
+                selected ? "border-tide bg-tide" : "border-hairline-strong bg-transparent",
               )}
             />
             <span className="flex flex-col gap-0.5">

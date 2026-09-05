@@ -107,7 +107,7 @@ export function TraceRow({ wave, className }: TraceRowProps) {
         <p className="type-caption truncate text-ink-subtle">
           <Link
             href={routes.wave(wave.id)}
-            className="type-subhead text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+            className="type-subhead text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
           >
             {wave.title}
           </Link>

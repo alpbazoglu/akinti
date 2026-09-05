@@ -1,5 +1,11 @@
 export { BackingTracksLane, type BackingTrackCard, type BackingTracksLaneProps } from "./BackingTracksLane";
 export { ExploreView, type ExploreViewProps } from "./ExploreView";
+export {
+  deriveGenreHue,
+  genreHueForTag,
+  mostUsedTag,
+  type GenreHue,
+} from "./genreHue";
 export { FollowingFeed, type FollowingFeedProps } from "./FollowingFeed";
 export { HomeEmptyState, type HomeEmptyStateProps } from "./HomeEmptyState";
 export { OpenCallsLane, type OpenCall, type OpenCallsLaneProps } from "./OpenCallsLane";

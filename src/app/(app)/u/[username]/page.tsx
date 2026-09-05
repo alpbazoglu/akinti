@@ -2,7 +2,7 @@
 import { PageHeader } from "@/components/layout";
 import { LockedContent, ProfileHeader, ProfileTabs } from "@/components/profile";
 import { EmptyState } from "@/components/ui";
-import { SIGNATURE_SOURCE_LIMIT, composeSignature } from "@/components/feed";
+import { SIGNATURE_SOURCE_LIMIT, composeSignature, deriveGenreHue } from "@/components/feed";
 import type { WaveCardContainerWave } from "@/components/wave";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getFollowStatus, isFollowing } from "@/lib/db/follows";
@@ -102,6 +102,11 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
   let waveCards: WaveCardContainerWave[] = [];
   let duetCards: WaveCardContainerWave[] = [];
+  // Same Waves the signature is composed from, kept alongside it purely to
+  // derive a genre tint (COLOR_V2 "Profile signature trace") — no extra
+  // query, `Wave.tags` is already on every card `listProfileWaveCards` hands
+  // back.
+  let waveTagLists: readonly (readonly string[])[] = [];
 
   if (canSeeContent) {
     const creator = { username: profile.username, displayName: profile.displayName, avatarUrl: profile.avatarUrl };
@@ -115,6 +120,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     duetCards = duetsPage.items.map((card) =>
       toWaveCardWave(card, creator, resolveCanRequestDuet(card.wave, profile, isSelf, viewerUser?.id ?? null)),
     );
+    waveTagLists = wavesPage.items.map((card) => card.wave.tags);
   }
 
   // The signature (SCREENS.md §8): a trace generated from this person's own
@@ -123,12 +129,16 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const signature = canSeeContent
     ? composeSignature(waveCards.slice(0, SIGNATURE_SOURCE_LIMIT).map((card) => card.peaks))
     : [];
+  const signatureHue = canSeeContent
+    ? deriveGenreHue(waveTagLists.slice(0, SIGNATURE_SOURCE_LIMIT))
+    : undefined;
 
   return (
     <>
       <ProfileHeader
         profile={profile}
         signature={signature}
+        hue={signatureHue}
         viewer={{
           isSelf,
           isSignedIn: viewerUser !== null,
