@@ -51,9 +51,12 @@ export function MessageBubble({
         ) : (
           <div
             className={
+              // Who said what is carried by the presence of a field, not by
+              // colour (SCREENS.md §9.2): outbound is an ink field, inbound
+              // is bare ink on the paper — no field, no fill, no border.
               isSelf
-                ? "rounded-2xl rounded-br-sm bg-accent px-3.5 py-2 text-sm text-fg-on-accent"
-                : "rounded-2xl rounded-bl-sm bg-surface-muted px-3.5 py-2 text-sm text-fg"
+                ? "rounded-2xl rounded-br-sm bg-ink px-3.5 py-2 text-sm text-on-ink"
+                : "px-1 py-2 text-sm text-ink"
             }
           >
             <p className="whitespace-pre-wrap break-words">{message.body}</p>

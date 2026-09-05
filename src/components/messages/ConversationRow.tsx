@@ -3,7 +3,7 @@ import Link from "next/link";
 import { routes } from "@/config/routes";
 import { formatMessagePreview } from "@/lib/messages";
 import { timeAgo } from "@/lib/ui";
-import { Avatar, CountBadge } from "@/components/ui";
+import { Avatar } from "@/components/ui";
 import type { ConversationSummary } from "@/types/domain";
 
 export interface ConversationRowProps {
@@ -27,18 +27,24 @@ export function ConversationRow({ summary, viewerId }: ConversationRowProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-sm font-semibold text-fg">{name}</p>
-          <time
-            dateTime={summary.conversation.lastMessageAt}
-            className="shrink-0 text-xs text-fg-subtle"
-          >
-            {timeAgo(summary.conversation.lastMessageAt)}
-          </time>
+          <span className="flex shrink-0 items-center gap-1.5">
+            <time dateTime={summary.conversation.lastMessageAt} className="text-xs text-fg-subtle">
+              {timeAgo(summary.conversation.lastMessageAt)}
+            </time>
+            {unread ? (
+              // The unread mark (SCREENS.md §9.1): Signal, because it means
+              // "there is unheard audio here" — the one non-audio use of it.
+              <span className="inline-flex items-center">
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-signal" />
+                <span className="sr-only">{summary.unreadCount} unread</span>
+              </span>
+            ) : null}
+          </span>
         </div>
-        <div className="mt-0.5 flex items-center justify-between gap-2">
+        <div className="mt-0.5 flex items-center gap-2">
           <p className={`truncate text-sm ${unread ? "font-medium text-fg" : "text-fg-muted"}`}>
             {formatMessagePreview(summary.lastMessage, viewerId)}
           </p>
-          {unread ? <CountBadge count={summary.unreadCount} label="unread messages" /> : null}
         </div>
       </div>
     </Link>
