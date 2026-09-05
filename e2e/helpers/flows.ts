@@ -75,7 +75,10 @@ export async function publishOriginalWave(
   options: PublishWaveOptions = {},
 ): Promise<string> {
   await page.goto("/create");
-  await page.getByRole("tab", { name: "Upload" }).click();
+  // The Record/Upload switch is no longer a tab bar (Wave B rebuilt `/create`
+  // on `RecordStage`/`UploadDropzone` per `docs/design/SCREENS.md` §4) — the
+  // record screen's own "Upload a file instead" row is how you get there.
+  await page.getByRole("button", { name: "Upload a file instead" }).click();
 
   await page.locator('input[type="file"]').setInputFiles(TONE_WAV_PATH);
 
