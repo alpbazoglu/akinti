@@ -20,15 +20,14 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 
 import { enterChallengeAction } from "@/app/(app)/challenges/actions";
 import { PageHeader } from "@/components/layout";
 import {
   CreateWaveForm,
-  EnhanceStage,
   PublishProgress,
   RecordStage,
-  ReviewStage,
   UploadDropzone,
   type CapturedTake,
   type PublishStage,
@@ -53,6 +52,20 @@ import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 
 import { createUploadTicket, finalizeUpload, publishWave } from "./actions";
+
+/**
+ * Neither is needed on first paint: Review (trim) and Enhance (the DSP
+ * preview chain: `EnhancementPicker`, `PolishPreview`, the RNNoise worklet)
+ * only render once a take exists. Loaded on demand instead of sitting in
+ * `/create`'s initial bundle (CLAUDE.md: "recorder, DSP preview and
+ * wavesurfer loaded only on routes that need them"; review2 #21).
+ */
+const ReviewStage = dynamic(() => import("@/components/create").then((mod) => mod.ReviewStage), {
+  ssr: false,
+});
+const EnhanceStage = dynamic(() => import("@/components/create").then((mod) => mod.EnhanceStage), {
+  ssr: false,
+});
 
 type Step = "capture" | "review" | "enhance" | "details";
 type CaptureMode = "record" | "upload";

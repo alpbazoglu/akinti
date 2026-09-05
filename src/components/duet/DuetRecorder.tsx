@@ -18,13 +18,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 
 import { Waveform } from "@/components/audio";
 import {
-  EnhanceStage,
   PublishProgress,
-  RecordStage,
-  ReviewStage,
   type CapturedTake,
   type PublishStage,
   type RecordStageBackingTrack,
@@ -47,8 +45,28 @@ import type { DuetMode, DuetSegment } from "@/types/domain";
 import { createUploadTicket, finalizeUpload } from "@/app/(app)/create/actions";
 import { publishDuetWave } from "@/app/(app)/create/duetActions";
 
-import { AtismaTurnRecorder } from "./AtismaTurnRecorder";
 import { DuetModePicker } from "./DuetModePicker";
+
+/**
+ * None of these render until after the mode picker's "Continue" — the
+ * recorder, the trim/DSP preview chain and the atışma turn recorder are all
+ * loaded on demand rather than sitting in the initial bundle of every route
+ * that can reach a Duet request (CLAUDE.md: "recorder, DSP preview and
+ * wavesurfer loaded only on routes that need them"; review2 #21).
+ */
+const RecordStage = dynamic(() => import("@/components/create").then((mod) => mod.RecordStage), {
+  ssr: false,
+});
+const ReviewStage = dynamic(() => import("@/components/create").then((mod) => mod.ReviewStage), {
+  ssr: false,
+});
+const EnhanceStage = dynamic(() => import("@/components/create").then((mod) => mod.EnhanceStage), {
+  ssr: false,
+});
+const AtismaTurnRecorder = dynamic(
+  () => import("./AtismaTurnRecorder").then((mod) => mod.AtismaTurnRecorder),
+  { ssr: false },
+);
 
 type Stage = "mode" | "capture" | "review" | "enhance" | "details";
 
