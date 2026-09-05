@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Drawer } from "vaul";
 
 import { cn } from "@/lib/ui";
@@ -45,6 +45,21 @@ export function Sheet({
   hideTitle = false,
   className,
 }: SheetProps) {
+  // Every real caller opens this from a plain button, not `Drawer.Trigger` —
+  // the open/close state is controlled entirely from outside. Radix's own
+  // close-focus default only ever refocuses a registered `Trigger`'s ref,
+  // which is `null` here, so it silently drops focus to the scrim/body
+  // instead of the button that opened the sheet. Capturing whatever was
+  // focused right before open and restoring it ourselves on close (below)
+  // is what actually returns focus to the trigger element.
+  const triggerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    }
+  }, [open]);
+
   return (
     <Drawer.Root
       open={open}
@@ -71,6 +86,10 @@ export function Sheet({
           // description, explicitly clearing the attribute is Radix's own
           // escape hatch; when it does, the context wiring is left alone.
           {...(description ? {} : { "aria-describedby": undefined })}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            triggerRef.current?.focus();
+          }}
           className={cn(
             "fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col outline-none",
             "rounded-t-sheet bg-paper-raised shadow-sheet",
