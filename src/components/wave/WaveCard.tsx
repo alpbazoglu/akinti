@@ -43,6 +43,11 @@ export interface WaveCardWave {
   readonly isSaved?: boolean;
   /** False when the creator does not accept Duet Requests. */
   readonly canRequestDuet?: boolean;
+  /**
+   * The viewer has no recorded listen for this Wave. Draws the unheard mark:
+   * one of the five places Signal is allowed to appear (§4.1).
+   */
+  readonly unheard?: boolean;
 }
 
 export type WaveCardVariant = "stream" | "detail";
@@ -121,9 +126,20 @@ export function WaveCard({
       <div className="akinti-rail akinti-page pt-5 pb-6">
         <Link
           href={routes.profile(wave.creator.username)}
-          className="row-span-2 self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          className="relative row-span-2 self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <Avatar name={creatorName} src={wave.creator.avatarUrl} size="md" />
+          {wave.unheard ? (
+            <>
+              {/* Signal, on unheard audio. Not a badge, not a count: a mark
+                  that says there is sound here you have not played (§4.1). */}
+              <span
+                aria-hidden="true"
+                className="absolute -top-0.5 -right-0.5 size-2 rounded-label bg-signal"
+              />
+              <span className="sr-only">Unheard</span>
+            </>
+          ) : null}
         </Link>
 
         <div className="flex min-w-0 flex-col gap-1">

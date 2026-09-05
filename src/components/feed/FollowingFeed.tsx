@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useReducer } from "react";
+import { useCallback, useMemo, useReducer } from "react";
 
 import { loadFollowingFeed } from "@/app/(app)/actions";
 import type { WaveCardContainerWave } from "@/components/wave";
@@ -11,14 +11,25 @@ import { WaveFeedList } from "./WaveFeedList";
 export interface FollowingFeedProps {
   initialItems: WaveCardContainerWave[];
   initialCursor: string | null;
+  /** Wave ids the viewer has not heard yet, for the unheard mark (§4.1). */
+  unheardIds?: readonly string[];
 }
 
-/** Client half of `/` (spec s9): owns the paginated list state, `WaveFeedList` owns rendering + the scroll trigger. */
-export function FollowingFeed({ initialItems, initialCursor }: FollowingFeedProps) {
+/**
+ * Home's stream (SCREENS.md §2): Waves from the people this reader follows.
+ *
+ * Owns the paginated list state; `WaveFeedList` owns rendering and the scroll
+ * trigger. Pages after the first arrive through `loadFollowingFeed`, and a
+ * failure says what happened and offers one repair, rather than leaving a
+ * skeleton on screen forever.
+ */
+export function FollowingFeed({ initialItems, initialCursor, unheardIds }: FollowingFeedProps) {
   const [state, dispatch] = useReducer(
     feedReducer<WaveCardContainerWave>,
     createInitialFeedState(initialItems, initialCursor),
   );
+
+  const unheard = useMemo(() => new Set(unheardIds ?? []), [unheardIds]);
 
   const handleLoadMore = useCallback(() => {
     if (!state.cursor || state.status === "loading") {
@@ -29,16 +40,20 @@ export function FollowingFeed({ initialItems, initialCursor }: FollowingFeedProp
     void loadFollowingFeed(cursor).then(
       (result) => {
         if (result.ok && result.data) {
-          dispatch({ type: "loadMoreSuccess", items: result.data.items, cursor: result.data.nextCursor });
+          dispatch({
+            type: "loadMoreSuccess",
+            items: result.data.items,
+            cursor: result.data.nextCursor,
+          });
         } else {
-          dispatch({ type: "loadMoreError", error: result.error ?? "Could not load more Waves. Try again." });
+          dispatch({ type: "loadMoreError", error: result.error ?? "Couldn't reach the stream." });
         }
       },
       // A rejected Server Action call (network drop, dev-server chunk error)
       // must still leave "loading", or the list is stuck showing a skeleton
-      // forever with no way to retry — see the identical fix in `ExploreView`.
+      // forever with no way to retry.
       () => {
-        dispatch({ type: "loadMoreError", error: "Could not load more Waves. Check your connection and try again." });
+        dispatch({ type: "loadMoreError", error: "Couldn't reach the stream." });
       },
     );
   }, [state.cursor, state.status]);
@@ -50,7 +65,8 @@ export function FollowingFeed({ initialItems, initialCursor }: FollowingFeedProp
       error={state.error}
       hasMore={state.cursor !== null}
       onLoadMore={handleLoadMore}
-      className="mx-auto w-full max-w-2xl px-4 pb-16 sm:px-5"
+      unheardIds={unheard}
+      endLabel="That's everything from the people you follow."
     />
   );
 }

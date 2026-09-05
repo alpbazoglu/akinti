@@ -1,20 +1,26 @@
 "use client";
 
 /**
+ * The stream (§8.3, §8.15, SCREENS.md §2).
+ *
  * Presentational infinite-scroll list of `WaveCardContainer`s, shared by
- * `FollowingFeed` (Home, spec s9) and `ExploreCategoryPanel` (Explore, spec
- * s10). This component owns rendering and the "when should we fetch more"
- * decision (`IntersectionObserver`, with an explicit "Load more" button as a
- * fallback — spec s9); the caller owns the actual fetch and reducer
+ * `FollowingFeed` (Home) and `ExploreView` (Explore). This component owns
+ * rendering and the "when should we fetch more" decision
+ * (`IntersectionObserver`, with an explicit key as the always-reachable
+ * fallback); the caller owns the fetch and the reducer
  * (`src/lib/feed/feedReducer.ts`), so the same list works whether the source
- * is a cursor-paginated home feed or an Explore category tab.
+ * is a cursor-paginated home feed or an Explore lane.
+ *
+ * Items are not gapped: each Wave carries its own 20/24px padding and ends in
+ * a waterline drawn from its own peaks, so the rhythm comes from the item,
+ * not from a flex gap between boxes (§5.1).
  */
 
 import { useEffect, useRef } from "react";
 
 import { WaveCardContainer, WaveCardSkeleton, type WaveCardContainerWave } from "@/components/wave";
-import { Button } from "@/components/ui";
 import type { FeedStatus } from "@/lib/feed";
+import { cn } from "@/lib/ui";
 
 export interface WaveFeedListProps {
   items: readonly WaveCardContainerWave[];
@@ -23,10 +29,23 @@ export interface WaveFeedListProps {
   /** `null` cursor means the list is exhausted. */
   hasMore: boolean;
   onLoadMore: () => void;
+  /** Waves this viewer has not heard yet: they carry the unheard mark (§4.1). */
+  unheardIds?: ReadonlySet<string>;
+  /** Shown once the list is exhausted. Omit to end the stream silently. */
+  endLabel?: string | null;
   className?: string;
 }
 
-export function WaveFeedList({ items, status, error, hasMore, onLoadMore, className }: WaveFeedListProps) {
+export function WaveFeedList({
+  items,
+  status,
+  error,
+  hasMore,
+  onLoadMore,
+  unheardIds,
+  endLabel = null,
+  className,
+}: WaveFeedListProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
   const onLoadMoreRef = useRef(onLoadMore);
 
@@ -59,37 +78,47 @@ export function WaveFeedList({ items, status, error, hasMore, onLoadMore, classN
   }, [hasMore, status]);
 
   return (
-    <div className={className}>
-      <div className="flex flex-col gap-3 sm:gap-4">
-        {items.map((wave) => (
-          <WaveCardContainer key={wave.id} wave={wave} />
-        ))}
-      </div>
+    <div className={cn("flex flex-col", className)}>
+      {items.map((wave) => (
+        <WaveCardContainer
+          key={wave.id}
+          wave={wave}
+          unheard={unheardIds?.has(wave.id) ?? false}
+        />
+      ))}
 
-      {status === "loading" ? (
-        <div className="flex flex-col gap-3 pt-3 sm:gap-4">
-          <WaveCardSkeleton />
-        </div>
-      ) : null}
+      {status === "loading" ? <WaveCardSkeleton /> : null}
 
-      {/* Off-screen trigger for IntersectionObserver; the button below is the
-          always-visible, no-JS-observer-required fallback (spec s9). */}
+      {/* Off-screen trigger for IntersectionObserver; the key below is the
+          always-visible, no-observer-required fallback. */}
       {hasMore ? <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" /> : null}
 
-      <div className="flex flex-col items-center gap-2 py-4">
-        {error ? (
-          <p role="alert" className="text-xs text-danger">
+      {error ? (
+        <div className="akinti-page flex flex-col items-start gap-3 py-6">
+          <p role="alert" className="type-body-sm measure text-signal-deep">
             {error}
           </p>
-        ) : null}
-        {hasMore ? (
-          <Button variant="secondary" size="sm" onClick={onLoadMore} loading={status === "loading"}>
-            {error ? "Try again" : "Load more"}
-          </Button>
-        ) : items.length > 0 ? (
-          <p className="text-xs text-fg-subtle">You&apos;ve reached the end.</p>
-        ) : null}
-      </div>
+          <button
+            type="button"
+            onClick={onLoadMore}
+            className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            Try again
+          </button>
+        </div>
+      ) : hasMore && status !== "loading" ? (
+        <div className="akinti-page py-6">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            Load more
+          </button>
+        </div>
+      ) : !hasMore && items.length > 0 && endLabel ? (
+        <p className="akinti-page type-caption py-6 text-ink-subtle">{endLabel}</p>
+      ) : null}
     </div>
   );
 }

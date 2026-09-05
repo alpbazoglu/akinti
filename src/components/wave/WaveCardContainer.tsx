@@ -50,6 +50,8 @@ export type WaveCardContainerWave = Omit<WaveCardWave, "audioUrl"> & {
 
 export interface WaveCardContainerProps extends Omit<WaveCardProps, "wave"> {
   wave: WaveCardContainerWave;
+  /** The viewer has no recorded listen for this Wave (§4.1). */
+  unheard?: boolean;
 }
 
 /** Matches `WavePlayer`'s `accessibleName` for the transport button exactly. */
@@ -57,7 +59,15 @@ const TRANSPORT_LABEL_RE = /^(Play|Pause|Retry playback)\b/;
 
 const DUET_DISABLED_TITLE = "This creator isn't accepting Duet Requests right now.";
 
-export function WaveCardContainer({ wave, onComment, onSave, onShare, onRequestDuet, ...rest }: WaveCardContainerProps) {
+export function WaveCardContainer({
+  wave,
+  unheard = false,
+  onComment,
+  onSave,
+  onShare,
+  onRequestDuet,
+  ...rest
+}: WaveCardContainerProps) {
   const store = usePlaybackStore();
   const router = useRouter();
   const { toast } = useToast();
@@ -223,6 +233,7 @@ export function WaveCardContainer({ wave, onComment, onSave, onShare, onRequestD
           ...wave,
           audioUrl: audioUrl ?? "",
           isSaved: saveState.isSaved,
+          unheard,
           metrics: { ...wave.metrics, saves: saveState.saveCount },
         }}
         onComment={handleComment}
@@ -232,7 +243,7 @@ export function WaveCardContainer({ wave, onComment, onSave, onShare, onRequestD
         {...rest}
       />
       {loadError ? (
-        <p role="alert" className="px-4 pb-2 text-xs text-danger sm:px-5">
+        <p role="alert" className="akinti-page type-caption pb-3 text-signal-deep">
           {loadError}
         </p>
       ) : null}
