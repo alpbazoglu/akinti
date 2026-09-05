@@ -7,3 +7,5 @@ export {
   type DuetRequestsViewProps,
 } from "./DuetRequestsView";
 export { DuetRecorder, type DuetRecorderProps } from "./DuetRecorder";
+export { DuetModePicker, type DuetModePickerProps } from "./DuetModePicker";
+export { AtismaTurnRecorder, type AtismaTurnRecorderProps } from "./AtismaTurnRecorder";

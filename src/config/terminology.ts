@@ -48,6 +48,11 @@ export const TERMS = {
   requestDuet: "Request a Duet",
   openForDuet: "Open for Duet",
 
+  /* Duet modes (Wave D, docs/DUET_SPEC.md) */
+  duetModeLayer: "Layer",
+  duetModeAtisma: "Atışma",
+  duetModeCypher: "Cypher",
+
   /* People */
   creator: "Creator",
   creators: "Creators",
@@ -95,6 +100,7 @@ export const TERMS = {
   challenge: "Challenge",
   challenges: "Challenges",
   enterChallenge: "Enter challenge",
+  enterExistingWave: "Enter an existing Wave",
   topFive: "Top 5",
 
   /* Playback */
@@ -111,6 +117,24 @@ export type TermKey = keyof typeof TERMS;
 export function t(key: TermKey): string {
   return TERMS[key];
 }
+
+/* ------------------------------------------------------------------ */
+/* Duet modes (Wave D, docs/DUET_SPEC.md)                              */
+/* ------------------------------------------------------------------ */
+
+/** Kept as plain string keys (not `DuetMode` from `@/types/domain`) so this config has no dependency on `src/types/**`. */
+export const DUET_MODE_LABEL: Readonly<Record<"layer" | "atisma" | "cypher", string>> = {
+  layer: TERMS.duetModeLayer,
+  atisma: TERMS.duetModeAtisma,
+  cypher: TERMS.duetModeCypher,
+};
+
+/** One sentence each, for the mode picker on the Duet record flow. */
+export const DUET_MODE_DESCRIPTION: Readonly<Record<"layer" | "atisma" | "cypher", string>> = {
+  layer: "Sing or play alongside the original, at the same time.",
+  atisma: "Trade turns with the original, back and forth.",
+  cypher: "Add your verse after everyone who has already added theirs.",
+};
 
 /* ------------------------------------------------------------------ */
 /* Creation types (§11)                                                */
