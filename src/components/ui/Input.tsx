@@ -17,8 +17,12 @@ export interface InputProps
   /** Control rendered inside the field, on the trailing edge. */
   trailingSlot?: ReactNode;
   /**
-   * An availability confirmation: a small Signal tick inside the field, not a
-   * green banner (§8.9). Ignored when `trailingSlot` is supplied.
+   * An availability confirmation: a small current-coloured tick inside the
+   * field, not a green banner (§8.9). Signal itself stays exclusive to live
+   * audio (`docs/design/COLOR_V2.md` principle 2) — this was never audio
+   * state, so it moved off Signal onto the current, matching "success is
+   * the current" (COLOR_V2 semantic colour). Ignored when `trailingSlot` is
+   * supplied.
    */
   confirmed?: boolean;
   containerClassName?: string;
@@ -91,7 +95,7 @@ export function Input({
         {showTick ? (
           <span
             aria-hidden="true"
-            className="absolute right-3.5 inline-flex items-center text-signal"
+            className="absolute right-3.5 inline-flex items-center text-tide"
           >
             <Check className="size-4" />
           </span>

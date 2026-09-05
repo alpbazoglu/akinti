@@ -15,8 +15,9 @@ export interface ChipProps
 
 /**
  * A filter chip (§8.8). A filter row is one 40px row, horizontally scrollable,
- * and the active item is marked by a **2px ink underbar** — never a filled
- * coloured pill (§12.4). Unselected chips are 6px-radius hairline tags.
+ * and the active item is marked by a **2px current-coloured underbar** —
+ * never a filled coloured pill (§12.4, recoloured by COLOR_V2 in step with
+ * Tabs's active underline). Unselected chips are 6px-radius hairline tags.
  */
 export function Chip({
   children,
@@ -35,10 +36,10 @@ export function Chip({
       className={cn(
         "akinti-press inline-flex h-10 shrink-0 items-center gap-1.5 px-3",
         "type-caption whitespace-nowrap transition-colors duration-[--dur-micro]",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
         "disabled:cursor-not-allowed disabled:opacity-55",
         selected
-          ? "border-b-2 border-ink text-ink"
+          ? "border-b-2 border-tide text-ink"
           : "rounded-tag border border-hairline text-ink-muted hover:border-hairline-strong hover:text-ink",
         className,
       )}

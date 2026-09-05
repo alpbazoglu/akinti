@@ -7,18 +7,21 @@ import { cn } from "@/lib/ui";
 import { Spinner } from "./Spinner";
 
 /**
- * Keys, not buttons (`docs/design/DESIGN.md` §8.7).
+ * Keys, not buttons (`docs/design/DESIGN.md` §8.7, recoloured by
+ * `docs/design/COLOR_V2.md` "Buttons").
  *
  * Three looks and no more:
- *   ink  - ink field, paper label. The single most important action on a screen.
+ *   tide - the current fill, paper label. The single most important action
+ *          on a screen.
  *   line - 1px hairline-strong, no fill, ink label. Secondary actions.
- *   text - ink label with a 1px hairline underline offset 3px. Tertiary and
- *          destructive, so "Delete account" is a sentence and not a red pill.
+ *   text - ink label with a 1px hairline underline offset 3px, or danger
+ *          text for destructive, so "Delete account" is a sentence and not
+ *          a red pill.
  *
  * The v1 variant names are the public API and map onto those three:
- * `primary` is the ink key, `secondary` the line key, `ghost` and `danger` the
- * text key. Nothing is a pill (§12.4) and nothing is coloured except a
- * destructive label, which uses the AA-safe Signal (§4.4).
+ * `primary` is the tide key, `secondary` the line key, `ghost` and `danger`
+ * the text key. Nothing is a pill (§12.4). `danger` is its own hue, not
+ * Signal, which stays exclusive to live audio (COLOR_V2 principle 2).
  */
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -45,18 +48,21 @@ const BASE =
   "akinti-press relative inline-flex select-none items-center justify-center gap-2 " +
   "rounded-key type-subhead whitespace-nowrap " +
   "transition-[background-color,border-color,color] duration-[--dur-micro] " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide " +
   "disabled:cursor-not-allowed disabled:opacity-55";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-ink text-on-ink",
+  // The current fill with paper text (docs/design/COLOR_V2.md "Buttons").
+  primary: "bg-tide text-on-ink",
   secondary: "border border-hairline-strong text-ink",
   ghost:
     "text-ink underline decoration-hairline-strong decoration-1 underline-offset-[3px] " +
     "hover:decoration-ink",
+  // Destructive is danger text only — never Signal, which stays exclusive
+  // to live audio (COLOR_V2 principle 2).
   danger:
-    "text-signal-deep underline decoration-signal-deep/60 decoration-1 underline-offset-[3px] " +
-    "hover:decoration-signal-deep",
+    "text-danger underline decoration-danger/60 decoration-1 underline-offset-[3px] " +
+    "hover:decoration-danger",
 };
 
 const SIZES: Record<ButtonSize, string> = {

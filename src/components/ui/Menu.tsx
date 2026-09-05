@@ -198,7 +198,7 @@ export function Menu({ trigger, items, label, align = "end", className }: MenuPr
                 "flex w-full items-center gap-3 px-4 py-3 text-left type-body-sm",
                 "transition-colors duration-[--dur-micro] focus-visible:outline-none",
                 "disabled:cursor-not-allowed disabled:opacity-55",
-                item.destructive ? "text-signal-deep" : "text-ink",
+                item.destructive ? "text-danger" : "text-ink",
                 "hover:bg-paper-sunk focus:bg-paper-sunk",
               )}
             >

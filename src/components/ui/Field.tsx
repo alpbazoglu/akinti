@@ -59,7 +59,7 @@ export function Field({
         </p>
       ) : null}
       {error ? (
-        <p id={errorId(id)} className="type-caption measure text-signal-deep" role="alert">
+        <p id={errorId(id)} className="type-caption measure text-danger" role="alert">
           {error}
         </p>
       ) : null}
@@ -75,16 +75,18 @@ export const CONTROL_BASE =
   "w-full rounded-field border bg-transparent px-3.5 type-body text-ink " +
   "placeholder:text-ink-subtle " +
   "transition-[border-color,box-shadow] duration-[--dur-micro] " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide " +
   "disabled:cursor-not-allowed disabled:bg-paper-sunk disabled:opacity-70";
 
 /**
- * An error adds a 2px Signal underline to the field's bottom edge only. Never
- * a filled red field, never a coloured left border, never a red banner (§4.4).
+ * An error adds a 2px danger-coloured underline to the field's bottom edge
+ * only. Never a filled red field, never a coloured left border, never a red
+ * banner (§4.4). Danger, not Signal: a form validation error is not live
+ * audio (`docs/design/COLOR_V2.md` principle 2).
  */
 export function controlBorder(hasError: boolean): string {
   return hasError
-    ? "border-hairline-strong border-b-2 border-b-signal"
+    ? "border-hairline-strong border-b-2 border-b-danger"
     : "border-hairline hover:border-hairline-strong";
 }
 

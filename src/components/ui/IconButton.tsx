@@ -32,14 +32,18 @@ export interface IconButtonProps
 const BASE =
   "akinti-press relative inline-flex shrink-0 select-none items-center justify-center gap-2 " +
   "transition-[background-color,border-color,color] duration-[--dur-micro] " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink " +
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide " +
   "disabled:cursor-not-allowed disabled:opacity-55";
 
 const VARIANTS: Record<IconButtonVariant, string> = {
-  primary: "bg-ink text-on-ink",
+  // Matches Button's primary: the current fill, paper glyph (COLOR_V2
+  // "Buttons") — including the transport play/pause key, which is exactly
+  // the kind of moving, actionable control colour belongs on.
+  primary: "bg-tide text-on-ink",
   secondary: "border border-hairline-strong text-ink",
   ghost: "text-ink-muted hover:text-ink",
-  danger: "text-signal-deep",
+  // Danger is its own hue, never Signal (COLOR_V2 principle 2).
+  danger: "text-danger",
 };
 
 /** 36 / 44 / 56px, so a transport control is always at least 44px (§12.10). */

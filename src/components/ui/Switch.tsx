@@ -17,9 +17,11 @@ export interface SwitchProps {
 }
 
 /**
- * An on/off control: 52x32 with a 10px-radius travel, ink when on
- * (`DESIGN_DNA.json` component_notes). Uses `role="switch"` on a real button so
- * keyboard activation and state announcement come from the platform.
+ * An on/off control: 52x32 with a 10px-radius travel, the current when on
+ * (`DESIGN_DNA.json` component_notes; recoloured from ink by
+ * `docs/design/COLOR_V2.md` — an "on" state is exactly the kind of moving,
+ * stateful control colour belongs on). Uses `role="switch"` on a real button
+ * so keyboard activation and state announcement come from the platform.
  */
 export function Switch({
   checked,
@@ -60,9 +62,9 @@ export function Switch({
         className={cn(
           "akinti-press relative inline-flex h-8 w-13 shrink-0 items-center rounded-field border",
           "transition-colors duration-[--dur-micro]",
-          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+          "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
           "disabled:cursor-not-allowed disabled:opacity-55",
-          checked ? "border-ink bg-ink" : "border-hairline-strong bg-transparent",
+          checked ? "border-tide bg-tide" : "border-hairline-strong bg-transparent",
         )}
       >
         <span

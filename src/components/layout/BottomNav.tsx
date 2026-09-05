@@ -67,8 +67,9 @@ export function BottomNav({ badges, className }: BottomNavProps) {
                   className={cn(
                     // 44px key: references `--akinti-radius-key-44` (13px)
                     // instead of restating the pixel value (§8.5, §5.2).
-                    "akinti-press inline-flex size-11 items-center justify-center rounded-[var(--akinti-radius-key-44)] bg-ink",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+                    // The current at rest, per COLOR_V2's record key rule.
+                    "akinti-press inline-flex size-11 items-center justify-center rounded-[var(--akinti-radius-key-44)] bg-tide",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
                   )}
                 >
                   {/* The lamp is the dot, not the key (§8.5). */}
@@ -88,7 +89,7 @@ export function BottomNav({ badges, className }: BottomNavProps) {
                 className={cn(
                   "akinti-press relative flex h-full flex-col items-center justify-center gap-1",
                   "type-micro transition-colors duration-[--dur-micro]",
-                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tide",
                   active ? "text-ink" : "text-ink-subtle hover:text-ink-muted",
                 )}
               >

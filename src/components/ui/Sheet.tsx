@@ -97,15 +97,16 @@ export function Sheet({
             className,
           )}
         >
-          {/* The grabber is a waterline: a 24px trace, not a capsule (§8.6). */}
+          {/* The grabber is a waterline: a 24px trace, not a capsule (§8.6),
+              coloured with the current handle per COLOR_V2 "Sheets". */}
           <div className="flex justify-center pt-3 pb-1">
             <span aria-hidden="true" className="flex h-2 w-6 items-end gap-px">
-              <span className="h-1 flex-1 bg-hairline-strong" />
-              <span className="h-2 flex-1 bg-hairline-strong" />
-              <span className="h-1.5 flex-1 bg-hairline-strong" />
-              <span className="h-2 flex-1 bg-hairline-strong" />
-              <span className="h-1 flex-1 bg-hairline-strong" />
-              <span className="h-1.5 flex-1 bg-hairline-strong" />
+              <span className="h-1 flex-1 bg-tide" />
+              <span className="h-2 flex-1 bg-tide" />
+              <span className="h-1.5 flex-1 bg-tide" />
+              <span className="h-2 flex-1 bg-tide" />
+              <span className="h-1 flex-1 bg-tide" />
+              <span className="h-1.5 flex-1 bg-tide" />
             </span>
           </div>
 

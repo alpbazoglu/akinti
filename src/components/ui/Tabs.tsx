@@ -20,8 +20,9 @@ export interface TabsProps {
   label: string;
   /**
    * `underline` is the 40px page-level filter row; `segmented` is the same
-   * marking at a compact 32px. Both mark the active item with a 2px ink
-   * underbar - never a filled coloured pill (DESIGN.md 8.8, 12.4).
+   * marking at a compact 32px. Both mark the active item with a 2px
+   * current-coloured underbar - never a filled coloured pill (DESIGN.md
+   * 8.8, 12.4; recoloured by COLOR_V2 "Tabs and nav").
    */
   variant?: "underline" | "segmented";
   /** Supply a stable prefix when you render matching <TabPanel>s. */
@@ -115,11 +116,14 @@ export function Tabs({
             className={cn(
               "akinti-press inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap",
               "border-b-2 transition-colors duration-[--dur-micro]",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
               "disabled:cursor-not-allowed disabled:opacity-55",
               isSegmented ? "h-8 type-caption" : "h-10 type-subhead",
+              // Active underline is the current; the label stays ink
+              // (COLOR_V2 "Tabs and nav": "active underline current, icons
+              // ink").
               selected
-                ? "border-ink text-ink"
+                ? "border-tide text-ink"
                 : "border-transparent text-ink-muted hover:text-ink",
             )}
           >
@@ -164,7 +168,7 @@ export function TabPanel({ id, labelledBy, active, children, className }: TabPan
       aria-labelledby={labelledBy}
       hidden={!active}
       tabIndex={0}
-      className={cn("focus-visible:outline-2 focus-visible:outline-ink", className)}
+      className={cn("focus-visible:outline-2 focus-visible:outline-tide", className)}
     >
       {active ? children : null}
     </div>

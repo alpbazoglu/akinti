@@ -36,7 +36,7 @@ export function SideNav({ badges, className }: SideNavProps) {
 
   const railLink = cn(
     "akinti-press flex h-12 items-center gap-4 rounded-key px-3 transition-colors",
-    "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+    "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-tide",
   );
 
   return (
@@ -49,7 +49,7 @@ export function SideNav({ badges, className }: SideNavProps) {
     >
       <Link
         href={routes.home()}
-        className="inline-flex h-11 items-center px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="inline-flex h-11 items-center px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
       >
         {/* The wordmark is the word, so it appears only where the word fits:
             the 72px icon rail carries navigation, not a monogram (§8.2). */}
@@ -158,14 +158,15 @@ export function SideNav({ badges, className }: SideNavProps) {
       <div className="flex flex-col gap-3">
         <UserMenu className="self-start" />
 
-        {/* Record is the one key on this rail: an ink key, never a pill. */}
+        {/* Record is the one key on this rail: the current at rest, per
+            COLOR_V2's record key rule, never a pill. */}
         <Link
           href={routes.create()}
           aria-label={`${TERMS.record} ${TERMS.aWave}`}
           className={cn(
-            "akinti-press inline-flex h-12 items-center justify-center gap-3 rounded-key bg-ink",
+            "akinti-press inline-flex h-12 items-center justify-center gap-3 rounded-key bg-tide",
             "type-subhead text-on-ink transition-colors",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
           )}
         >
           <span aria-hidden="true" className="size-3.5 shrink-0 rounded-full bg-signal" />

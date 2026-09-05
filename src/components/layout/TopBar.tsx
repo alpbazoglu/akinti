@@ -57,7 +57,7 @@ export function TopBar({
     >
       <Link
         href={routes.home()}
-        className="inline-flex min-w-0 flex-1 items-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        className="inline-flex min-w-0 flex-1 items-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
       >
         <span className="type-wordmark truncate text-ink">{BRAND}</span>
       </Link>
@@ -70,7 +70,7 @@ export function TopBar({
             className={cn(
               "akinti-press inline-flex size-11 items-center justify-center rounded-[13px] text-ink-muted",
               "transition-colors hover:text-ink",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
             )}
           >
             <Search className="size-6" aria-hidden="true" />
@@ -83,7 +83,7 @@ export function TopBar({
           className={cn(
             "akinti-press relative inline-flex size-11 items-center justify-center rounded-[13px] text-ink-muted",
             "transition-colors hover:text-ink",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
           )}
         >
           <Bell className="size-6" aria-hidden="true" />

@@ -36,7 +36,7 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
             "akinti-press inline-flex h-10 items-center justify-center type-subhead",
             "text-ink underline decoration-hairline-strong decoration-1 underline-offset-[3px]",
             "transition-colors hover:decoration-ink",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
           )}
         >
           {TERMS.logIn}
@@ -44,9 +44,11 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
         <Link
           href={routes.signup()}
           className={cn(
-            "akinti-press inline-flex h-10 items-center justify-center rounded-key bg-ink px-4",
+            // The primary action here, so it takes the current fill, paper
+            // label (COLOR_V2 "Buttons").
+            "akinti-press inline-flex h-10 items-center justify-center rounded-key bg-tide px-4",
             "type-subhead text-on-ink transition-colors",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
           )}
         >
           {TERMS.signUp}
@@ -109,7 +111,7 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
           aria-label={`${name}, account menu`}
           className={cn(
             "akinti-press inline-flex items-center gap-3 rounded-[13px] transition-colors",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
             size === "sm" ? "size-11 justify-center" : "h-11 px-1.5",
           )}
         >
