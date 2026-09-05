@@ -93,7 +93,9 @@ export function NotificationItem({ notification, onRead, className }: Notificati
       )}
     >
       {isUnread ? (
-        <span aria-hidden="true" className="absolute top-5 left-1.5 size-1.5 rounded-full bg-accent" />
+        // The unread mark (SCREENS.md §10): Signal, the one non-audio place
+        // it's allowed — it denotes unheard activity, not a generic accent.
+        <span aria-hidden="true" className="absolute top-5 left-1.5 size-1.5 rounded-full bg-signal" />
       ) : null}
 
       <span
