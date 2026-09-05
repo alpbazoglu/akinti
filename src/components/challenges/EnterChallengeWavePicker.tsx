@@ -4,10 +4,10 @@
  * "Enter an existing Wave" (spec item 4). `docs/CHALLENGES.md` documents
  * `enterChallengeAction` as ready but says "a composer flow for actually
  * entering a Wave from the UI is a later agent's screen work" — this is that
- * screen. It intentionally does not offer "Enter with a new Wave": that would
- * need `/create` to accept a `challenge` param so the freshly published Wave
- * gets entered automatically, and `/create` (owned by another stage) does
- * not support one yet — see this stage's final report.
+ * screen. "Enter with a new Wave" is a separate link on
+ * `src/app/(app)/challenges/[slug]/page.tsx` to `routes.create({ challenge })`
+ * — `/create` now resolves the `challenge` param server-side, preselects its
+ * backing track and enters it automatically after publish.
  */
 
 import { useState, useTransition } from "react";
