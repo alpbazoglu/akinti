@@ -391,6 +391,18 @@ the browser (RLS is what protects data behind the anon key, not secrecy of
 the key itself). `.env.local` is git-ignored; `.env.example` documents the
 three variables with empty values.
 
+**AKINTI Pro billing (Wave F, docs/BILLING.md):** `IYZICO_API_KEY`/
+`IYZICO_SECRET_KEY`/`IYZICO_MERCHANT_ID` and `PADDLE_API_KEY`/
+`PADDLE_WEBHOOK_SECRET` are read only inside `src/lib/billing/{iyzico,paddle}.ts`,
+both of which are `import "server-only"` modules, and never returned to a
+client — a Server Action or webhook route calls them, never a Client
+Component. `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` is the one intentionally public
+exception (Paddle's own client-side checkout token, meant to ship to the
+browser, same trust model as the Supabase anon key). No provider secret is
+ever logged: every error path in `src/lib/billing/**` surfaces a
+`BillingProviderError` message, never the raw request/response a provider
+SDK call failed with.
+
 ## No Likes (spec §3.4) — verified, not assumed
 
 There is no `likes` table, column, enum value, RLS policy, RPC, or

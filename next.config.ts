@@ -78,6 +78,15 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Don't advertise the framework in an `X-Powered-By` response header.
   poweredByHeader: false,
+  // `iyzipay` (AKINTI Pro billing, Wave F — `src/lib/billing/iyzico.ts`)
+  // dynamically `require()`s every file under its own `lib/resources/`
+  // directory via `fs.readdirSync` (`node_modules/iyzipay/lib/Iyzipay.js`'s
+  // `_initResources`) — a pattern Turbopack cannot statically bundle
+  // ("server relative imports are not implemented yet"). Listing it here
+  // makes Next require it at runtime on the server instead of bundling it,
+  // which is exactly what a Node-only server-side SDK like this needs
+  // anyway (see `node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/serverExternalPackages.md`).
+  serverExternalPackages: ["iyzipay"],
   // Dev-only: Next's own devtools overlay (route info, the pending-transition
   // "Rendering ..." pill — `node_modules/next/dist/next-devtools`) has no
   // corner that is actually free on this layout. `bottom-left` sits on the

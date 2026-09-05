@@ -29,6 +29,7 @@
     "perf": "npm run build && tsx scripts/perf-budget.ts"
   },
   "dependencies": {
+    "@paddle/paddle-node-sdk": "^3.10.0",
     "@phosphor-icons/react": "^2.1.10",
     "@sapphi-red/web-noise-suppressor": "^0.4.0",
     "@serwist/next": "^9.5.12",
@@ -38,6 +39,7 @@
     "extendable-media-recorder": "^9.2.40",
     "extendable-media-recorder-wav-encoder": "^7.0.140",
     "idb-keyval": "^6.3.0",
+    "iyzipay": "^2.0.69",
     "motion": "^13.2.0",
     "next": "16.3.4",
     "pitchy": "^4.1.0",

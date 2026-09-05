@@ -147,11 +147,26 @@ for **Production**, **Preview**, and **Development** unless noted):
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | VAPID public key | Public — passed to `PushManager.subscribe()` in the browser. Web Push for Duet requests/answers and open-call answers (`src/lib/push/send.ts`); see below for how to generate. |
 | `VAPID_PRIVATE_KEY` | VAPID private key | **Server-only.** Do **not** prefix with `NEXT_PUBLIC_`. Signs every push sent via `web-push`. |
 | `VAPID_SUBJECT` | `mailto:you@yourdomain.com` (or an `https://` URL) | Identifies who to contact about this VAPID identity, per the Web Push protocol. Any valid `mailto:`/`https:` value works — push services never actually email it. |
+| `IYZICO_API_KEY` / `IYZICO_SECRET_KEY` | From the iyzico Merchant/Sandbox panel | **Server-only.** AKINTI Pro checkout for `_try` plans (`src/lib/billing/iyzico.ts`). |
+| `IYZICO_BASE_URL` | `https://api.iyzipay.com` (production) | Defaults to the sandbox API (`https://sandbox-api.iyzipay.com`) when unset — set this explicitly in Production. |
+| `IYZICO_MERCHANT_ID` | Numeric merchant id, iyzico panel | **Server-only.** Only used to verify the `X-IYZ-SIGNATURE-V3` webhook signature (docs/BILLING.md) — a different value than `IYZICO_API_KEY`. |
+| `PADDLE_API_KEY` | Developer Tools → Authentication, vendors.paddle.com | **Server-only.** AKINTI Pro checkout for `_usd` plans (`src/lib/billing/paddle.ts`). |
+| `PADDLE_WEBHOOK_SECRET` | Developer Tools → Notifications → your destination | **Server-only.** Verifies `Paddle-Signature` on `POST /api/billing/paddle/webhook`. |
+| `PADDLE_ENVIRONMENT` | `production` | Defaults to `sandbox` when unset. |
+| `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | Developer Tools → Authentication, client-side token | Public. Not read by anything in this backend wave — reserved for the frontend wave that builds the Pro paywall UI (Paddle.js needs it for the hosted checkout overlay). |
 
 Push notifications are optional at runtime: `src/lib/push/send.ts` no-ops
 silently (no throw, no crash) when any of the three VAPID variables is
 missing — a deploy without them simply never sends a push, same as leaving
-`NEXT_PUBLIC_SITE_URL` unset.
+`NEXT_PUBLIC_SITE_URL` unset. AKINTI Pro billing behaves the same way per
+provider: `startProCheckout` for a `_try` plan fails with an honest error
+(never a fake success) until the iyzico variables are set, and independently
+for a `_usd` plan and the Paddle variables — see `docs/BILLING.md`.
+
+**Webhook endpoints to register** with each provider (Production URL, not
+localhost):
+- iyzico Subscription product settings: `https://<your-domain>/api/billing/iyzico/webhook`
+- Paddle Notifications → Webhook destination: `https://<your-domain>/api/billing/paddle/webhook`, subscribed to at least `subscription.created`, `subscription.updated`, `subscription.activated`, `subscription.trialing`, `subscription.past_due`, `subscription.paused`, `subscription.canceled`, `subscription.resumed`.
 
 **Generating a VAPID key pair.** One pair per environment (or reuse one pair
 everywhere — it identifies the sender, not the deploy):

@@ -433,6 +433,18 @@ export function toModerationAction(row: ModerationActionRow): ModerationAction {
   };
 }
 
+/**
+ * Attach an AKINTI Pro badge flag (Wave F, PRODUCT_V2 §5) to a mapped
+ * `Profile`. `profiles` itself carries no `is_pro` column — entitlement
+ * lives in `subscriptions`, read through `has_pro()`
+ * (`src/lib/billing/entitlements.ts#isPro`) — so a call site fetches that
+ * boolean itself and passes it here rather than this module reaching into
+ * the billing schema directly (mappers stay pure row -> domain functions).
+ */
+export function withIsPro<T extends object>(profile: T, isPro: boolean): T & { isPro: boolean } {
+  return { ...profile, isPro };
+}
+
 /** `record_play_event` returns jsonb; narrow it before anyone acts on it. */
 export function toPlaybackOutcome(value: Json): PlaybackOutcome {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
