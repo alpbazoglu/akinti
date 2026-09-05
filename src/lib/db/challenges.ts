@@ -2,9 +2,14 @@
  * Prompts & challenges (PRODUCT_V2 §4 "weekly theme + backing track, curated
  * Top 5, hashtag pages"), migration `20260905130000_challenges.sql`.
  *
- * Reads ride on RLS (`challenges_select`/`challenge_entries_select`/
- * `challenge_picks_select`, all keyed off `status in ('live', 'closed')` or
- * `is_moderator()` — the single source of truth, never re-implemented here).
+ * Reads ride on RLS (`challenges_select` keyed off `status in ('live',
+ * 'closed')` or `is_moderator()`; `challenge_entries_select`/
+ * `challenge_picks_select` additionally require `can_view_wave(wave_id)`
+ * as of `20260905150000_challenge_entries_visibility.sql` — the single
+ * source of truth, never re-implemented here). `listChallengeEntries` and
+ * `listChallengePicks` are both plain invoker reads (no `security definer`
+ * anywhere in this file), so that RLS applies exactly as written with no
+ * bypass to account for.
  * `enterChallenge` calls the `enter_challenge` RPC, whose real enforcement
  * (owns the wave, challenge is live, rate-limited) lives in the
  * `challenge_entries_guard` trigger, not in this file or the RPC body — see
