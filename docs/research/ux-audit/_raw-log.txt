@@ -1,0 +1,160 @@
+[mobile] CONSOLE ERROR: A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+      <RedirectBoundary>
+        <RedirectErrorBoundary router={{...}}>
+          <InnerLayoutRouter url="/login" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+            <SegmentViewNode type="page" pagePath="(auth)/log...">
+              <SegmentTrieNode>
+              <LogInPage>
+                <div className="rounded-xl...">
+                  <h1>
+                  <p>
+                  <LoginForm>
+                    <form action={function bound dispatchActionState} className="flex flex-..." noValidate={true}>
+                      <Input id="email" name="email" type="email" label="Email" autoComplete="email" required={true} ...>
+                        <Field id="email" label="Email" hideLabel={undefined} hint={undefined} error={undefined} ...>
+                          <div className="flex flex-...">
+                            <label>
+                            <div className="relative f...">
+                              <input
+                                name="email"
+                                type="email"
+                                autoComplete="email"
+                                id="email"
+                                required={true}
+                                aria-invalid={undefined}
+                                aria-describedby={undefined}
+                                className="w-full rounded-md border bg-surface px-3 text-sm text-fg placeholder:text-f..."
+-                               style={{caret-color:"transparent"}}
+                              >
+                      <Input id="password" name="password" type="password" label="Password" autoComplete="current-pa..." ...>
+                        <Field id="password" label="Password" hideLabel={undefined} hint={undefined} error={undefined} ...>
+                          <div className="flex flex-...">
+                            <label>
+                            <div className="relative f...">
+                              <input
+                                name="password"
+                                type="password"
+                                autoComplete="current-password"
+                                id="password"
+                                required={true}
+                                aria-invalid={undefined}
+                                aria-describedby={undefined}
+                                className="w-full rounded-md border bg-surface px-3 text-sm text-fg placeholder:text-f..."
+-                               style={{caret-color:"transparent"}}
+                              >
+                      ...
+            ...
+          ...
+
+[screenshot] 01-mobile-login.png
+[mobile] Login succeeded.
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 02-mobile-home.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 03-mobile-explore-trending.png
+[screenshot] 04-mobile-explore-new.png
+[screenshot] 05-mobile-explore-rising.png
+[screenshot] 06-mobile-explore-original.png
+[screenshot] 07-mobile-explore-voices.png
+[screenshot] 08-mobile-explore-compositions.png
+[screenshot] 09-mobile-explore-open-for-duet.png
+[screenshot] 11-mobile-search.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 12-mobile-create-record-default.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 13-mobile-create-record-denied.png
+[mobile] Mic denial UI shown: NO (check screenshot)
+[screenshot] 14-mobile-create-upload-tab.png
+[screenshot] 15-mobile-create-uploaded.png
+[mobile] Preset picker interaction failed: locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('button', { name: /^studio$/i })[22m
+
+[screenshot] 16b-mobile-create-details-step.png
+[screenshot] 17-mobile-create-details.png
+[mobile] Publish clicked, waiting for redirect to /w/[id]...
+[mobile] Published. Landed on http://localhost:3333/w/a8d648cf-e7b8-4c52-8cd2-45b034fd610b
+[screenshot] 18-mobile-wave-page-initial.png
+[mobile] Wave processing finished within 60s: true
+[screenshot] 19-mobile-wave-page-processed.png
+[screenshot] 21-mobile-wave-playing.png
+[screenshot] 22-mobile-wave-comment.png
+[screenshot] 23-mobile-wave-save.png
+[screenshot] 24-mobile-wave-share-sheet.png
+[screenshot] 25-mobile-profile.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 26-mobile-notifications.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 27-mobile-messages.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 28-mobile-duets.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 29-mobile-settings.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 30-mobile-settings-account.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 31-mobile-settings-appearance.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 32-mobile-settings-audio.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 33-mobile-settings-content.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 34-mobile-settings-notifications.png
+[screenshot] 35-mobile-settings-privacy.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 36-mobile-settings-safety.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 37-mobile-settings-follow-requests.png
+[mobile] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 40-mobile-analytics.png
+[mobile] /analytics rendered. Error-looking text present: false. svg/canvas chart elements found: 20
+[screenshot] 41-mobile-account-menu.png
+[screenshot] 42-mobile-signed-out.png
+[mobile] Signed out, landed on http://localhost:3333/login?next=%2F
+[screenshot] 20-desktop-login.png
+[desktop] Login succeeded.
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 50-desktop-home.png
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 51-desktop-explore-trending.png
+[screenshot] 52-desktop-explore-open-for-duet.png
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 53-desktop-search.png
+[screenshot] 54-desktop-create-record-default.png
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 55-desktop-create-upload-tab.png
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 56-desktop-wave-page.png
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 57-desktop-profile.png
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 58-desktop-notifications.png
+[screenshot] 59-desktop-messages.png
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 60-desktop-duets.png
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 61-desktop-settings.png
+[desktop] REQUEST FAILED: HEAD https://apxdfjfrbrgdykycnoem.supabase.co/rest/v1/notifications?select=id&recipient_id=eq.21e75b70-1d55-470a-abfb-5f2d83728eb2&read_at=is.null — net::ERR_ABORTED
+[screenshot] 62-desktop-analytics.png
+[desktop] /analytics svg/canvas chart elements found: 20
+[desktop] /analytics body text snippet: Skip to content | AKINTI | Home | Explore | Notifications | Messages | Profile | AK | akın | akın | Create | Settings | Analytics | Your Plays, listeners and Wave performance. No Likes — ever. | 7 days | 30 days | 90 days | Plays | Meaningful | 0 | Deduplicated per listener, not raw playback pings. | Unique listeners | Meaningful | 0 | Replays | Meaningful | 0 | One per listener at most — not total repeat plays. | Saves | Meaningful | 4 | Shares | Meaningful | 3 | Comments | Meaningful | 6 | Duets | Meaningful | 0 | Avg. listen time | Raw | No data yet | From the raw playback log, qualifying listens only. | Completion rate | Raw | 0.0% | Share of qualifying listens that reached 90%. | 
+[screenshot] 63-desktop-signed-out.png
+[desktop] Signed out, landed on http://localhost:3333/analytics

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "entries": {
+    "79a93d4a2f8f50b95f852280616242fee1855dc99a3c75211917f55e72e95fae": {
+      "last_emitted_at_ms": 1788612763526,
+      "message": "Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests)."
+    },
+    "445ed27a3872b681d98190bae61ccb84954e1bc4e140df5370be958dee776b3a": {
+      "last_emitted_at_ms": 1788612663839,
+      "message": "Verify changes work after editing. Test functionality before marking complete."
+    },
+    "466399dafa2d20f60587180bad0a07358eb7f2bce724df0ff682f038ad33f5ad": {
+      "last_emitted_at_ms": 1788612564352,
+      "message": "Read multiple files in parallel when possible for faster analysis."
+    },
+    "459c54e5f35d6a58dcd90d2aecc21fa6d1f35d241bc5b134c506f87dc7b6d67b": {
+      "last_emitted_at_ms": 1788612478592,
+      "message": "Combine searches in parallel when investigating multiple patterns."
+    },
+    "808cb04420bcb368ab4716038ddd950b51198d0402b6cf8e965d66ca42ebccbe": {
+      "last_emitted_at_ms": 1788612098298,
+      "message": "[SLOP WARNING] Detected fallback/workaround language in this tool input. Do not make potential slop: avoid ad-hoc fallback layers, workaround shims, or environment-specific patches unless explicitly justified. For architecture concerns, consult the architect for a concrete design first. If this seems environment-specific, ask the user to confirm constraints before proceeding.\n\nVerify changes work after editing. Test functionality before marking complete."
+    },
+    "2038f0e7d8754e278ed7d4fd87abbd8e5821edd2ed9b07942675f6c87f698823": {
+      "last_emitted_at_ms": 1788611332864,
+      "message": "[SLOP WARNING] Detected fallback/workaround language in this tool input. Do not make potential slop: avoid ad-hoc fallback layers, workaround shims, or environment-specific patches unless explicitly justified. For architecture concerns, consult the architect for a concrete design first. If this seems environment-specific, ask the user to confirm constraints before proceeding.\n\nSpawning agent: general-purpose (sonnet) [BACKGROUND] | Task: Wave B backend: DSP sidecar and backing tracks"
+    }
+  },
+  "updated_at": "2026-09-05T12:52:43.526Z"
+}

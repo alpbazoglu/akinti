@@ -1,0 +1,439 @@
+{
+  "meta": {
+    "name": "AKINTI - Waterline",
+    "description": "Design DNA for AKINTI, an audio-first social app for voice, songs and collaborative Duets. The system treats the screen as an instrument panel rather than a feed: ink on paper, one 44px rail, hairlines instead of cards, and a single drawing primitive (the amplitude trace, called the waterline) that renders audio, separation, progress, history and identity. One accent, Signal vermilion, appears only where audio is live. Authored, not extracted: every value below is a decision, not a measurement.",
+    "source_references": [
+      "docs/design/DESIGN.md",
+      "docs/design/SCREENS.md",
+      "docs/design/REFERENCES.md",
+      "docs/design/refs/ref-02-teenage-engineering.png",
+      "docs/design/refs/ref-03-teenage-engineering-op1.png",
+      "docs/design/refs/ref-04-ableton-note.png",
+      "docs/design/refs/ref-05-koala-sampler.png",
+      "docs/design/refs/ref-07-cosmos.png",
+      "docs/design/refs/ref-01-endel.png",
+      "docs/research/mobile-guidelines.md#5",
+      "docs/research/libraries.md#5"
+    ],
+    "created_at": "2026-09-05"
+  },
+
+  "design_system": {
+    "color": {
+      "palette_type": "monochromatic neutral ground with a single warm accent (near-monochrome, one hue)",
+      "primary": {
+        "hex": "#191A17",
+        "role": "Ink. Body text, headlines, glyphs, playheads, filled primary keys, the 'theirs' Duet trace. Ink is the workhorse; it does every job a brand colour usually does. Dark theme value: #EDEDE8."
+      },
+      "secondary": {
+        "hex": "#86877E",
+        "role": "Wave-dormant. The unplayed part of every waveform and every muted trace. 3.15:1 on paper so the trace is perceivable on its own. Dark theme value: #63645D."
+      },
+      "accent": {
+        "hex": "#DE3C11",
+        "role": "Signal (Turkish working name 'Kor', ember). The one accent. Permitted only on live audio state: played waveform fill, the record key field, the live level, the unread-audio mark, and the 'open for Duet' mark. Never on navigation, never on a generic CTA, never as a text colour at body size. Dark theme value: #FF5C33."
+      },
+      "neutral": {
+        "scale": [
+          "#F6F6F4",
+          "#EFEFEC",
+          "#E4E4E0",
+          "#D6D6D1",
+          "#B4B4AD",
+          "#86877E",
+          "#6A6B63",
+          "#52534C",
+          "#3F403A",
+          "#292A26",
+          "#1C1D19",
+          "#191A17",
+          "#131412",
+          "#0C0D0B"
+        ],
+        "usage": "A single warm-neutral grey family (green-grey cast, never blue-grey, never cream). Light theme reads the scale from the light end: #EFEFEC is the page ground, #F6F6F4 the only raised surface (sheets and menus), #E4E4E0 the sunk surface, #D6D6D1 the hairline, #B4B4AD the strong hairline and the dormant tick row, #86877E the unplayed waveform, #6A6B63 subtle text at 4.68:1, #52534C muted text at 6.75:1, #191A17 the ink at 15.17:1. Dark theme reads the same scale from the dark end: #131412 ground, #1C1D19 raised, #0C0D0B sunk, #292A26 hairline, #3F403A strong hairline, #63645D unplayed waveform (interpolated, not in the light list), #7E7F77 subtle at 4.57:1, #A0A199 muted at 7.09:1, #EDEDE8 ink at 15.73:1."
+      },
+      "semantic": {
+        "success": "#191A17",
+        "warning": "#191A17",
+        "error": "#A32A08",
+        "info": "#52534C"
+      },
+      "surface": {
+        "background": "#EFEFEC",
+        "card": "#EFEFEC",
+        "elevated": "#F6F6F4"
+      },
+      "contrast_strategy": "Dark-on-light dominant with a full dark counterpart; hierarchy is carried by ink weight and whitespace, never by tinted panels. Cards do not exist, so surface.card is identical to the page ground: a Wave sits directly on the paper. Separation order is strictly whitespace, then a 3% lightness step, then a hairline; a border is the last resort, an elevation shadow is reserved for sheets and menus only. Every text token is AA verified against its intended ground (ink 15.17:1, muted 6.75:1, subtle 4.68:1 on #EFEFEC; 15.73 / 7.09 / 4.57 on #131412). Signal at 3.83:1 on paper is a graphic-only token: it clears the 3:1 non-text threshold and is never used for body text, which is why the AA-safe #A32A08 exists for error copy. No text of any size is ever set on a Signal field; keys with a Signal field carry an ink glyph (3.96:1) and their label sits outside them.",
+      "extra_tokens": {
+        "light": {
+          "paper": "#EFEFEC",
+          "paper-raised": "#F6F6F4",
+          "paper-sunk": "#E4E4E0",
+          "ink": "#191A17",
+          "ink-muted": "#52534C",
+          "ink-subtle": "#6A6B63",
+          "hairline": "#D6D6D1",
+          "hairline-strong": "#B4B4AD",
+          "signal": "#DE3C11",
+          "signal-deep": "#A32A08",
+          "signal-wash": "#FAE3DC",
+          "wave-rest": "#B4B4AD",
+          "wave-dormant": "#86877E",
+          "wave-played": "#DE3C11",
+          "playhead": "#191A17",
+          "overlay": "rgb(25 26 23 / 0.42)",
+          "focus-ring": "#191A17"
+        },
+        "dark": {
+          "paper": "#131412",
+          "paper-raised": "#1C1D19",
+          "paper-sunk": "#0C0D0B",
+          "ink": "#EDEDE8",
+          "ink-muted": "#A0A199",
+          "ink-subtle": "#7E7F77",
+          "hairline": "#292A26",
+          "hairline-strong": "#3F403A",
+          "signal": "#FF5C33",
+          "signal-deep": "#FF9376",
+          "signal-wash": "#2A140E",
+          "wave-rest": "#3F403A",
+          "wave-dormant": "#63645D",
+          "wave-played": "#FF5C33",
+          "playhead": "#EDEDE8",
+          "overlay": "rgb(6 7 5 / 0.62)",
+          "focus-ring": "#EDEDE8"
+        }
+      }
+    },
+
+    "typography": {
+      "type_scale": {
+        "display": {
+          "size": "40px / 2.5rem",
+          "weight": "600",
+          "line_height": "40px / 1.0",
+          "tracking": "-0.025em"
+        },
+        "heading_1": {
+          "size": "32px / 2rem",
+          "weight": "600",
+          "line_height": "34px / 1.0625",
+          "tracking": "-0.022em"
+        },
+        "heading_2": {
+          "size": "28px / 1.75rem",
+          "weight": "600",
+          "line_height": "30px / 1.07",
+          "tracking": "-0.02em"
+        },
+        "heading_3": {
+          "size": "19px / 1.1875rem",
+          "weight": "600",
+          "line_height": "24px / 1.263",
+          "tracking": "-0.015em"
+        },
+        "body": {
+          "size": "16px / 1rem",
+          "weight": "400",
+          "line_height": "25px / 1.5625",
+          "tracking": "-0.002em"
+        },
+        "body_small": {
+          "size": "14px / 0.875rem",
+          "weight": "400",
+          "line_height": "20px / 1.43",
+          "tracking": "0em"
+        },
+        "caption": {
+          "size": "13px / 0.8125rem",
+          "weight": "500",
+          "line_height": "17px / 1.31",
+          "tracking": "0.004em"
+        },
+        "overline": {
+          "size": "11px / 0.6875rem",
+          "weight": "500",
+          "line_height": "14px / 1.27",
+          "tracking": "0.02em"
+        }
+      },
+      "font_families": {
+        "heading": "Archivo Variable (wght 100-900, wdth 62-125). Display roles run expanded: wdth 112 at 40px, wdth 108 at 32px, wdth 100 at 28px and below.",
+        "body": "Archivo Variable at wdth 100, wght 400 for prose and 500-600 for UI labels. One family carries display, UI and body; the width axis, not a second family, supplies the contrast.",
+        "mono": "Martian Mono Variable (wght 100-800, wdth 75-112.5) set at wdth 87.5, wght 500, font-variant-numeric: tabular-nums. Numerals and technical values only: timecodes, dB, latency offsets, counts, analytics figures, character counters. Never for prose, never for labels, never for code-styled decoration."
+      },
+      "font_style_notes": "One numeric role sits outside the eight-step scale: mono-display at 44px / 44px / wght 500 / wdth 87.5 / tracking -0.01em, used for the single analytics hero figure and nothing else. caption additionally has a weight-600 variant for in-content section labels, the only 13px weight change in the system. A squared, signage-grade grotesque paired with a technical mono, chosen so the product reads as an instrument rather than a social template. Archivo's flat-sided bowls and tall x-height carry panel-label authority at 11px and poster authority at 40px; the wdth axis lets one family speak in two voices without introducing a second family or a serif. Archivo ships latin-ext, so full Turkish (i-dotless, I-dotted, g-breve, s-cedilla) is covered without a fallback. Martian Mono is deliberately uncommon (Google Fonts popularity rank ~880 against Archivo's ~51 and JetBrains Mono's ~55), so timecodes read as a meter rather than a code editor. Sentence case everywhere. Never all-caps labels, never a tracked-out eyebrow, never a serif, never Inter, Geist, Space Grotesk, Instrument Serif or Fraunces. Prose is capped at 62 characters per line. text-wrap: pretty on body, text-wrap: balance on headlines of 2 to 3 lines. Negative tracking scales with size and is never applied below 15px."
+    },
+
+    "spacing": {
+      "base_unit": "4px",
+      "scale": ["4px", "8px", "12px", "16px", "20px", "24px", "32px", "40px", "56px", "72px", "96px"],
+      "content_density": "comfortable in the stream, spacious on the record and Duet screens, compact in settings and analytics rows",
+      "section_rhythm": "Proximity is semantic and the three tiers never overlap: 8px or 12px inside a component, 16px or 20px between components, 32px or 40px between sections. Page inline padding is a constant 20px at every breakpoint. Vertical padding is optically weighted, not symmetric: a stream item takes 20px above and 24px below so the waterline separator sits closer to the item it ends than the item it starts. Density is deliberately different per screen: the feed is dense (one item is roughly 260px tall), the record screen is sparse (one control per vertical third), settings is a 56px row rhythm. No screen reuses another screen's rhythm."
+    },
+
+    "layout": {
+      "grid_system": "Single column on a 44px rail. Every stream item, comment, message and notification is left-hung against a 44px rail that carries the avatar, the state glyph or the timecode; the text column starts at x=64 and ends at x=370 on a 390px frame. This one alignment is the product's signature and is never broken at any breakpoint.",
+      "max_content_width": "1160px total frame; 600px content column at 1024px and above; 62ch cap on prose regardless of column width",
+      "columns": "1 on mobile, 1 plus a 72px icon rail at 768px, 1 plus a 200px labelled rail plus a 300px contextual column at 1024px",
+      "gutter": "20px inline page padding at all sizes; 32px between the content column and the right column on desktop",
+      "breakpoints": {
+        "sm": "640px",
+        "md": "768px",
+        "lg": "1024px",
+        "xl": "1280px"
+      },
+      "alignment_tendency": "asymmetric, strictly left-hung. Nothing is centred except the record key and the Duet playhead. Empty states are left-aligned on the rail, not centred in the viewport."
+    },
+
+    "shape": {
+      "border_radius": {
+        "small": "2px (badges, waveform bar caps above 40px tall)",
+        "medium": "10px (inputs, textareas, select and switch rows)",
+        "large": "14px (keys, that is buttons; 16px on bounded objects, meaning the Explore creator tile and the outbound message field with a 4px corner on the rail side; 24px on sheet top corners)",
+        "pill": "not used. Fully rounded rectangles are banned product-wide; the pill is the single most template-like shape in the build being replaced. Circles are permitted only for round icon controls (play, skip, pause) at 36-56px."
+      },
+      "border_usage": "hairlines last, never first. A 1px hairline in #D6D6D1 separates rows and bounds inputs and outline keys. No element carries both a hairline and a shadow. No element carries a coloured left border. The Explore creator tile is bounded by a hairline and has no fill and no shadow: the boundary is the line, not elevation. Radius encodes role rather than taste: 2px means a label, 10px means you can type in it, 14px means you can press it, 16px means it is a bounded object in a horizontal rail, 24px means it slid up from the bottom. Square record keys use radius = 0.295 x side (72px key -> 21px, 88px -> 26px, 96px -> 28px) so every key shares one corner curvature instead of one corner radius.",
+      "divider_style": "Two kinds, and the difference is meaningful. A hairline (1px, #D6D6D1) divides rows inside one list. The waterline (a 2px amplitude trace drawn from the ending item's own peak data, at 24% ink) divides one Wave from the next in a stream. A stream never uses a plain rule; a settings list never uses a waterline."
+      },
+
+    "elevation": {
+      "shadow_style": "none at level 0, which covers roughly 95% of the interface; a single tinted soft shadow at level 1 and level 2. Shadows carry the ink hue, never pure black.",
+      "levels": {
+        "low": "none. 0 0 0 rgb(0 0 0 / 0). Stream items, rows, cards, badges, inputs and buttons all sit flat on the paper.",
+        "medium": "0 -1px 0 0 #D6D6D1, 0 24px 48px -12px rgb(25 26 23 / 0.18). Bottom sheets, menus and the desktop persistent player only. Dark theme: 0 -1px 0 0 #292A26, 0 24px 48px -12px rgb(0 0 0 / 0.55).",
+        "high": "0 8px 24px -8px rgb(25 26 23 / 0.22). Applied only while an element is under the finger: a trim handle being dragged, a sheet being flung. It never persists after the gesture ends."
+      },
+      "depth_cues": "whitespace first, then a 3% lightness step (#EFEFEC to #F6F6F4 or #E4E4E0), then a hairline, then, only for sheets, a tinted shadow. Overlapping is used exactly twice in the product: the avatar overlapping the profile signature trace, and the avatar overlapping the bottom-left corner of an Explore creator tile."
+    },
+
+    "iconography": {
+      "style": "Phosphor Icons, `regular` weight for all controls and `fill` only to express an active or saved state. Outline means available, fill means engaged; that one rule replaces every colour-coded state in the previous build. Glyphs that are specific to AKINTI are drawn, not iconised: the waterline, the write-head, the record dot and the Duet mark are geometry, not icons.",
+      "stroke_weight": "1.5px at 20px and 24px, standardised globally; Phosphor `regular` is 1.5px on a 16px grid and is never mixed with `bold`, `thin` or `duotone`",
+      "size_scale": ["16px", "20px", "24px"],
+      "preferred_set": "@phosphor-icons/react. This is a deliberate swap away from lucide-react, which docs/research/libraries.md kept only 'unless a redesign pass explicitly wants a distinct icon identity'. This pass does. One family, no mixing, no hand-rolled SVG glyphs, no sparkle icon, no emoji standing in for an icon."
+    },
+
+    "motion": {
+      "easing": "--ease-enter cubic-bezier(0.2, 0, 0, 1) for arrivals; --ease-exit cubic-bezier(0.4, 0, 1, 1) for departures; --ease-press cubic-bezier(0.3, 0, 0.2, 1) for touch feedback; linear, with no easing whatsoever, for anything bound to audio time (playhead, progress fill, scrub, live trace, timer). A playhead that eases is lying about time.",
+      "duration_scale": {
+        "micro": "90ms (press, key inversion, toggle)",
+        "normal": "200ms (enter, tab change, badge swap, A/B trace morph at 180ms)",
+        "macro": "380ms (bottom sheet, route transition; spring stiffness 380, damping 34, mass 0.9)"
+      },
+      "entrance_pattern": "opacity 0 to 1 with translateY 6px over 200ms on --ease-enter. Six pixels, not twenty-four. Lists do not stagger; new items arrive as a pinned one-line strip that the reader taps to insert, so the list never shifts under a thumb.",
+      "exit_pattern": "opacity only, 140ms on --ease-exit. Nothing slides away, nothing scales down, nothing blurs.",
+      "philosophy": "Minimal and functional, with one exception that is the whole personality. Motion exists to confirm a state change or to represent time passing, never to decorate an arrival. Exactly one infinite animation ships in the entire product: the record dot breathing between 100% and 55% opacity over 1400ms, because a recorder must visibly be recording. Everything else moves only in answer to a finger or to the transport. Under prefers-reduced-motion the pulse becomes a static filled dot, live traces render their static peak trace with only the playhead advancing, sheets appear without sliding, and all entrances collapse to instant opacity."
+    },
+
+    "components": {
+      "button_style": "Called keys, never buttons, and shaped like one: a 14px-radius squircle, 52px tall for primary, 44px for secondary, 40px for inline, 32px for compact. Three variants and no more. Ink key: ink field, paper label, for the single most important action on a screen. Line key: 1px hairline-strong, no fill, ink label, for secondary actions. Text key: ink label with a 1px hairline underline offset 3px, for tertiary and destructive actions, so 'Delete account' is a sentence and not a red pill. Press is scale 0.975 over 90ms with no translate. No pills, no gradients, no icon-in-a-circle trailing affordance, no arrow appended to a label, and no two keys on a screen that mean the same thing.",
+      "input_style": "48px tall, 10px radius, 1px hairline, transparent fill, 16px text so iOS never zooms on focus. The label sits above the field in caption size and is never a placeholder. Focus is a 2px ink outline offset 2px, identical everywhere. Validation is inline beneath the field on blur, never a toast; an availability confirmation is a small Signal tick inside the field, not a green banner. Errors set the message in #A32A08 and add a 2px Signal underline to the field's bottom edge only, never a filled field and never a coloured left border.",
+      "card_style": "There are no cards. A Wave in a stream sits directly on the paper, hung on the 44px rail, separated from its neighbour by a waterline. Exactly one bounded object exists in the product, the Explore creator tile, because a horizontal snap rail genuinely needs an object with edges: 128px wide, 16px radius, 1px hairline, no fill, no shadow, the creator's signature trace as its artwork and their avatar overlapping the bottom-left corner.",
+      "navigation_pattern": "A 64px bottom bar plus safe area, called the keyboard, with five keys: Home, Explore, Record, Messages, You. Icons are 24px Phosphor, labels are always present at 11px, and the active key is expressed by a filled Phosphor glyph plus full ink, never by a colour change and never by a pill or a glow behind it. The Record key is a 44px ink squircle carrying a Signal dot; it is a key on the bar, not a raised circular floating action button, and it never overlaps the bar's top edge. At 768px the bar becomes a 72px left icon rail, at 1024px a 200px labelled rail.",
+      "modal_style": "Bottom sheet by default, dialog almost never. The sheet has 24px top corners, a grabber drawn as a 24px waterline rather than a grey capsule, a 380ms spring entrance, a #EFEFEC-to-#F6F6F4 raised surface, level-1 elevation and a 42% ink scrim. It is dismissible by drag, by scrim tap and by Escape. A centred dialog is used only to confirm something irreversible.",
+      "list_style": "Rows, hairlines, and nothing else. Messages carry the asymmetry that replaces coloured bubbles: inbound text is plain ink on the paper with no field, outbound text is an ink field with paper text at 16px radius, and an audio message has no field at all because the waterline is the message. Stream rows are hung on the 44px rail and divided by waterlines. Settings rows are 56px, divided by hairlines, grouped by 28px gaps with no all-caps section label, and carry text, an optional current value and a 12px chevron; there is no icon column and no coloured icon tile. Message rows are 72px with the hairline inset to the rail edge at x=64. Zero-value counts are never printed: a row prints only the metrics that are non-zero, so a fresh Wave shows one short line rather than six zeroes.",
+      "component_notes": "Badges (Recorded, Uploaded, Duet) are 2px-radius hairline tags in ink only, sentence case, never a filled tinted pill. Chips and filters use a 2px ink underbar to mark the active item, never a coloured pill. Avatars are squircles at 12px radius for 32px, 16px for 48px, 20px for 64px, never circles, and never the same generated placeholder for two different people. Switches are 52x32 with a 10px-radius travel, ink when on. Toasts are a single 44px ink strip pinned above the keyboard with one line of text and at most one action; they never carry an icon and never celebrate. Skeletons match the shape they replace and render the waveform slot as a flat 6px waterline, never as a fake waveform. Empty states are left-aligned working invitations, never an icon inside a grey circle above centred text."
+    }
+  },
+
+  "design_style": {
+    "aesthetic": {
+      "mood": ["attentive", "unhurried", "precise", "warm", "nocturnal"],
+      "visual_metaphor": "A field recorder and its logbook. The screen is the instrument panel, the stream is the tape log, and the waveform is the only ornament the instrument is allowed.",
+      "era_influence": "Swedish and Japanese portable-audio hardware from the 1970s to the present (Nagra, Sony PCM, Teenage Engineering), read through a contemporary editorial web typography lens. No skeuomorphism, no retro pastiche, no faux knobs or faux LEDs.",
+      "genre": "instrument-grade consumer social; editorial utility rather than SaaS product UI",
+      "personality_traits": ["observant", "understated", "exacting", "generous", "unimpressed by trends"],
+      "adjectives": ["attentive", "precise", "warm", "unhurried", "plainspoken"]
+    },
+    "visual_language": {
+      "complexity": "minimal",
+      "ornamentation": "one motif only. The waterline is the entire decorative vocabulary and it is always load-bearing: it is the audio, the separator, the progress, the chart, the cover art, the onboarding progress, the sheet grabber and the loading skeleton. Nothing else decorates anything.",
+      "whitespace_usage": "generous and asymmetric. Space is the primary separator; a 3% lightness step is second; a hairline is third; a shadow is reserved for sheets. Empty space is preferred to filler: the desktop right column stays empty when there is nothing contextual to show.",
+      "visual_weight_distribution": "bottom-weighted and left-hung. The heaviest element on any stream screen is the waveform, the second heaviest is the title, and both sit left of centre. Primary actions live in the bottom third; nothing important sits in a top corner.",
+      "focal_strategy": "single hero element per screen, and it is almost always the trace. On the Wave detail the waveform is 144px tall and bleeds past both page edges; on Home it is 56px; on the Duet recorder it is two mirrored traces sharing one playhead, which is the image the product should be recognised by.",
+      "contrast_level": "very high on ink (15.17:1), deliberately low everywhere else. There is exactly one saturated colour on screen at a time and it is never larger than the audio it describes.",
+      "texture_usage": "a single fixed grain layer at 3% in light and 4.5% in dark, so the paper reads as paper rather than as a browser default. No gradients, no glass, no glow, no mesh, no blur."
+    },
+    "composition": {
+      "hierarchy_method": "scale contrast plus spatial isolation. Weight does very little work (only 400, 500 and 600 ship) and colour does almost none; size, whitespace and the rail carry the hierarchy.",
+      "balance_type": "asymmetric",
+      "flow_direction": "vertical, single column, with exactly one horizontal element in the product (the Explore creator rail) so that horizontality means something when it appears",
+      "grouping_strategy": "proximity first, then the rail, then a hairline. Grouping by a box is not available; there are no boxes.",
+      "negative_space_role": "structural. The 44px rail, the 20px page padding and the three-tier spacing ladder are the layout; remove the whitespace and the design stops working, which is the test that it is doing real work."
+    },
+    "imagery": {
+      "photo_treatment": "Photography is almost absent by design, because the content is sound. Where a person's photograph appears it is an avatar in a squircle, uncropped, unfiltered, never a duotone and never behind a gradient scrim. There are no stock photos, no lifestyle shots, no illustrated mascots and no hero imagery anywhere in the product.",
+      "illustration_style": "none. AKINTI does not illustrate. Where a competitor would place a spot illustration (empty states, onboarding, error pages) AKINTI places real audio or a real trace instead: the empty Home feed shows three currently-playing Waves from Explore as bare traces with names.",
+      "graphic_elements": "the waterline in its six states (dormant, unplayed, played, recording, duet-theirs, duet-yours), the 2px ink playhead with its square write-head cap, the Signal dot, the Duet mark, the 44px rail, and the 1px hairline. That is the complete graphic inventory.",
+      "pattern_usage": "one, and it is generative rather than decorative: the profile signature, a 72px trace deterministically generated from a person's last 12 Waves. It is unique per user, it changes as they publish, and it is the cover art. There is no stock banner and no colour-picker profile theme.",
+      "image_shape": "squircle for avatars (12px / 16px / 20px radius by size), full-bleed for traces, 16px-radius hairline tile for the single card"
+    },
+    "interaction_feel": {
+      "feedback_style": "physical and immediate. Every press scales to 0.975 in 90ms; keys additionally gain a 1px inset hairline so they read as depressed rather than dimmed. OS-default haptics for success, error and selection; one custom haptic in the whole product, a single short tick at the moment recording actually starts, because that is the moment the user needs to trust.",
+      "hover_behavior": "additive only, never the sole affordance. Hover raises ink from muted to full and reveals a scrub cursor over a trace. Every hover-revealed control is reachable by focus and visible on touch.",
+      "transition_personality": "snappy and literal. Enters are 200ms and travel 6px. State changes that represent inversion (idle key to recording key) crossfade in 120ms rather than animating colour. Anything tied to the transport is linear and unanimated.",
+      "loading_style": "shaped skeletons that match the final layout, with the waveform slot drawn as a flat 6px waterline so the skeleton never invents a waveform. Spinners appear only for bounded sub-two-second actions and never in a feed.",
+      "microinteraction_density": "low and deliberate. Roughly six micro-interactions ship in total: press, record-dot pulse, key inversion, A/B trace morph, sheet spring, and the pinned new-items strip. There is no hover animation on every row, no shimmer on every skeleton, no confetti and no celebratory motion anywhere."
+    },
+    "brand_voice_in_ui": {
+      "tone": "plainspoken, attentive, a little dry. It sounds like a person who records things for a living and does not oversell.",
+      "formality": "conversational but exact. Sentence case throughout. Second person. Turkish and English ship with the same register; neither is a translation of a marketing voice.",
+      "cta_style": "direct imperative naming exactly what happens, and the same word is used at both ends of an action: the key says Publish and the toast says Published. Banned in copy: Elevate, Seamless, Unleash, Discover, Get started, Oops, exclamation marks, an arrow appended to a label, and the em dash character in any user-visible string.",
+      "empty_state_approach": "an invitation that is already doing the job. Empty screens are left-aligned, name what will land there, and where possible contain real working content rather than a description of content. No icon in a grey circle, no illustration, no 'No data'.",
+      "error_tone": "one sentence: what happened, then the repair. It does not apologise, does not blame the user, does not print an error code, and never dismisses a screen in a way that loses a recording. Failed uploads keep the audio locally and offer an inline retry."
+    }
+  },
+
+  "visual_effects": {
+    "overview": {
+      "effect_intensity": "subtle-accent",
+      "performance_tier": "lightweight, with one medium Canvas 2D surface",
+      "fallback_strategy": "reduce to CSS, then to static. The waveform degrades from a live Canvas trace to a static peak trace to a flat 6px waterline; the grain layer is dropped entirely under prefers-reduced-transparency or on devices reporting deviceMemory below 4. No effect in the product is load-bearing for comprehension.",
+      "primary_technology": "Canvas 2D (wavesurfer.js v7) for every trace, plus Motion (motion/react) for sheets and presses. No WebGL, no Three.js, no Lottie, no GSAP."
+    },
+    "background_effects": {
+      "type": "noise-field",
+      "description": "A single fixed, pointer-events-none grain layer covering the viewport, so the paper reads as a physical surface instead of a flat browser default. It is the only background treatment in the product; there is no gradient, no mesh, no orb, no blob and no animated background anywhere.",
+      "technology": "inline SVG feTurbulence (baseFrequency 0.82, numOctaves 3, stitchTiles stitch) rendered once to a data URI and painted on a position: fixed pseudo-element, never on a scrolling container",
+      "params": {
+        "color_palette": ["#191A17", "#EDEDE8"],
+        "speed": "static, 0fps. The grain never animates.",
+        "density": "baseFrequency 0.82, roughly a 1.2px grain at 2x DPR",
+        "opacity": "0.03 in light theme, 0.045 in dark theme",
+        "blend_mode": "multiply in light theme, screen in dark theme"
+      }
+    },
+    "particle_systems": {
+      "enabled": false,
+      "type": "none",
+      "description": "No particle system ships. Floating dots, sparkles and confetti are explicitly banned; a voice app that throws confetti at a user is not the product.",
+      "technology": "none",
+      "params": {
+        "count": "0",
+        "shape": "none",
+        "size_range": "none",
+        "movement_pattern": "none",
+        "color_behavior": "none",
+        "interaction": "none",
+        "spawn_area": "none"
+      }
+    },
+    "3d_elements": {
+      "enabled": false,
+      "type": "none",
+      "description": "No 3D. The product's depth budget is spent entirely on the two-layer Duet composition, which is drawn in 2D.",
+      "technology": "none",
+      "params": {
+        "renderer": "none",
+        "lighting": "none",
+        "camera": "none",
+        "materials": "none",
+        "geometry": "none",
+        "post_processing": [],
+        "interaction_model": "none"
+      }
+    },
+    "shader_effects": {
+      "enabled": false,
+      "type": "none",
+      "description": "No GLSL. Waveform rendering is deterministic Canvas 2D drawing from precomputed peaks, which keeps it identical between server-rendered previews and the live client.",
+      "technology": "none",
+      "params": {
+        "uniforms": [],
+        "vertex_manipulation": "none",
+        "fragment_output": "none",
+        "noise_type": "none",
+        "distortion": "none"
+      }
+    },
+    "scroll_effects": {
+      "parallax": {
+        "enabled": false,
+        "layers": "0",
+        "depth_range": "none",
+        "speed_curve": "none"
+      },
+      "scroll_triggered_animations": {
+        "enabled": false,
+        "trigger_points": "none",
+        "animation_type": "none",
+        "scrub_behavior": "none"
+      },
+      "scroll_morphing": {
+        "enabled": true,
+        "description": "One scroll-linked behaviour ships, and it is structural rather than decorative: the page title (32px display) scrolls away and is replaced in place by a 48px context bar carrying the same words at caption size, plus the filter row where a screen has one. Nothing fades in on scroll, no section reveals itself, and no element animates simply because it entered the viewport."
+      }
+    },
+    "text_effects": {
+      "type": "none",
+      "description": "Type is set, not animated. There is no split-letter reveal, no typewriter, no gradient fill, no scramble and no kinetic marquee anywhere in the product. The only text that changes without a page change is a live timecode, which updates as a number.",
+      "technology": "none",
+      "params": {
+        "split_strategy": "none",
+        "animation_per_unit": "none",
+        "stagger": "none",
+        "effect_style": "none"
+      }
+    },
+    "cursor_effects": {
+      "enabled": true,
+      "type": "custom-cursor",
+      "description": "Desktop only, and only inside a waveform: the pointer becomes a 1px vertical I-beam matched to the playhead so a reader can see exactly which sample they are about to seek to. There is no cursor trail, no spotlight, no magnetic button and no custom cursor anywhere else in the product.",
+      "params": {
+        "shape": "1px x 24px vertical bar in ink, CSS cursor: col-resize fallback",
+        "size": "1px wide",
+        "blend_mode": "normal",
+        "trail": "none",
+        "interaction_zone": "the bounding box of any interactive trace, and nowhere else"
+      }
+    },
+    "image_effects": {
+      "type": "none",
+      "description": "Avatars and the rare photograph are rendered plainly. No hover distortion, no reveal clip, no tilt, no RGB shift, no duotone and no filter pipeline.",
+      "technology": "none",
+      "params": {
+        "filter_pipeline": [],
+        "hover_transform": "none",
+        "reveal_animation": "none",
+        "distortion_type": "none"
+      }
+    },
+    "glassmorphism_neumorphism": {
+      "enabled": false,
+      "style": "none",
+      "params": {
+        "blur_radius": "0",
+        "transparency": "none. Surfaces are opaque; the bottom sheet sits on a flat 42% ink scrim with no backdrop-filter.",
+        "border_treatment": "1px hairline only",
+        "shadow_type": "single tinted soft shadow at sheet level, ink-hued, never black",
+        "light_source_angle": "top, implied by a single consistent shadow offset of 0 24px; no inner highlights, no bezels, no double-bezel nesting"
+      }
+    },
+    "canvas_drawings": {
+      "enabled": true,
+      "type": "data-visualization",
+      "description": "Every trace in the product is one Canvas 2D primitive with six states, and it is the whole visual identity. Bars are drawn from precomputed peak JSON exported at upload time, so the same drawing appears on the server preview, in the feed, in the player, in analytics and on a profile. Geometry is size-dependent by rule: below 40px tall the trace is single-sided on a baseline with 2px bars, 1px gaps and square caps; at 40px and above it is mirrored about the centre line with 3px bars, 2px gaps and a 1px cap radius. Minimum bar height is 2px, so silence is a floor rather than a hole. Bar x-positions are rounded to whole device pixels to keep edges crisp. The played region is filled Signal, the unplayed region wave-dormant, and the boundary is marked by a 2px ink playhead with a square write-head cap, so the played and unplayed states are never distinguished by colour alone. The Duet composition draws the collaborator's trace downward in ink and the user's trace upward in Signal about one shared playhead. Analytics reuses the identical primitive to draw a week of plays, which is the payoff of the motif: one drawing, three jobs.",
+      "technology": "Canvas 2D via wavesurfer.js v7, with peaks exported in wavesurfer's own JSON format at upload time; requestAnimationFrame only while audio is actually playing or recording",
+      "params": {
+        "draw_method": "bar chart from precomputed peaks, device-pixel-ratio aware, x-positions rounded with Math.round",
+        "animation_loop": "rAF while playing or recording only; the loop is torn down on pause, on unmount and under prefers-reduced-motion",
+        "color_scheme": ["#DE3C11", "#86877E", "#191A17", "#B4B4AD"],
+        "responsiveness": "redraws on container resize with a debounce of 120ms; peak data is resampled, never stretched",
+        "interaction": "tap anywhere to seek to that point, drag to scrub with linear tracking and no easing, two-handle drag for trim, and a redundant explicit play control for accessibility"
+      }
+    },
+    "svg_animations": {
+      "enabled": true,
+      "type": "path-draw",
+      "description": "Exactly one SVG animation ships: the three-segment onboarding progress waterline, where the active segment's path draws from 0% to 100% of its stroke length as the step completes. It replaces the conventional row of dots. Everything else that appears animated in the product is Canvas or CSS transform.",
+      "params": {
+        "animation_method": "CSS stroke-dashoffset transition, 200ms on --ease-enter",
+        "path_morphing": "none",
+        "stroke_animation": "stroke-dashoffset only, 2px stroke, butt caps",
+        "filter_effects": "none"
+      }
+    },
+    "composite_notes": "The three effects in this product are the grain layer, the Canvas trace and the onboarding stroke draw, and only the trace is essential. They never stack: the grain sits on a fixed pseudo-element beneath all content so it is composited once and never repaints on scroll, and the Canvas surfaces sit above it and are never blurred, shadowed or transformed. This restraint is the design, not a budget constraint. The most common failure mode for this system is additive drift, where an implementer adds a glow to the Signal fill, a gradient under the played region, a shimmer to the skeleton or a rounded cap to every bar; each of those individually destroys the instrument reading, and together they reproduce exactly the generic audio-app appearance this DNA exists to replace. Performance envelope, from docs/research/mobile-guidelines.md: LCP under 2.5s, INP under 200ms, CLS under 0.1 at the 75th percentile on mobile, initial JS under 150KB gzipped, with the waveform renderer loaded via next/dynamic and never in the initial bundle."
+  }
+}

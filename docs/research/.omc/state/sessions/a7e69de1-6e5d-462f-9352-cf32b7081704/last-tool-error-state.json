@@ -1,0 +1,7 @@
+{
+  "tool_name": "PowerShell",
+  "tool_input_preview": "{\"command\":\"cd \\\"c:\\\\Users\\\\alppr\\\\akın proje\\\\app\\\\sidecar\\\\models\\\"\\n& ffmpeg -hide_banner -loglevel error -y -f lavfi -i \\\"sine=frequency=440:duration=1\\\" -af \\\"arnndn=m=rnnoise.rnnn\\\" \\\"C:\\\\temp_a...",
+  "error": "Exit code 243\n[out#0/wav @ 000002063bcf4bc0] Error opening output C:\\temp_arnndn_out5.wav: Permission denied\r\nError opening output file C:\\temp_arnndn_out5.wav.\r\nError opening output files: Permission denied\r\nexit=-13\r\nFalse",
+  "timestamp": "2026-09-05T12:45:40.985Z",
+  "retry_count": 3
+}
