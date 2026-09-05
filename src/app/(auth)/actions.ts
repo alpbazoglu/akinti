@@ -148,7 +148,17 @@ export async function signOut(): Promise<AuthActionResult> {
     return { ok: false, formError: mapAuthError(error) };
   }
 
-  redirect(routes.home());
+  // Deliberately NOT `redirect()` here, for the same reason `signIn` isn't
+  // (see the doc comment on `AuthActionResult.redirectTo`): a server-action
+  // `redirect()` drives a client-side transition that does not reliably
+  // finish before the caller's own client state (e.g. `AuthProvider`, or a
+  // menu invoked outside a `<form action>`/`startTransition`) has settled —
+  // reproduced directly as a sign-out from `UserMenu` that left the previous
+  // page fully rendered in its signed-in state instead of navigating away.
+  // The caller does a real `window.location.assign` instead, which both
+  // guarantees the navigation happens and resets every bit of client auth
+  // state via a fresh, fully server-rendered load.
+  return { ok: true, redirectTo: routes.login() };
 }
 
 export async function requestPasswordReset(

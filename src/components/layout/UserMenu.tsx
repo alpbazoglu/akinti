@@ -80,7 +80,17 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
       icon: <LogOut className="size-4" />,
       destructive: true,
       onSelect: () => {
-        void signOut();
+        // Awaited, then a real hard navigation (not `router.push`): calling
+        // this Server Action directly from a menu item — outside a
+        // `<form action>` or `startTransition` — doesn't reliably land the
+        // client on the redirect target (reproduced as sign-out leaving the
+        // previous, still-signed-in page rendered instead of navigating to
+        // `/login`). A full page load also guarantees every bit of client
+        // auth state (`AuthProvider`, cached queries) resets, on every
+        // surface this menu renders in (mobile `TopBar`, desktop `SideNav`).
+        void signOut().then((result) => {
+          window.location.assign(result.redirectTo ?? routes.login());
+        });
       },
     },
   ];
