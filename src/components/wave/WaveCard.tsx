@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Bookmark, Handshake, MessageSquare, Share2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { WavePlayer } from "@/components/audio";
-import { Avatar, Badge, Button, Skeleton } from "@/components/ui";
+import { Avatar, Badge, Button, IconButton, Skeleton } from "@/components/ui";
+import { Bookmark, MessageSquare, Share2 } from "@/components/ui/icons";
 import {
   CREATION_TYPES,
   METRICS,
@@ -17,13 +17,15 @@ import { routes } from "@/config/routes";
 import type { PlaybackEndedEvent, PlaybackProgressEvent } from "@/lib/audio";
 import { cn, formatAbsoluteTime, formatCount, timeAgo, toIsoString } from "@/lib/ui";
 
+import { WaveSeparator } from "./WaveSeparator";
+
 export interface WaveCardPerson {
   readonly username: string;
   readonly displayName?: string;
   readonly avatarUrl?: string | null;
 }
 
-/** Social signals shown on a card. There is no Like signal (spec section 3.4). */
+/** Social signals shown on a Wave. There is no Like signal. */
 export type WaveCardMetrics = Readonly<Record<MetricKey, number>>;
 
 export interface WaveCardWave {
@@ -39,9 +41,11 @@ export interface WaveCardWave {
   readonly duration?: number;
   readonly metrics: WaveCardMetrics;
   readonly isSaved?: boolean;
-  /** False when the creator does not accept Duet Requests (spec section 15). */
+  /** False when the creator does not accept Duet Requests. */
   readonly canRequestDuet?: boolean;
 }
+
+export type WaveCardVariant = "stream" | "detail";
 
 export interface WaveCardProps {
   wave: WaveCardWave;
@@ -54,23 +58,38 @@ export interface WaveCardProps {
   onEnded?: (event: PlaybackEndedEvent) => void;
   /** Overflow menu, report action, etc. */
   headerAction?: ReactNode;
-  /** Renders the card without its own border, e.g. on a Wave detail page. */
-  flush?: boolean;
+  /**
+   * `stream` is a row in a feed: a 56px trace and a waterline separator.
+   * `detail` is the Wave's own page: a 144px trace bleeding past both page
+   * edges, no separator, and the Request a Duet key (§8.3, §8.4).
+   */
+  variant?: WaveCardVariant;
   className?: string;
 }
 
 /**
- * The Wave card (spec section 11). Presentation only: it takes data and emits
- * callbacks, and holds no data-fetching or metrics logic of its own.
+ * A Wave in a stream (§8.3).
  *
- * Structure, in order:
- *   Creator - Username - Timestamp - Creation type
- *   Title
- *   Waveform + transport
- *   Description
- *   Collaborators
- *   Plays - Replays - Comments - Saves - Shares - Duets
- *   Request a Duet
+ * There is no card. The Wave sits directly on the paper, hung on the 44px
+ * rail, and is divided from its neighbour by a waterline drawn from its own
+ * peaks — not by a border, a shadow or a rounded box (§12.1).
+ *
+ *   rail 44px  |  text column
+ *   avatar     |  Ayşe Kaya  @aysek                       2h
+ *              |  [recorded]
+ *              |  Sabah provası
+ *   full-bleed waveform, 56px, mirrored, bottom half at 70%
+ *   0:14                                                  2:07
+ *              |  ( play ) ( comment ) ( save ) ( share )
+ *              |  312 plays · 41 replays · 6 duets
+ *   ══════════════ waterline separator
+ *
+ * Hierarchy: waveform, then title, then creator, then controls, then counts.
+ * The waveform is the largest, highest-contrast element in every item.
+ *
+ * "Request a Duet" is deliberately not here. It lives on the Wave detail and
+ * in the long-press menu: a filled primary key on every row is what made the
+ * previous build read as a template (§8.3, §12.40).
  */
 export function WaveCard({
   wave,
@@ -81,73 +100,73 @@ export function WaveCard({
   onProgress,
   onEnded,
   headerAction,
-  flush = false,
+  variant = "stream",
   className,
 }: WaveCardProps) {
   const creationType = CREATION_TYPES[wave.creationType];
   const creatorName = wave.creator.displayName ?? wave.creator.username;
   const collaborators = wave.collaborators ?? [];
-  const canRequestDuet = wave.canRequestDuet ?? true;
+  const detail = variant === "detail";
+  // "Request a Duet" belongs on the Wave detail and in the long-press menu,
+  // never on a stream row (§8.3).
+  const showDuetKey = detail && (wave.canRequestDuet ?? true);
 
   return (
     <article
       aria-labelledby={`wave-${wave.id}-title`}
-      className={cn(
-        "flex flex-col gap-3 bg-surface p-4 sm:p-5",
-        !flush && "rounded-xl border border-border shadow-xs",
-        className,
-      )}
+      className={cn("flex flex-col", className)}
     >
-      {/* Creator - Username - Timestamp - Creation type */}
-      <header className="flex items-start gap-3">
+      {/* 20px above, 24px below: the separator sits closer to the item it
+          ends than to the item it starts (§5.1). */}
+      <div className="akinti-rail akinti-page pt-5 pb-6">
         <Link
           href={routes.profile(wave.creator.username)}
-          className="shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="row-span-2 self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           <Avatar name={creatorName} src={wave.creator.avatarUrl} size="md" />
         </Link>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex items-baseline gap-2">
             <Link
               href={routes.profile(wave.creator.username)}
-              className="truncate text-sm font-semibold text-fg hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="type-subhead truncate text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
               {creatorName}
             </Link>
-            <span className="truncate text-sm text-fg-subtle">
+            <span className="type-caption truncate text-ink-subtle">
               @{wave.creator.username}
-            </span>
-            <span aria-hidden="true" className="text-fg-subtle">
-              &middot;
             </span>
             <time
               dateTime={toIsoString(wave.createdAt)}
               title={formatAbsoluteTime(wave.createdAt)}
-              className="text-sm text-fg-subtle"
+              className="type-mono-sm ml-auto shrink-0 text-ink-subtle"
             >
               {timeAgo(wave.createdAt)}
             </time>
+            {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
           </div>
-          <Badge tone="accent" icon={creationType.glyph}>
-            {creationType.label}
-          </Badge>
+
+          <div className="flex">
+            <Badge>{creationType.label}</Badge>
+          </div>
         </div>
 
-        {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
-      </header>
-
-      {/* Title */}
-      <h3 id={`wave-${wave.id}-title`} className="text-base leading-snug font-semibold text-fg">
-        <Link
-          href={routes.wave(wave.id)}
-          className="hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        <h3
+          id={`wave-${wave.id}-title`}
+          className="akinti-rail-span type-heading mt-4 text-ink"
         >
-          {wave.title}
-        </Link>
-      </h3>
+          <Link
+            href={routes.wave(wave.id)}
+            className="hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+          >
+            {wave.title}
+          </Link>
+        </h3>
+      </div>
 
-      {/* Waveform + transport */}
+      {/* The trace bleeds past both page edges: it is the content, not an
+          illustration beside it (§8.3). */}
       <WavePlayer
         waveId={wave.id}
         src={wave.audioUrl}
@@ -157,82 +176,72 @@ export function WaveCard({
         creatorUsername={wave.creator.username}
         onProgress={onProgress}
         onEnded={onEnded}
+        variant={detail ? "detail" : "inline"}
+        fullBleed={detail}
+        className={detail ? undefined : "akinti-page"}
       />
 
-      {/* Description */}
-      {wave.description ? (
-        <p className="text-sm leading-relaxed whitespace-pre-line text-fg-muted">
-          {wave.description}
-        </p>
-      ) : null}
+      <div className="akinti-rail akinti-page pt-4 pb-5">
+        <div className="col-start-2 flex min-w-0 flex-col gap-4">
+          {wave.description ? (
+            <p className="type-body-sm measure whitespace-pre-line text-ink-muted">
+              {wave.description}
+            </p>
+          ) : null}
 
-      {/* Collaborators */}
-      {collaborators.length > 0 ? (
-        <p className="flex flex-wrap items-center gap-1 text-sm text-fg-subtle">
-          <span className="font-medium text-fg-muted">{TERMS.collaborators}:</span>
-          {collaborators.map((person, index) => (
-            <span key={person.username} className="inline-flex items-center gap-1">
-              {index > 0 ? (
-                <span aria-hidden="true" className="text-fg-subtle">
-                  &times;
-                </span>
-              ) : null}
-              <Link
-                href={routes.profile(person.username)}
-                className="text-fg-muted hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                @{person.username}
-              </Link>
-            </span>
-          ))}
-        </p>
-      ) : null}
+          {collaborators.length > 0 ? (
+            <p className="type-caption flex flex-wrap items-center gap-2 text-ink-subtle">
+              <span className="text-ink-muted">{TERMS.collaborators}</span>
+              {collaborators.map((person) => (
+                <Link
+                  key={person.username}
+                  href={routes.profile(person.username)}
+                  className="text-ink-muted hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                >
+                  @{person.username}
+                </Link>
+              ))}
+            </p>
+          ) : null}
 
-      {/* Plays - Replays - Comments - Saves - Shares - Duets */}
-      <MetricsRow metrics={wave.metrics} />
+          <div className="flex items-center gap-2">
+            <IconButton
+              label={TERMS.comment}
+              icon={<MessageSquare className="size-5" />}
+              size="sm"
+              onClick={() => onComment?.(wave.id)}
+            />
+            <IconButton
+              label={wave.isSaved ? TERMS.unsave : TERMS.save}
+              icon={
+                <Bookmark className="size-5" weight={wave.isSaved ? "fill" : "regular"} />
+              }
+              size="sm"
+              aria-pressed={wave.isSaved ?? false}
+              className={cn(wave.isSaved && "text-ink")}
+              onClick={() => onSave?.(wave.id)}
+            />
+            <IconButton
+              label={TERMS.share}
+              icon={<Share2 className="size-5" />}
+              size="sm"
+              onClick={() => onShare?.(wave.id)}
+            />
+          </div>
 
-      {/* Actions */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onComment?.(wave.id)}
-          leadingIcon={<MessageSquare className="size-4" />}
-        >
-          {TERMS.comment}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onSave?.(wave.id)}
-          aria-pressed={wave.isSaved ?? false}
-          leadingIcon={
-            <Bookmark className={cn("size-4", wave.isSaved && "fill-current")} />
-          }
-          className={cn(wave.isSaved && "text-accent")}
-        >
-          {wave.isSaved ? TERMS.saved : TERMS.save}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onShare?.(wave.id)}
-          leadingIcon={<Share2 className="size-4" />}
-        >
-          {TERMS.share}
-        </Button>
+          <MetricsRow metrics={wave.metrics} />
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => onRequestDuet?.(wave.id)}
-          disabled={!canRequestDuet}
-          leadingIcon={<Handshake className="size-4" />}
-          className="ml-auto"
-        >
-          {TERMS.requestDuet}
-        </Button>
+          {showDuetKey ? (
+            <div className="flex">
+              <Button variant="secondary" size="sm" onClick={() => onRequestDuet?.(wave.id)}>
+                {TERMS.requestDuet}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </div>
+
+      {detail ? null : <WaveSeparator peaks={wave.peaks} />}
     </article>
   );
 }
@@ -241,60 +250,58 @@ interface MetricsRowProps {
   metrics: WaveCardMetrics;
 }
 
+/**
+ * Counts print only non-zero metrics, on one line, separated by a single
+ * middle dot. Six zeroes is a debug dump (§8.3, §12.6, §12.23).
+ */
 function MetricsRow({ metrics }: MetricsRowProps) {
+  const shown = METRICS.filter((metric) => (metrics[metric.key] ?? 0) > 0);
+  if (shown.length === 0) return null;
+
   return (
-    <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-subtle">
-      {METRICS.map((metric) => {
+    <p className="type-caption text-ink-subtle">
+      {shown.map((metric, index) => {
         const value = metrics[metric.key] ?? 0;
         return (
-          <li key={metric.key} className="inline-flex items-center gap-1">
-            <span className="font-medium text-fg-muted tabular-nums">
-              {formatCount(value)}
-            </span>
-            <span>{value === 1 ? metric.singular : metric.label}</span>
-          </li>
+          <span key={metric.key}>
+            {index > 0 ? <span aria-hidden="true"> &middot; </span> : null}
+            <span className="type-mono-sm text-ink-muted">{formatCount(value)}</span>{" "}
+            {value === 1 ? metric.singular.toLowerCase() : metric.label.toLowerCase()}
+          </span>
         );
       })}
-    </ul>
+    </p>
   );
 }
 
 export interface WaveCardSkeletonProps {
-  flush?: boolean;
+  variant?: WaveCardVariant;
   className?: string;
 }
 
-/** Loading placeholder matching the shape of a real Wave card. */
-export function WaveCardSkeleton({ flush = false, className }: WaveCardSkeletonProps) {
+/**
+ * Shaped to the final layout: a rail squircle, two text bars at 45% and 70%
+ * width, and a flat 6px waterline where the trace will be. No shimmer, no
+ * pulse, no fake waveform (§8.15, §12.32).
+ */
+export function WaveCardSkeleton({ variant = "stream", className }: WaveCardSkeletonProps) {
   return (
     <div
       role="status"
       aria-label={`Loading ${TERMS.aWave}`}
-      className={cn(
-        "flex flex-col gap-3 bg-surface p-4 sm:p-5",
-        !flush && "rounded-xl border border-border shadow-xs",
-        className,
-      )}
+      className={cn("flex flex-col", className)}
     >
-      <div className="flex items-start gap-3">
+      <div className="akinti-rail akinti-page pt-5 pb-6">
         <Skeleton shape="circle" />
-        <div className="flex flex-1 flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <Skeleton width="45%" />
-          <Skeleton width="25%" height="1.25rem" className="rounded-full" />
+          <Skeleton width="70%" height="1.1875rem" />
         </div>
       </div>
-      <Skeleton width="70%" height="1.1rem" />
-      <div className="flex items-center gap-3">
-        <Skeleton shape="circle" className="size-12" />
-        <Skeleton height="3.25rem" className="flex-1 rounded-md" />
+      <div className="akinti-page pb-6">
+        <Skeleton shape="waterline" />
       </div>
-      <Skeleton width="90%" />
-      <Skeleton width="60%" />
-      <div className="flex gap-2 border-t border-border pt-3">
-        <Skeleton width="5rem" height="2rem" className="rounded-full" />
-        <Skeleton width="5rem" height="2rem" className="rounded-full" />
-        <Skeleton width="5rem" height="2rem" className="rounded-full" />
-      </div>
+      {variant === "detail" ? null : <div className="h-px w-full bg-hairline" />}
     </div>
   );
 }
