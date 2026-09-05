@@ -46,3 +46,7 @@ next-env.d.ts
 # testing
 /playwright-report/
 /test-results/
+
+# OMC runtime state
+.omc/
+**/.omc/
