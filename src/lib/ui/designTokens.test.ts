@@ -25,7 +25,10 @@ const LIGHT = {
   paper: "#efefec",
   ink: "#191a17",
   inkMuted: "#52534c",
-  inkSubtle: "#6a6b63",
+  // Darkened from #6a6b63 (docs/qa/full/REPORT.md defect #5: 4.22:1 on
+  // --akinti-paper-sunk, below WCAG AA 4.5:1) to #656660, which reaches
+  // 4.5:1 on the darkest ground this token is used against.
+  inkSubtle: "#656660",
   signal: "#de3c11",
   signalDeep: "#a32a08",
   waveDormant: "#86877e",
@@ -35,7 +38,10 @@ const DARK = {
   paper: "#131412",
   ink: "#edede8",
   inkMuted: "#a0a199",
-  inkSubtle: "#7e7f77",
+  // Lightened from #7e7f77 (docs/qa/full/REPORT.md defect #5: 4.19:1 on
+  // --akinti-paper-raised, below WCAG AA 4.5:1) to #85857e, which reaches
+  // 4.5:1 on the lightest ground this token is used against.
+  inkSubtle: "#85857e",
   signal: "#ff5c33",
   signalDeep: "#ff9376",
   waveDormant: "#63645d",

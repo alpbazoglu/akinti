@@ -26,7 +26,11 @@
 
   --akinti-ink: #191a17;
   --akinti-ink-muted: #52534c;
-  --akinti-ink-subtle: #6a6b63;
+  /* Darkened from #6a6b63 (4.22:1 on --akinti-paper-sunk, below WCAG AA
+     4.5:1 — docs/qa/full/REPORT.md defect #5) to 4.55:1 on the same
+     ground, the darkest of the three paper roles this token is used
+     against. */
+  --akinti-ink-subtle: #656660;
 
   --akinti-hairline: #d6d6d1;
   --akinti-hairline-strong: #b4b4ad;
@@ -142,7 +146,11 @@
 
     --akinti-ink: #edede8;
     --akinti-ink-muted: #a0a199;
-    --akinti-ink-subtle: #7e7f77;
+    /* Lightened from #7e7f77 (4.19:1 on --akinti-paper-raised, below WCAG
+       AA 4.5:1 — docs/qa/full/REPORT.md defect #5) to 4.56:1 on the same
+       ground, the lightest of the three paper roles this token is used
+       against. */
+    --akinti-ink-subtle: #85857e;
 
     --akinti-hairline: #292a26;
     --akinti-hairline-strong: #3f403a;
@@ -174,7 +182,11 @@
 
   --akinti-ink: #edede8;
   --akinti-ink-muted: #a0a199;
-  --akinti-ink-subtle: #7e7f77;
+  /* Lightened from #7e7f77 (4.19:1 on --akinti-paper-raised, below WCAG AA
+     4.5:1 — docs/qa/full/REPORT.md defect #5) to 4.56:1 on the same
+     ground, the lightest of the three paper roles this token is used
+     against. */
+  --akinti-ink-subtle: #85857e;
 
   --akinti-hairline: #292a26;
   --akinti-hairline-strong: #3f403a;
