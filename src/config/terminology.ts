@@ -227,6 +227,42 @@ export const SUGGESTED_INTERESTS: readonly string[] = [
 export const MIN_ONBOARDING_INTERESTS = 3;
 export const MAX_ONBOARDING_INTERESTS = 5;
 
+/* ------------------------------------------------------------------ */
+/* Audio processing error copy (worker -> Wave page banner)            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Short, stable codes `scripts/worker.ts` writes to
+ * `audio_assets.processing_error` when a job ultimately fails. The worker
+ * never writes raw ffmpeg stderr or platform exit codes to this column —
+ * that detail is logged to the worker's own console only. Any value found
+ * in this column at read time is looked up here (see
+ * `getProcessingErrorMessage`); anything unrecognised — including a stray
+ * historical raw error string — falls back to the generic message rather
+ * than being printed verbatim (spec s44, "no engineering language in the
+ * UI").
+ */
+export type ProcessingErrorCode = "enhancement_failed" | "decode_failed" | "silent_audio";
+
+const PROCESSING_ERROR_MESSAGES: Readonly<Record<ProcessingErrorCode, string>> = {
+  enhancement_failed: "The polished version didn't finish. The original is what you are hearing.",
+  decode_failed: "This file couldn't be read as audio. The original upload is still what you are hearing.",
+  silent_audio: "No sound was detected in this recording, so it couldn't be polished.",
+};
+
+const DEFAULT_PROCESSING_ERROR_MESSAGE = PROCESSING_ERROR_MESSAGES.enhancement_failed;
+
+/**
+ * Sentence-case, user-safe copy for an `audio_assets.processing_error`
+ * value. Callers should always render this instead of the raw column —
+ * an unknown or empty code renders the same honest default a reader would
+ * see for any other enhancement failure.
+ */
+export function getProcessingErrorMessage(code: string | null | undefined): string {
+  if (!code) return DEFAULT_PROCESSING_ERROR_MESSAGE;
+  return PROCESSING_ERROR_MESSAGES[code as ProcessingErrorCode] ?? DEFAULT_PROCESSING_ERROR_MESSAGE;
+}
+
 export const SITE = {
   name: BRAND,
   title: `${BRAND} · ${BRAND_TAGLINE}`,

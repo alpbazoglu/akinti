@@ -66,6 +66,7 @@ import {
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AUDIO_BUCKET, audioProcessedPath } from "@/lib/supabase/config";
+import { classifyProcessingError } from "@/lib/worker/processingError";
 import type { AudioEnhancementPreset } from "@/types/domain";
 import type { AudioProcessingJobRow, Json } from "@/types/database";
 
@@ -391,7 +392,18 @@ async function runArnndnFallback(
     proc.on("error", reject);
     proc.on("close", (code) => {
       if (code !== 0) {
-        reject(new Error(`ffmpeg arnndn exited with code ${code}: ${stderr.trim().slice(-2000)}`));
+        // 3221225794 is Windows' STATUS_ACCESS_VIOLATION (0xC0000005) — seen
+        // when this ffmpeg build can't load the bundled RNNoise model file.
+        // The caller (`runCleanStage`) treats any rejection here as "denoise
+        // unavailable" and continues without it, never failing the whole
+        // job over an optional stage — see docs/AUDIO_ARCHITECTURE.md
+        // ("the stage is simply absent from the report, never faked"). The
+        // raw stderr below is only ever logged to this worker's console.
+        const detail =
+          code === 3221225794
+            ? "STATUS_ACCESS_VIOLATION — the bundled RNNoise model could not be loaded by this ffmpeg build"
+            : stderr.trim().slice(-2000);
+        reject(new Error(`ffmpeg arnndn exited with code ${code}: ${detail}`));
         return;
       }
       resolve();
@@ -487,14 +499,26 @@ function logSidecarFallback(stage: string, reason: string): void {
 }
 
 async function runCleanStage(inputPath: string, tmpDir: string): Promise<CleanStageResult | null> {
-  return selectCleanStage(
-    sidecarConfig,
-    inputPath,
-    tmpDir,
-    { modelAvailable: existsSync(RNNOISE_MODEL_PATH), run: runArnndnFallback },
-    fetch,
-    (reason) => logSidecarFallback("/clean", reason),
-  );
+  try {
+    return await selectCleanStage(
+      sidecarConfig,
+      inputPath,
+      tmpDir,
+      { modelAvailable: existsSync(RNNOISE_MODEL_PATH), run: runArnndnFallback },
+      fetch,
+      (reason) => logSidecarFallback("/clean", reason),
+    );
+  } catch (err) {
+    // `selectCleanStage` only ever throws here when the local `runArnndnFallback`
+    // itself rejects (the sidecar path already catches its own failures and
+    // falls through). Denoise is a best-effort stage, not a required one —
+    // treat any fallback crash (e.g. the Windows access-violation case
+    // above) the same as "no bundled model": skip the stage, never fail the
+    // whole job over it. Full detail is logged here only, never persisted.
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[worker] arnndn clean stage unavailable, continuing without denoise: ${message}`);
+    return null;
+  }
 }
 
 async function runMasterStage(
@@ -982,6 +1006,9 @@ async function processJob(admin: SupabaseAdminClient, job: AudioProcessingJobRow
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // Full detail (raw ffmpeg stderr, platform exit codes, storage/RPC
+    // errors) is logged here only — see `classifyProcessingError` above for
+    // what actually reaches the database and, from there, the Wave page.
     console.error(`[worker] job ${job.id} FAILED: ${message}`);
     if (DRY_RUN) {
       // Never touches the queue in dry-run mode — the error is only printed.
@@ -989,7 +1016,7 @@ async function processJob(admin: SupabaseAdminClient, job: AudioProcessingJobRow
     }
     const { error: failError } = await admin.rpc("fail_audio_job", {
       p_job_id: job.id,
-      p_error: message.slice(0, 2000),
+      p_error: classifyProcessingError(err),
     });
     if (failError) {
       console.error(`[worker] and failed to record that failure for job ${job.id}:`, failError.message);
