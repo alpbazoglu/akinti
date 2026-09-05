@@ -12,7 +12,7 @@ import { placeholderPeaks } from "@/lib/audio/peaks";
 import { cn, formatDuration } from "@/lib/ui";
 
 import { WaveformCanvas } from "./WaveformCanvas";
-import type { WaterlineState, WaterlineTrim } from "./waterline";
+import type { TraceHue, WaterlineState, WaterlineTrim } from "./waterline";
 
 export { placeholderPeaks };
 
@@ -47,6 +47,9 @@ export interface WaveformProps {
    * the caller's: this only changes the drawing.
    */
   trim?: WaterlineTrim;
+  /** Recolours the unplayed part of the trace with a mode or genre hue
+   * (`docs/design/COLOR_V2.md`). Omitted means the current. */
+  hue?: TraceHue;
   className?: string;
 }
 
@@ -93,6 +96,7 @@ export function Waveform({
   disabled = false,
   fullBleed = false,
   trim,
+  hue,
   className,
 }: WaveformProps) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -209,6 +213,7 @@ export function Waveform({
         height={height}
         playhead={resolvedState === "playing" || resolvedState === "duet"}
         trim={trim}
+        hue={hue}
       />
     </div>
   );

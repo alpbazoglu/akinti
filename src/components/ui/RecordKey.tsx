@@ -33,17 +33,20 @@ const GEOMETRY: Record<RecordKeySize, { key: string; radius: string; lamp: strin
 };
 
 /**
- * The record key (§8.5).
+ * The record key (§8.5, recoloured by `docs/design/COLOR_V2.md`).
  *
- *   idle       ink field, Signal dot centred
- *   armed      ink field, Signal dot, plus a 1px Signal ring on the key
+ *   idle       current (teal) field, Signal dot centred
+ *   armed      current field, Signal dot, plus a 1px Signal ring on the key
  *   recording  Signal field, ink square centred
  *   paused     Signal field, ink square, not breathing
  *
  * **The lamp is the dot, not the key.** On a TP-7 or a Nagra the record
  * control is neutral and the *lamp* is red; filling the whole key red at rest
  * is what a consumer app does. That makes the inversion on recording a genuine
- * event rather than a hover state.
+ * event rather than a hover state. COLOR_V2 moves the rest-state field from
+ * ink to the current (teal at rest, Signal lamp when armed/recording,
+ * unchanged) — the inversion on recording is still the one moment Signal
+ * takes over the whole key, not just the dot.
  *
  * The dot breathing between 100% and 55% over 1400ms is the only infinite
  * animation in the entire product (§7.2), and under `prefers-reduced-motion` it
@@ -69,10 +72,10 @@ export function RecordKey({
       className={cn(
         "akinti-press inline-flex shrink-0 items-center justify-center",
         "transition-colors duration-[--dur-micro]",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
         geometry.key,
         geometry.radius,
-        live ? "bg-signal" : "bg-ink",
+        live ? "bg-signal" : "bg-tide",
         state === "armed" && "ring-1 ring-signal ring-offset-2 ring-offset-paper",
         className,
       )}

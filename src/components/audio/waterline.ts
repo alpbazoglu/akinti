@@ -18,6 +18,31 @@ export type WaterlineState =
   | "recording"
   | "duet";
 
+/**
+ * A trace hue (`docs/design/COLOR_V2.md` "Colour by mode and genre"). Names
+ * a CSS custom property, `--akinti-hue-<name>`, that resolves to a colour
+ * already scoped to light/dark by `globals.css` — callers never pass a hex.
+ *
+ * `"current"` is the default brand teal (idle/unplayed trace everywhere
+ * this is omitted). The rest are fixed per mode: `"atisma"` for Atışma
+ * reply segments, `"cypher-1"`..`"cypher-4"` for the four Cypher verse
+ * hues in order, and `"genre-*"` for the Explore lane / profile signature
+ * tint. Signal is never one of these — it stays exclusive to live audio
+ * and is never selected by content (COLOR_V2 principle 2).
+ */
+export type TraceHue =
+  | "current"
+  | "atisma"
+  | "cypher-1"
+  | "cypher-2"
+  | "cypher-3"
+  | "cypher-4"
+  | "genre-pop"
+  | "genre-rap"
+  | "genre-arabesk"
+  | "genre-turku"
+  | "genre-rock";
+
 export interface WaterlineGeometry {
   /** Bar width in CSS pixels. */
   readonly bar: number;

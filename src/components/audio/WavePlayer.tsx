@@ -14,6 +14,7 @@ import { IconButton, Spinner } from "@/components/ui";
 import { Pause, Play, RotateCcw, SkipBack, SkipForward } from "@/components/ui/icons";
 
 import { Waveform } from "./Waveform";
+import type { TraceHue } from "./waterline";
 
 /**
  * Three sizes, one drawing (§8.4).
@@ -45,6 +46,9 @@ export interface WavePlayerProps {
   variant?: WavePlayerVariant;
   /** Applies the 24px edge fade for a trace that bleeds past the page edges. */
   fullBleed?: boolean;
+  /** Recolours the unplayed part of the trace with a mode or genre hue
+   * (`docs/design/COLOR_V2.md`). Omitted means the current. */
+  hue?: TraceHue;
   className?: string;
 }
 
@@ -73,6 +77,7 @@ export function WavePlayer({
   onEnded,
   variant = "inline",
   fullBleed = false,
+  hue,
   className,
 }: WavePlayerProps) {
   const store = usePlaybackStore();
@@ -154,6 +159,7 @@ export function WavePlayer({
       label={title ? `Seek within ${title}` : "Seek"}
       disabled={hasError}
       fullBleed={fullBleed}
+      hue={hue}
       className={detail ? undefined : "flex-1"}
     />
   );

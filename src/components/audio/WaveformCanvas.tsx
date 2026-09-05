@@ -6,6 +6,7 @@ import { cn } from "@/lib/ui";
 
 import {
   drawWaterline,
+  type TraceHue,
   type WaterlineColors,
   type WaterlineState,
   type WaterlineTrim,
@@ -27,6 +28,13 @@ export interface WaveformCanvasProps {
   playhead?: boolean;
   /** Kept region of a take being trimmed; the rest draws at 20% (§4.3). */
   trim?: WaterlineTrim;
+  /**
+   * Recolours the unplayed/dormant part of the trace with a mode or genre
+   * hue (`docs/design/COLOR_V2.md`). Omitted means the current, the
+   * default brand teal. The played region is always Signal, regardless of
+   * `hue` — Signal stays exclusive to live audio state.
+   */
+  hue?: TraceHue;
   className?: string;
 }
 
@@ -61,15 +69,20 @@ function themeSnapshot(): string {
   );
 }
 
-function readColors(element: Element): WaterlineColors {
+function readColors(element: Element, hue?: TraceHue): WaterlineColors {
   const styles = getComputedStyle(element);
   const read = (name: string, fallback: string) =>
     styles.getPropertyValue(name).trim() || fallback;
   return {
-    rest: read("--akinti-wave-rest", "#b4b4ad"),
-    dormant: read("--akinti-wave-dormant", "#86877e"),
+    rest: read("--akinti-wave-rest", "#a9bdb4"),
+    // A `hue` recolours only the unplayed/dormant part of the trace — the
+    // played part is always Signal (COLOR_V2 principle 2: Signal stays
+    // exclusive to live audio, never chosen by content).
+    dormant: hue
+      ? read(`--akinti-hue-${hue}`, "#0e6b6b")
+      : read("--akinti-wave-dormant", "#0e6b6b"),
     played: read("--akinti-signal", "#de3c11"),
-    ink: read("--akinti-ink", "#191a17"),
+    ink: read("--akinti-ink", "#0f1a18"),
   };
 }
 
@@ -93,6 +106,7 @@ export function WaveformCanvas({
   height = 56,
   playhead = false,
   trim,
+  hue,
   className,
 }: WaveformCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -123,13 +137,13 @@ export function WaveformCanvas({
       width,
       height,
       state,
-      colors: readColors(canvas),
+      colors: readColors(canvas, hue),
       progress,
       loaded,
       playhead,
       trim,
     });
-  }, [peaks, duetPeaks, progress, loaded, state, height, playhead, trim]);
+  }, [peaks, duetPeaks, progress, loaded, state, height, playhead, trim, hue]);
 
   useEffect(() => {
     paint();
