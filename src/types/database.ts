@@ -112,6 +112,13 @@ export type NotificationType =
 /** Prompts & challenges (PRODUCT_V2 §4). `draft` is moderator/author-only; `live`/`closed` are publicly readable. */
 export type ChallengeStatus = "draft" | "live" | "closed";
 
+/** AKINTI Pro (Wave F, PRODUCT_V2 §4/§5). iyzico is primary (TR/TRY); Paddle is secondary (international/USD) — never Stripe. */
+export type BillingProvider = "iyzico" | "paddle";
+/** `trialing`/`active` both count toward `has_pro()`; `past_due` does not (spec: a failed renewal should not keep Pro-only options open indefinitely). */
+export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled" | "expired";
+export type PlanInterval = "month" | "year";
+export type PlanCode = "pro_monthly_try" | "pro_yearly_try" | "pro_monthly_usd" | "pro_yearly_usd";
+
 export type ReportTargetType = "wave" | "comment" | "profile" | "message";
 export type ReportReason =
   | "spam"
@@ -349,6 +356,45 @@ export type ChallengePickRow = {
   rank: number;
   picked_by: string | null;
   note: string | null;
+  created_at: string;
+};
+
+/** The four sellable Pro SKUs. Public read-only catalog — seeded by a human once real provider price ids exist, never by client code (docs/BILLING.md). */
+export type PlanRow = {
+  id: string;
+  code: PlanCode;
+  provider: BillingProvider;
+  provider_price_id: string;
+  /** Minor units (kuruş/cents). */
+  amount: number;
+  currency: "TRY" | "USD";
+  interval: PlanInterval;
+  is_active: boolean;
+  created_at: string;
+};
+
+/** One row per subscription a user has ever held with a provider — history, not just current state. */
+export type SubscriptionRow = {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  provider: BillingProvider;
+  provider_subscription_id: string;
+  status: SubscriptionStatus;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Append-only webhook ledger. `(provider, event_id)` unique for idempotent replay. */
+export type BillingEventRow = {
+  id: string;
+  provider: BillingProvider;
+  event_id: string;
+  type: string;
+  payload: Json;
+  processed_at: string | null;
   created_at: string;
 };
 
@@ -752,6 +798,39 @@ export interface Database {
         Update: Partial<Pick<ChallengePickRow, "rank" | "note">>;
         Relationships: Relationships;
       };
+      /**
+       * `plans`/`subscriptions`/`billing_events` grant no client role an
+       * insert/update path (RLS denies it outright, migration
+       * `20260906100000_subscriptions.sql`) — but the shapes below are still
+       * real, because `src/lib/billing/repository.ts` writes them through
+       * the service-role admin client, which is typed with this same
+       * `Database`. `never` here would make that legitimate, server-only
+       * code fail to compile, not just fail at runtime (which RLS already
+       * guarantees regardless of what TypeScript allows).
+       */
+      plans: {
+        Row: PlanRow;
+        Insert: Pick<PlanRow, "code" | "provider" | "provider_price_id" | "amount" | "currency" | "interval"> &
+          Partial<Pick<PlanRow, "id" | "is_active">>;
+        Update: Partial<Pick<PlanRow, "provider_price_id" | "amount" | "is_active">>;
+        Relationships: Relationships;
+      };
+      subscriptions: {
+        Row: SubscriptionRow;
+        Insert: Pick<SubscriptionRow, "user_id" | "plan_id" | "provider" | "provider_subscription_id"> &
+          Partial<Pick<SubscriptionRow, "id" | "status" | "current_period_end" | "cancel_at_period_end">>;
+        Update: Partial<
+          Pick<SubscriptionRow, "plan_id" | "provider_subscription_id" | "status" | "current_period_end" | "cancel_at_period_end">
+        >;
+        Relationships: Relationships;
+      };
+      billing_events: {
+        Row: BillingEventRow;
+        Insert: Pick<BillingEventRow, "provider" | "event_id" | "type" | "payload"> &
+          Partial<Pick<BillingEventRow, "id" | "processed_at">>;
+        Update: Partial<Pick<BillingEventRow, "processed_at">>;
+        Relationships: Relationships;
+      };
       wave_collaborators: {
         Row: WaveCollaboratorRow;
         Insert: Pick<WaveCollaboratorRow, "wave_id" | "profile_id"> &
@@ -997,6 +1076,22 @@ export interface Database {
         Args: { p_tag: string; p_cursor?: string | null; p_limit?: number };
         Returns: WaveRow[];
       };
+      has_pro: { Args: { p_user_id: string }; Returns: boolean };
+      /**
+       * Both exist since migration 21 (`rate_limits`) but were never called
+       * from application code before Wave F — every other rate-limited
+       * action goes through a `BEFORE INSERT` trigger instead. `startProCheckout`
+       * (`src/app/(app)/settings/pro/actions.ts`) has no natural insert to
+       * hang a trigger off (a checkout attempt writes no row until the
+       * provider confirms it), so it calls these two directly through the
+       * admin client — both are `revoke all from public, anon, authenticated`
+       * server-side, so only that context can.
+       */
+      check_rate_limit: {
+        Args: { p_profile_id: string; p_action: string; p_max_count: number; p_window: string };
+        Returns: undefined;
+      };
+      record_rate_limit_event: { Args: { p_profile_id: string; p_action: string }; Returns: undefined };
     };
     Enums: {
       profile_privacy: ProfilePrivacy;
@@ -1026,6 +1121,9 @@ export interface Database {
       report_status: ReportStatus;
       moderation_action_type: ModerationActionType;
       challenge_status: ChallengeStatus;
+      billing_provider: BillingProvider;
+      subscription_status: SubscriptionStatus;
+      plan_interval: PlanInterval;
     };
     CompositeTypes: Record<never, never>;
   };

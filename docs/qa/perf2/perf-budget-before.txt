@@ -1,0 +1,8 @@
+Performance budget (enforced: 260KB/route; mobile-guidelines.md rule 42 target: 150KB — see scripts/perf-budget.ts header)
+
+  ok   Home (/): 204.0KB (budget 260KB, 22 chunks)
+  ok   Explore (/explore): 204.0KB (budget 260KB, 22 chunks)
+  FAIL Wave (/w/[id]): 320.2KB (budget 260KB, 25 chunks)
+  ok   Create (/create): 193.4KB (budget 260KB, 21 chunks)
+
+One or more routes exceeded the enforced JS budget.
