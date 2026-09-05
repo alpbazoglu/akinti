@@ -69,15 +69,28 @@ export default async function ExplorePage() {
   let loadError: string | null = null;
 
   try {
-    const [trending, risingProfiles] = await Promise.all([
+    // `loadOpenCalls`/`loadBackingTracks` don't depend on `trending`/`rising`
+    // (or on each other) at all, and the previous pass ran them in their own
+    // sequential stage after everything else anyway — folding them into this
+    // same round removes a whole network round trip for free
+    // (docs/qa/perf2/WATERFALL.md).
+    const [trending, risingProfiles, openCallsResult, tracksResult] = await Promise.all([
       listTrendingWaves(supabase, { limit: INITIAL_PAGE_SIZE, offset: 0 }),
       getRisingCreators(supabase, { limit: CREATOR_TILES }),
+      // Open calls and the track library are additions to the screen, never
+      // its spine: if either read fails, Explore still works.
+      loadOpenCalls(supabase, user?.id ?? null).catch(() => []),
+      loadBackingTracks(supabase).catch(() => []),
     ]);
-
-    initialItems = await hydrateWaveCards(supabase, trending, user?.id ?? null);
+    openCalls = openCallsResult;
+    tracks = tracksResult;
     initialCursor = nextOffsetCursor(0, trending.length, trending.length >= INITIAL_PAGE_SIZE);
 
-    const [edges, signatures] = await Promise.all([
+    // `hydrateWaveCards(trending)` and the rising-creators follow-edges/
+    // signatures lookups are independent of each other too (the latter two
+    // only need `risingProfiles`' ids) — one round instead of two.
+    const [hydratedTrending, edges, signatures] = await Promise.all([
+      hydrateWaveCards(supabase, trending, user?.id ?? null),
       user
         ? getFollowEdgesForViewer(
             supabase,
@@ -91,19 +104,13 @@ export default async function ExplorePage() {
       ),
     ]);
 
+    initialItems = hydratedTrending;
     risingCreators = risingProfiles.map((profile) => ({
       profile,
       followStatus: edges.get(profile.id)?.status ?? null,
       followsViewer: edges.get(profile.id)?.followsViewer ?? false,
       signature: signatures.get(profile.id),
     }));
-
-    // Open calls and the track library are additions to the screen, never its
-    // spine: if either read fails, Explore still works.
-    [openCalls, tracks] = await Promise.all([
-      loadOpenCalls(supabase, user?.id ?? null).catch(() => []),
-      loadBackingTracks(supabase).catch(() => []),
-    ]);
   } catch (error) {
     loadError = error instanceof Error ? error.message : null;
   }

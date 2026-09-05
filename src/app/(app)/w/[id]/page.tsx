@@ -24,6 +24,25 @@ import { ProcessingBanner } from "./ProcessingBanner";
 import { WaveDetail, type WaveDetailWave } from "./WaveDetail";
 import { WaveOwnerMenu } from "./WaveOwnerMenu";
 
+/**
+ * `WaveOwnerMenu` and `CommentsSection` were tried behind `next/dynamic`
+ * here (same pattern as the `Sheet` fix, `src/components/ui/index.ts`), on
+ * the theory that a Server-Component `dynamic()` (the only kind Next 16
+ * allows outside a Client Component — `ssr: false` is rejected here) would
+ * still give each its own chunk. Measured, it did not: `npm run perf`'s
+ * union-of-reachable-chunks for `/w/[id]` came back *larger* (322.1KB vs
+ * 320.2KB), and grepping the actual `page_client-reference-manifest.js`
+ * showed `WaveOwnerMenu.tsx`/`CommentsSection.tsx` resolving to the exact
+ * same 17-chunk set as every other module the route needs — Turbopack
+ * co-locates everything a Server Component route always renders into one
+ * per-route chunk group regardless of `dynamic()`, unlike the barrel-level
+ * fix, which worked because *other* routes (`/login`, `/signup`) never
+ * reference `Sheet` at all. Reverted; see `docs/qa/perf2/WATERFALL.md` for
+ * the numbers and `WaveDetail.tsx`'s `ShareSheet` split (`ssr: false`,
+ * possible there because it is inside a Client Component) for the one
+ * `next/dynamic` change on this route that did measurably shrink the bundle.
+ */
+
 interface WavePageProps {
   params: Promise<{ id: string }>;
 }
@@ -108,29 +127,28 @@ export default async function WavePage({ params }: WavePageProps) {
   const lineageCreatorIds = [parentWave?.creatorId, originalWave?.creatorId].filter(
     (creatorId): creatorId is string => Boolean(creatorId),
   );
-  const relatedProfiles = await getProfilesByIds(db, [
-    ...new Set([
-      ...lineageCreatorIds,
-      ...directDuets.items.map((duetWave) => duetWave.creatorId),
-      ...allCollaborators.map((collaborator) => collaborator.profileId),
-    ]),
-  ]);
-  const profileById = new Map(relatedProfiles.map((profile) => [profile.id, profile]));
 
   // The chain view needs the `duet_tree` routine. Where it is not present the
   // page falls back to the direct Duets it can read for itself, rather than
-  // failing the whole screen for a section.
+  // failing the whole screen for a section. The open call is the creator's
+  // own switch, so it is only read for them. None of these three reads
+  // depend on each other, so they run together instead of one after the
+  // other (docs/qa/perf2/WATERFALL.md).
   const chainRoot = wave.duet.originalWaveId ?? wave.id;
-  let chain: DuetTreeNode[] = [];
-  try {
-    const tree = await getDuetTree(db, chainRoot);
-    chain = tree.tree;
-  } catch {
-    chain = [];
-  }
-
-  // The open call is the creator's own switch, so it is only read for them.
-  const openCall = isCreator ? await getOpenCallByWaveId(db, wave.id).catch(() => null) : null;
+  const [relatedProfiles, chain, openCall] = await Promise.all([
+    getProfilesByIds(db, [
+      ...new Set([
+        ...lineageCreatorIds,
+        ...directDuets.items.map((duetWave) => duetWave.creatorId),
+        ...allCollaborators.map((collaborator) => collaborator.profileId),
+      ]),
+    ]),
+    getDuetTree(db, chainRoot)
+      .then((tree) => tree.tree)
+      .catch(() => [] as DuetTreeNode[]),
+    isCreator ? getOpenCallByWaveId(db, wave.id).catch(() => null) : Promise.resolve(null),
+  ]);
+  const profileById = new Map(relatedProfiles.map((profile) => [profile.id, profile]));
 
   const detailWave: WaveDetailWave = {
     id: wave.id,

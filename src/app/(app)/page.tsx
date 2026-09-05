@@ -49,15 +49,21 @@ export default async function HomePage() {
 
   try {
     const page = await listHomeFeed(supabase, user.id, { limit: 10 });
-    initialItems = await hydrateWaveCards(supabase, page.items, user.id);
     initialCursor = page.nextCursor;
 
-    if (initialItems.length > 0) {
-      const heard = await listHeardWaveIds(
-        supabase,
-        user.id,
-        initialItems.map((item) => item.id),
-      );
+    if (page.items.length > 0) {
+      // `hydrateWaveCards` and `listHeardWaveIds` both only need `page.items`'
+      // ids, never each other's output, so they run together instead of one
+      // after the other (docs/qa/perf2/WATERFALL.md).
+      const [hydrated, heard] = await Promise.all([
+        hydrateWaveCards(supabase, page.items, user.id),
+        listHeardWaveIds(
+          supabase,
+          user.id,
+          page.items.map((item) => item.id),
+        ),
+      ]);
+      initialItems = hydrated;
       unheardIds = initialItems.filter((item) => !heard.has(item.id)).map((item) => item.id);
     } else {
       const trending = await listTrendingWaves(supabase, { limit: EMPTY_STATE_WAVES, offset: 0 });
