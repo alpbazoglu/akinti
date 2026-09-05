@@ -1,0 +1,32 @@
+{
+  "notes": [
+    {
+      "test": "sheet-focus-on-open",
+      "focusCheck": {
+        "tag": "BODY",
+        "inDrawer": false
+      }
+    },
+    {
+      "test": "sheet-focus-after-one-tab",
+      "afterTab": {
+        "tag": "SPAN",
+        "text": "",
+        "inDrawer": false
+      }
+    },
+    {
+      "test": "sheet-escape-count-after",
+      "afterEscape": 1
+    },
+    {
+      "test": "play-clicked",
+      "played": true
+    },
+    {
+      "test": "touch-scrub-after-play",
+      "before": "0",
+      "after": "0"
+    }
+  ]
+}

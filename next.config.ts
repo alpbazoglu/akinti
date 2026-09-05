@@ -79,15 +79,17 @@ const nextConfig: NextConfig = {
   // Don't advertise the framework in an `X-Powered-By` response header.
   poweredByHeader: false,
   // Dev-only: Next's own devtools overlay (route info, the pending-transition
-  // "Rendering ..." pill — `node_modules/next/dist/next-devtools`) defaults to
-  // `bottom-left`, which is exactly where this app docks its mobile bottom
-  // nav and sheet actions (Share, Save). It never ships to production, but
-  // during local QA it visibly sat on top of navigation and the Share sheet
-  // (ux-audit screenshots 19–24). Nothing else in this layout puts chrome in
-  // the top-right, so that's where the indicator moves instead of covering it.
-  devIndicators: {
-    position: "top-right",
-  },
+  // "Rendering ..." pill — `node_modules/next/dist/next-devtools`) has no
+  // corner that is actually free on this layout. `bottom-left` sits on the
+  // mobile bottom nav and the Share sheet (ux-audit screenshots 19–24);
+  // moving it to `top-right` (a prior attempt) just traded that collision for
+  // the `/kit` theme toggle and the Explore top bar's Sign up button
+  // (`docs/qa/reviewA/REVIEW.md` b.1) — every corner is occupied by a real
+  // control at 390px (wordmark top-left, icons top-right, five keys along
+  // the whole bottom edge). It never ships to production, so disabling it
+  // is the only zero-collision option rather than picking a new corner to
+  // regress later.
+  devIndicators: false,
   async headers() {
     return [
       {

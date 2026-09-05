@@ -48,6 +48,17 @@ export function Sheet({
   return (
     <Drawer.Root
       open={open}
+      // Radix's Dialog (which `Drawer.Content` is) already provides the
+      // focus trap, `aria-modal`, body-scroll lock and Escape-to-close for
+      // free — but vaul defaults `autoFocus` to `false` so a form input
+      // inside the sheet doesn't pop the mobile keyboard on open. That also
+      // meant focus was never moved into the sheet at all: `Tab` landed on
+      // whatever was focused behind the scrim, and once focus had drifted
+      // outside the dialog's scope, `Escape` stopped reaching it too. Opting
+      // back into `autoFocus` restores Radix's default open/close focus
+      // handling (first focusable descendant, or the panel itself via its
+      // `tabIndex=-1`, per `FocusScope`) without any hand-rolled trap.
+      autoFocus
       onOpenChange={(next) => {
         if (!next) onClose();
       }}

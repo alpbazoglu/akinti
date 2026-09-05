@@ -181,8 +181,10 @@ export function WaveCard({
         </h3>
       </div>
 
-      {/* The trace bleeds past both page edges: it is the content, not an
-          illustration beside it (§8.3). */}
+      {/* The trace bleeds past both page edges in every variant, not only
+          `detail` (§8.3, §1): no `akinti-page` inset here, exactly like
+          `WaveSeparator` below, which is already full-bleed by having no
+          page padding of its own. */}
       <WavePlayer
         waveId={wave.id}
         src={wave.audioUrl}
@@ -193,8 +195,7 @@ export function WaveCard({
         onProgress={onProgress}
         onEnded={onEnded}
         variant={detail ? "detail" : "inline"}
-        fullBleed={detail}
-        className={detail ? undefined : "akinti-page"}
+        fullBleed
       />
 
       <div className="akinti-rail akinti-page pt-4 pb-5">

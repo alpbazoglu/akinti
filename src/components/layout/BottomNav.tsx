@@ -65,7 +65,9 @@ export function BottomNav({ badges, className }: BottomNavProps) {
                   aria-current={active ? "page" : undefined}
                   aria-label={`${TERMS.record} ${TERMS.aWave}`}
                   className={cn(
-                    "akinti-press inline-flex size-11 items-center justify-center rounded-[13px] bg-ink",
+                    // 44px key: references `--akinti-radius-key-44` (13px)
+                    // instead of restating the pixel value (§8.5, §5.2).
+                    "akinti-press inline-flex size-11 items-center justify-center rounded-[var(--akinti-radius-key-44)] bg-ink",
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                   )}
                 >

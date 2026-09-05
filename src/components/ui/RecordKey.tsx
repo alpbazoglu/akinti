@@ -21,12 +21,15 @@ export interface RecordKeyProps
   state?: RecordKeyState;
 }
 
+// Radii reference the `--akinti-radius-key-*` custom properties (`globals.css`)
+// rather than restating their pixel values, so a future token edit can't
+// silently desync the record key from the rest of the curvature ladder.
 const GEOMETRY: Record<RecordKeySize, { key: string; radius: string; lamp: string }> = {
-  36: { key: "size-9", radius: "rounded-[11px]", lamp: "size-2.5" },
-  44: { key: "size-11", radius: "rounded-[13px]", lamp: "size-3.5" },
-  72: { key: "size-18", radius: "rounded-[21px]", lamp: "size-4" },
-  88: { key: "size-22", radius: "rounded-[26px]", lamp: "size-5" },
-  96: { key: "size-24", radius: "rounded-[28px]", lamp: "size-5" },
+  36: { key: "size-9", radius: "rounded-[var(--akinti-radius-key-36)]", lamp: "size-2.5" },
+  44: { key: "size-11", radius: "rounded-[var(--akinti-radius-key-44)]", lamp: "size-3.5" },
+  72: { key: "size-18", radius: "rounded-[var(--akinti-radius-key-72)]", lamp: "size-4" },
+  88: { key: "size-22", radius: "rounded-[var(--akinti-radius-key-88)]", lamp: "size-5" },
+  96: { key: "size-24", radius: "rounded-[var(--akinti-radius-key-96)]", lamp: "size-5" },
 };
 
 /**
