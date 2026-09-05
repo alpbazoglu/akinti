@@ -4,10 +4,12 @@ import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { getProfileById } from "@/lib/db/profiles";
+import { hasPushSubscription } from "@/lib/push/subscriptions";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { NotificationsForm } from "./NotificationsForm";
+import { PushToggle } from "./PushToggle";
 
 export const metadata = { title: `Notifications · ${TERMS.settings}` };
 
@@ -33,7 +35,10 @@ export default async function NotificationsSettingsPage() {
   }
 
   const supabase = await createServerSupabaseClient();
-  const profile = await getProfileById(supabase, user.id);
+  const [profile, subscribed] = await Promise.all([
+    getProfileById(supabase, user.id),
+    hasPushSubscription(supabase, user.id),
+  ]);
 
   return (
     <>
@@ -42,6 +47,9 @@ export default async function NotificationsSettingsPage() {
       />
       <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
         <NotificationsForm initialPreferences={profile?.notificationPreferences ?? {}} />
+        <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
+          <PushToggle initialSubscribed={subscribed} />
+        </div>
       </div>
     </>
   );

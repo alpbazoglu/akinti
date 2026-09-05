@@ -144,6 +144,27 @@ for **Production**, **Preview**, and **Development** unless noted):
 | `SUPABASE_SERVICE_ROLE_KEY` | Project `service_role` key | **Server-only.** Do **not** prefix with `NEXT_PUBLIC_`. Vercel env vars are server-only by default unless explicitly marked "Expose to browser" — leave that off. Read only by `src/lib/supabase/admin.ts`, which throws if ever called from `typeof window !== "undefined"`. |
 | `NEXT_PUBLIC_SITE_URL` | `https://<your-domain>` | Optional — used by `src/app/sitemap.ts` for absolute URLs. Falls back to Vercel's own `VERCEL_URL` when unset, so this is a nice-to-have for a custom domain, not required. |
 | `REQUIRE_SUPABASE` | unset | Not needed on Vercel — `VERCEL=1` is set automatically, which already makes a production boot with missing Supabase vars fail loudly (`scripts/check-env.ts`). Only relevant on a non-Vercel Node host. |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | VAPID public key | Public — passed to `PushManager.subscribe()` in the browser. Web Push for Duet requests/answers and open-call answers (`src/lib/push/send.ts`); see below for how to generate. |
+| `VAPID_PRIVATE_KEY` | VAPID private key | **Server-only.** Do **not** prefix with `NEXT_PUBLIC_`. Signs every push sent via `web-push`. |
+| `VAPID_SUBJECT` | `mailto:you@yourdomain.com` (or an `https://` URL) | Identifies who to contact about this VAPID identity, per the Web Push protocol. Any valid `mailto:`/`https:` value works — push services never actually email it. |
+
+Push notifications are optional at runtime: `src/lib/push/send.ts` no-ops
+silently (no throw, no crash) when any of the three VAPID variables is
+missing — a deploy without them simply never sends a push, same as leaving
+`NEXT_PUBLIC_SITE_URL` unset.
+
+**Generating a VAPID key pair.** One pair per environment (or reuse one pair
+everywhere — it identifies the sender, not the deploy):
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Put the public key in both `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (Vercel) and, if
+testing locally, `.env.local` — never commit `.env.local`. Rotating the pair
+invalidates every existing browser subscription (`public.push_subscriptions`,
+migration `20260905170000`); they clean themselves up the next time a push to
+a since-invalidated endpoint 404s/410s (`src/lib/push/send.ts`).
 
 A production boot with any Supabase variable missing **fails at server
 startup** (`src/instrumentation.ts` → `assertWebEnvAtBoot()`) rather than

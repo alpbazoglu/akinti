@@ -177,6 +177,17 @@ export type BlockRow = {
   created_at: string;
 };
 
+/** Web Push subscription (migration 20260905170000). Owner-only, see `docs/DATABASE.md`. */
+export type PushSubscriptionRow = {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent: string | null;
+  created_at: string;
+};
+
 export type AudioAssetRow = {
   id: string;
   owner_id: string;
@@ -600,6 +611,13 @@ export interface Database {
         Row: BlockRow;
         Insert: Pick<BlockRow, "blocker_id" | "blocked_id"> & Partial<Pick<BlockRow, "created_at">>;
         Update: Partial<BlockRow>;
+        Relationships: Relationships;
+      };
+      push_subscriptions: {
+        Row: PushSubscriptionRow;
+        Insert: Pick<PushSubscriptionRow, "user_id" | "endpoint" | "p256dh" | "auth"> &
+          Partial<Pick<PushSubscriptionRow, "id" | "user_agent" | "created_at">>;
+        Update: Partial<Pick<PushSubscriptionRow, "p256dh" | "auth" | "user_agent">>;
         Relationships: Relationships;
       };
       audio_assets: {
