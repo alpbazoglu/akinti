@@ -61,6 +61,8 @@ export const routes = {
   settingsAudio: () => "/settings/audio",
   settingsSafety: () => "/settings/safety",
   settingsFollowRequests: () => "/settings/follow-requests",
+  /** AKINTI Pro (Wave F, PRODUCT_V2 §4/§5) — screen owned by a later frontend wave; this route is needed now by `src/app/api/billing/iyzico/callback/route.ts`'s post-checkout redirect. */
+  settingsPro: () => "/settings/pro",
 
   /* Moderation (§26) — moderators only, 404 otherwise */
   moderation: () => "/moderation",
