@@ -15,6 +15,7 @@ import { getProfilesByIds } from "@/lib/db/profiles";
 import { getSavedWaveIds } from "@/lib/db/saves";
 import type { Db } from "@/lib/db/types";
 import { listWaveCollaboratorProfiles } from "@/lib/db/waves";
+import { resolveWavePeaks } from "@/lib/audio/peaks";
 import type { Page, Wave, WaveCreationType } from "@/types/domain";
 
 export interface ContentCardPerson {
@@ -103,7 +104,7 @@ export async function hydrateContentWaveCards(
       collaborators,
       creationType: wave.creationType,
       audioAssetId: wave.audioAssetId,
-      peaks: asset?.peaks?.data ?? [],
+      peaks: resolveWavePeaks(asset?.peaks?.data, wave.audioAssetId),
       duration: asset?.durationMs ? asset.durationMs / 1000 : undefined,
       metrics: {
         plays: wave.counts.plays,

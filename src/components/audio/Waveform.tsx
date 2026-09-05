@@ -9,7 +9,10 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import { placeholderPeaks } from "@/lib/audio/peaks";
 import { cn, formatDuration } from "@/lib/ui";
+
+export { placeholderPeaks };
 
 export type WaveformVariant = "bars" | "mirror";
 
@@ -189,20 +192,4 @@ export function Waveform({
       )}
     </div>
   );
-}
-
-/**
- * Deterministic placeholder peaks. Useful for skeletons and the component
- * gallery; never use it to fake a real Wave.
- */
-export function placeholderPeaks(count = 64, seed = 1): number[] {
-  const peaks: number[] = [];
-  for (let index = 0; index < count; index += 1) {
-    const hashed = Math.sin((index + 1) * 12.9898 + seed * 78.233) * 43758.5453;
-    const noise = hashed - Math.floor(hashed);
-    // A gentle envelope so the shape reads as audio, not as random bars.
-    const envelope = Math.sin((index / Math.max(1, count - 1)) * Math.PI);
-    peaks.push(0.18 + 0.72 * (0.35 + 0.65 * noise) * (0.45 + 0.55 * envelope));
-  }
-  return peaks;
 }

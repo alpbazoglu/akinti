@@ -3,21 +3,13 @@
 import { useEffect, useState } from "react";
 import { TriangleAlert } from "lucide-react";
 
-import { WavePlayer, placeholderPeaks } from "@/components/audio";
+import { WavePlayer } from "@/components/audio";
 import { Spinner } from "@/components/ui";
+import { hashSeed, placeholderPeaks } from "@/lib/audio/peaks";
 
 export interface AudioMessageBubbleProps {
   messageId: string;
   audioAssetId: string;
-}
-
-/** Simple string hash, used only to seed a stable decorative waveform per message. */
-function hashSeed(value: string): number {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) % 100_000;
-  }
-  return hash;
 }
 
 /**

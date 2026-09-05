@@ -25,6 +25,7 @@
 import { getAudioAssetById } from "./audioAssets";
 import { listProfileDuets, listProfileWaves, listWaveCollaboratorProfiles } from "./waves";
 import type { Db } from "./types";
+import { resolveWavePeaks } from "@/lib/audio/peaks";
 import type { Page, Wave } from "@/types/domain";
 
 /** A collaborator, shaped for `WaveCard`'s `WaveCardPerson` — kept local to
@@ -69,7 +70,7 @@ export async function hydrateProfileWaves(db: Db, waves: readonly Wave[]): Promi
       return {
         wave,
         audioAssetId: wave.audioAssetId,
-        peaks: asset.peaks?.data ?? [],
+        peaks: resolveWavePeaks(asset.peaks?.data, asset.id),
         durationMs: asset.durationMs,
         collaborators,
       };

@@ -6,6 +6,7 @@ import { DuetRequestForm } from "@/components/duet";
 import { WaveCardContainer, type WaveCardContainerWave } from "@/components/wave";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
 import { canRequestDuet } from "@/lib/db/duetRequests";
+import { resolveWavePeaks } from "@/lib/audio/peaks";
 import { getProfileById } from "@/lib/db/profiles";
 import { isWaveSaved } from "@/lib/db/saves";
 import { getWaveById } from "@/lib/db/waves";
@@ -111,7 +112,7 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
     },
     creationType: wave.creationType,
     audioAssetId: asset.id,
-    peaks: asset.peaks?.data ?? [],
+    peaks: resolveWavePeaks(asset.peaks?.data, asset.id),
     duration: asset.durationMs ? asset.durationMs / 1000 : undefined,
     metrics: {
       plays: wave.counts.plays,

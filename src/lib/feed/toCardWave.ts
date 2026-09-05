@@ -8,6 +8,7 @@
  */
 
 import type { WaveCardContainerWave, WaveCardPerson } from "@/components/wave";
+import { resolveWavePeaks } from "@/lib/audio/peaks";
 import type { AudioAsset, Collaborator, Profile, Wave } from "@/types/domain";
 
 export interface ToCardWaveOptions {
@@ -54,7 +55,7 @@ export function toCardWave(
     collaborators,
     creationType: wave.creationType,
     audioAssetId: asset.id,
-    peaks: asset.peaks?.data ?? [],
+    peaks: resolveWavePeaks(asset.peaks?.data, asset.id),
     duration: asset.durationMs ? asset.durationMs / 1000 : undefined,
     metrics: {
       plays: wave.counts.plays,

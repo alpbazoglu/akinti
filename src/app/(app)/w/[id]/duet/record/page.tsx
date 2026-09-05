@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui";
 import { DuetRecorder } from "@/components/duet";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
 import { getDuetRequestById } from "@/lib/db/duetRequests";
+import { resolveWavePeaks } from "@/lib/audio/peaks";
 import { getProfileById } from "@/lib/db/profiles";
 import { getWaveById } from "@/lib/db/waves";
 import { requireUser } from "@/lib/auth/server";
@@ -100,7 +101,7 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
           originalAssetId={original.id}
           originalTitle={originalWave.title}
           originalCreatorUsername={creator?.username ?? "unknown"}
-          originalPeaks={original.peaks?.data ?? []}
+          originalPeaks={resolveWavePeaks(original.peaks?.data, original.id)}
           originalDurationMs={original.durationMs ?? 0}
         />
       </div>

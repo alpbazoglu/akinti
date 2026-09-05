@@ -7,6 +7,7 @@ import { Badge, EmptyState } from "@/components/ui";
 import { WaveCardContainer, type WaveCardContainerWave } from "@/components/wave";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
 import { getProfileById, getProfilesByIds } from "@/lib/db/profiles";
+import { resolveWavePeaks } from "@/lib/audio/peaks";
 import { isWaveSaved } from "@/lib/db/saves";
 import {
   getWaveById,
@@ -138,7 +139,7 @@ export default async function WavePage({ params }: WavePageProps) {
     collaborators: acceptedCollaboratorPeople,
     creationType: wave.creationType,
     audioAssetId: asset.id,
-    peaks: asset.peaks?.data ?? [],
+    peaks: resolveWavePeaks(asset.peaks?.data, asset.id),
     duration: asset.durationMs ? asset.durationMs / 1000 : undefined,
     metrics: {
       plays: wave.counts.plays,
