@@ -66,8 +66,6 @@ interface CapturedAudio {
   readonly sourceFileName: string | null;
 }
 
-const FALLBACK_PEAKS = (buckets: number): readonly number[] => new Array(buckets).fill(0.2);
-
 /** From `?challenge=<slug>` (spec §4, `docs/CHALLENGES.md`), already resolved server-side by `page.tsx`. */
 export interface CreateFlowChallenge {
   readonly id: string;
@@ -143,7 +141,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
     setReviewPeaks(null);
     void decodeToPeaks(take.blob, REVIEW_PEAK_BUCKETS)
       .then(setReviewPeaks)
-      .catch(() => setReviewPeaks(FALLBACK_PEAKS(REVIEW_PEAK_BUCKETS)));
+      .catch(() => setReviewPeaks([]));
     setStep("review");
   }, []);
 
@@ -160,7 +158,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
     setEnhancePeaks(null);
     void decodeToPeaks(file, REVIEW_PEAK_BUCKETS)
       .then(setEnhancePeaks)
-      .catch(() => setEnhancePeaks(FALLBACK_PEAKS(REVIEW_PEAK_BUCKETS)));
+      .catch(() => setEnhancePeaks([]));
     setStep("enhance");
   }, []);
 
@@ -180,9 +178,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
         sourceFileName: take.sourceFileName,
       };
       setCaptured(next);
-      const peaks = await decodeToPeaks(next.blob, REVIEW_PEAK_BUCKETS).catch(() =>
-        FALLBACK_PEAKS(REVIEW_PEAK_BUCKETS),
-      );
+      const peaks = await decodeToPeaks(next.blob, REVIEW_PEAK_BUCKETS).catch(() => []);
       setEnhancePeaks(peaks);
       setStep("enhance");
     })();
@@ -193,7 +189,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
     if (!take) return;
     void decodeToPeaks(take.blob, STRIP_PEAK_BUCKETS)
       .then(setStripPeaks)
-      .catch(() => setStripPeaks(FALLBACK_PEAKS(STRIP_PEAK_BUCKETS)))
+      .catch(() => setStripPeaks([]))
       .finally(() => setStep("details"));
   }, [captured]);
 

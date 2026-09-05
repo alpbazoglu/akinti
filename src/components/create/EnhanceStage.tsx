@@ -115,6 +115,9 @@ export function EnhanceStage({
   }, []);
 
   const trace = mode === "polished" && polishedPeaks ? polishedPeaks : peaks;
+  // A real decode failure, never a fake shape (DESIGN.md §12.32): the trace
+  // goes dormant instead of drawing invented amplitudes.
+  const tracePrepared = trace.length > 0;
 
   return (
     <section className={cn("flex flex-col gap-6", className)}>
@@ -128,12 +131,18 @@ export function EnhanceStage({
         <Waveform
           peaks={trace}
           height={56}
-          state="unplayed"
+          state={tracePrepared ? "unplayed" : "dormant"}
           readOnly
           fullBleed
           label={mode === "polished" ? "Your take, polished" : "Your take, as recorded"}
         />
       </div>
+      {!tracePrepared ? (
+        <p className="type-body-sm measure text-ink-muted">
+          We couldn&apos;t prepare a trace for this take. It is still there — the sound underneath
+          this screen is real, only the picture of it is missing.
+        </p>
+      ) : null}
 
       <EnhancementPicker
         blob={blob}

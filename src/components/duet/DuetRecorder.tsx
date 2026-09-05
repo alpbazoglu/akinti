@@ -50,8 +50,6 @@ import { publishDuetWave } from "@/app/(app)/create/duetActions";
 import { AtismaTurnRecorder } from "./AtismaTurnRecorder";
 import { DuetModePicker } from "./DuetModePicker";
 
-const FALLBACK_PEAKS = new Array(REVIEW_PEAK_BUCKETS).fill(0.2) as number[];
-
 type Stage = "mode" | "capture" | "review" | "enhance" | "details";
 
 interface WorkingTake {
@@ -132,7 +130,7 @@ export function DuetRecorder({
     setReviewPeaks(null);
     void decodeToPeaks(captured.blob, REVIEW_PEAK_BUCKETS)
       .then(setReviewPeaks)
-      .catch(() => setReviewPeaks(FALLBACK_PEAKS));
+      .catch(() => setReviewPeaks([]));
     setStage("review");
   };
 
@@ -143,7 +141,7 @@ export function DuetRecorder({
     setEnhancePeaks(null);
     void decodeToPeaks(result.blob, REVIEW_PEAK_BUCKETS)
       .then(setEnhancePeaks)
-      .catch(() => setEnhancePeaks(FALLBACK_PEAKS));
+      .catch(() => setEnhancePeaks([]));
     // An atışma take is already an exact sequence of turns — trimming it would
     // desynchronize it from the `segments` array, so it skips straight to Enhance.
     setStage("enhance");
@@ -158,7 +156,7 @@ export function DuetRecorder({
         // relative to the original by exactly the amount cut.
         setOffsetMs((current) => current + trimRange.startMs);
         setTake({ blob: trimmed.blob, mimeType: trimmed.mimeType, durationMs: trimmed.durationMs });
-        return decodeToPeaks(trimmed.blob, REVIEW_PEAK_BUCKETS).catch(() => FALLBACK_PEAKS);
+        return decodeToPeaks(trimmed.blob, REVIEW_PEAK_BUCKETS).catch(() => []);
       })
       .then((peaks) => {
         setEnhancePeaks(peaks);

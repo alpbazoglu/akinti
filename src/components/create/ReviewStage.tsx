@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo } from "react";
 
+import { Waveform } from "@/components/audio";
 import { Button, IconButton } from "@/components/ui";
 import { Pause, Play, SkipBack, SkipForward } from "@/components/ui/icons";
 import {
@@ -73,19 +74,40 @@ export function ReviewStage({
   const duration = playback.duration || durationMs / 1000;
   const progress = duration > 0 ? playback.currentTime / duration : 0;
   const trimmed = isTrimmed(range, durationMs);
+  // A real decode failure, not a placeholder: never invent a shape for the
+  // trace, and never let the singer trim blind against amplitudes that are
+  // not their own recording (DESIGN.md §12.32).
+  const tracePrepared = peaks.length > 0;
 
   return (
     <section className={cn("flex flex-col gap-6", className)}>
       <div className="-mx-page">
-        <TrimTrace
-          peaks={peaks}
-          durationMs={durationMs}
-          range={range}
-          onRangeChange={onRangeChange}
-          progress={progress}
-          onSeek={seekToRatio}
-        />
+        {tracePrepared ? (
+          <TrimTrace
+            peaks={peaks}
+            durationMs={durationMs}
+            range={range}
+            onRangeChange={onRangeChange}
+            progress={progress}
+            onSeek={seekToRatio}
+          />
+        ) : (
+          <Waveform
+            peaks={[]}
+            state="dormant"
+            height={96}
+            readOnly
+            fullBleed
+            label="Trace not available"
+          />
+        )}
       </div>
+      {!tracePrepared ? (
+        <p className="type-body-sm measure text-ink-muted">
+          We couldn&apos;t prepare a trace for this take, so trimming is off for now. Continue
+          with the whole recording, or record it again.
+        </p>
+      ) : null}
 
       <div className="type-mono-sm flex items-center justify-between text-ink-subtle">
         <span>{formatDuration(playback.isActive ? playback.currentTime : 0)}</span>
@@ -125,21 +147,23 @@ export function ReviewStage({
         />
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-hairline pt-4">
-        <div className="flex items-baseline justify-between gap-4">
-          <p className="type-caption-strong text-ink-muted">Trim</p>
-          {trimmed ? (
-            <Button variant="ghost" size="xs" onClick={() => onRangeChange(fullRange(durationMs))}>
-              Use the whole take
-            </Button>
-          ) : null}
+      {tracePrepared ? (
+        <div className="flex flex-col gap-2 border-t border-hairline pt-4">
+          <div className="flex items-baseline justify-between gap-4">
+            <p className="type-caption-strong text-ink-muted">Trim</p>
+            {trimmed ? (
+              <Button variant="ghost" size="xs" onClick={() => onRangeChange(fullRange(durationMs))}>
+                Use the whole take
+              </Button>
+            ) : null}
+          </div>
+          <div className="type-mono-sm flex items-center justify-between text-ink-subtle">
+            <span>{formatDuration(range.startMs / 1000)}</span>
+            <span className="text-ink">{formatDuration(trimmedDurationMs(range) / 1000)}</span>
+            <span>{formatDuration(range.endMs / 1000)}</span>
+          </div>
         </div>
-        <div className="type-mono-sm flex items-center justify-between text-ink-subtle">
-          <span>{formatDuration(range.startMs / 1000)}</span>
-          <span className="text-ink">{formatDuration(trimmedDurationMs(range) / 1000)}</span>
-          <span>{formatDuration(range.endMs / 1000)}</span>
-        </div>
-      </div>
+      ) : null}
 
       {interrupted ? (
         <p className="type-body-sm measure text-ink-muted">
