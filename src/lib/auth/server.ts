@@ -1,5 +1,6 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { routes } from "@/config/routes";
 import { getProfileById } from "@/lib/db/profiles";
@@ -26,22 +27,29 @@ import type { Profile } from "@/types/domain";
  * server — never use this for an authorization decision. Good for "does a
  * session cookie exist at all" checks where being wrong isn't a security bug
  * (e.g. deciding whether to render a skeleton while the real check resolves).
+ *
+ * `React.cache()` (here and on every export below) memoizes per request:
+ * the root layout and every protected page call into this module on the
+ * same request, and without it each of those calls re-hit the Supabase auth
+ * server independently (`docs/qa/perf2/WATERFALL.md`) even though the answer
+ * cannot change mid-request. This only dedupes within one render pass — it
+ * is not a cross-request cache, and it never widens what a caller can see.
  */
-export async function getSession(): Promise<Session | null> {
+export const getSession = cache(async (): Promise<Session | null> => {
   if (!isSupabaseConfigured()) {
     return null;
   }
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getSession();
   return data.session;
-}
+});
 
 /**
  * The signed-in user, verified against the auth server. `null` when signed
  * out, and also `null` (rather than throwing) when Supabase is not
  * configured — every caller degrades to the signed-out UI, never a crash.
  */
-export async function getCurrentUser(): Promise<User | null> {
+export const getCurrentUser = cache(async (): Promise<User | null> => {
   if (!isSupabaseConfigured()) {
     return null;
   }
@@ -51,41 +59,39 @@ export async function getCurrentUser(): Promise<User | null> {
     return null;
   }
   return data.user;
-}
-
-/** The signed-in user's profile row, mapped to the domain `Profile` shape. `null` when signed out. */
-export async function getCurrentProfile(): Promise<Profile | null> {
-  if (!isSupabaseConfigured()) {
-    return null;
-  }
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) {
-    return null;
-  }
-  return getProfileById(supabase, data.user.id);
-}
+});
 
 /**
- * `getCurrentUser` + `getCurrentProfile` in a single request: one client, one
- * `getUser()` round trip. Used by the root layout to hydrate `AuthProvider`
- * without doubling the auth-server call every request makes anyway.
+ * The signed-in user's profile row, mapped to the domain `Profile` shape.
+ * `null` when signed out. Built on the cached `getCurrentUser` above rather
+ * than its own `auth.getUser()` call, so it shares that call's memoized
+ * result with every other caller on the same request.
  */
-export async function getCurrentUserWithProfile(): Promise<{
-  user: User | null;
-  profile: Profile | null;
-}> {
-  if (!isSupabaseConfigured()) {
-    return { user: null, profile: null };
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
+  const user = await getCurrentUser();
+  if (!user) {
+    return null;
   }
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) {
+  return getProfileById(supabase, user.id);
+});
+
+/**
+ * `getCurrentUser` + `getCurrentProfile` in a single call, both already
+ * request-memoized above. Used by the root layout to hydrate `AuthProvider`
+ * without doubling the auth-server call every request makes anyway.
+ */
+export const getCurrentUserWithProfile = cache(async (): Promise<{
+  user: User | null;
+  profile: Profile | null;
+}> => {
+  const user = await getCurrentUser();
+  if (!user) {
     return { user: null, profile: null };
   }
-  const profile = await getProfileById(supabase, data.user.id);
-  return { user: data.user, profile };
-}
+  const profile = await getCurrentProfile();
+  return { user, profile };
+});
 
 /**
  * True when `profiles.suspended_until` (migration 23) is set to a moment
