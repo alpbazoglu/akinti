@@ -25,15 +25,28 @@ function getAudioContextCtor(): typeof AudioContext | null {
   );
 }
 
-async function decodeBlob(blob: Blob): Promise<AudioBuffer> {
+/**
+ * Decode every turn's take through one shared `AudioContext`, sequentially,
+ * closing it once every take has decoded. `MAX_TURNS` is 8: decoding through
+ * `Promise.all` with a fresh context per take (the previous implementation)
+ * opened up to 8 concurrent `AudioContext`s, and WebKit has historically
+ * capped concurrent contexts at 4 and thrown past the limit — landing an
+ * 8-turn atışma on the "couldn't be put together" dead end on exactly the
+ * platform the WAV fallback recorder exists for (review2 #6).
+ */
+async function decodeSequentially(blobs: readonly Blob[]): Promise<AudioBuffer[]> {
   const Ctor = getAudioContextCtor();
   if (!Ctor) {
     throw new Error("The Web Audio API is not available in this browser.");
   }
   const context = new Ctor();
   try {
-    const arrayBuffer = await blob.arrayBuffer();
-    return await context.decodeAudioData(arrayBuffer);
+    const buffers: AudioBuffer[] = [];
+    for (const blob of blobs) {
+      const arrayBuffer = await blob.arrayBuffer();
+      buffers.push(await context.decodeAudioData(arrayBuffer));
+    }
+    return buffers;
   } finally {
     try {
       await context.close();
@@ -45,7 +58,9 @@ async function decodeBlob(blob: Blob): Promise<AudioBuffer> {
 
 export interface AtismaTurnTake {
   readonly blob: Blob;
-  /** Wall-clock duration as reported by the recorder — the timeline this take is scheduled on below, not `buffer.length` after resampling. */
+  /** Wall-clock duration as reported by the recorder. Kept for the caller's
+   * own bookkeeping only — `concatenateAtismaTurns` schedules every take on
+   * its own decoded `AudioBuffer.duration`, not on this value. */
   readonly durationMs: number;
 }
 
@@ -69,14 +84,19 @@ export async function concatenateAtismaTurns(takes: readonly AtismaTurnTake[]): 
     throw new Error("No turns were recorded.");
   }
 
-  const buffers = await Promise.all(takes.map((take) => decodeBlob(take.blob)));
+  const buffers = await decodeSequentially(takes.map((take) => take.blob));
   const sampleRate = buffers[0]!.sampleRate;
 
+  // Ranges are built from each buffer's own decoded duration, not the
+  // recorder's reported `durationMs`: the worker trims every later
+  // contribution on exactly these boundaries (`DUET_SPEC.md` §atisma), and
+  // any drift between the reported and the actually-rendered duration would
+  // shift every turn's window after the first (review2 #7).
   const ranges: { startMs: number; endMs: number }[] = [];
   let cursorMs = 0;
-  for (const take of takes) {
+  for (const buffer of buffers) {
     const startMs = Math.round(cursorMs);
-    const endMs = Math.round(cursorMs + take.durationMs);
+    const endMs = Math.round(cursorMs + buffer.duration * 1000);
     ranges.push({ startMs, endMs });
     cursorMs = endMs;
   }
