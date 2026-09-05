@@ -39,6 +39,11 @@ yarn-error.log*
 # supabase CLI local cache
 /supabase/.temp/
 
+# Python sidecar (sidecar/README.md) — local venv and caches, never committed
+/sidecar/.venv/
+/sidecar/**/__pycache__/
+/sidecar/.pytest_cache/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

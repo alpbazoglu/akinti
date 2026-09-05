@@ -1,0 +1,35 @@
+# AKINTI audio sidecar — FastAPI service (see sidecar/README.md).
+#
+# Pinned to what was actually verified installable/working on this machine
+# (Windows, Python 3.12, no Rust toolchain) on 2026-09-05 — see the "What
+# works on this machine" table in sidecar/README.md. `deepfilternet` is
+# listed because the code path exists and is correct against its documented
+# API (sidecar/app/dsp.py `_clean_with_deepfilternet`), but installing it
+# here requires Cargo/Rust to build `deepfilterlib`'s native extension; on a
+# Linux CI/prod image with a Rust toolchain (or a prebuilt wheel) it installs
+# cleanly and /health flips `capabilities.deepfilternet` to true automatically
+# with no code change. Torch/torchcrepe/pyworld/Demucs from the exploratory
+# docs/research/libraries.md proposal are intentionally NOT included — none
+# of the four required endpoints (/clean, /master, /pitch-score, /peaks) uses
+# them; pYIN alone (librosa) implements /pitch-score.
+
+fastapi>=0.115
+uvicorn[standard]>=0.32
+python-multipart>=0.0.9
+
+librosa>=0.10          # pYIN pitch scoring, key detection, peak extraction
+soundfile>=0.12        # audio I/O for /peaks
+numpy>=1.26
+scipy>=1.11
+
+matchering>=2.0.6       # GPL-3.0 — isolated to this process, HTTP-only (see README "GPL isolation")
+
+# DeepFilterNet3 — optional. Falls back to ffmpeg `arnndn` (bundled model at
+# sidecar/models/rnnoise.rnnn) when this cannot be installed; /health reports
+# which one is actually active. Requires a Rust toolchain to build from
+# source on platforms without a prebuilt wheel.
+deepfilternet>=0.5.6
+
+# Test/dev only
+pytest>=8.0
+httpx>=0.27

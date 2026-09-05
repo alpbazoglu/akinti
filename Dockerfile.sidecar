@@ -1,0 +1,38 @@
+# AKINTI audio sidecar container (sidecar/, see sidecar/README.md).
+#
+# Separate image from Dockerfile.worker on purpose: this is a Python/FastAPI
+# process, called over local HTTP by scripts/worker.ts, never imported into
+# it -- Matchering (sidecar/requirements.txt) is GPL-3.0 and must stay
+# isolated in its own process (see sidecar/README.md "Why a separate process
+# (GPL isolation)").
+#
+# Includes a Rust toolchain so `deepfilternet` (deepfilterlib's native
+# extension) has a real chance to build here even on platforms with no
+# prebuilt wheel -- unlike the Windows dev machine this was built on (see
+# sidecar/README.md "What actually works on this machine"), where it does
+# not install. ffmpeg is still required for the arnndn fallback and loudness
+# measurement, exactly like the worker image.
+FROM python:3.12-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg curl build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Rust toolchain for deepfilterlib's native extension. If this ever becomes
+# unnecessary (a prebuilt wheel ships for this platform), removing it changes
+# nothing about correctness -- `capabilities.py` probes the import at runtime
+# either way and `/clean` falls back to `arnndn` automatically if it fails.
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /app
+
+COPY sidecar/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY sidecar/app ./app
+COPY sidecar/models ./models
+COPY sidecar/reference ./reference
+
+EXPOSE 8011
+ENTRYPOINT ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8011"]
