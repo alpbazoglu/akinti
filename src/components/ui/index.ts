@@ -1,3 +1,5 @@
+import dynamic from "next/dynamic";
+
 export { Avatar, type AvatarProps, type AvatarSize } from "./Avatar";
 export {
   Badge,
@@ -29,7 +31,20 @@ export {
   type RecordKeyState,
 } from "./RecordKey";
 export { Select, type SelectOption, type SelectProps } from "./Select";
-export { Sheet, type SheetProps } from "./Sheet";
+/**
+ * `vaul` (the sheet's drag/focus-trap engine) is a ~90KB dependency that,
+ * imported statically here, lands in every route that imports anything else
+ * from this barrel (`docs/qa/waveE-perf/ANALYSIS.md`) — including routes
+ * that never render a Sheet, since Turbopack co-locates it with the rest of
+ * this shared module graph. `next/dynamic` gives it its own chunk, fetched
+ * only once a Sheet-rendering component actually mounts. `ssr: false` would
+ * be preferable (every real Sheet is closed until a user gesture opens it,
+ * so there is nothing to lose server-rendering it) but this barrel is also
+ * reachable from Server Components, and Next 16 rejects `ssr: false` there;
+ * the default `ssr: true` still gets the client-side code-split this is for.
+ */
+export const Sheet = dynamic(() => import("./Sheet").then((mod) => mod.Sheet));
+export type { SheetProps } from "./Sheet";
 export { Skeleton, type SkeletonProps, type SkeletonShape } from "./Skeleton";
 export { Spinner, type SpinnerProps, type SpinnerSize } from "./Spinner";
 export { Switch, type SwitchProps } from "./Switch";
