@@ -6,41 +6,48 @@ import { usePathname } from "next/navigation";
 import { isActiveRoute, routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
-import { useUnreadNotifications } from "@/lib/notifications";
+import { useUnreadMessages } from "@/lib/messages";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
 
-import { BOTTOM_NAV_ITEMS } from "./navItems";
+import { KEYBOARD_ITEMS } from "./navItems";
 
 export interface BottomNavProps {
-  /** Unread counts keyed by nav item, e.g. `{ notifications: 3 }`. Overrides
-   * the live notifications badge when the `notifications` key is provided. */
+  /** Unread counts keyed by nav item, e.g. `{ messages: 3 }`. Overrides the
+   * live Messages badge when the `messages` key is provided. */
   badges?: Partial<Record<string, number>>;
   className?: string;
 }
 
 /**
- * Mobile primary navigation (spec section 7). Create sits in the middle as an
- * elevated action rather than a flat tab. Messages is not here; it lives in the
- * top bar with an unread badge and in the desktop rail.
+ * The keyboard (§8.1).
+ *
+ * 64px plus safe area, five keys, labels always visible at `micro`, icons at
+ * 24px. Active is a **filled** glyph plus full ink — not a colour change, not a
+ * pill behind it, not an underline, not a glow. A hairline on the top edge, no
+ * shadow, no blur, no translucency.
+ *
+ * The Record key is an ink squircle carrying a Signal lamp, sitting on the bar
+ * like every other key. The previous build's raised teal circle was the
+ * loudest generic signal in the app (§12.4).
  */
 export function BottomNav({ badges, className }: BottomNavProps) {
   const pathname = usePathname();
   const { profile } = useCurrentUser();
-  const { count: unreadNotifications } = useUnreadNotifications(profile?.id ?? null);
+  const { count: unreadMessages } = useUnreadMessages(profile?.id ?? null);
 
   return (
     <nav
       aria-label="Primary"
       className={cn(
-        "akinti-safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface md:hidden",
+        "akinti-safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-paper md:hidden",
         className,
       )}
     >
-      <ul className="flex h-[var(--akinti-bottom-nav-h)] items-stretch">
-        {BOTTOM_NAV_ITEMS.map((item) => {
-          // Same resolution as `SideNav`: the nav item table has no notion of
-          // who's signed in, so the real "Profile" destination is decided here.
+      <ul className="flex h-keyboard items-stretch">
+        {KEYBOARD_ITEMS.map((item) => {
+          // The nav table has no notion of who is signed in, so the real
+          // "You" destination is decided here.
           const href =
             item.key === "profile"
               ? profile
@@ -48,31 +55,28 @@ export function BottomNav({ badges, className }: BottomNavProps) {
                 : routes.login(pathname)
               : item.href;
           const active = isActiveRoute(pathname, href);
-          const Icon = item.icon;
-          const badge =
-            badges?.[item.key] ?? (item.key === "notifications" ? unreadNotifications : 0);
+          const badge = badges?.[item.key] ?? (item.key === "messages" ? unreadMessages : 0);
 
-          if (item.emphasis) {
+          if (item.record) {
             return (
               <li key={item.key} className="flex flex-1 items-center justify-center">
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
+                  aria-label={`${TERMS.record} ${TERMS.aWave}`}
                   className={cn(
-                    "-mt-5 inline-flex size-14 items-center justify-center rounded-full",
-                    "bg-accent text-fg-on-accent shadow-md transition-colors",
-                    "hover:bg-accent-hover",
-                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                    "akinti-press inline-flex size-11 items-center justify-center rounded-[13px] bg-ink",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
                   )}
                 >
-                  <Icon className="size-6" aria-hidden="true" />
-                  <span className="sr-only">
-                    {TERMS.create} {TERMS.aWave}
-                  </span>
+                  {/* The lamp is the dot, not the key (§8.5). */}
+                  <span aria-hidden="true" className="size-3.5 rounded-full bg-signal" />
                 </Link>
               </li>
             );
           }
+
+          const Icon = item.icon;
 
           return (
             <li key={item.key} className="flex-1">
@@ -80,23 +84,25 @@ export function BottomNav({ badges, className }: BottomNavProps) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex h-full flex-col items-center justify-center gap-1",
-                  "text-[0.6875rem] font-medium transition-colors",
-                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
-                  active ? "text-accent" : "text-fg-subtle hover:text-fg",
+                  "akinti-press relative flex h-full flex-col items-center justify-center gap-1",
+                  "type-micro transition-colors duration-[--dur-micro]",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+                  active ? "text-ink" : "text-ink-subtle hover:text-ink-muted",
                 )}
               >
                 <span className="relative inline-flex">
-                  <Icon
-                    className="size-5"
-                    aria-hidden="true"
-                    strokeWidth={active ? 2.25 : 1.75}
-                  />
+                  {Icon ? (
+                    <Icon
+                      className="size-6"
+                      aria-hidden="true"
+                      weight={active ? "fill" : "regular"}
+                    />
+                  ) : null}
                   {badge > 0 ? (
                     <CountBadge
                       count={badge}
                       label={`unread ${item.label.toLowerCase()}`}
-                      className="absolute -top-1.5 -right-2"
+                      className="absolute -top-1.5 -right-2.5"
                     />
                   ) : null}
                 </span>

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AudioLines, Plus, Settings } from "lucide-react";
 
 import { isActiveRoute, routes } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
@@ -11,20 +10,23 @@ import { useUnreadMessages } from "@/lib/messages";
 import { useUnreadNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
+import { Bell, Settings } from "@/components/ui/icons";
 
-import { SIDE_NAV_ITEMS } from "./navItems";
+import { RAIL_ITEMS } from "./navItems";
 import { UserMenu } from "./UserMenu";
 
 export interface SideNavProps {
-  /** Unread counts keyed by nav item, e.g. `{ messages: 2 }`. Overrides the
-   * live notifications badge when the `notifications` key is provided. */
+  /** Unread counts keyed by nav item, e.g. `{ messages: 2 }`. */
   badges?: Partial<Record<string, number>>;
   className?: string;
 }
 
 /**
- * Desktop navigation rail (spec section 7). Messages gets its own item here,
- * and Create is a full-width action rather than one icon among five.
+ * The desktop adaptation of the keyboard (§8.1, SCREENS.md).
+ *
+ * At 768px the bar becomes a 72px icon rail; at 1024px a 200px labelled rail.
+ * Same five destinations, same filled-glyph active state, same left-hung
+ * alignment — the rail is the layout at every width (§5.4, §12.42).
  */
 export function SideNav({ badges, className }: SideNavProps) {
   const pathname = usePathname();
@@ -32,27 +34,31 @@ export function SideNav({ badges, className }: SideNavProps) {
   const { count: unreadNotifications } = useUnreadNotifications(profile?.id ?? null);
   const { count: unreadMessages } = useUnreadMessages(profile?.id ?? null);
 
+  const railLink = cn(
+    "akinti-press flex h-12 items-center gap-4 rounded-key px-3 transition-colors",
+    "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+  );
+
   return (
     <div
       className={cn(
-        "sticky top-0 hidden h-dvh shrink-0 flex-col gap-6 border-r border-border",
-        "w-[var(--akinti-side-nav-w)] px-4 py-5 md:flex",
+        "sticky top-0 hidden h-dvh shrink-0 flex-col gap-6 border-r border-hairline",
+        "w-18 px-3 py-5 md:flex lg:w-50 lg:px-4",
         className,
       )}
     >
       <Link
         href={routes.home()}
-        className="inline-flex items-center gap-2 rounded-md px-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="inline-flex h-11 items-center px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
-        <AudioLines className="size-5 text-accent" aria-hidden="true" />
-        <span className="text-base font-semibold tracking-[0.14em] text-fg">{BRAND}</span>
+        {/* The wordmark is the word, so it appears only where the word fits:
+            the 72px icon rail carries navigation, not a monogram (§8.2). */}
+        <span className="type-wordmark text-ink max-lg:sr-only">{BRAND}</span>
       </Link>
 
       <nav aria-label="Primary" className="flex-1">
-        <ul className="flex flex-col gap-0.5">
-          {SIDE_NAV_ITEMS.map((item) => {
-            // The nav item table has no way to know who's signed in — resolve
-            // the real destination here instead of leaving the "me" placeholder.
+        <ul className="flex flex-col gap-1">
+          {RAIL_ITEMS.map((item) => {
             const href =
               item.key === "profile"
                 ? profile
@@ -61,12 +67,7 @@ export function SideNav({ badges, className }: SideNavProps) {
                 : item.href;
             const active = isActiveRoute(pathname, href);
             const Icon = item.icon;
-            const liveBadge =
-              item.key === "notifications"
-                ? unreadNotifications
-                : item.key === "messages"
-                  ? unreadMessages
-                  : 0;
+            const liveBadge = item.key === "messages" ? unreadMessages : 0;
             const badge = badges?.[item.key] ?? liveBadge;
 
             return (
@@ -75,51 +76,119 @@ export function SideNav({ badges, className }: SideNavProps) {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
-                    "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
-                    active
-                      ? "bg-accent-soft font-semibold text-accent-soft-fg"
-                      : "font-medium text-fg-muted hover:bg-surface-muted hover:text-fg",
+                    railLink,
+                    active ? "text-ink" : "text-ink-muted hover:text-ink",
                   )}
                 >
-                  <Icon className="size-5 shrink-0" aria-hidden="true" />
-                  <span className="flex-1 truncate">{item.label}</span>
+                  <span className="relative inline-flex shrink-0">
+                    {Icon ? (
+                      <Icon
+                        className="size-6"
+                        aria-hidden="true"
+                        weight={active ? "fill" : "regular"}
+                      />
+                    ) : null}
+                    {badge > 0 ? (
+                      <CountBadge
+                        count={badge}
+                        label={`unread ${item.label.toLowerCase()}`}
+                        className="absolute -top-1.5 -right-2.5 lg:hidden"
+                      />
+                    ) : null}
+                  </span>
+                  <span className="type-subhead flex-1 truncate max-lg:sr-only">
+                    {item.label}
+                  </span>
                   {badge > 0 ? (
-                    <CountBadge count={badge} label={`unread ${item.label.toLowerCase()}`} />
+                    <CountBadge
+                      count={badge}
+                      label={`unread ${item.label.toLowerCase()}`}
+                      className="max-lg:hidden"
+                    />
                   ) : null}
                 </Link>
               </li>
             );
           })}
+
+          <li>
+            <Link
+              href={routes.notifications()}
+              aria-current={
+                isActiveRoute(pathname, routes.notifications()) ? "page" : undefined
+              }
+              className={cn(
+                railLink,
+                isActiveRoute(pathname, routes.notifications())
+                  ? "text-ink"
+                  : "text-ink-muted hover:text-ink",
+              )}
+            >
+              <span className="relative inline-flex shrink-0">
+                <Bell
+                  className="size-6"
+                  aria-hidden="true"
+                  weight={
+                    isActiveRoute(pathname, routes.notifications()) ? "fill" : "regular"
+                  }
+                />
+                {unreadNotifications > 0 ? (
+                  <CountBadge
+                    count={unreadNotifications}
+                    label="unread notifications"
+                    className="absolute -top-1.5 -right-2.5 lg:hidden"
+                  />
+                ) : null}
+              </span>
+              <span className="type-subhead flex-1 truncate max-lg:sr-only">
+                {TERMS.notifications}
+              </span>
+              {unreadNotifications > 0 ? (
+                <CountBadge
+                  count={unreadNotifications}
+                  label="unread notifications"
+                  className="max-lg:hidden"
+                />
+              ) : null}
+            </Link>
+          </li>
         </ul>
       </nav>
 
-      <div className="flex flex-col gap-2">
-        <UserMenu className="mb-1 self-start" />
+      <div className="flex flex-col gap-3">
+        <UserMenu className="self-start" />
+
+        {/* Record is the one key on this rail: an ink key, never a pill. */}
         <Link
           href={routes.create()}
+          aria-label={`${TERMS.record} ${TERMS.aWave}`}
           className={cn(
-            "inline-flex h-12 w-full items-center justify-center gap-2 rounded-full",
-            "bg-accent text-base font-medium text-fg-on-accent shadow-xs transition-colors",
-            "hover:bg-accent-hover active:bg-accent-active",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "akinti-press inline-flex h-12 items-center justify-center gap-3 rounded-key bg-ink",
+            "type-subhead text-on-ink transition-colors",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
           )}
         >
-          <Plus className="size-5" aria-hidden="true" />
-          {TERMS.create}
+          <span aria-hidden="true" className="size-3.5 shrink-0 rounded-full bg-signal" />
+          <span aria-hidden="true" className="max-lg:hidden">
+            {TERMS.record}
+          </span>
         </Link>
+
         <Link
           href={routes.settings()}
           className={cn(
-            "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-            "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+            railLink,
             isActiveRoute(pathname, routes.settings())
-              ? "bg-accent-soft text-accent-soft-fg"
-              : "text-fg-muted hover:bg-surface-muted hover:text-fg",
+              ? "text-ink"
+              : "text-ink-muted hover:text-ink",
           )}
         >
-          <Settings className="size-5 shrink-0" aria-hidden="true" />
-          {TERMS.settings}
+          <Settings
+            className="size-6 shrink-0"
+            aria-hidden="true"
+            weight={isActiveRoute(pathname, routes.settings()) ? "fill" : "regular"}
+          />
+          <span className="type-subhead max-lg:sr-only">{TERMS.settings}</span>
         </Link>
       </div>
     </div>

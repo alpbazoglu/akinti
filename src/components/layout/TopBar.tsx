@@ -2,28 +2,19 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AudioLines, Bell, MessageCircle, Search } from "lucide-react";
 
 import { routes } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
-import { useUnreadMessages } from "@/lib/messages";
 import { useUnreadNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/ui";
 import { CountBadge } from "@/components/ui";
+import { Bell, Search } from "@/components/ui/icons";
 
 import { UserMenu } from "./UserMenu";
 
 export interface TopBarProps {
-  /** Page title. Falls back to the wordmark when omitted. */
-  title?: string;
-  /** Unread Messages count. Defaults to the live count when omitted — Messages
-   * is not in the mobile bottom bar, so this badge is its main visibility
-   * (spec §7). */
-  unreadMessages?: number;
-  /** Unread notifications count. Defaults to the live count when omitted —
-   * Bottom Nav already carries a Notifications tab, so this exists mainly for
-   * surfaces that render `TopBar` without `BottomNav`. */
+  /** Unread notifications count. Defaults to the live count when omitted. */
   unreadNotifications?: number;
   /** Extra trailing controls, e.g. an overflow menu. */
   actions?: ReactNode;
@@ -33,12 +24,20 @@ export interface TopBarProps {
 }
 
 /**
- * Mobile header. Keeps Messages one tap away with an unread badge, as
- * required by spec section 7 since it is not one of the five bottom slots.
+ * The top bar (§8.2).
+ *
+ * 56px, carrying the wordmark and up to three 24px icon controls. A screen has
+ * at most two bars, never three, and the page title is **not** one of them: it
+ * is a 32px `display` heading that lives in the content and scrolls away
+ * (§12.9). There is no title-plus-subtitle block stamped on every screen.
+ *
+ * The wordmark is the word. `AKINTI` set in Archivo at `wdth 118`, weight 500,
+ * 15px, +8% tracking, in ink. There is no accompanying vertical-bars glyph: an
+ * abstract waveform mark reads as "some audio thing", not as an identity, and
+ * it collides with the rule that a waveform is a display and never an icon
+ * (§6.4, §12.8).
  */
 export function TopBar({
-  title,
-  unreadMessages,
   unreadNotifications,
   actions,
   showSearch = true,
@@ -46,31 +45,22 @@ export function TopBar({
 }: TopBarProps) {
   const { profile } = useCurrentUser();
   const { count: liveUnreadNotifications } = useUnreadNotifications(profile?.id ?? null);
-  const { count: liveUnreadMessages } = useUnreadMessages(profile?.id ?? null);
   const notificationsBadge = unreadNotifications ?? liveUnreadNotifications;
-  const messagesBadge = unreadMessages ?? liveUnreadMessages;
 
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 flex h-[var(--akinti-top-bar-h)] items-center gap-2",
-        "border-b border-border bg-surface px-4 md:hidden",
+        "akinti-page akinti-safe-top sticky top-0 z-20 flex h-top-bar items-center gap-2",
+        "border-b border-hairline bg-paper md:hidden",
         className,
       )}
     >
-      {title ? (
-        <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-fg">{title}</h1>
-      ) : (
-        <Link
-          href={routes.home()}
-          className="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          <AudioLines className="size-5 shrink-0 text-accent" aria-hidden="true" />
-          <span className="truncate text-base font-semibold tracking-[0.14em] text-fg">
-            {BRAND}
-          </span>
-        </Link>
-      )}
+      <Link
+        href={routes.home()}
+        className="inline-flex min-w-0 flex-1 items-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        <span className="type-wordmark truncate text-ink">{BRAND}</span>
+      </Link>
 
       <div className="flex shrink-0 items-center gap-1">
         {showSearch ? (
@@ -78,12 +68,12 @@ export function TopBar({
             href={routes.explore()}
             aria-label={TERMS.search}
             className={cn(
-              "inline-flex size-10 items-center justify-center rounded-full text-fg-muted",
-              "transition-colors hover:bg-surface-muted hover:text-fg",
-              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              "akinti-press inline-flex size-11 items-center justify-center rounded-[13px] text-ink-muted",
+              "transition-colors hover:text-ink",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
             )}
           >
-            <Search className="size-5" aria-hidden="true" />
+            <Search className="size-6" aria-hidden="true" />
           </Link>
         ) : null}
 
@@ -91,35 +81,16 @@ export function TopBar({
           href={routes.notifications()}
           aria-label={TERMS.notifications}
           className={cn(
-            "relative inline-flex size-10 items-center justify-center rounded-full text-fg-muted",
-            "transition-colors hover:bg-surface-muted hover:text-fg",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "akinti-press relative inline-flex size-11 items-center justify-center rounded-[13px] text-ink-muted",
+            "transition-colors hover:text-ink",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
           )}
         >
-          <Bell className="size-5" aria-hidden="true" />
+          <Bell className="size-6" aria-hidden="true" />
           {notificationsBadge > 0 ? (
             <CountBadge
               count={notificationsBadge}
               label="unread notifications"
-              className="absolute top-1 right-1"
-            />
-          ) : null}
-        </Link>
-
-        <Link
-          href={routes.messages()}
-          aria-label={TERMS.messages}
-          className={cn(
-            "relative inline-flex size-10 items-center justify-center rounded-full text-fg-muted",
-            "transition-colors hover:bg-surface-muted hover:text-fg",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-          )}
-        >
-          <MessageCircle className="size-5" aria-hidden="true" />
-          {messagesBadge > 0 ? (
-            <CountBadge
-              count={messagesBadge}
-              label="unread messages"
               className="absolute top-1 right-1"
             />
           ) : null}

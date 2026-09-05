@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Settings, User as UserIcon } from "lucide-react";
+import { LogOut, Settings, User as UserIcon } from "@/components/ui/icons";
 
 import { signOut } from "@/app/(auth)/actions";
 import { routes } from "@/config/routes";
@@ -29,13 +29,14 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
 
   if (!user) {
     return (
-      <div className={cn("flex items-center gap-2", className)}>
+      <div className={cn("flex items-center gap-4", className)}>
         <Link
           href={routes.login(pathname)}
           className={cn(
-            "inline-flex h-8 items-center justify-center rounded-full px-3 text-[0.8125rem] font-medium",
-            "text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "akinti-press inline-flex h-10 items-center justify-center type-subhead",
+            "text-ink underline decoration-hairline-strong decoration-1 underline-offset-[3px]",
+            "transition-colors hover:decoration-ink",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
           )}
         >
           {TERMS.logIn}
@@ -43,9 +44,9 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
         <Link
           href={routes.signup()}
           className={cn(
-            "inline-flex h-8 items-center justify-center rounded-full bg-accent px-3 text-[0.8125rem] font-medium",
-            "text-fg-on-accent shadow-xs transition-colors hover:bg-accent-hover active:bg-accent-active",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "akinti-press inline-flex h-10 items-center justify-center rounded-key bg-ink px-4",
+            "type-subhead text-on-ink transition-colors",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
           )}
         >
           {TERMS.signUp}
@@ -105,16 +106,16 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
         <button
           {...triggerProps}
           type="button"
-          aria-label={`${name} — account menu`}
+          aria-label={`${name}, account menu`}
           className={cn(
-            "inline-flex items-center gap-2 rounded-full transition-colors",
-            "hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-            size === "sm" ? "p-0.5" : "p-1 pr-2.5",
+            "akinti-press inline-flex items-center gap-3 rounded-[13px] transition-colors",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
+            size === "sm" ? "size-11 justify-center" : "h-11 px-1.5",
           )}
         >
           <Avatar name={name} src={profile?.avatarUrl} size="sm" />
           {size === "md" ? (
-            <span className="max-w-28 truncate text-sm font-medium text-fg">{name}</span>
+            <span className="type-subhead max-w-28 truncate text-ink max-lg:sr-only">{name}</span>
           ) : null}
         </button>
       )}

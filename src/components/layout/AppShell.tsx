@@ -8,53 +8,55 @@ import { TopBar } from "./TopBar";
 
 export interface AppShellProps {
   children: ReactNode;
-  /** Mobile header title. Omit to show the wordmark. */
-  title?: string;
   /** Unread counts keyed by nav item: `messages`, `notifications`. */
   badges?: Partial<Record<string, number>>;
-  /** Extra trailing controls in the mobile header. */
+  /** Extra trailing controls in the mobile top bar. */
   topBarActions?: ReactNode;
-  /** Optional secondary column shown on wide screens. */
+  /** Contextual column shown at 1024px and above. Stays empty when there is
+   * nothing contextual to show — filler is worse than space. */
   aside?: ReactNode;
   className?: string;
 }
 
 /**
- * The application shell: a bottom bar on mobile, a navigation rail on desktop
- * (spec section 7), with a single centred content column so a Wave card reads
- * at a comfortable measure on every screen.
+ * The application shell (§8.1, §8.2, SCREENS.md).
+ *
+ * Mobile: a 56px top bar and the 64px keyboard, both clearing the safe areas,
+ * on a `100dvh` frame (§12.43).
+ *
+ * 768px: the keyboard becomes a 72px icon rail. 1024px: a 200px labelled rail,
+ * a 600px content column and a 300px contextual column. The content column is
+ * left-hung against the rail at every width; nothing is centred (§12.42), which
+ * is what fixes the audit's "40-50% of a 1280px viewport is dead grey space".
  */
 export function AppShell({
   children,
-  title,
   badges,
   topBarActions,
   aside,
   className,
 }: AppShellProps) {
-  // `undefined` (not `?? 0`) so `TopBar` falls back to its own live
-  // `useUnreadMessages` subscription when no caller has explicitly overridden
-  // the badge — mirrors how `unreadNotifications` is left unset here today.
-  const unreadMessages = badges?.messages;
-
   return (
     <div className="flex min-h-dvh w-full">
-      <a href="#main" className="akinti-skip-link rounded-md bg-surface px-3 py-2 text-sm font-medium text-fg shadow-md">
+      <a
+        href="#main"
+        className="akinti-skip-link rounded-key bg-paper-raised px-4 py-3 type-subhead text-ink shadow-sheet"
+      >
         Skip to content
       </a>
 
       <SideNav badges={badges} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar title={title} unreadMessages={unreadMessages} actions={topBarActions} />
+        <TopBar actions={topBarActions} />
 
-        <div className="mx-auto flex w-full max-w-6xl flex-1 gap-8 px-0 md:px-6">
+        <div className="flex w-full min-w-0 flex-1 gap-8 lg:max-w-[1160px]">
           <main
             id="main"
             tabIndex={-1}
             className={cn(
-              "min-w-0 flex-1 pb-[calc(var(--akinti-bottom-nav-h)+2rem)] md:pb-10",
-              "md:max-w-[var(--akinti-content-max)]",
+              "min-w-0 flex-1 pb-[calc(var(--akinti-keyboard-h)+2rem)] md:pb-16",
+              "lg:max-w-content",
               className,
             )}
           >
@@ -62,7 +64,7 @@ export function AppShell({
           </main>
 
           {aside ? (
-            <aside className="hidden w-72 shrink-0 py-6 lg:block">{aside}</aside>
+            <aside className="hidden w-75 shrink-0 py-8 lg:block">{aside}</aside>
           ) : null}
         </div>
       </div>
