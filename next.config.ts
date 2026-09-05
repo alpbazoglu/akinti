@@ -78,6 +78,16 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Don't advertise the framework in an `X-Powered-By` response header.
   poweredByHeader: false,
+  // Dev-only: Next's own devtools overlay (route info, the pending-transition
+  // "Rendering ..." pill — `node_modules/next/dist/next-devtools`) defaults to
+  // `bottom-left`, which is exactly where this app docks its mobile bottom
+  // nav and sheet actions (Share, Save). It never ships to production, but
+  // during local QA it visibly sat on top of navigation and the Share sheet
+  // (ux-audit screenshots 19–24). Nothing else in this layout puts chrome in
+  // the top-right, so that's where the indicator moves instead of covering it.
+  devIndicators: {
+    position: "top-right",
+  },
   async headers() {
     return [
       {
