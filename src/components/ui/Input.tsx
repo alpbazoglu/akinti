@@ -58,6 +58,16 @@ export function Input({
           required={required}
           aria-invalid={hasError || undefined}
           aria-describedby={describedBy(id, Boolean(hint), hasError)}
+          // Password managers (1Password, Bitwarden, the browser's own
+          // autofill) commonly stamp an inline style — most often
+          // `caret-color: transparent`, to hide the caret behind their own
+          // fill icon — onto exactly this kind of `email`/`password` field
+          // before React hydrates. That's a real DOM mutation from outside
+          // React, not a server/client render difference this component
+          // controls, so it's the documented case for `suppressHydrationWarning`
+          // (https://react.dev/link/hydration-mismatch) rather than something
+          // to chase away by changing what's rendered.
+          suppressHydrationWarning
           className={cn(
             CONTROL_BASE,
             controlBorder(hasError),
