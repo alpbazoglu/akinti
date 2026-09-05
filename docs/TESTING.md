@@ -258,6 +258,32 @@ must stay usable on small screens.
 | Critical end-to-end scenario (full user journey) | both, via Playwright | fully automated end to end in `e2e/critical-journey.spec.ts` (signup→onboarding→upload→publish→worker→discover→play→comment/save/share→duet request→accept→record→publish→worker→lineage), gated on `E2E_SUPABASE`; `e2e/auth.spec.ts` and `e2e/duet.spec.ts` cover the auth and Duet legs in isolation too |
 | Duet lifecycle + denial scenarios (UI) | Duet agent | automated in `e2e/duet.spec.ts` (gated on `E2E_SUPABASE`) — happy path, duets-disabled denial, blocked-user denial |
 
+## Performance budgets (waveE-perf)
+
+`npm run perf` (`next build` then `scripts/perf-budget.ts`) checks the real
+client JS weight of Home, Explore, Wave and Create straight from the
+production build output — no running server, no auth, no live Supabase
+project needed, so it is safe to run in CI. It reads each route's
+`page_client-reference-manifest.js` under `.next/server/app/` to find every
+chunk that route's fresh load needs, gzips them (Next serves `_next/static/*`
+compressed in production), and fails the build if any route exceeds the
+budget defined in `scripts/perf-budget.ts` (`ROUTE_BUDGET_KB`).
+
+That budget is 260KB gzipped per route, not the 150KB
+`docs/research/mobile-guidelines.md` rule 42 names: `@supabase/supabase-js`
+alone is roughly 85KB gzipped with no built-in subpath tree-shaking, and it
+loads on every authenticated route, on top of React 19 and the App Router
+runtime. 150KB of *additional* JS is not reachable on this stack without
+dropping Supabase or React — see `docs/qa/waveE-perf/ANALYSIS.md` for the
+measured breakdown and the real floor.
+
+Lighthouse itself (LCP, TBT, performance score) needs a real authenticated
+session against the live Supabase project and is not part of this automated
+gate; `docs/qa/waveE-perf/ANALYSIS.md` documents the manual method
+(`next start` on a fixed port, a throwaway `e2e/helpers/supabaseAdmin.ts`
+account, Playwright to sign in, `npx lighthouse` with the resulting session
+cookie) and the before/after numbers it produced.
+
 ## Known gap
 
 No automated *unit* test files exist yet for `src/lib/db/**`,
