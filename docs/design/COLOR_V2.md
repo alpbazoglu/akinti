@@ -43,3 +43,21 @@ Traces carry a hue from their content; keep saturation moderate so Signal (playe
 
 ## Do not
 - Do not paint whole sections or cards in colour. Do not add coloured left borders. Do not use colour for hierarchy that type and spacing already carry. Do not tint text randomly. Do not introduce a fifth hue.
+
+## Final values (verified 6 Sept 2026, "colour" implementation pass)
+
+The proposal above was checked with a small WCAG contrast script (the same relative-luminance math as `src/lib/ui/profileTheme.ts`'s `contrastRatio`, run standalone) against every ground it is used on. Two values in the original proposal did not clear their floor and were adjusted; every other value is unchanged from the section above. `src/lib/ui/designTokens.test.ts` now holds these as a regression guard.
+
+| Token | Proposed | Final | Why |
+|---|---|---|---|
+| `--akinti-sand` (light) | `#B8862B` | **`#8C6418`** | `#B8862B` on `paper` was 2.78:1 (fails both the 3:1 mark floor and the 4.5:1 text floor, and sand carries text — Cypher order numerals, warning copy). `#8C6418` reaches 4.56:1. |
+| `--akinti-foam` (dark) | `#1F4B48` | **`#3E7972`** | `#1F4B48` is the dark-theme unplayed trace (COLOR_V2 "Waveform": unplayed = current light / foam dark) and read 1.88:1 on `paper` dark, below the 3:1 trace floor. `#3E7972` reaches 3.65:1 on paper and 3.32:1 on paper-raised. |
+
+Everything else cleared its floor as proposed:
+
+- `paper`/`ink`/`ink-2`/`ink-subtle`/`hairline`/`current`/`current-2`/`danger` (light and dark) all pass at their recorded ratios — see `docs/design/DESIGN_DNA.json` → `design_system.color.contrast_strategy` for the full number set (ink 15.26:1 / 15.65:1, muted 8.84:1 / 10.55:1, subtle 5.59:1 / 6.89:1, current 5.41:1 / 7.38:1, sand 4.56:1 / 9.33:1, danger 6.47:1 / 6.69:1, all ≥ 4.5:1; Signal 3.79:1 / 5.96:1, unplayed trace 5.41:1 / 3.65:1, reed green 5.20:1 / 8.21:1, deep-water blue 5.77:1 / 7.58:1, all ≥ 3:1).
+- The deep-water blue (`#3D5A99` / `#8AA6E6`) measures hue 221.1° / 221.7° in HSL — under the 225° guard, i.e. genuinely blue rather than drifting toward violet.
+- `ink-2` above is implemented as `--akinti-ink-muted` (the v1 token name is kept; the role and value are COLOR_V2's).
+- Destructive/error text moved off Signal entirely onto the new `--akinti-danger` hue, per principle 2 ("Signal stays exclusive to live audio"): the v1 `signal-deep` token now resolves to `danger`'s value rather than a Signal derivative, so every existing `text-signal-deep` call site is correct without a rename.
+
+Tokens landed in `src/app/globals.css`; verification during this pass used a standalone Node script computing WCAG 2 contrast ratios for every pair above (not checked into the repo — the permanent guard is `src/lib/ui/designTokens.test.ts`, run via `npm run test`).

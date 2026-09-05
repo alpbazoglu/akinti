@@ -4,6 +4,7 @@
     "description": "Design DNA for AKINTI, an audio-first social app for voice, songs and collaborative Duets. The system treats the screen as an instrument panel rather than a feed: ink on paper, one 44px rail, hairlines instead of cards, and a single drawing primitive (the amplitude trace, called the waterline) that renders audio, separation, progress, history and identity. One accent, Signal vermilion, appears only where audio is live. Authored, not extracted: every value below is a decision, not a measurement.",
     "source_references": [
       "docs/design/DESIGN.md",
+      "docs/design/COLOR_V2.md",
       "docs/design/SCREENS.md",
       "docs/design/REFERENCES.md",
       "docs/design/refs/ref-02-teenage-engineering.png",
@@ -20,88 +21,108 @@
 
   "design_system": {
     "color": {
-      "palette_type": "monochromatic neutral ground with a single warm accent (near-monochrome, one hue)",
+      "palette_type": "tinted water ground (v2, amended 6 Sept 2026, see docs/design/COLOR_V2.md, which wins over this file and over DESIGN.md §4) with a deep-teal brand hue plus a sand counterpoint and fixed mode/genre trace hues; Signal remains a single accent exclusive to live audio",
       "primary": {
-        "hex": "#191A17",
-        "role": "Ink. Body text, headlines, glyphs, playheads, filled primary keys, the 'theirs' Duet trace. Ink is the workhorse; it does every job a brand colour usually does. Dark theme value: #EDEDE8."
+        "hex": "#0E6B6B",
+        "role": "The current (Turkish working name 'akıntı'), the brand hue. Idle/unplayed trace, primary keys, links, focus ring, active tab underline, the persistent player trace, non-audio progress, selection. Dark theme value: #3FB5B0. Pressed/hover depth is --akinti-current-2, #0A4F50 / #2B8D89."
       },
       "secondary": {
-        "hex": "#86877E",
-        "role": "Wave-dormant. The unplayed part of every waveform and every muted trace. 3.15:1 on paper so the trace is perceivable on its own. Dark theme value: #63645D."
+        "hex": "#0F1A18",
+        "role": "Ink. Body text, headlines, glyphs, the playhead, the 'theirs' Duet trace. Dark theme value: #E6EFEC."
       },
       "accent": {
         "hex": "#DE3C11",
-        "role": "Signal (Turkish working name 'Kor', ember). The one accent. Permitted only on live audio state: played waveform fill, the record key field, the live level, the unread-audio mark, and the 'open for Duet' mark. Never on navigation, never on a generic CTA, never as a text colour at body size. Dark theme value: #FF5C33."
+        "role": "Signal (Turkish working name 'Kor', ember). Exclusive to live audio state: played waveform fill, the record key field, the live level, the unread-audio mark, and the 'open for Duet' mark. Never on navigation, never on a generic CTA, never on a badge, never as error/destructive text. Dark theme value: #FF5C33."
+      },
+      "tertiary": {
+        "hex": "#8C6418",
+        "role": "Sand, a sparing warm counterpoint: backing-track marks, Cypher order numerals, saved marks, warning semantics. Dark theme value: #E0B25A."
+      },
+      "mode_hues": {
+        "atisma": { "hex": "#2F6F3E", "dark": "#6DBF7E", "role": "Atışma reply segments (reed green); original segments stay the current." },
+        "cypher_1": { "hex": "#0E6B6B", "dark": "#3FB5B0", "role": "Cypher verse 1: the current." },
+        "cypher_2": { "hex": "#2F6F3E", "dark": "#6DBF7E", "role": "Cypher verse 2: reed green." },
+        "cypher_3": { "hex": "#8C6418", "dark": "#E0B25A", "role": "Cypher verse 3: sand." },
+        "cypher_4": { "hex": "#3D5A99", "dark": "#8AA6E6", "role": "Cypher verse 4: deep-water blue, hue 221° — verified blue, not violet (< 225°)." },
+        "genre_pop": { "hex": "#0E6B6B", "dark": "#3FB5B0" },
+        "genre_rap": { "hex": "#3D5A99", "dark": "#8AA6E6" },
+        "genre_arabesk": { "hex": "#8C6418", "dark": "#E0B25A" },
+        "genre_turku": { "hex": "#2F6F3E", "dark": "#6DBF7E" },
+        "genre_rock": { "hex": "#0F1A18", "dark": "#E6EFEC" }
       },
       "neutral": {
         "scale": [
-          "#F6F6F4",
-          "#EFEFEC",
-          "#E4E4E0",
-          "#D6D6D1",
-          "#B4B4AD",
-          "#86877E",
-          "#6A6B63",
-          "#52534C",
-          "#3F403A",
-          "#292A26",
-          "#1C1D19",
-          "#191A17",
-          "#131412",
-          "#0C0D0B"
+          "#DEE7E3",
+          "#E9EFEC",
+          "#D3E0D9",
+          "#C3D1CB",
+          "#A9BDB4",
+          "#4E625C",
+          "#33443F",
+          "#0F1A18",
+          "#243330",
+          "#16201D",
+          "#0F1614",
+          "#0B100E"
         ],
-        "usage": "A single warm-neutral grey family (green-grey cast, never blue-grey, never cream). Light theme reads the scale from the light end: #EFEFEC is the page ground, #F6F6F4 the only raised surface (sheets and menus), #E4E4E0 the sunk surface, #D6D6D1 the hairline, #B4B4AD the strong hairline and the dormant tick row, #86877E the unplayed waveform, #6A6B63 subtle text at 4.68:1, #52534C muted text at 6.75:1, #191A17 the ink at 15.17:1. Dark theme reads the same scale from the dark end: #131412 ground, #1C1D19 raised, #0C0D0B sunk, #292A26 hairline, #3F403A strong hairline, #63645D unplayed waveform (interpolated, not in the light list), #7E7F77 subtle at 4.57:1, #A0A199 muted at 7.09:1, #EDEDE8 ink at 15.73:1."
+        "usage": "Tinted paper, sea-glass rather than warm-neutral grey: still a green cast, now toward water, never cream and never blue-grey. Light theme reads: #E9EFEC page ground, #DEE7E3 raised/sunk secondary surface (sheets, rails, inputs), #D3E0D9 a further sunk step (pressed rows), #C3D1CB hairline, #A9BDB4 strong hairline, #4E625C subtle text at 5.59:1, #33443F muted text at 8.84:1, #0F1A18 ink at 15.26:1. Dark theme: #0F1614 ground, #16201D raised/sunk, #0B100E further sunk, #243330 hairline, #33463F strong hairline, #8FA39C subtle at 6.89:1, #B8C8C2 muted at 10.55:1, #E6EFEC ink at 15.65:1."
       },
       "semantic": {
-        "success": "#191A17",
-        "warning": "#191A17",
-        "error": "#A32A08",
-        "info": "#52534C"
+        "success": "#0E6B6B",
+        "warning": "#8C6418",
+        "error": "#9A2E1E",
+        "info": "#33443F"
       },
       "surface": {
-        "background": "#EFEFEC",
-        "card": "#EFEFEC",
-        "elevated": "#F6F6F4"
+        "background": "#E9EFEC",
+        "card": "#E9EFEC",
+        "elevated": "#DEE7E3"
       },
-      "contrast_strategy": "Dark-on-light dominant with a full dark counterpart; hierarchy is carried by ink weight and whitespace, never by tinted panels. Cards do not exist, so surface.card is identical to the page ground: a Wave sits directly on the paper. Separation order is strictly whitespace, then a 3% lightness step, then a hairline; a border is the last resort, an elevation shadow is reserved for sheets and menus only. Every text token is AA verified against its intended ground (ink 15.17:1, muted 6.75:1, subtle 4.68:1 on #EFEFEC; 15.73 / 7.09 / 4.57 on #131412). Signal at 3.83:1 on paper is a graphic-only token: it clears the 3:1 non-text threshold and is never used for body text, which is why the AA-safe #A32A08 exists for error copy. No text of any size is ever set on a Signal field; keys with a Signal field carry an ink glyph (3.96:1) and their label sits outside them.",
+      "contrast_strategy": "Water-tinted grounds with hierarchy still carried by type weight and whitespace, never by a tinted panel: cards do not exist, so surface.card is identical to the page ground and a Wave sits directly on the paper. Separation order is unchanged from v1 — whitespace, then a 3% lightness step, then a hairline, then, for sheets only, a tinted shadow. Every text token is AA verified against its intended ground (ink 15.26:1, muted 8.84:1, subtle 5.59:1 on #E9EFEC; 15.65 / 10.55 / 6.89 on #0F1614); current 5.41:1 light / 7.38:1 dark, sand 4.56:1 / 9.33:1, danger 6.47:1 / 6.69:1. Signal at 3.79:1 light / 5.96:1 dark on paper is a graphic-only token: it clears the 3:1 non-text threshold and is never used for text, which is why an independent, non-Signal danger hue (#9A2E1E / #F07A62) now carries error and destructive copy — Signal itself stays exclusive to live audio (COLOR_V2 principle 2). The unplayed trace clears 3:1 on its own: the current in light (5.41:1), foam in dark (3.65:1, brightened from COLOR_V2's initial #1F4B48 proposal, which read 1.88:1). See docs/design/COLOR_V2.md for the full token table and the contrast script that verified every value here.",
       "extra_tokens": {
         "light": {
-          "paper": "#EFEFEC",
-          "paper-raised": "#F6F6F4",
-          "paper-sunk": "#E4E4E0",
-          "ink": "#191A17",
-          "ink-muted": "#52534C",
-          "ink-subtle": "#6A6B63",
-          "hairline": "#D6D6D1",
-          "hairline-strong": "#B4B4AD",
+          "paper": "#E9EFEC",
+          "paper-raised": "#DEE7E3",
+          "paper-sunk": "#D3E0D9",
+          "ink": "#0F1A18",
+          "ink-muted": "#33443F",
+          "ink-subtle": "#4E625C",
+          "hairline": "#C3D1CB",
+          "hairline-strong": "#A9BDB4",
           "signal": "#DE3C11",
-          "signal-deep": "#A32A08",
-          "signal-wash": "#FAE3DC",
-          "wave-rest": "#B4B4AD",
-          "wave-dormant": "#86877E",
+          "current": "#0E6B6B",
+          "current-2": "#0A4F50",
+          "foam": "#B9DED8",
+          "sand": "#8C6418",
+          "danger": "#9A2E1E",
+          "wave-rest": "#A9BDB4",
+          "wave-dormant": "#0E6B6B",
           "wave-played": "#DE3C11",
-          "playhead": "#191A17",
-          "overlay": "rgb(25 26 23 / 0.42)",
-          "focus-ring": "#191A17"
+          "playhead": "#0F1A18",
+          "overlay": "rgb(15 26 24 / 0.42)",
+          "focus-ring": "#0E6B6B"
         },
         "dark": {
-          "paper": "#131412",
-          "paper-raised": "#1C1D19",
-          "paper-sunk": "#0C0D0B",
-          "ink": "#EDEDE8",
-          "ink-muted": "#A0A199",
-          "ink-subtle": "#7E7F77",
-          "hairline": "#292A26",
-          "hairline-strong": "#3F403A",
+          "paper": "#0F1614",
+          "paper-raised": "#16201D",
+          "paper-sunk": "#0B100E",
+          "ink": "#E6EFEC",
+          "ink-muted": "#B8C8C2",
+          "ink-subtle": "#8FA39C",
+          "hairline": "#243330",
+          "hairline-strong": "#33463F",
           "signal": "#FF5C33",
-          "signal-deep": "#FF9376",
-          "signal-wash": "#2A140E",
-          "wave-rest": "#3F403A",
-          "wave-dormant": "#63645D",
+          "current": "#3FB5B0",
+          "current-2": "#2B8D89",
+          "foam": "#3E7972",
+          "sand": "#E0B25A",
+          "danger": "#F07A62",
+          "wave-rest": "#33463F",
+          "wave-dormant": "#3E7972",
           "wave-played": "#FF5C33",
-          "playhead": "#EDEDE8",
-          "overlay": "rgb(6 7 5 / 0.62)",
-          "focus-ring": "#EDEDE8"
+          "playhead": "#E6EFEC",
+          "overlay": "rgb(5 8 7 / 0.62)",
+          "focus-ring": "#3FB5B0"
         }
       }
     },
@@ -193,18 +214,18 @@
         "large": "14px (keys, that is buttons; 16px on bounded objects, meaning the Explore creator tile and the outbound message field with a 4px corner on the rail side; 24px on sheet top corners)",
         "pill": "not used. Fully rounded rectangles are banned product-wide; the pill is the single most template-like shape in the build being replaced. Circles are permitted only for round icon controls (play, skip, pause) at 36-56px."
       },
-      "border_usage": "hairlines last, never first. A 1px hairline in #D6D6D1 separates rows and bounds inputs and outline keys. No element carries both a hairline and a shadow. No element carries a coloured left border. The Explore creator tile is bounded by a hairline and has no fill and no shadow: the boundary is the line, not elevation. Radius encodes role rather than taste: 2px means a label, 10px means you can type in it, 14px means you can press it, 16px means it is a bounded object in a horizontal rail, 24px means it slid up from the bottom. Square record keys use radius = 0.295 x side (72px key -> 21px, 88px -> 26px, 96px -> 28px) so every key shares one corner curvature instead of one corner radius.",
-      "divider_style": "Two kinds, and the difference is meaningful. A hairline (1px, #D6D6D1) divides rows inside one list. The waterline (a 2px amplitude trace drawn from the ending item's own peak data, at 24% ink) divides one Wave from the next in a stream. A stream never uses a plain rule; a settings list never uses a waterline."
+      "border_usage": "hairlines last, never first. A 1px hairline in #C3D1CB separates rows and bounds inputs and outline keys. No element carries both a hairline and a shadow. No element carries a coloured left border. The Explore creator tile is bounded by a hairline and has no fill and no shadow: the boundary is the line, not elevation. Radius encodes role rather than taste: 2px means a label, 10px means you can type in it, 14px means you can press it, 16px means it is a bounded object in a horizontal rail, 24px means it slid up from the bottom. Square record keys use radius = 0.295 x side (72px key -> 21px, 88px -> 26px, 96px -> 28px) so every key shares one corner curvature instead of one corner radius.",
+      "divider_style": "Two kinds, and the difference is meaningful. A hairline (1px, #C3D1CB) divides rows inside one list. The waterline (a 2px amplitude trace drawn from the ending item's own peak data, at 24% ink) divides one Wave from the next in a stream. A stream never uses a plain rule; a settings list never uses a waterline."
       },
 
     "elevation": {
       "shadow_style": "none at level 0, which covers roughly 95% of the interface; a single tinted soft shadow at level 1 and level 2. Shadows carry the ink hue, never pure black.",
       "levels": {
         "low": "none. 0 0 0 rgb(0 0 0 / 0). Stream items, rows, cards, badges, inputs and buttons all sit flat on the paper.",
-        "medium": "0 -1px 0 0 #D6D6D1, 0 24px 48px -12px rgb(25 26 23 / 0.18). Bottom sheets, menus and the desktop persistent player only. Dark theme: 0 -1px 0 0 #292A26, 0 24px 48px -12px rgb(0 0 0 / 0.55).",
+        "medium": "0 -1px 0 0 #C3D1CB, 0 24px 48px -12px rgb(15 26 24 / 0.18). Bottom sheets, menus and the desktop persistent player only. Dark theme: 0 -1px 0 0 #243330, 0 24px 48px -12px rgb(5 8 7 / 0.55).",
         "high": "0 8px 24px -8px rgb(25 26 23 / 0.22). Applied only while an element is under the finger: a trim handle being dragged, a sheet being flung. It never persists after the gesture ends."
       },
-      "depth_cues": "whitespace first, then a 3% lightness step (#EFEFEC to #F6F6F4 or #E4E4E0), then a hairline, then, only for sheets, a tinted shadow. Overlapping is used exactly twice in the product: the avatar overlapping the profile signature trace, and the avatar overlapping the bottom-left corner of an Explore creator tile."
+      "depth_cues": "whitespace first, then a 3% lightness step (#E9EFEC to #DEE7E3 or #D3E0D9), then a hairline, then, only for sheets, a tinted shadow. Overlapping is used exactly twice in the product: the avatar overlapping the profile signature trace, and the avatar overlapping the bottom-left corner of an Explore creator tile."
     },
 
     "iconography": {
@@ -228,10 +249,10 @@
 
     "components": {
       "button_style": "Called keys, never buttons, and shaped like one: a 14px-radius squircle, 52px tall for primary, 44px for secondary, 40px for inline, 32px for compact. Three variants and no more. Ink key: ink field, paper label, for the single most important action on a screen. Line key: 1px hairline-strong, no fill, ink label, for secondary actions. Text key: ink label with a 1px hairline underline offset 3px, for tertiary and destructive actions, so 'Delete account' is a sentence and not a red pill. Press is scale 0.975 over 90ms with no translate. No pills, no gradients, no icon-in-a-circle trailing affordance, no arrow appended to a label, and no two keys on a screen that mean the same thing.",
-      "input_style": "48px tall, 10px radius, 1px hairline, transparent fill, 16px text so iOS never zooms on focus. The label sits above the field in caption size and is never a placeholder. Focus is a 2px ink outline offset 2px, identical everywhere. Validation is inline beneath the field on blur, never a toast; an availability confirmation is a small Signal tick inside the field, not a green banner. Errors set the message in #A32A08 and add a 2px Signal underline to the field's bottom edge only, never a filled field and never a coloured left border.",
+      "input_style": "48px tall, 10px radius, 1px hairline, transparent fill, 16px text so iOS never zooms on focus. The label sits above the field in caption size and is never a placeholder. Focus is a 2px ink outline offset 2px, identical everywhere. Validation is inline beneath the field on blur, never a toast; an availability confirmation is a small Signal tick inside the field, not a green banner. Errors set the message in #9A2E1E and add a 2px Signal underline to the field's bottom edge only, never a filled field and never a coloured left border.",
       "card_style": "There are no cards. A Wave in a stream sits directly on the paper, hung on the 44px rail, separated from its neighbour by a waterline. Exactly one bounded object exists in the product, the Explore creator tile, because a horizontal snap rail genuinely needs an object with edges: 128px wide, 16px radius, 1px hairline, no fill, no shadow, the creator's signature trace as its artwork and their avatar overlapping the bottom-left corner.",
       "navigation_pattern": "A 64px bottom bar plus safe area, called the keyboard, with five keys: Home, Explore, Record, Messages, You. Icons are 24px Phosphor, labels are always present at 11px, and the active key is expressed by a filled Phosphor glyph plus full ink, never by a colour change and never by a pill or a glow behind it. The Record key is a 44px ink squircle carrying a Signal dot; it is a key on the bar, not a raised circular floating action button, and it never overlaps the bar's top edge. At 768px the bar becomes a 72px left icon rail, at 1024px a 200px labelled rail.",
-      "modal_style": "Bottom sheet by default, dialog almost never. The sheet has 24px top corners, a grabber drawn as a 24px waterline rather than a grey capsule, a 380ms spring entrance, a #EFEFEC-to-#F6F6F4 raised surface, level-1 elevation and a 42% ink scrim. It is dismissible by drag, by scrim tap and by Escape. A centred dialog is used only to confirm something irreversible.",
+      "modal_style": "Bottom sheet by default, dialog almost never. The sheet has 24px top corners, a grabber drawn as a 24px waterline rather than a grey capsule, a 380ms spring entrance, a #E9EFEC-to-#DEE7E3 raised surface, level-1 elevation and a 42% ink scrim. It is dismissible by drag, by scrim tap and by Escape. A centred dialog is used only to confirm something irreversible.",
       "list_style": "Rows, hairlines, and nothing else. Messages carry the asymmetry that replaces coloured bubbles: inbound text is plain ink on the paper with no field, outbound text is an ink field with paper text at 16px radius, and an audio message has no field at all because the waterline is the message. Stream rows are hung on the 44px rail and divided by waterlines. Settings rows are 56px, divided by hairlines, grouped by 28px gaps with no all-caps section label, and carry text, an optional current value and a 12px chevron; there is no icon column and no coloured icon tile. Message rows are 72px with the hairline inset to the rail edge at x=64. Zero-value counts are never printed: a row prints only the metrics that are non-zero, so a fresh Wave shows one short line rather than six zeroes.",
       "component_notes": "Badges (Recorded, Uploaded, Duet) are 2px-radius hairline tags in ink only, sentence case, never a filled tinted pill. Chips and filters use a 2px ink underbar to mark the active item, never a coloured pill. Avatars are squircles at 12px radius for 32px, 16px for 48px, 20px for 64px, never circles, and never the same generated placeholder for two different people. Switches are 52x32 with a 10px-radius travel, ink when on. Toasts are a single 44px ink strip pinned above the keyboard with one line of text and at most one action; they never carry an icon and never celebrate. Skeletons match the shape they replace and render the waveform slot as a flat 6px waterline, never as a fake waveform. Empty states are left-aligned working invitations, never an icon inside a grey circle above centred text."
     }
@@ -297,7 +318,7 @@
       "description": "A single fixed, pointer-events-none grain layer covering the viewport, so the paper reads as a physical surface instead of a flat browser default. It is the only background treatment in the product; there is no gradient, no mesh, no orb, no blob and no animated background anywhere.",
       "technology": "inline SVG feTurbulence (baseFrequency 0.82, numOctaves 3, stitchTiles stitch) rendered once to a data URI and painted on a position: fixed pseudo-element, never on a scrolling container",
       "params": {
-        "color_palette": ["#191A17", "#EDEDE8"],
+        "color_palette": ["#0F1A18", "#E6EFEC"],
         "speed": "static, 0fps. The grain never animates.",
         "density": "baseFrequency 0.82, roughly a 1.2px grain at 2x DPR",
         "opacity": "0.03 in light theme, 0.045 in dark theme",
@@ -418,7 +439,7 @@
       "params": {
         "draw_method": "bar chart from precomputed peaks, device-pixel-ratio aware, x-positions rounded with Math.round",
         "animation_loop": "rAF while playing or recording only; the loop is torn down on pause, on unmount and under prefers-reduced-motion",
-        "color_scheme": ["#DE3C11", "#86877E", "#191A17", "#B4B4AD"],
+        "color_scheme": ["#DE3C11", "#0E6B6B", "#0F1A18", "#A9BDB4"],
         "responsiveness": "redraws on container resize with a debounce of 120ms; peak data is resampled, never stretched",
         "interaction": "tap anywhere to seek to that point, drag to scrub with linear tracking and no easing, two-handle drag for trim, and a redundant explicit play control for accessibility"
       }

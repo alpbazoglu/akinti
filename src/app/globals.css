@@ -19,40 +19,88 @@
 :root {
   color-scheme: light;
 
-  /* ---- Colour: light theme, "Gündüz" (§4.2) ---------------------- */
-  --akinti-paper: #efefec;
-  --akinti-paper-raised: #f6f6f4;
-  --akinti-paper-sunk: #e4e4e0;
+  /* ---- Colour: light theme, "Gündüz" (v2 "the current", amended 6 Sept
+     2026 — see docs/design/COLOR_V2.md, which wins over DESIGN.md §4).
+     Tinted water grounds and a deep teal brand hue replace the v1
+     warm-neutral grey + ink-only system. Final hex values below were
+     tuned from COLOR_V2.md's initial proposal against the WCAG floors it
+     sets (4.5:1 text, 3:1 traces/lines); see COLOR_V2.md "Final values"
+     for the recorded deltas and the contrast script that verified them. */
+  --akinti-paper: #e9efec;
+  --akinti-paper-raised: #dee7e3;
+  --akinti-paper-sunk: #d3e0d9;
 
-  --akinti-ink: #191a17;
-  --akinti-ink-muted: #52534c;
-  /* Darkened from #6a6b63 (4.22:1 on --akinti-paper-sunk, below WCAG AA
-     4.5:1 — docs/qa/full/REPORT.md defect #5) to 4.55:1 on the same
-     ground, the darkest of the three paper roles this token is used
-     against. */
-  --akinti-ink-subtle: #656660;
+  --akinti-ink: #0f1a18;
+  --akinti-ink-muted: #33443f;
+  /* COLOR_V2 flags this one for recompute against the new paper grounds;
+     #4e625c clears 4.5:1 on paper, paper-raised and paper-sunk alike. */
+  --akinti-ink-subtle: #4e625c;
 
-  --akinti-hairline: #d6d6d1;
-  --akinti-hairline-strong: #b4b4ad;
+  --akinti-hairline: #c3d1cb;
+  --akinti-hairline-strong: #a9bdb4;
 
+  /* Signal is unchanged and stays exclusive to live audio (COLOR_V2
+     principle 2): played trace, record lamp, live level, unheard mark,
+     open-for-Duet mark. Nothing else may use it (§12.3, and now COLOR_V2). */
   --akinti-signal: #de3c11;
-  --akinti-signal-deep: #a32a08;
+
+  /* The brand hue, "akıntı" (the current). Idle/unplayed trace, primary
+     keys, links, focus ring, active tab underline, the persistent player
+     trace, non-audio progress, selection. */
+  --akinti-current: #0e6b6b;
+  --akinti-current-2: #0a4f50;
+  /* Highlights on water: subtle fills in light theme; the dark-theme value
+     (see below) is the unplayed trace on dark. */
+  --akinti-foam: #b9ded8;
+  /* Warm counterpoint, used sparingly: backing-track marks, Cypher order
+     numerals, saved marks. Darkened from COLOR_V2's #B8862B (2.78:1 on
+     paper) to #8C6418 to clear 4.5:1 where it carries text. */
+  --akinti-sand: #8c6418;
+  /* Destructive/error text and hairlines only, never a fill. Independent
+     of Signal on purpose: an error is not live audio. */
+  --akinti-danger: #9a2e1e;
+  /* Mode hues (COLOR_V2 "Colour by mode and genre"). */
+  --akinti-atisma: #2f6f3e;
+  --akinti-cypher-blue: #3d5a99;
+
+  /* Kept for backward compatibility: same role (error text), new
+     non-Signal value, so every existing `text-signal-deep` /
+     `bg-signal-deep` call site is correct without a rename. */
+  --akinti-signal-deep: var(--akinti-danger);
   --akinti-signal-wash: #fae3dc;
 
-  --akinti-wave-rest: #b4b4ad;
-  --akinti-wave-dormant: #86877e;
+  --akinti-wave-rest: var(--akinti-hairline-strong);
+  /* Unplayed trace: current in light theme, foam in dark (COLOR_V2
+     "Waveform"). */
+  --akinti-wave-dormant: var(--akinti-current);
 
-  --akinti-overlay: rgb(25 26 23 / 0.42);
+  --akinti-overlay: rgb(15 26 24 / 0.42);
 
   /* Derived roles. The trace is drawn from these four values only. */
   --akinti-wave-played: var(--akinti-signal);
   --akinti-playhead: var(--akinti-ink);
-  --akinti-focus: var(--akinti-ink);
+  --akinti-focus: var(--akinti-current);
   --akinti-on-ink: var(--akinti-paper);
 
+  /* Trace hue resolution, consumed by the optional `hue` prop on
+     WaveformCanvas/Waveform/WavePlayer (COLOR_V2 "Colour by mode and
+     genre"). Values are theme-scoped through the base tokens above, so
+     these aliases need defining only once. */
+  --akinti-hue-current: var(--akinti-current);
+  --akinti-hue-atisma: var(--akinti-atisma);
+  --akinti-hue-cypher-1: var(--akinti-current);
+  --akinti-hue-cypher-2: var(--akinti-atisma);
+  --akinti-hue-cypher-3: var(--akinti-sand);
+  --akinti-hue-cypher-4: var(--akinti-cypher-blue);
+  --akinti-hue-genre-pop: var(--akinti-current);
+  --akinti-hue-genre-rap: var(--akinti-cypher-blue);
+  --akinti-hue-genre-arabesk: var(--akinti-sand);
+  --akinti-hue-genre-turku: var(--akinti-atisma);
+  --akinti-hue-genre-rock: var(--akinti-ink);
+
   /* ---- Elevation (§5.3). Level 0 is the whole product. ----------- */
-  --akinti-shadow-sheet: 0 -1px 0 0 #d6d6d1, 0 24px 48px -12px rgb(25 26 23 / 0.18);
-  --akinti-shadow-lifted: 0 8px 24px -8px rgb(25 26 23 / 0.22);
+  --akinti-shadow-sheet: 0 -1px 0 0 #c3d1cb, 0 24px 48px -12px rgb(15 26 24 / 0.18);
+  --akinti-shadow-lifted: 0 8px 24px -8px rgb(15 26 24 / 0.22);
 
   /* ---- Texture (§5.5) -------------------------------------------- */
   --akinti-grain-opacity: 0.03;
@@ -138,34 +186,43 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    /* Dark theme, "Gece" (§4.3). A warm graphite with a green cast —
-       never #0A0A0A with translucent white borders (§12.13). */
-    --akinti-paper: #131412;
-    --akinti-paper-raised: #1c1d19;
-    --akinti-paper-sunk: #0c0d0b;
+    /* Dark theme, "Gece" (v2, COLOR_V2.md). A warm graphite with a green
+       cast, tinted toward water rather than a flat neutral — never
+       #0A0A0A with translucent white borders (§12.13). */
+    --akinti-paper: #0f1614;
+    --akinti-paper-raised: #16201d;
+    --akinti-paper-sunk: #0b100e;
 
-    --akinti-ink: #edede8;
-    --akinti-ink-muted: #a0a199;
-    /* Lightened from #7e7f77 (4.19:1 on --akinti-paper-raised, below WCAG
-       AA 4.5:1 — docs/qa/full/REPORT.md defect #5) to 4.56:1 on the same
-       ground, the lightest of the three paper roles this token is used
-       against. */
-    --akinti-ink-subtle: #85857e;
+    --akinti-ink: #e6efec;
+    --akinti-ink-muted: #b8c8c2;
+    --akinti-ink-subtle: #8fa39c;
 
-    --akinti-hairline: #292a26;
-    --akinti-hairline-strong: #3f403a;
+    --akinti-hairline: #243330;
+    --akinti-hairline-strong: #33463f;
 
     --akinti-signal: #ff5c33;
-    --akinti-signal-deep: #ff9376;
+
+    --akinti-current: #3fb5b0;
+    --akinti-current-2: #2b8d89;
+    /* Foam's dark value is the unplayed trace on dark: brightened from
+       COLOR_V2's #1F4B48 (1.88:1 on paper, below the 3:1 trace floor) to
+       #3E7972, which clears 3:1 on both paper and paper-raised. */
+    --akinti-foam: #3e7972;
+    --akinti-sand: #e0b25a;
+    --akinti-danger: #f07a62;
+    --akinti-atisma: #6dbf7e;
+    --akinti-cypher-blue: #8aa6e6;
+
+    --akinti-signal-deep: var(--akinti-danger);
     --akinti-signal-wash: #2a140e;
 
-    --akinti-wave-rest: #3f403a;
-    --akinti-wave-dormant: #63645d;
+    --akinti-wave-rest: var(--akinti-hairline-strong);
+    --akinti-wave-dormant: var(--akinti-foam);
 
-    --akinti-overlay: rgb(6 7 5 / 0.62);
+    --akinti-overlay: rgb(5 8 7 / 0.62);
 
-    --akinti-shadow-sheet: 0 -1px 0 0 #292a26, 0 24px 48px -12px rgb(0 0 0 / 0.55);
-    --akinti-shadow-lifted: 0 8px 24px -8px rgb(0 0 0 / 0.5);
+    --akinti-shadow-sheet: 0 -1px 0 0 #243330, 0 24px 48px -12px rgb(5 8 7 / 0.55);
+    --akinti-shadow-lifted: 0 8px 24px -8px rgb(5 8 7 / 0.5);
 
     --akinti-grain-opacity: 0.045;
     --akinti-grain-blend: screen;
@@ -176,32 +233,37 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --akinti-paper: #131412;
-  --akinti-paper-raised: #1c1d19;
-  --akinti-paper-sunk: #0c0d0b;
+  --akinti-paper: #0f1614;
+  --akinti-paper-raised: #16201d;
+  --akinti-paper-sunk: #0b100e;
 
-  --akinti-ink: #edede8;
-  --akinti-ink-muted: #a0a199;
-  /* Lightened from #7e7f77 (4.19:1 on --akinti-paper-raised, below WCAG AA
-     4.5:1 — docs/qa/full/REPORT.md defect #5) to 4.56:1 on the same
-     ground, the lightest of the three paper roles this token is used
-     against. */
-  --akinti-ink-subtle: #85857e;
+  --akinti-ink: #e6efec;
+  --akinti-ink-muted: #b8c8c2;
+  --akinti-ink-subtle: #8fa39c;
 
-  --akinti-hairline: #292a26;
-  --akinti-hairline-strong: #3f403a;
+  --akinti-hairline: #243330;
+  --akinti-hairline-strong: #33463f;
 
   --akinti-signal: #ff5c33;
-  --akinti-signal-deep: #ff9376;
+
+  --akinti-current: #3fb5b0;
+  --akinti-current-2: #2b8d89;
+  --akinti-foam: #3e7972;
+  --akinti-sand: #e0b25a;
+  --akinti-danger: #f07a62;
+  --akinti-atisma: #6dbf7e;
+  --akinti-cypher-blue: #8aa6e6;
+
+  --akinti-signal-deep: var(--akinti-danger);
   --akinti-signal-wash: #2a140e;
 
-  --akinti-wave-rest: #3f403a;
-  --akinti-wave-dormant: #63645d;
+  --akinti-wave-rest: var(--akinti-hairline-strong);
+  --akinti-wave-dormant: var(--akinti-foam);
 
-  --akinti-overlay: rgb(6 7 5 / 0.62);
+  --akinti-overlay: rgb(5 8 7 / 0.62);
 
-  --akinti-shadow-sheet: 0 -1px 0 0 #292a26, 0 24px 48px -12px rgb(0 0 0 / 0.55);
-  --akinti-shadow-lifted: 0 8px 24px -8px rgb(0 0 0 / 0.5);
+  --akinti-shadow-sheet: 0 -1px 0 0 #243330, 0 24px 48px -12px rgb(5 8 7 / 0.55);
+  --akinti-shadow-lifted: 0 8px 24px -8px rgb(5 8 7 / 0.5);
 
   --akinti-grain-opacity: 0.045;
   --akinti-grain-blend: screen;
@@ -227,7 +289,13 @@
    so every screen in the product inherits the new palette in one step
    instead of drifting between two systems. Every alias resolves to a v2
    token: there is no independent teal, green, amber or blue left in the
-   product (§4.4, §12.44 - no new token without deleting one).
+   product outside the tokens defined above (§4.4).
+
+   "current" (COLOR_V2's brand hue, "akıntı") is exposed here as `tide`,
+   not `current`: Tailwind's own `current` value already means
+   `currentColor` and is load-bearing elsewhere (`fill-current` on the
+   record icon, `border-current` on Spinner) — reusing the name would
+   silently break both.
    ===================================================================== */
 
 @theme inline {
@@ -250,6 +318,28 @@
   --color-on-ink: var(--akinti-on-ink);
   --color-overlay: var(--akinti-overlay);
 
+  /* -- The current, and the rest of the v2 water palette ----------- */
+  --color-tide: var(--akinti-current);
+  --color-tide-2: var(--akinti-current-2);
+  --color-foam: var(--akinti-foam);
+  --color-sand: var(--akinti-sand);
+  --color-atisma: var(--akinti-atisma);
+  --color-cypher-blue: var(--akinti-cypher-blue);
+
+  /* -- Trace hues: consumed by the `hue` prop on WaveformCanvas and by
+     mode/genre-tinted marks (COLOR_V2 "Colour by mode and genre"). ---- */
+  --color-hue-current: var(--akinti-hue-current);
+  --color-hue-atisma: var(--akinti-hue-atisma);
+  --color-hue-cypher-1: var(--akinti-hue-cypher-1);
+  --color-hue-cypher-2: var(--akinti-hue-cypher-2);
+  --color-hue-cypher-3: var(--akinti-hue-cypher-3);
+  --color-hue-cypher-4: var(--akinti-hue-cypher-4);
+  --color-hue-genre-pop: var(--akinti-hue-genre-pop);
+  --color-hue-genre-rap: var(--akinti-hue-genre-rap);
+  --color-hue-genre-arabesk: var(--akinti-hue-genre-arabesk);
+  --color-hue-genre-turku: var(--akinti-hue-genre-turku);
+  --color-hue-genre-rock: var(--akinti-hue-genre-rock);
+
   /* -- v1 aliases, all resolving to v2 tokens ---------------------- */
   --color-bg: var(--akinti-paper);
   --color-surface: var(--akinti-paper);
@@ -262,22 +352,26 @@
   --color-fg-muted: var(--akinti-ink-muted);
   --color-fg-subtle: var(--akinti-ink-subtle);
   --color-fg-on-accent: var(--akinti-on-ink);
-  /* The generic "accent" is ink: an accent that leaves audio state is
-     the fastest way to destroy this system (§12.3). */
-  --color-accent: var(--akinti-ink);
-  --color-accent-hover: var(--akinti-ink);
-  --color-accent-active: var(--akinti-ink);
+  /* The generic "accent" is the current (COLOR_V2): primary keys, links,
+     selection. It still never wanders onto Signal's job (§12.3) — the
+     two stay independent tokens. `-soft` stays neutral paper-sunk rather
+     than a tinted wash: colour lives in what moves, not in a coloured
+     card background (COLOR_V2 "Do not"). */
+  --color-accent: var(--akinti-current);
+  --color-accent-hover: var(--akinti-current-2);
+  --color-accent-active: var(--akinti-current-2);
   --color-accent-soft: var(--akinti-paper-sunk);
   --color-accent-soft-fg: var(--akinti-ink);
-  /* Semantic colour is ink-based (§4.4): success and warning are ink and
-     a sentence; error is the AA-safe Signal. */
-  --color-danger: var(--akinti-signal-deep);
-  --color-danger-hover: var(--akinti-signal-deep);
-  --color-danger-soft: var(--akinti-signal-wash);
-  --color-danger-soft-fg: var(--akinti-signal-deep);
-  --color-success: var(--akinti-ink);
+  /* Semantic colour (COLOR_V2 §"Tokens"): success is the current, warning
+     is sand, danger is its own hue — text and hairline only, never a
+     fill, and never Signal, which stays exclusive to live audio. */
+  --color-danger: var(--akinti-danger);
+  --color-danger-hover: var(--akinti-danger);
+  --color-danger-soft: var(--akinti-paper-sunk);
+  --color-danger-soft-fg: var(--akinti-danger);
+  --color-success: var(--akinti-current);
   --color-success-soft: var(--akinti-paper-sunk);
-  --color-warning: var(--akinti-ink);
+  --color-warning: var(--akinti-sand);
   --color-warning-soft: var(--akinti-paper-sunk);
   --color-wave-track: var(--akinti-wave-dormant);
   --color-wave-progress: var(--akinti-signal);

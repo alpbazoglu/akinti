@@ -187,6 +187,20 @@ about *readouts*, not about digits.
 
 ## 4. Colour
 
+> **Amended 6 Sept 2026.** The founder reviewed the v2 screens and found them
+> too black and white. `docs/design/COLOR_V2.md` is the current source of
+> truth for colour and **wins over everything below** where they conflict:
+> tinted water grounds replace the flat warm-neutral paper, a deep-teal
+> "current" becomes the brand hue for traces, keys, links, progress and
+> focus, sand is a sparing warm counterpoint, and Duet/Atışma/Cypher/genre
+> traces carry their own fixed hues. Signal's rule is unchanged and, if
+> anything, sharper for it: it stays exclusive to live audio and nowhere
+> else. Everything else in this section — the waterline primitive, the
+> radius ladder, §12's "never do" list — still applies exactly as written.
+> Read COLOR_V2.md first; treat §4.1-§4.5 below as the superseded v1 record
+> of *why* a single-accent system was chosen, which is still true of Signal,
+> just no longer true of "one colour total".
+
 ### 4.1 The idea
 
 A single warm-neutral grey family with a **green-grey cast, never blue-grey and never cream**,
