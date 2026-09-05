@@ -56,6 +56,8 @@ import {
   type MasterStageResult,
 } from "@/lib/audio/sidecarPipeline";
 import {
+  buildAtismaMixFilterComplex,
+  buildCypherMixFilterComplex,
   buildDuetMixFilterComplex,
   buildProcessAudioFilterChain,
   parseMixDuetJobPayload,
@@ -449,6 +451,23 @@ async function runLoudnormTwoPassFallback(
   const outputPath = path.join(tmpDir, "mastered.wav");
   const lufsBefore = await measureIntegratedLufs(inputPath);
   const measured = await measureLoudnormForTwoPass(inputPath);
+  // ffmpeg's loudnorm reports `input_i: "-inf"` for a source with no signal
+  // at all (true digital silence) — its own second pass then rejects
+  // `measured_I=-inf` outright ("out of range [-99 - 0]"), which is real
+  // ffmpeg behavior, not a bug in this function, but surfacing that raw
+  // second-pass crash as the job's failure reason is exactly the "garbled
+  // failure" spec s44 rules out. Caught here so `audio_processing_jobs.last_error`
+  // reads as an honest, specific reason instead. This is also the exact
+  // failure signature that exposed a real bug elsewhere: two live assets
+  // were previously marked `processing_status = 'ready'` with all-zero
+  // peaks by a pre-sidecar worker version that fed this same silent source
+  // through a peak extractor with no completion-quality check at all — see
+  // `isDegeneratePeaks`.
+  if (!Number.isFinite(Number.parseFloat(measured.input_i))) {
+    throw new Error(
+      `source audio is silent (measured loudness ${measured.input_i} LUFS) — cannot normalize a silent recording`,
+    );
+  }
   await runFfmpeg([
     "-hide_banner", "-loglevel", "error", "-y",
     "-i", inputPath,
@@ -502,6 +521,35 @@ async function runPeaksStage(filePath: string): Promise<{ peaks: PeaksPayload; r
     fetch,
     (reason) => logSidecarFallback("/peaks", reason),
   );
+}
+
+/**
+ * A peaks payload with no signal at all — every bucket exactly `0` — is
+ * never a valid "ready" result for anything but a genuinely trivial clip.
+ * Two live assets were found `processing_status = 'ready'` with all-zero
+ * peaks despite a multi-second duration (pre-dating `enhancement_report`,
+ * i.e. processed by a worker version from before the sidecar/report
+ * refactor): whatever produced that — a decode failure the old code didn't
+ * check for, or a genuinely silent recording — the "never fake success"
+ * rule (spec s19/s44) means it should never have been marked `ready`
+ * either way. This is checked after EVERY peaks extraction (sidecar or
+ * local ffmpeg fallback) so it can't recur under the current pipeline:
+ * `runProcessAudioJob`/`runMixDuetJob` throw instead of calling
+ * `complete_audio_job` when this returns true, which retries the job with
+ * backoff and eventually surfaces a real, honest failure
+ * (`processing_status = 'failed'`) rather than a silently blank waveform.
+ *
+ * A clip under 500ms is exempted: a very short recording can legitimately
+ * be quiet enough in every 800-bucket window to round to 0 without anything
+ * being wrong — the failure signature that actually showed up in production
+ * was several seconds of audio with not one non-zero sample anywhere, which
+ * no real voice/instrument recording produces.
+ */
+function isDegeneratePeaks(peaks: PeaksPayload, durationMs: number): boolean {
+  if (durationMs < 500) {
+    return false;
+  }
+  return peaks.data.length === 0 || peaks.data.every((value) => value === 0);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -633,6 +681,12 @@ async function runProcessAudioJob(
     runPeaksStage(masterResult.outputPath),
   ]);
 
+  if (isDegeneratePeaks(peaksResult.peaks, durationMs)) {
+    throw new Error(
+      `peaks extraction produced no signal for asset ${asset.id} (duration ${durationMs}ms, method ${peaksResult.report.method}) — refusing to store a degenerate waveform`,
+    );
+  }
+
   const enhancementReport: EnhancementReport = {
     ...(cleanResult ? { clean: cleanResult.report } : {}),
     master: masterResult.report,
@@ -696,26 +750,70 @@ async function runMixDuetJob(
   }
 
   // Prefer the reference's already-normalized processed file when it exists.
+  // For `cypher`, "reference" is the PARENT's full rendered audio so far
+  // (every earlier verse already concatenated into it, spec: "the parent's
+  // stems preserved so the next person hears everything") — this is exactly
+  // the same lookup, just a different semantic meaning of "reference".
   const referenceStoragePath = reference.processed_path ?? reference.original_path;
   const referenceInputPath = path.join(tmpDir, `reference${extensionOf(referenceStoragePath)}`);
   const newTakeInputPath = path.join(tmpDir, `newtake${extensionOf(newTake.original_path)}`);
 
   const preset = payload.preset ?? "studio";
   const presetFilter = PRESET_FILTERS[preset] ?? PRESET_FILTERS.studio;
-  // Sign handling (spec §15 flag): a negative offset means the contribution
-  // was recorded to start BEFORE the reference. `adelay` only accepts a
-  // non-negative value, so `buildDuetMixFilterComplex` resolves the sign by
-  // choosing which stem gets delayed — never by passing a negative number to
-  // `adelay` (see the file-header note in src/lib/duet/ffmpegChain.ts).
-  // `referenceGainDb` is 0 for an ordinary Duet; a backing-track Wave
-  // (spec §4, `enqueueBackingTrackMixJob` in src/lib/db/backingTracks.ts)
-  // sets it negative so the instrumental sits behind the vocal.
-  const chain = buildDuetMixFilterComplex({
-    offsetMs: payload.offsetMs,
-    presetFilter,
-    advancedEq: payload.advancedEq,
-    referenceGainDb: payload.referenceGainDb,
-  });
+
+  // Wave D: `layer` (the original, only-ever mode) mixes simultaneously;
+  // `atisma` splices trimmed call-and-response segments; `cypher` appends
+  // the contribution after the parent's full audio. Each branch below
+  // produces the same `{ filterComplex, outputMap }` shape `runFfmpeg`
+  // consumes, plus whatever extra fields belong in `complete_audio_job`'s
+  // `p_result` for that mode.
+  let filterComplex: string;
+  let outputMap: string;
+  let modeResult: Json;
+
+  if (payload.mode === "atisma") {
+    if (!payload.segments || payload.segments.length === 0) {
+      throw new Error(
+        "mix_duet job payload has mode='atisma' but no segments (see enqueueDuetMixJob in src/lib/db/duets.ts)",
+      );
+    }
+    const atismaChain = buildAtismaMixFilterComplex(payload.segments, {
+      presetFilter,
+      advancedEq: payload.advancedEq,
+    });
+    filterComplex = atismaChain.filterComplex;
+    outputMap = atismaChain.outputMap;
+    modeResult = { mode: "atisma", segment_count: atismaChain.segmentCount };
+  } else if (payload.mode === "cypher") {
+    const cypherChain = buildCypherMixFilterComplex({ presetFilter, advancedEq: payload.advancedEq });
+    filterComplex = cypherChain.filterComplex;
+    outputMap = cypherChain.outputMap;
+    modeResult = { mode: "cypher" };
+  } else {
+    // Sign handling (spec §15 flag): a negative offset means the contribution
+    // was recorded to start BEFORE the reference. `adelay` only accepts a
+    // non-negative value, so `buildDuetMixFilterComplex` resolves the sign by
+    // choosing which stem gets delayed — never by passing a negative number to
+    // `adelay` (see the file-header note in src/lib/duet/ffmpegChain.ts).
+    // `referenceGainDb` is 0 for an ordinary Duet; a backing-track Wave
+    // (spec §4, `enqueueBackingTrackMixJob` in src/lib/db/backingTracks.ts)
+    // sets it negative so the instrumental sits behind the vocal.
+    const layerChain = buildDuetMixFilterComplex({
+      offsetMs: payload.offsetMs,
+      presetFilter,
+      advancedEq: payload.advancedEq,
+      referenceGainDb: payload.referenceGainDb,
+    });
+    filterComplex = layerChain.filterComplex;
+    outputMap = layerChain.outputMap;
+    modeResult = {
+      mode: "layer",
+      offset_ms: payload.offsetMs,
+      contribution_delay_ms: layerChain.contributionDelayMs,
+      reference_delay_ms: layerChain.referenceDelayMs,
+      reference_gain_db: payload.referenceGainDb,
+    };
+  }
 
   const mixedWavPath = path.join(tmpDir, "mixed.wav");
   const outputPath = path.join(tmpDir, "mixed.m4a");
@@ -724,20 +822,20 @@ async function runMixDuetJob(
     const previewArgs = [
       "-hide_banner", "-loglevel", "error", "-y",
       "-i", referenceInputPath, "-i", newTakeInputPath,
-      "-filter_complex", chain.filterComplex, "-map", chain.outputMap,
+      "-filter_complex", filterComplex, "-map", outputMap,
       "-c:a", "aac", "-b:a", "192k", outputPath,
     ];
     console.log(
-      `[worker] (dry-run) mix_duet job ${job.id} — contribution asset ${newTake.id} against reference ${reference.id}`,
+      `[worker] (dry-run) mix_duet job ${job.id} (mode=${payload.mode}) — contribution asset ${newTake.id} against reference ${reference.id}`,
     );
     console.log(`[worker] (dry-run)   reference source: ${referenceStoragePath}`);
     console.log(`[worker] (dry-run)   contribution source: ${newTake.original_path}`);
-    console.log(
-      `[worker] (dry-run)   offset_ms=${payload.offsetMs} -> ` +
-        `contributionDelayMs=${chain.contributionDelayMs} referenceDelayMs=${chain.referenceDelayMs} ` +
-        `referenceGainDb=${payload.referenceGainDb}`,
-    );
-    console.log(`[worker] (dry-run)   pipeline: clean contribution (sidecar/arnndn/skip) -> mix -> master (sidecar/loudnorm) -> encode -> peaks`);
+    if (payload.mode === "layer") {
+      console.log(`[worker] (dry-run)   offset_ms=${payload.offsetMs}, reference_gain_db=${payload.referenceGainDb}`);
+    } else if (payload.mode === "atisma") {
+      console.log(`[worker] (dry-run)   segments=${JSON.stringify(payload.segments)}`);
+    }
+    console.log(`[worker] (dry-run)   pipeline: clean contribution (sidecar/arnndn/skip) -> ${payload.mode} -> master (sidecar/loudnorm) -> encode -> peaks`);
     console.log(`[worker] (dry-run)   mix command (contribution not yet cleaned): ${formatFfmpegCommand(previewArgs)}`);
     return;
   }
@@ -751,7 +849,7 @@ async function runMixDuetJob(
   // (spec: "keep mix_duet working and route the contribution stem through
   // the same cleanup") — the reference is left untouched, exactly like the
   // existing "enhance the contribution, not the reference" rule for the
-  // preset/EQ above.
+  // preset/EQ above, for every mode.
   const cleanResult = await runCleanStage(newTakeInputPath, tmpDir);
   const cleanedContributionPath = cleanResult?.outputPath ?? newTakeInputPath;
 
@@ -759,8 +857,8 @@ async function runMixDuetJob(
     "-hide_banner", "-loglevel", "error", "-y",
     "-i", referenceInputPath,
     "-i", cleanedContributionPath,
-    "-filter_complex", chain.filterComplex,
-    "-map", chain.outputMap,
+    "-filter_complex", filterComplex,
+    "-map", outputMap,
     "-ar", "48000",
     mixedWavPath,
   ]);
@@ -780,6 +878,12 @@ async function runMixDuetJob(
     probeDurationMs(outputPath),
     runPeaksStage(masterResult.outputPath),
   ]);
+
+  if (isDegeneratePeaks(peaksResult.peaks, durationMs)) {
+    throw new Error(
+      `peaks extraction produced no signal for mixed asset ${newTake.id} (duration ${durationMs}ms, method ${peaksResult.report.method}) — refusing to store a degenerate waveform`,
+    );
+  }
 
   const enhancementReport: EnhancementReport = {
     ...(cleanResult ? { clean: cleanResult.report } : {}),
@@ -804,12 +908,9 @@ async function runMixDuetJob(
     p_result: {
       preset,
       mixed: true,
-      offset_ms: payload.offsetMs,
       reference_asset_id: reference.id,
-      contribution_delay_ms: chain.contributionDelayMs,
-      reference_delay_ms: chain.referenceDelayMs,
-      reference_gain_db: payload.referenceGainDb,
       advanced_eq_applied: Boolean(payload.advancedEq),
+      ...(modeResult as Record<string, Json>),
     } as Json,
     p_enhancement_report: enhancementReport as unknown as Json,
   });
