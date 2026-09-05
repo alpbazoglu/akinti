@@ -6,6 +6,87 @@ export {
   isMediaRecorderSupported,
   isRecordingSupported,
 } from "./capabilities";
+export { buildCaptureConstraints, MONITOR_SAMPLE_RATE, type CaptureConstraintOptions } from "./constraints";
+export {
+  NATIVE_MIME_CANDIDATES,
+  WAV_MIME_TYPE,
+  describeEnvironment,
+  isAppleWebKit,
+  planRecorder,
+  probeNativeMimeType,
+  type RecorderEnvironment,
+  type RecorderKind,
+  type RecorderPlan,
+} from "./recorderPlan";
+export {
+  COUNTDOWN_SECONDS,
+  LIVE_WINDOW_MS,
+  MAX_RECORDING_MS,
+  REVIEW_PEAK_BUCKETS,
+  STRIP_PEAK_BUCKETS,
+} from "./recordingConfig";
+export { LiveMonitor, type LiveMonitorOptions, type MonitorSample } from "./monitor";
+export {
+  A4_HZ,
+  CLIPPING_DB,
+  IN_TUNE_CENTS,
+  LEVEL_FLOOR_DB,
+  MAX_PITCH_HZ,
+  MIN_PITCH_CLARITY,
+  MIN_PITCH_HZ,
+  NOTE_NAMES,
+  describePitch,
+  formatDb,
+  formatPitch,
+  frequencyToMidi,
+  isUsablePitch,
+  rmsToDb,
+  type PitchReading,
+} from "./pitch";
+export {
+  MIN_TRIMMED_MS,
+  clampTrim,
+  fullRange,
+  isTrimmed,
+  msAtRatio,
+  nearestHandle,
+  ratioOf,
+  trimmedDurationMs,
+  type TrimHandle,
+  type TrimRange,
+} from "./trim";
+export { applyTrim, type TrimmedAudio } from "./trimAudio";
+export { WAV_MIME, encodeWav, encodeWavBlob, type AudioBufferLike } from "./wav";
+export {
+  DRAFT_MAX_AGE_MS,
+  clearDraft,
+  loadDraft,
+  saveDraft,
+  setDraftStore,
+  type DraftStore,
+  type RecordingDraft,
+} from "./drafts";
+export {
+  DEFAULT_RECORD_PREFERENCES,
+  getRecordPreferences,
+  getServerRecordPreferences,
+  parseRecordPreferences,
+  setRecordPreferences,
+  subscribeRecordPreferences,
+  type RecordPreferences,
+} from "./recordPreferences";
+export {
+  MAX_RENDER_SECONDS,
+  POLISH_CHAINS,
+  PolishPreview,
+  buildPolishGraph,
+  createRoomImpulse,
+  decodeTake,
+  describePolishGraph,
+  renderPolishedPeaks,
+  type PolishMode,
+  type PolishNodeSpec,
+} from "./preview";
 export {
   AudioRecorder,
   useRecorder,
@@ -18,6 +99,7 @@ export {
   type RecorderResult,
   type RecorderState,
   type RecorderStatus,
+  type RecorderStreamListener,
   type RecorderUnsubscribe,
   type UseRecorderResult,
 } from "./recorder";
@@ -46,6 +128,7 @@ export {
   type EnhancementPresetId,
   type PreviewBiquadStep,
   type PreviewChainStep,
+  type PreviewCompressorStep,
   type PreviewConvolverStep,
   type PreviewGainStep,
 } from "./enhancement";

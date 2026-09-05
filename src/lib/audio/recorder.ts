@@ -19,6 +19,13 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { MAX_AUDIO_DURATION_MS } from "@/lib/supabase/config";
 
 import { getRecordingMimeType, isRecordingSupported } from "./capabilities";
+import { buildCaptureConstraints, type CaptureConstraintOptions } from "./constraints";
+import {
+  describeEnvironment,
+  planRecorder,
+  type RecorderKind,
+  type RecorderPlan,
+} from "./recorderPlan";
 
 export type RecorderStatus =
   | "idle"
@@ -48,7 +55,23 @@ export interface RecorderState {
   readonly autoStopped: boolean;
   readonly result: RecorderResult | null;
   readonly maxDurationMs: number;
+  /**
+   * The container actually being written, once capture starts. `null` before
+   * that: which one it is depends on a live `isTypeSupported` probe, so
+   * claiming one up front would sometimes be a lie (see `./recorderPlan.ts`).
+   */
+  readonly mimeType: string | null;
+  /** `native` or the WAV polyfill. Surfaced so the UI can say so honestly. */
+  readonly recorderKind: RecorderKind | null;
+  /**
+   * True when the take ended because the tab was hidden or unloaded rather
+   * than because the user pressed stop. The audio is still kept.
+   */
+  readonly interrupted: boolean;
 }
+
+/** Notified with the live capture stream, and with `null` when it is released. */
+export type RecorderStreamListener = (stream: RecorderMediaStreamLike | null) => void;
 
 export type RecorderUnsubscribe = () => void;
 
@@ -95,18 +118,26 @@ export interface RecorderAudioContextLike {
 export interface AudioRecorderOptions {
   /** Auto-stop threshold. Defaults to `MAX_AUDIO_DURATION_MS` (spec §17/§18/§34). */
   maxDurationMs?: number;
-  /** Force a mime type instead of auto-detecting via `getRecordingMimeType()`. */
+  /** Force a mime type instead of letting `planRecorder()` choose one. */
   mimeType?: string | null;
   /** How often elapsed time and the level meter refresh, in ms. */
   tickIntervalMs?: number;
   /** `MediaRecorder.start(timeslice)` — how often `ondataavailable` fires. */
   timesliceMs?: number;
+  /** Capture constraints (`./constraints.ts`). Singing defaults when omitted. */
+  constraints?: CaptureConstraintOptions;
   now?: () => number;
   requestMicrophone?: () => Promise<RecorderMediaStreamLike>;
+  /**
+   * Build the underlying recorder. May be async: the WAV fallback has to
+   * import and register an `AudioWorklet` encoder first (`./wavRecorder.ts`).
+   */
   createRecorder?: (
     stream: RecorderMediaStreamLike,
     mimeType: string | null,
-  ) => RecorderMediaRecorderLike;
+  ) => RecorderMediaRecorderLike | Promise<RecorderMediaRecorderLike>;
+  /** Override the native-vs-WAV decision. Defaults to a live browser probe. */
+  resolvePlan?: () => RecorderPlan;
   createAudioContext?: () => RecorderAudioContextLike | null;
   setIntervalFn?: (handler: () => void, ms: number) => ReturnType<typeof setInterval>;
   clearIntervalFn?: (id: ReturnType<typeof setInterval>) => void;
@@ -119,10 +150,15 @@ const INITIAL_STATE: Omit<RecorderState, "maxDurationMs"> = {
   error: null,
   autoStopped: false,
   result: null,
+  mimeType: null,
+  recorderKind: null,
+  interrupted: false,
 };
 
-function defaultRequestMicrophone(): Promise<RecorderMediaStreamLike> {
-  return navigator.mediaDevices.getUserMedia({ audio: true });
+function defaultRequestMicrophone(
+  constraints: CaptureConstraintOptions,
+): Promise<RecorderMediaStreamLike> {
+  return navigator.mediaDevices.getUserMedia(buildCaptureConstraints(constraints));
 }
 
 function defaultCreateRecorder(
@@ -169,17 +205,20 @@ export class AudioRecorder {
    */
   private readonly serverState: RecorderState;
   private readonly listeners = new Set<() => void>();
+  private readonly streamListeners = new Set<RecorderStreamListener>();
   private readonly opts: {
     maxDurationMs: number;
     mimeType: string | null | undefined;
     tickIntervalMs: number;
     timesliceMs: number;
+    constraints: CaptureConstraintOptions;
     now: () => number;
     requestMicrophone: () => Promise<RecorderMediaStreamLike>;
     createRecorder: (
       stream: RecorderMediaStreamLike,
       mimeType: string | null,
-    ) => RecorderMediaRecorderLike;
+    ) => RecorderMediaRecorderLike | Promise<RecorderMediaRecorderLike>;
+    resolvePlan: () => RecorderPlan;
     createAudioContext: () => RecorderAudioContextLike | null;
     setIntervalFn: (handler: () => void, ms: number) => ReturnType<typeof setInterval>;
     clearIntervalFn: (id: ReturnType<typeof setInterval>) => void;
@@ -208,14 +247,17 @@ export class AudioRecorder {
   constructor(options: AudioRecorderOptions = {}) {
     this.usesRealBrowserApis =
       options.requestMicrophone === undefined && options.createRecorder === undefined;
+    const constraints = options.constraints ?? {};
     this.opts = {
       maxDurationMs: options.maxDurationMs ?? MAX_AUDIO_DURATION_MS,
       mimeType: options.mimeType,
       tickIntervalMs: options.tickIntervalMs ?? 100,
       timesliceMs: options.timesliceMs ?? 1000,
+      constraints,
       now: options.now ?? (() => Date.now()),
-      requestMicrophone: options.requestMicrophone ?? defaultRequestMicrophone,
+      requestMicrophone: options.requestMicrophone ?? (() => defaultRequestMicrophone(constraints)),
       createRecorder: options.createRecorder ?? defaultCreateRecorder,
+      resolvePlan: options.resolvePlan ?? (() => planRecorder(describeEnvironment())),
       createAudioContext: options.createAudioContext ?? defaultCreateAudioContext,
       setIntervalFn: options.setIntervalFn ?? ((handler, ms) => setInterval(handler, ms)),
       clearIntervalFn: options.clearIntervalFn ?? ((id) => clearInterval(id)),
@@ -238,6 +280,28 @@ export class AudioRecorder {
   readonly getState = (): RecorderState => this.state;
 
   readonly getServerState = (): RecorderState => this.serverState;
+
+  /**
+   * Subscribe to the live capture stream.
+   *
+   * The record screen needs the same `MediaStream` this store is recording —
+   * for the live trace, the pitch meter and the optional headphone monitor
+   * (`./monitor.ts`) — and asking for a second `getUserMedia` would light a
+   * second microphone indicator and, on some engines, a second AGC chain.
+   * Listeners are called immediately with the current stream, so subscribing
+   * mid-take is not a lost event.
+   */
+  onStream(listener: RecorderStreamListener): RecorderUnsubscribe {
+    this.streamListeners.add(listener);
+    listener(this.stream);
+    return () => {
+      this.streamListeners.delete(listener);
+    };
+  }
+
+  private notifyStream(stream: RecorderMediaStreamLike | null): void {
+    for (const listener of this.streamListeners) listener(stream);
+  }
 
   /* ---------------------------------------------------------------- */
   /* Commands                                                          */
@@ -289,17 +353,32 @@ export class AudioRecorder {
       return;
     }
 
-    const mimeType = this.opts.mimeType !== undefined ? this.opts.mimeType : getRecordingMimeType();
+    // Which container to write is a live probe, not a constant
+    // (`mobile-guidelines.md` rule 22). `getRecordingMimeType()` stays the
+    // fallback for a caller that injects its own `createRecorder` and has no
+    // opinion, so the older consumers of this store behave exactly as before.
+    const plan = this.usesRealBrowserApis ? this.opts.resolvePlan() : null;
+    const mimeType =
+      this.opts.mimeType !== undefined
+        ? this.opts.mimeType
+        : (plan?.mimeType ?? getRecordingMimeType());
 
     let recorder: RecorderMediaRecorderLike;
     try {
-      recorder = this.opts.createRecorder(stream, mimeType);
+      recorder = await this.buildRecorder(stream, mimeType, plan?.kind ?? null);
     } catch {
       for (const track of stream.getTracks()) track.stop();
       this.setState({
         status: "unsupported",
         error: "Recording is not supported in this browser.",
       });
+      return;
+    }
+
+    // Permission and encoder set-up are both awaited above; the caller may
+    // have navigated away in the meantime.
+    if (this.currentStatus() !== "requesting") {
+      for (const track of stream.getTracks()) track.stop();
       return;
     }
 
@@ -322,11 +401,50 @@ export class AudioRecorder {
     };
 
     this.setupLevelMeter(stream);
+    this.notifyStream(stream);
 
     this.startedAt = this.opts.now();
     recorder.start(this.opts.timesliceMs);
-    this.setState({ status: "recording", elapsedMs: 0, level: 0, error: null, result: null });
+    this.setState({
+      status: "recording",
+      elapsedMs: 0,
+      level: 0,
+      error: null,
+      result: null,
+      mimeType,
+      recorderKind: plan?.kind ?? null,
+      interrupted: false,
+    });
     this.startTicking();
+  }
+
+  /**
+   * Build the underlying recorder, taking the WAV path when the plan asked
+   * for it. The polyfill is imported here and nowhere else, so a browser on
+   * the native path never downloads it.
+   */
+  private async buildRecorder(
+    stream: RecorderMediaStreamLike,
+    mimeType: string | null,
+    kind: RecorderKind | null,
+  ): Promise<RecorderMediaRecorderLike> {
+    if (kind === "wav") {
+      const { createWavRecorder } = await import("./wavRecorder");
+      return createWavRecorder(stream, mimeType ?? "audio/wav");
+    }
+    return this.opts.createRecorder(stream, mimeType);
+  }
+
+  /**
+   * Stop because the page is going away (`visibilitychange`, `pagehide`),
+   * not because the user asked. The take is kept and flagged, so the screen
+   * can say what happened instead of silently presenting a short recording as
+   * if it were finished on purpose.
+   */
+  stopBecauseHidden(): void {
+    if (this.state.status !== "recording" && this.state.status !== "paused") return;
+    this.setState({ interrupted: true });
+    this.stop();
   }
 
   pause(): void {
@@ -369,6 +487,7 @@ export class AudioRecorder {
   destroy(): void {
     this.cleanupAll();
     this.listeners.clear();
+    this.streamListeners.clear();
   }
 
   /* ---------------------------------------------------------------- */
@@ -458,6 +577,7 @@ export class AudioRecorder {
   private releaseMedia(): void {
     this.stopTicking();
     for (const track of this.stream?.getTracks() ?? []) track.stop();
+    if (this.stream) this.notifyStream(null);
     this.stream = null;
     if (this.mediaRecorder) {
       this.mediaRecorder.ondataavailable = null;
@@ -510,6 +630,8 @@ export interface UseRecorderResult {
   readonly stop: () => void;
   readonly discard: () => void;
   readonly retake: () => void;
+  /** The store itself, for `onStream` and for a `visibilitychange` handler. */
+  readonly recorder: AudioRecorder;
 }
 
 /**
@@ -537,5 +659,5 @@ export function useRecorder(options?: AudioRecorderOptions): UseRecorderResult {
   const discard = useCallback(() => recorder.discard(), [recorder]);
   const retake = useCallback(() => recorder.retake(), [recorder]);
 
-  return { state, start, pause, resume, stop, discard, retake };
+  return { state, start, pause, resume, stop, discard, retake, recorder };
 }

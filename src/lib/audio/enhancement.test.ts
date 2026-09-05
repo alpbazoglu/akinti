@@ -43,11 +43,23 @@ function createFakeAudioContext() {
     };
   }
 
+  function makeParamNode(kind: string) {
+    const node = makeNode(kind);
+    return Object.assign(node, {
+      threshold: { value: 0 },
+      knee: { value: 0 },
+      ratio: { value: 0 },
+      attack: { value: 0 },
+      release: { value: 0 },
+    });
+  }
+
   const audioContext = {
     sampleRate: 44100,
     createBiquadFilter: () => makeNode("biquad"),
     createGain: () => makeNode("gain"),
     createConvolver: () => makeNode("convolver"),
+    createDynamicsCompressor: () => makeParamNode("compressor"),
     createBuffer: (channels: number, length: number) => ({
       numberOfChannels: channels,
       getChannelData: () => new Float32Array(length),
@@ -95,13 +107,24 @@ describe("createPreviewGraph", () => {
     expect(connections[0].from).toBe(source.id);
   });
 
-  it("builds a single-node passthrough for natural (gain only)", () => {
+  it("levels the default preset rather than bypassing it", () => {
+    // `natural` is `loudnorm` alone on the server, so the preview is one
+    // gentle compressor plus makeup gain: a default that does nothing is not
+    // a default worth having (docs/PRODUCT_V2.md section 3).
     const { audioContext, connections, makeNode } = createFakeAudioContext();
     const source = makeNode("source");
 
     createPreviewGraph(audioContext as unknown as AudioContext, source as unknown as AudioNode, "natural");
 
-    expect(connections).toHaveLength(1);
+    expect(connections).toHaveLength(2);
+    expect(connections.some((edge) => edge.to.startsWith("compressor"))).toBe(true);
+    expect(connections.some((edge) => edge.to.startsWith("gain"))).toBe(true);
+  });
+
+  it("keeps natural the shortest chain of the six", () => {
+    const lengths = ENHANCEMENT_PRESETS.map((preset) => preset.chain.length);
+    const natural = getEnhancementPreset("natural").chain.length;
+    expect(natural).toBe(Math.min(...lengths));
   });
 
   it("builds a convolver-based chain for atmospheric", () => {
