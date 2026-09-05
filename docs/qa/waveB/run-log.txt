@@ -1,0 +1,19 @@
+created test user e2e+waveb-mtomwzfsu9li@akinti.test
+onboarded
+recording started (post count-in)
+stopped -> review/trim
+review -> enhance
+enhance -> details
+published recorded wave -> http://localhost:3455/w/bebc3d16-978b-45ec-805a-c7bcd4e1c379
+upload -> enhance
+published uploaded wave -> http://localhost:3455/w/0278efd3-9c39-485f-b845-48b4147145b3
+backing tracks listed: 1
+track row wired into RecordStage: true
+published backing-track wave -> http://localhost:3455/w/69726994-6db0-4957-ac53-cc2201401836
+test user cleaned up
+
+console errors:
+(none)
+
+page errors:
+(none)
