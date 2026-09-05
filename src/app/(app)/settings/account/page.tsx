@@ -41,8 +41,10 @@ export default async function AccountSettingsPage() {
     <>
       <PageHeader title="Account" />
 
-      <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
-        <section className="rounded-xl border border-border bg-surface p-5">
+      {/* Rail-hung plain form: no card boundary, hairline separators between
+          groups (DESIGN.md §12 rule 1 — "never wrap content in a card"). */}
+      <div className="flex flex-col divide-y divide-border px-4 pb-8 sm:px-5">
+        <section className="py-6 first:pt-0">
           <h2 className="text-sm font-semibold text-fg">Profile</h2>
           <p className="mt-1 mb-4 text-sm text-fg-muted">
             Your photo, display name, username and bio — visible on {`@${profile?.username ?? ""}`}.
@@ -55,18 +57,18 @@ export default async function AccountSettingsPage() {
           />
         </section>
 
-        <section className="rounded-xl border border-border bg-surface p-5">
+        <section className="py-6">
           <h2 className="text-sm font-semibold text-fg">Email</h2>
           <p className="mt-1 text-sm text-fg-muted">{user.email ?? "—"}</p>
         </section>
 
-        <section className="rounded-xl border border-border bg-surface p-5">
+        <section className="py-6">
           <h2 className="text-sm font-semibold text-fg">Password</h2>
           <p className="mt-1 mb-4 text-sm text-fg-muted">Choose a new password for your account.</p>
           <ChangePasswordForm />
         </section>
 
-        <section className="rounded-xl border border-border bg-surface p-5">
+        <section className="py-6 last:pb-0">
           <h2 className="text-sm font-semibold text-fg">Session</h2>
           <p className="mt-1 mb-4 text-sm text-fg-muted">Sign out of {TERMS.brand} on this device.</p>
           <form action={handleSignOut}>
