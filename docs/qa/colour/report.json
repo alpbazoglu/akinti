@@ -1,0 +1,202 @@
+{
+  "base": "http://localhost:3577",
+  "consoleErrors": [
+    {
+      "label": "mobile-light",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "label": "mobile-dark",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "label": "desktop-light",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    },
+    {
+      "label": "desktop-dark",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ],
+  "failedRequests": [],
+  "axeResults": [
+    {
+      "label": "home (mobile-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "explore (mobile-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "wave (mobile-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "record idle (mobile-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "profile (mobile-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "challenges (mobile-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "settings (mobile-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "kit (mobile-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "home (mobile-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "explore (mobile-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "wave (mobile-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "record idle (mobile-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "profile (mobile-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "challenges (mobile-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "settings (mobile-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "kit (mobile-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "home (desktop-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "explore (desktop-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "wave (desktop-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "record idle (desktop-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "profile (desktop-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "challenges (desktop-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "settings (desktop-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "kit (desktop-light)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "home (desktop-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "explore (desktop-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "wave (desktop-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "record idle (desktop-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "profile (desktop-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "challenges (desktop-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "settings (desktop-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "kit (desktop-dark)",
+      "total": 0,
+      "serious": []
+    }
+  ],
+  "notReached": [
+    {
+      "url": "http://localhost:3577/create (record button)",
+      "error": "record control not found"
+    },
+    {
+      "url": "http://localhost:3577/create (record button)",
+      "error": "record control not found"
+    },
+    {
+      "url": "http://localhost:3577/create (record button)",
+      "error": "record control not found"
+    },
+    {
+      "url": "http://localhost:3577/create (record button)",
+      "error": "record control not found"
+    }
+  ]
+}
