@@ -120,6 +120,12 @@ describe("formatNotification", () => {
     expect(result.href).toBe(routes.wave("duet-wave-1"));
   });
 
+  it("formats an answered open call, linking to the new Duet Wave", () => {
+    const result = formatNotification(baseNotification({ type: "open_call_answered", waveId: "duet-wave-2" }));
+    expect(result.title).toBe("Ada answered your open Duet call");
+    expect(result.href).toBe(routes.wave("duet-wave-2"));
+  });
+
   it("formats a collaborator invitation", () => {
     const result = formatNotification(baseNotification({ type: "collaborator_invite", waveId: "wave-1" }));
     expect(result.title).toBe("Ada invited you to collaborate on a Wave");
@@ -187,6 +193,7 @@ describe("formatNotification", () => {
       "duet_accepted",
       "duet_declined",
       "duet_published",
+      "open_call_answered",
       "collaborator_invite",
       "collaborator_accepted",
       "message",

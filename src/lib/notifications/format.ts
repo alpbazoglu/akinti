@@ -51,6 +51,7 @@ const ICONS: Record<NotificationType, IconComponent> = {
   duet_accepted: CircleCheck,
   duet_declined: CircleX,
   duet_published: Users,
+  open_call_answered: Mic2,
   collaborator_invite: Users,
   collaborator_accepted: UserCheck,
   message: MessageCircle,
@@ -78,6 +79,7 @@ const VERB: Record<Exclude<NotificationType, "system">, string> = {
   duet_accepted: `accepted your ${TERMS.duetRequest}`,
   duet_declined: `declined your ${TERMS.duetRequest}`,
   duet_published: `published a ${TERMS.duet} using your ${TERMS.wave}`,
+  open_call_answered: `answered your open ${TERMS.duet} call`,
   collaborator_invite: `invited you to collaborate on a ${TERMS.wave}`,
   collaborator_accepted: `accepted your ${TERMS.collaborator.toLowerCase()} invite`,
   message: "sent you a message",
@@ -94,6 +96,7 @@ const BODY: Record<NotificationType, string> = {
   duet_accepted: `Your ${TERMS.duetRequest.toLowerCase()} was accepted.`,
   duet_declined: `Your ${TERMS.duetRequest.toLowerCase()} was declined.`,
   duet_published: `A new ${TERMS.duet.toLowerCase()} of your ${TERMS.wave} is live.`,
+  open_call_answered: `Someone recorded against your open ${TERMS.duet.toLowerCase()} call.`,
   collaborator_invite: `Invited you to join a ${TERMS.wave} as a ${TERMS.collaborator.toLowerCase()}.`,
   collaborator_accepted: `Accepted your ${TERMS.collaborator.toLowerCase()} invite.`,
   message: "Sent you a message.",
@@ -113,6 +116,7 @@ function hrefFor(n: NotificationWithActor): string {
     case "duet_accepted":
     case "duet_declined":
     case "duet_published":
+    case "open_call_answered":
     case "collaborator_invite":
     case "collaborator_accepted":
       return n.waveId ? routes.wave(n.waveId) : routes.notifications();
