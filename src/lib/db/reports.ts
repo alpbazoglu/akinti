@@ -10,7 +10,7 @@ import type { Page, Report } from "@/types/domain";
 
 import { toReport } from "./mappers";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap } from "./types";
+import { buildPage, clampLimit, decodeCursor, encodeCursor, keysetFilter, unwrap } from "./types";
 
 export async function createReport(db: Db, reporterId: string, input: CreateReportInput): Promise<Report> {
   const result = await db
@@ -42,12 +42,13 @@ export async function listMyReports(
     .select("*")
     .eq("reporter_id", reporterId)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listMyReports", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.created_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.created_at, r.id));
   return { items: page.items.map(toReport), nextCursor: page.nextCursor };
 }

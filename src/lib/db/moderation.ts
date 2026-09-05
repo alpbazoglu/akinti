@@ -27,7 +27,15 @@ import type {
 
 import { toComment, toMessage, toModerationAction, toProfile, toReport, toWave } from "./mappers";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap, unwrapList } from "./types";
+import {
+  buildPage,
+  clampLimit,
+  decodeCursor,
+  encodeCursor,
+  keysetFilter,
+  unwrap,
+  unwrapList,
+} from "./types";
 
 /** Whether the caller is a moderator. Thin wrapper over `is_moderator()` (migration 23). */
 export async function isModerator(db: Db): Promise<boolean> {
@@ -41,7 +49,12 @@ export async function listModerationQueue(
   filters: ModerationQueueFilters,
 ): Promise<Page<Report>> {
   const limit = clampLimit(filters.limit);
-  let query = db.from("reports").select("*").order("created_at", { ascending: false }).limit(limit + 1);
+  let query = db
+    .from("reports")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit + 1);
 
   if (filters.status) {
     query = query.eq("status", filters.status);
@@ -53,12 +66,12 @@ export async function listModerationQueue(
     query = query.eq("reason", filters.reason);
   }
   if (filters.cursor) {
-    query = query.lt("created_at", filters.cursor);
+    query = query.or(keysetFilter("created_at", "id", decodeCursor(filters.cursor)));
   }
 
   const result = await query;
   const rows = unwrap("listModerationQueue", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.created_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.created_at, r.id));
   return { items: page.items.map(toReport), nextCursor: page.nextCursor };
 }
 

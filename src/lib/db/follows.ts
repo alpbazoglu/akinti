@@ -14,7 +14,15 @@ import type { FollowStatus, Page, Profile } from "@/types/domain";
 
 import { getProfilesByIds } from "./profiles";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap, unwrapMaybe } from "./types";
+import {
+  buildPage,
+  clampLimit,
+  decodeCursor,
+  encodeCursor,
+  keysetFilter,
+  unwrap,
+  unwrapMaybe,
+} from "./types";
 
 /** Send a follow (or follow request, for a private profile). Idempotent. */
 export async function followProfile(
@@ -121,20 +129,25 @@ export async function listFollowers(
   params: { limit?: number; cursor?: string | null } = {},
 ): Promise<Page<Profile>> {
   const limit = clampLimit(params.limit);
+  // `follows` has no surrogate id (its primary key is `(follower_id,
+  // followee_id)`); scoped to one `followee_id` here, `follower_id` is
+  // itself unique per row, so it is a valid tiebreaker for the
+  // `(created_at, follower_id)` composite cursor.
   let query = db
     .from("follows")
     .select("follower_id, created_at")
     .eq("followee_id", profileId)
     .eq("status", "accepted")
     .order("created_at", { ascending: false })
+    .order("follower_id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "follower_id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listFollowers", { data: result.data ?? [], error: result.error });
   const edges = rows.map((r) => ({ otherId: r.follower_id, createdAt: r.created_at }));
-  const page = buildPage(edges, limit, (e) => e.createdAt);
+  const page = buildPage(edges, limit, (e) => encodeCursor(e.createdAt, e.otherId));
   const profiles = await hydrateEdges(db, page.items);
   return { items: profiles, nextCursor: page.nextCursor };
 }
@@ -145,20 +158,24 @@ export async function listFollowing(
   params: { limit?: number; cursor?: string | null } = {},
 ): Promise<Page<Profile>> {
   const limit = clampLimit(params.limit);
+  // Scoped to one `follower_id` here, `followee_id` is itself unique per
+  // row — the tiebreaker for the `(created_at, followee_id)` composite
+  // cursor (see `listFollowers`).
   let query = db
     .from("follows")
     .select("followee_id, created_at")
     .eq("follower_id", profileId)
     .eq("status", "accepted")
     .order("created_at", { ascending: false })
+    .order("followee_id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "followee_id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listFollowing", { data: result.data ?? [], error: result.error });
   const edges = rows.map((r) => ({ otherId: r.followee_id, createdAt: r.created_at }));
-  const page = buildPage(edges, limit, (e) => e.createdAt);
+  const page = buildPage(edges, limit, (e) => encodeCursor(e.createdAt, e.otherId));
   const profiles = await hydrateEdges(db, page.items);
   return { items: profiles, nextCursor: page.nextCursor };
 }
@@ -170,20 +187,23 @@ export async function listPendingFollowRequests(
   params: { limit?: number; cursor?: string | null } = {},
 ): Promise<Page<Profile>> {
   const limit = clampLimit(params.limit);
+  // Same tiebreaker as `listFollowers`: scoped to one `followee_id`,
+  // `follower_id` is unique per row.
   let query = db
     .from("follows")
     .select("follower_id, created_at")
     .eq("followee_id", profileId)
     .eq("status", "pending")
     .order("created_at", { ascending: false })
+    .order("follower_id", { ascending: false })
     .limit(limit + 1);
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "follower_id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listPendingFollowRequests", { data: result.data ?? [], error: result.error });
   const edges = rows.map((r) => ({ otherId: r.follower_id, createdAt: r.created_at }));
-  const page = buildPage(edges, limit, (e) => e.createdAt);
+  const page = buildPage(edges, limit, (e) => encodeCursor(e.createdAt, e.otherId));
   const profiles = await hydrateEdges(db, page.items);
   return { items: profiles, nextCursor: page.nextCursor };
 }

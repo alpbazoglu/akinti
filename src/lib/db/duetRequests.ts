@@ -13,7 +13,15 @@ import type { DuetRequest, Page } from "@/types/domain";
 
 import { toDuetRequest } from "./mappers";
 import type { Db } from "./types";
-import { buildPage, clampLimit, unwrap, unwrapMaybe } from "./types";
+import {
+  buildPage,
+  clampLimit,
+  decodeCursor,
+  encodeCursor,
+  keysetFilter,
+  unwrap,
+  unwrapMaybe,
+} from "./types";
 
 export async function getDuetRequestById(db: Db, requestId: string): Promise<DuetRequest | null> {
   const result = await db.from("duet_requests").select("*").eq("id", requestId).maybeSingle();
@@ -81,16 +89,17 @@ export async function listIncomingDuetRequests(
     .select("*")
     .eq("recipient_id", recipientId)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.status) {
     query = query.eq("status", params.status);
   }
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listIncomingDuetRequests", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.created_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.created_at, r.id));
   return { items: page.items.map(toDuetRequest), nextCursor: page.nextCursor };
 }
 
@@ -105,16 +114,17 @@ export async function listOutgoingDuetRequests(
     .select("*")
     .eq("requester_id", requesterId)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit + 1);
   if (params.status) {
     query = query.eq("status", params.status);
   }
   if (params.cursor) {
-    query = query.lt("created_at", params.cursor);
+    query = query.or(keysetFilter("created_at", "id", decodeCursor(params.cursor)));
   }
   const result = await query;
   const rows = unwrap("listOutgoingDuetRequests", { data: result.data ?? [], error: result.error });
-  const page = buildPage(rows, limit, (r) => r.created_at);
+  const page = buildPage(rows, limit, (r) => encodeCursor(r.created_at, r.id));
   return { items: page.items.map(toDuetRequest), nextCursor: page.nextCursor };
 }
 

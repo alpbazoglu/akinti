@@ -34,6 +34,7 @@ instructions: `supabase/README.md`.
 | 23 | `moderation_foundation` | `moderation_action_type` enum, `profiles.is_moderator`/`suspended_until`, `waves.hidden_at`, `can_view_wave()` updated, `is_moderator()`, `moderation_actions` (audit trail), `claim_report()`/`resolve_report()`/`dismiss_report()` (spec §26) |
 | 24 | `creator_analytics` | `play_events.suspicious`, `flag_suspicious_play_events()`, `wave_listen_is_suspicious()`, `creator_overview()`/`creator_timeseries()`/`creator_wave_performance()`, `product_health()` (moderator-only) — spec §13, §27, §28, §40, §43 Stage 13 |
 | 25 | `composite_pagination_indexes` | Drop-and-recreate of the ordering index behind every keyset-paginated list helper (Waves' `published_at`, comments'/messages'/saves' `created_at`, notifications' `updated_at`, conversations' `last_message_at`), each now trailing an id (or, for `saves`, `wave_id`) tiebreaker column — see "Composite keyset cursors" below |
+| 26 | `composite_pagination_indexes_2` | Same treatment for the five helpers migration 25 left out of scope: `duet_requests`' recipient/requester indexes, `shares`' wave index, `follows`' followee/follower indexes (tiebreaker: the other side of the edge, `follows` having no surrogate id), and `reports`' reporter and moderation-queue indexes — see "Composite keyset cursors" below |
 
 ## Entities
 
@@ -113,9 +114,23 @@ every cursor was before this migration — so an old bookmarked/cached cursor
 still works, just without the tie-safety for that one page. Migration 25
 replaced each backing index with a `(..., ts desc, id desc)` (or `asc` for
 `listCommentReplies`, which pages oldest-first) composite so the new filter
-still hits an index. Out of scope for this pass, with the same gap: duet
-request/share/follow/report/moderation-queue list helpers, which still
-paginate on a bare timestamp.
+still hits an index.
+
+Migration 26 (`composite_pagination_indexes_2`) closed the same gap in the
+five helpers migration 25 left out: `duetRequests.ts`'s
+`listIncomingDuetRequests`/`listOutgoingDuetRequests` (tiebreaker: `id`),
+`shares.ts`'s `listWaveShares` (`id`), `follows.ts`'s
+`listFollowers`/`listFollowing`/`listPendingFollowRequests`, `reports.ts`'s
+`listMyReports` (`id`), and `moderation.ts`'s `listModerationQueue` (`id`).
+`follows` has no surrogate id (its primary key is `(follower_id,
+followee_id)`); each of its three list helpers scopes the query to one side
+of the edge, so the other side — unique per row once scoped — is the
+tiebreaker, the same reasoning as `saves.wave_id` above. Every backing index
+(`duet_requests_recipient_idx`/`_requester_idx`, `shares_wave_idx`,
+`follows_followee_idx`/`_follower_idx`, `reports_reporter_idx`,
+`reports_queue_idx`) was likewise upgraded to a `(..., ts desc, id desc)`
+composite (`reports_queue_idx` also gained a matching `desc` direction on
+`created_at`, which the pre-migration index left ascending).
 
 **Notifications are grouped by construction**, not deduplicated after the
 fact. `push_notification()` upserts on `(recipient_id, group_key)`: while a
