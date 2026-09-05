@@ -14,7 +14,14 @@ import { expect } from "@playwright/test";
 
 import { createConfirmedUser, type ConfirmedTestUser } from "./supabaseAdmin";
 
-/** Signs in through the real `/login` form and walks the onboarding flow, for an already-created (admin API) account. */
+/**
+ * Signs in through the real `/login` form and walks the three-step
+ * onboarding flow (`docs/design/SCREENS.md` §1 — "Hear it" / "Say it" /
+ * "Be found", rebuilt at `src/app/onboarding/`), for an already-created
+ * (admin API) account. Each step's own text link ("I'll look around" /
+ * "Set up my mic later") is the fastest real path through — it never needs
+ * to touch the mic-permission trial key.
+ */
 export async function onboardWithLogin(page: Page, user: ConfirmedTestUser): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Email").fill(user.email);
@@ -22,11 +29,9 @@ export async function onboardWithLogin(page: Page, user: ConfirmedTestUser): Pro
   await page.getByRole("button", { name: "Log in" }).click();
 
   await expect(page).toHaveURL(/\/onboarding/);
-  await page.getByRole("button", { name: "Continue" }).click(); // step 1 -> 2 (interests)
-  await page.getByRole("button", { name: "Singing" }).click();
-  await page.getByRole("button", { name: "Continue" }).click(); // step 2 -> 3 (creators)
-  await page.getByRole("button", { name: "Continue" }).click(); // step 3 -> 4 (first Wave)
-  await page.getByRole("button", { name: /Skip, take me to Home/i }).click();
+  await page.getByRole("button", { name: /I'll look around/i }).click(); // step 1, "Hear it"
+  await page.getByRole("button", { name: /Set up my mic later/i }).click(); // step 2, "Say it"
+  await page.getByRole("button", { name: "Start listening" }).click(); // step 3, "Be found"
 
   await expect(page).toHaveURL("/");
 }

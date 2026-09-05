@@ -1,18 +1,17 @@
 "use server";
 
 import { completeOnboardingSchema } from "@/lib/validation/profiles";
+import { usernameSchema } from "@/lib/validation/common";
 import type { AuthActionResult } from "@/lib/auth/types";
 import { fieldErrorsFromZod } from "@/lib/auth/types";
 import { getCurrentUser } from "@/lib/auth/server";
-import { followProfile } from "@/lib/db/follows";
-import { completeOnboarding as completeOnboardingRow } from "@/lib/db/profiles";
+import { completeOnboarding as completeOnboardingRow, isUsernameAvailable } from "@/lib/db/profiles";
 import { DatabaseError } from "@/lib/db/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { uuidSchema } from "@/lib/validation/common";
 
 /**
- * Server Actions for `/onboarding` (spec §8). Called directly from
- * `OnboardingFlow.tsx` — a multi-step client wizard accumulating state
+ * Server Actions for `/onboarding` (SCREENS.md §1). Called directly from
+ * `OnboardingFlow.tsx` — a three-step client wizard accumulating state
  * across steps rather than one native form per step — instead of being bound
  * to a `<form action>`, but the return contract stays the same as every
  * other auth-adjacent action: `{ ok, fieldErrors, formError }`, never throw.
@@ -21,7 +20,6 @@ import { uuidSchema } from "@/lib/validation/common";
 export interface CompleteOnboardingInput {
   username: string;
   displayName: string | null;
-  interests: string[];
 }
 
 export async function completeOnboarding(input: CompleteOnboardingInput): Promise<AuthActionResult> {
@@ -33,7 +31,7 @@ export async function completeOnboarding(input: CompleteOnboardingInput): Promis
   const parsed = completeOnboardingSchema.safeParse({
     username: input.username,
     display_name: input.displayName,
-    interests: input.interests,
+    interests: [],
   });
 
   if (!parsed.success) {
@@ -54,24 +52,27 @@ export async function completeOnboarding(input: CompleteOnboardingInput): Promis
   return { ok: true };
 }
 
-/** Best-effort follow from the "suggested creators" step — never blocks the wizard. */
-export async function followSuggestedCreator(followeeId: string): Promise<AuthActionResult> {
+/**
+ * The signal tick beside the handle field on step three (§1.3): a small,
+ * inline availability check, never a green banner or a toast. Malformed
+ * input (too short, bad characters) reads as "unavailable" rather than
+ * surfacing a separate validation error here — the field's own on-blur
+ * validation covers that.
+ */
+export async function checkUsernameAvailable(
+  username: string,
+): Promise<{ available: boolean }> {
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, formError: "Your session has expired. Sign in again to continue." };
+    return { available: false };
   }
 
-  const parsedId = uuidSchema.safeParse(followeeId);
-  if (!parsedId.success) {
-    return { ok: false, formError: "Invalid profile." };
+  const parsed = usernameSchema.safeParse(username);
+  if (!parsed.success) {
+    return { available: false };
   }
 
   const supabase = await createServerSupabaseClient();
-  try {
-    await followProfile(supabase, user.id, parsedId.data);
-  } catch {
-    return { ok: false, formError: "Could not follow that creator. Try again." };
-  }
-
-  return { ok: true };
+  const available = await isUsernameAvailable(supabase, parsed.data, user.id);
+  return { available };
 }
