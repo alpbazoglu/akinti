@@ -10,8 +10,10 @@ import { getProfileById, isUsernameAvailable, updateProfile } from "@/lib/db/pro
 import { DatabaseError } from "@/lib/db/types";
 import type { AccountDataExport } from "@/lib/privacy/dataExport";
 import { serializeAccountDataExport } from "@/lib/privacy/dataExport";
+import { AUDIO_BUCKET, AVATAR_BUCKET } from "@/lib/supabase/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { deleteUserStorageObjects } from "@/lib/storage/userObjects";
 import type { CommentRow, WaveRow } from "@/types/database";
 import { routes } from "@/config/routes";
 import { uuidSchema } from "@/lib/validation/common";
@@ -303,6 +305,16 @@ export interface DeleteAccountFormInput {
  * (Waves, Duets, comments, messages) from there — the same cascade path
  * `e2e/helpers/supabaseAdmin.ts#deleteTestUser` already exercises for every
  * live-backend e2e spec's cleanup. No new migration needed.
+ *
+ * The cascade only takes database rows, never the account's Storage
+ * objects: nothing else references the private `audio` bucket or
+ * `avatars/<uid>/` once the `audio_assets`/`profiles` rows are gone, so
+ * every recording would otherwise be retained indefinitely with no row
+ * pointing at it. `deleteUserStorageObjects` (`src/lib/storage/userObjects.ts`)
+ * removes both buckets' objects for this account first — the same
+ * admin-client storage cleanup `deleteWaveDetails` (`w/[id]/actions.ts`)
+ * already does per Wave — and if that fails, the account is NOT deleted;
+ * an orphaned account is recoverable, silently-retained audio is not.
  */
 export async function deleteAccount(input: DeleteAccountFormInput): Promise<AuthActionResult> {
   const { user, result } = await requireSignedInUser();
@@ -319,8 +331,20 @@ export async function deleteAccount(input: DeleteAccountFormInput): Promise<Auth
     return { ok: false, fieldErrors: { confirmHandle: "That doesn't match your handle." } };
   }
 
+  const admin = createAdminClient();
+
   try {
-    const { error } = await createAdminClient().auth.admin.deleteUser(user.id);
+    await Promise.all([
+      deleteUserStorageObjects(admin.storage.from(AUDIO_BUCKET), user.id),
+      deleteUserStorageObjects(admin.storage.from(AVATAR_BUCKET), user.id),
+    ]);
+  } catch (err) {
+    console.error("[settings/actions] storage cleanup before account delete failed:", err);
+    return { ok: false, formError: "Could not delete your account. Try again." };
+  }
+
+  try {
+    const { error } = await admin.auth.admin.deleteUser(user.id);
     if (error) throw error;
   } catch {
     return { ok: false, formError: "Could not delete your account. Try again." };
