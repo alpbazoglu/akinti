@@ -92,10 +92,10 @@ export function PublishProgress({ stage, error, onRetry, className }: PublishPro
 }
 
 /**
- * The stage mark: a filled ink square when done, a breathing Signal dot while
- * running, a hairline tick while waiting. The running mark is the only place
- * outside the record key where Signal appears in this flow, and it is
- * genuinely audio state — this is the take moving (§4, §12.3).
+ * The stage mark: a filled ink square when done, a half-opacity ink square
+ * while running, a hairline tick while waiting. Publishing is not audio
+ * state, so it never reaches for Signal (§12.3), and it never loops — the
+ * record lamp is the one infinite animation this product has (§12.34).
  */
 function StageMark({
   done,
@@ -108,6 +108,6 @@ function StageMark({
 }) {
   if (failed) return <span className="size-2 bg-signal-deep" />;
   if (done) return <span className="size-2 bg-ink" />;
-  if (running) return <span className="motion-safe:akinti-lamp size-2 rounded-full bg-signal" />;
+  if (running) return <span className="size-2 bg-ink opacity-55" />;
   return <span className="h-px w-2 bg-hairline-strong" />;
 }
