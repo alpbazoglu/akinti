@@ -6,6 +6,8 @@ import { getBackingTrackById } from "@/lib/db/backingTracks";
 import { getChallengeBySlug } from "@/lib/db/challenges";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { uuidSchema } from "@/lib/validation/common";
+import { challengeSlugSchema } from "@/lib/validation/challenges";
 
 import type { RecordStageBackingTrack } from "@/components/create";
 import type { CreateFlowChallenge } from "./CreateFlow";
@@ -40,13 +42,24 @@ interface CreatePageProps {
  * quietly resolves to no challenge rather than an error screen. Its own
  * backing track, if it has one, preselects the same way `?track=` does,
  * unless the link already named an explicit `track`.
+ *
+ * Both params are Zod-validated (`uuidSchema`/`challengeSlugSchema`) before
+ * ever reaching a database call — not for injection safety (every read
+ * below is already parameterized) but because CLAUDE.md requires every
+ * input validated, and an unbounded `p_slug` otherwise reaches Postgres
+ * straight from a public param on a protected route (review2 #9). A
+ * malformed value is treated exactly like a valid-but-unresolvable one:
+ * ignored, never an error screen.
  */
 export default async function CreatePage({ searchParams }: CreatePageProps) {
   await requireOnboarded(routes.create());
   const { track: trackId, challenge: challengeSlug } = await searchParams;
 
-  const challenge = challengeSlug ? await loadChallenge(challengeSlug) : null;
-  const resolvedTrackId = trackId ?? challenge?.backingTrackId ?? null;
+  const parsedChallengeSlug = challengeSlug ? challengeSlugSchema.safeParse(challengeSlug) : null;
+  const challenge = parsedChallengeSlug?.success ? await loadChallenge(parsedChallengeSlug.data) : null;
+
+  const parsedTrackId = trackId ? uuidSchema.safeParse(trackId) : null;
+  const resolvedTrackId = (parsedTrackId?.success ? parsedTrackId.data : null) ?? challenge?.backingTrackId ?? null;
   const initialBackingTrack = resolvedTrackId ? await loadBackingTrack(resolvedTrackId) : null;
 
   return <CreateFlow initialBackingTrack={initialBackingTrack} initialChallenge={challenge} />;

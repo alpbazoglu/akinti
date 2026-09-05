@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout";
@@ -12,6 +13,7 @@ import { toCardWave } from "@/lib/feed/toCardWave";
 import { routes } from "@/config/routes";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { listWavesByHashtagSchema } from "@/lib/validation/challenges";
 import type { Wave } from "@/types/domain";
 
 interface HashtagPageProps {
@@ -21,9 +23,20 @@ interface HashtagPageProps {
 
 const PAGE_SIZE = 20;
 
+/** `decodeURIComponent` throws `URIError` on a malformed escape (e.g. `%E0%A4%A`) — never let a public route 500 over that. */
+function decodeTagParam(rawTag: string): string | null {
+  try {
+    return decodeURIComponent(rawTag);
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMetadata({ params }: HashtagPageProps) {
-  const { tag } = await params;
-  return { title: `#${decodeURIComponent(tag)}` };
+  const { tag: rawTag } = await params;
+  const decoded = decodeTagParam(rawTag);
+  const parsed = decoded ? listWavesByHashtagSchema.shape.tag.safeParse(decoded) : null;
+  return { title: parsed?.success ? `#${parsed.data}` : "Hashtag" };
 }
 
 /**
@@ -36,11 +49,27 @@ export async function generateMetadata({ params }: HashtagPageProps) {
  * Public: visibility is enforced per-row by `list_waves_by_hashtag`
  * (`can_view_wave`-filtered, like every other discovery RPC), not by gating
  * this route.
+ *
+ * `tag`/`cursor` are Zod-validated with `listWavesByHashtagSchema`
+ * (`src/lib/validation/challenges.ts`) before touching the database — not
+ * for injection safety (the RPC is already parameterized) but because
+ * CLAUDE.md requires every input validated, and an unbounded/malformed
+ * `p_tag` otherwise reaches Postgres straight from a public route
+ * (review2 #9/#10). An invalid tag renders the same 404 as one that never
+ * existed, matching this schema's "denial and absence look the same" rule.
  */
 export default async function HashtagPage({ params, searchParams }: HashtagPageProps) {
   const { tag: rawTag } = await params;
-  const tag = decodeURIComponent(rawTag);
   const { cursor } = await searchParams;
+
+  const decoded = decodeTagParam(rawTag);
+  const parsed = decoded
+    ? listWavesByHashtagSchema.safeParse({ tag: decoded, cursor: cursor ?? null, limit: PAGE_SIZE })
+    : null;
+  if (!parsed || !parsed.success) {
+    notFound();
+  }
+  const { tag, cursor: parsedCursor, limit } = parsed.data;
 
   if (!isSupabaseConfigured()) {
     return (
@@ -57,7 +86,7 @@ export default async function HashtagPage({ params, searchParams }: HashtagPageP
   const db = await createServerSupabaseClient();
   const [viewer, page] = await Promise.all([
     getCurrentUser(),
-    listWavesByHashtag(db, tag, { limit: PAGE_SIZE, cursor: cursor ?? null }),
+    listWavesByHashtag(db, tag, { limit, cursor: parsedCursor ?? null }),
   ]);
 
   const creatorIds = [...new Set(page.items.map((wave) => wave.creatorId))];
@@ -89,7 +118,7 @@ export default async function HashtagPage({ params, searchParams }: HashtagPageP
 
         {page.nextCursor ? (
           <Link
-            href={`${routes.hashtag(rawTag)}?cursor=${encodeURIComponent(page.nextCursor)}`}
+            href={`${routes.hashtag(tag)}?cursor=${encodeURIComponent(page.nextCursor)}`}
             className="type-body-sm self-start pt-4 text-ink underline"
           >
             Older Waves
