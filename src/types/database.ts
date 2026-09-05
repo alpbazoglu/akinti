@@ -85,6 +85,9 @@ export type ShareChannel = "link" | "message" | "native";
 
 export type DuetRequestStatus = "pending" | "accepted" | "declined" | "cancelled" | "expired";
 
+/** Wave D (Duets v2). `layer` is the original simultaneous mix; `atisma` (call-and-response) and `cypher` (sequential verses) are new — see docs/DUET_SPEC.md. */
+export type DuetMode = "layer" | "atisma" | "cypher";
+
 export type ConversationKind = "direct" | "group";
 export type MessageKind = "text" | "audio" | "wave_share" | "duet_request";
 
@@ -102,7 +105,9 @@ export type NotificationType =
   | "collaborator_invite"
   | "collaborator_accepted"
   | "message"
-  | "system";
+  | "system"
+  /** Wave D: fired when someone answers a creator's open call — see docs/DUET_SPEC.md "Open calls". */
+  | "open_call_answered";
 
 export type ReportTargetType = "wave" | "comment" | "profile" | "message";
 export type ReportReason =
@@ -228,6 +233,12 @@ export type WaveRow = {
   duet_depth: number;
   /** Set when this Wave is a vocal recorded over a backing track (spec §4) — mutually exclusive with `parent_wave_id` (see `waves_not_duet_and_backing_track`, migration 20260905110000). */
   backing_track_id: string | null;
+  /** Wave D. `null` for a non-duet Wave; server-defaults to `'layer'` for a duet Wave that doesn't request a mode — see `waves_derive_duet_lineage`. */
+  duet_mode: DuetMode | null;
+  /** Wave D, `atisma` only — jsonb `[{ source, startMs, endMs }]`; validated by `validate_duet_segments()`. `null` for every other mode. */
+  segments: Json | null;
+  /** Wave D, `cypher` only — 1-based position in the cypher, capped at 4. `null` for every other mode. */
+  cypher_order: number | null;
   content_origin: ContentOrigin;
   tags: string[];
   play_count: number;
@@ -260,6 +271,33 @@ export type BackingTrackRow = {
   open_for_vocals: boolean;
   created_at: string;
   updated_at: string;
+};
+
+/** Wave D — `public.open_calls` (one row per Wave). See `src/lib/db/openCalls.ts`. */
+export type OpenCallRow = {
+  id: string;
+  wave_id: string;
+  creator_id: string;
+  prompt: string | null;
+  deadline_at: string | null;
+  is_open: boolean;
+  created_at: string;
+  updated_at: string;
+  closed_at: string | null;
+};
+
+/** Row shape returned by the `duet_tree` RPC — see `src/lib/duet/chain.ts`. */
+export type DuetTreeNodeRow = {
+  id: string;
+  parent_wave_id: string | null;
+  creator_id: string;
+  depth: number;
+  creation_type: WaveCreationType;
+  duet_mode: DuetMode | null;
+  cypher_order: number | null;
+  published_at: string;
+  play_count: number;
+  duet_count: number;
 };
 
 export type WaveCollaboratorRow = {
@@ -565,6 +603,9 @@ export interface Database {
               | "parent_wave_id"
               | "duet_request_id"
               | "backing_track_id"
+              | "duet_mode"
+              | "segments"
+              | "cypher_order"
               | "content_origin"
               | "tags"
               | "published_at"
@@ -605,6 +646,12 @@ export interface Database {
         Update: Partial<
           Pick<BackingTrackRow, "title" | "artist_credit" | "genre_tags" | "open_for_vocals">
         >;
+        Relationships: Relationships;
+      };
+      open_calls: {
+        Row: OpenCallRow;
+        Insert: Pick<OpenCallRow, "wave_id"> & Partial<Pick<OpenCallRow, "id" | "prompt" | "deadline_at" | "is_open">>;
+        Update: Partial<Pick<OpenCallRow, "prompt" | "deadline_at" | "is_open">>;
         Relationships: Relationships;
       };
       wave_collaborators: {
@@ -821,6 +868,19 @@ export interface Database {
         Returns: CreatorWavePerformanceRow[];
       };
       product_health: { Args: { p_days?: number }; Returns: ProductHealthRow[] };
+      list_open_calls: {
+        Args: { p_genre?: string | null; p_cursor?: string | null; p_limit?: number };
+        Returns: OpenCallRow[];
+      };
+      answer_open_call: { Args: { p_wave_id: string }; Returns: string };
+      duet_tree: {
+        Args: { p_root_wave_id: string };
+        Returns: DuetTreeNodeRow[];
+      };
+      list_waves_on_track: {
+        Args: { p_track_id: string; p_cursor?: string | null; p_limit?: number };
+        Returns: WaveRow[];
+      };
     };
     Enums: {
       profile_privacy: ProfilePrivacy;
@@ -841,6 +901,7 @@ export interface Database {
       collaborator_status: CollaboratorStatus;
       share_channel: ShareChannel;
       duet_request_status: DuetRequestStatus;
+      duet_mode: DuetMode;
       conversation_kind: ConversationKind;
       message_kind: MessageKind;
       notification_type: NotificationType;

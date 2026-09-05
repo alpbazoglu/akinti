@@ -63,8 +63,9 @@ import { routes } from "@/config/routes";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { publishDuetWaveSchema } from "@/lib/validation/duets";
+import type { DuetSegment } from "@/lib/duet/ffmpegChain";
 import type { AdvancedEqSettings } from "@/lib/audio/enhancement";
-import type { AudioEnhancementPreset, WaveVisibility } from "@/types/domain";
+import type { AudioEnhancementPreset, DuetMode, WaveVisibility } from "@/types/domain";
 
 const NOT_CONFIGURED_ERROR =
   "This isn't connected to a backend yet — Supabase environment variables are not set.";
@@ -91,6 +92,10 @@ export interface PublishDuetWaveArgs {
   visibility?: WaveVisibility;
   preset?: AudioEnhancementPreset;
   advancedEq?: AdvancedEqSettings | null;
+  /** Wave D. Defaults to `"layer"` — the original, only-ever mode. */
+  mode?: DuetMode;
+  /** Wave D, required when `mode === "atisma"` — validated by `publishDuetWaveSchema`. */
+  segments?: DuetSegment[] | null;
 }
 
 function describeError(err: unknown, fallback: string): string {
@@ -163,6 +168,8 @@ export async function publishDuetWave(args: PublishDuetWaveArgs): Promise<Publis
       duet_permission: null,
       content_origin: "original",
       tags: [],
+      duet_mode: parsed.data.mode,
+      segments: parsed.data.mode === "atisma" ? (parsed.data.segments ?? null) : null,
     });
     waveId = wave.id;
   } catch (err) {
@@ -193,6 +200,8 @@ export async function publishDuetWave(args: PublishDuetWaveArgs): Promise<Publis
       offsetMs: parsed.data.offsetMs,
       preset: parsed.data.preset,
       advancedEq: parsed.data.advancedEq ?? null,
+      mode: parsed.data.mode,
+      segments: parsed.data.mode === "atisma" ? (parsed.data.segments ?? null) : null,
     });
   } catch (err) {
     mixQueued = false;

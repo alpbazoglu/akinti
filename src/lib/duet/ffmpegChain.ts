@@ -160,6 +160,10 @@ export interface MixDuetJobPayload {
   readonly advancedEq: AdvancedEqPayload | null;
   /** dB gain applied to the reference stem before mixing — see `DuetMixChainOptions.referenceGainDb`. `0` unless the payload sets it (backing-track mixes only). */
   readonly referenceGainDb: number;
+  /** Wave D. Defaults to `"layer"` (the original, only-ever mode) when absent — every payload written before this stage lacked the field entirely. */
+  readonly mode: DuetMode;
+  /** Wave D, `mode: "atisma"` only. `null` for every other mode, regardless of what the raw payload carried. */
+  readonly segments: DuetSegment[] | null;
 }
 
 /** Returns `null` (rather than throwing) on a malformed payload so the caller can raise one clear error. */
@@ -178,6 +182,219 @@ export function parseMixDuetJobPayload(raw: unknown): MixDuetJobPayload | null {
   const advancedEq =
     advancedEqRaw && typeof advancedEqRaw === "object" ? (advancedEqRaw as AdvancedEqPayload) : null;
   const referenceGainDb = typeof record.reference_gain_db === "number" ? record.reference_gain_db : 0;
+  const modeRaw = record.mode;
+  const mode: DuetMode = modeRaw === "atisma" || modeRaw === "cypher" ? modeRaw : "layer";
+  const segments = mode === "atisma" ? parseDuetSegments(record.segments) : null;
 
-  return { preset, referenceAssetId, offsetMs: offsetMsRaw, advancedEq, referenceGainDb };
+  return { preset, referenceAssetId, offsetMs: offsetMsRaw, advancedEq, referenceGainDb, mode, segments };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Wave D — Duet modes (layer already covered above; atisma + cypher below) */
+/* ------------------------------------------------------------------------ */
+
+/** Mirrors `public.duet_mode` (migration 20260905120200). */
+export type DuetMode = "layer" | "atisma" | "cypher";
+
+export type DuetSegmentSource = "original" | "contribution";
+
+/** One turn of a call-and-response (`atisma`) Duet — see `waves.segments`. */
+export interface DuetSegment {
+  readonly source: DuetSegmentSource;
+  readonly startMs: number;
+  readonly endMs: number;
+}
+
+/** Mirrors `MAX_AUDIO_DURATION_MS` (`src/lib/supabase/config.ts`) and the literal in `validate_duet_segments()` (migration 20260905120200) — kept as a local constant so this pure-logic module has no dependency on the Next.js-only config file. */
+export const MAX_DUET_SEGMENTS_TOTAL_MS = 30 * 60 * 1000;
+/** Sanity ceiling on turn count — mirrors `validate_duet_segments()`'s own `v_count > 40` guard. */
+export const MAX_DUET_SEGMENTS = 40;
+export const DEFAULT_ATISMA_CROSSFADE_MS = 40;
+
+/** Best-effort parse of a `mix_duet` payload's `segments` field — `null` (not a throw) on anything malformed, since a malformed payload is a worker-time data problem the caller should report, not crash on mid-parse. Real validation is `validateDuetSegments`, run by the caller (Server Action) before the row is ever written. */
+function parseDuetSegments(raw: unknown): DuetSegment[] | null {
+  if (!Array.isArray(raw)) return null;
+  const segments: DuetSegment[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") return null;
+    const record = entry as Record<string, unknown>;
+    const source = record.source;
+    const startMs = record.startMs;
+    const endMs = record.endMs;
+    if ((source !== "original" && source !== "contribution") || typeof startMs !== "number" || typeof endMs !== "number") {
+      return null;
+    }
+    segments.push({ source, startMs, endMs });
+  }
+  return segments;
+}
+
+/**
+ * Validate an `atisma` Duet's segment list (spec: "backend validates
+ * monotonic, non-overlapping, total <= max"). Mirrors
+ * `public.validate_duet_segments` (migration 20260905120200) exactly — kept
+ * in sync manually, checked to agree by `ffmpegChain.test.ts`, the same
+ * dual-enforcement pattern `src/lib/duet/permissions.ts` documents for
+ * `can_request_duet`.
+ *
+ * Throws a descriptive `Error` on the first violation rather than returning
+ * a boolean — both `publishDuetWaveSchema`'s Zod `.refine` (the primary,
+ * user-facing check) and `buildAtismaMixFilterComplex` (a worker-time
+ * defensive check) want a specific reason, not just pass/fail.
+ *
+ * "Monotonic and non-overlapping" is checked PER SOURCE, not across the
+ * whole array: segments alternate between the original and the contribution
+ * by construction, so the invariant that matters is that neither track's own
+ * timeline is replayed or reused out of order — not that the array's
+ * `startMs` values are globally increasing (they never would be).
+ */
+export function validateDuetSegments(segments: readonly DuetSegment[]): void {
+  // Not `Array.isArray(segments)`: merely calling it anywhere in this
+  // function — even assigned to an intermediate boolean rather than tested
+  // inline — makes TypeScript treat every later reference to a `readonly T[]`
+  // parameter as `any[]` for the rest of the function (a real narrowing
+  // quirk, confirmed in isolation; not a stylistic choice). `!segments`
+  // still catches `null`/`undefined` from a non-TS caller without it.
+  if (!segments || segments.length === 0) {
+    throw new Error("An atışma Duet needs at least one segment.");
+  }
+  if (segments.length > MAX_DUET_SEGMENTS) {
+    throw new Error(`An atışma Duet may have at most ${MAX_DUET_SEGMENTS} segments.`);
+  }
+
+  const lastEndBySource: Record<DuetSegmentSource, number> = { original: 0, contribution: 0 };
+  let totalMs = 0;
+
+  for (const segment of segments) {
+    if (
+      !Number.isFinite(segment.startMs) ||
+      !Number.isFinite(segment.endMs) ||
+      segment.startMs < 0 ||
+      segment.endMs <= segment.startMs
+    ) {
+      throw new Error(`Invalid segment bounds: ${JSON.stringify(segment)}.`);
+    }
+    if (segment.startMs < lastEndBySource[segment.source]) {
+      throw new Error(
+        `Segments must be monotonic and non-overlapping within each source (overlap on "${segment.source}").`,
+      );
+    }
+    lastEndBySource[segment.source] = segment.endMs;
+    totalMs += segment.endMs - segment.startMs;
+  }
+
+  if (totalMs > MAX_DUET_SEGMENTS_TOTAL_MS) {
+    throw new Error(
+      `Atışma Duet segments total ${totalMs}ms, over the ${MAX_DUET_SEGMENTS_TOTAL_MS}ms maximum.`,
+    );
+  }
+}
+
+export interface AtismaMixChainResult {
+  /** The complete `-filter_complex` argument. */
+  readonly filterComplex: string;
+  /** The `-map` argument selecting the spliced output. */
+  readonly outputMap: string;
+  readonly segmentCount: number;
+}
+
+/**
+ * Build the `-filter_complex` graph for an `atisma` (call-and-response)
+ * Duet mixdown. Expects ffmpeg to be invoked with the original reference as
+ * input `0` and the contribution as input `1` — same input order as
+ * `buildDuetMixFilterComplex` — so a segment's `source` selects which input
+ * its `atrim` reads from.
+ *
+ * Each segment is trimmed to its own `[startMs, endMs)` window on its
+ * source's timeline, then spliced to the previous segment with a short
+ * `acrossfade` (default 40ms, spec) rather than a hard cut — pairwise,
+ * folding left, matching ffmpeg's standard gapless-crossfade-concatenation
+ * recipe. A pair whose crossfade would be longer than either segment is
+ * clamped down (floor 5ms) so `acrossfade` never errors on a very short turn.
+ *
+ * Only `contribution`-sourced segments get the enhancement preset/EQ
+ * applied — mirrors `buildDuetMixFilterComplex`'s "enhance the new part
+ * only" rule (the `original` segments already carry the creator's own
+ * processing from their own Wave).
+ *
+ * Throws (via `validateDuetSegments`) on an empty list, overlapping/
+ * non-monotonic segments, or a total duration over the max — the caller
+ * (`runMixDuetJob`, `scripts/worker.ts`) is expected to have already
+ * validated at write time; this is the last line of defense before ffmpeg
+ * would otherwise be handed a nonsensical or unbounded filter graph.
+ */
+export function buildAtismaMixFilterComplex(
+  segments: readonly DuetSegment[],
+  options: { crossfadeMs?: number; presetFilter?: string; advancedEq?: AdvancedEqPayload | null } = {},
+): AtismaMixChainResult {
+  validateDuetSegments(segments);
+  const crossfadeMs = Math.max(0, options.crossfadeMs ?? DEFAULT_ATISMA_CROSSFADE_MS);
+  const contributionFilter = options.presetFilter
+    ? composeFilterChain(options.presetFilter, buildAdvancedEqFilter(options.advancedEq))
+    : null;
+
+  const labels: string[] = [];
+  const parts: string[] = [];
+  segments.forEach((segment, index) => {
+    const inputIndex = segment.source === "original" ? 0 : 1;
+    const label = `seg${index}`;
+    const startS = (segment.startMs / 1000).toFixed(3);
+    const endS = (segment.endMs / 1000).toFixed(3);
+    const trim = `atrim=start=${startS}:end=${endS},asetpts=PTS-STARTPTS`;
+    const enhance = segment.source === "contribution" && contributionFilter ? `,${contributionFilter}` : "";
+    parts.push(`[${inputIndex}:a]${trim}${enhance}[${label}]`);
+    labels.push(label);
+  });
+
+  if (labels.length === 1) {
+    parts.push(`[${labels[0]}]anull[mixed]`);
+    return { filterComplex: parts.join(";"), outputMap: "[mixed]", segmentCount: 1 };
+  }
+
+  let accLabel = labels[0];
+  for (let i = 1; i < labels.length; i++) {
+    const segADurationMs = segments[i - 1].endMs - segments[i - 1].startMs;
+    const segBDurationMs = segments[i].endMs - segments[i].startMs;
+    const pairCrossfadeMs = Math.max(5, Math.min(crossfadeMs, segADurationMs, segBDurationMs));
+    const outLabel = i === labels.length - 1 ? "mixed" : `xf${i}`;
+    parts.push(
+      `[${accLabel}][${labels[i]}]acrossfade=d=${(pairCrossfadeMs / 1000).toFixed(3)}:c1=tri:c2=tri[${outLabel}]`,
+    );
+    accLabel = outLabel;
+  }
+
+  return { filterComplex: parts.join(";"), outputMap: "[mixed]", segmentCount: labels.length };
+}
+
+export interface CypherMixChainResult {
+  readonly filterComplex: string;
+  readonly outputMap: string;
+}
+
+/**
+ * Build the `-filter_complex` graph for a `cypher` (sequential verses) Duet
+ * mixdown. Expects input `0` = the parent's full rendered audio so far (every
+ * earlier verse already concatenated into it — nothing here re-renders
+ * history) and input `1` = this Duet's new contribution. The enhancement
+ * preset/EQ is applied to the contribution alone, exactly like
+ * `buildDuetMixFilterComplex`'s "layer" mode — the parent's audio already
+ * carries its own chain of prior processing.
+ *
+ * `concat=n=2:v=0:a=1` appends the (enhanced) contribution immediately after
+ * the parent — no crossfade, unlike `atisma`: a cypher verse starts clean,
+ * the way a rap cypher's next verse does.
+ */
+export function buildCypherMixFilterComplex(options: {
+  presetFilter: string;
+  advancedEq?: AdvancedEqPayload | null;
+}): CypherMixChainResult {
+  const advancedEqFilter = buildAdvancedEqFilter(options.advancedEq);
+  const contributionFilters = [options.presetFilter, advancedEqFilter]
+    .filter((step): step is string => Boolean(step))
+    .join(",");
+
+  const filterComplex =
+    `[1:a]${contributionFilters}[contrib];` + `[0:a][contrib]concat=n=2:v=0:a=1[mixed]`;
+
+  return { filterComplex, outputMap: "[mixed]" };
 }

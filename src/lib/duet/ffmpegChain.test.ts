@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildAdvancedEqFilter,
+  buildAtismaMixFilterComplex,
+  buildCypherMixFilterComplex,
   buildDuetMixFilterComplex,
   buildProcessAudioFilterChain,
   composeFilterChain,
   parseMixDuetJobPayload,
+  validateDuetSegments,
+  type DuetSegment,
 } from "./ffmpegChain";
 
 describe("buildAdvancedEqFilter", () => {
@@ -132,6 +136,8 @@ describe("parseMixDuetJobPayload", () => {
       offsetMs: -250,
       advancedEq: { 60: 3 },
       referenceGainDb: 0,
+      mode: "layer",
+      segments: null,
     });
   });
 
@@ -143,6 +149,8 @@ describe("parseMixDuetJobPayload", () => {
       offsetMs: 0,
       advancedEq: null,
       referenceGainDb: 0,
+      mode: "layer",
+      segments: null,
     });
   });
 
@@ -160,5 +168,192 @@ describe("parseMixDuetJobPayload", () => {
     expect(parseMixDuetJobPayload(null)).toBeNull();
     expect(parseMixDuetJobPayload({ reference_asset_id: "asset-1" })).toBeNull();
     expect(parseMixDuetJobPayload("not an object")).toBeNull();
+  });
+
+  it("defaults mode to 'layer' and segments to null when absent (pre-Wave-D payloads)", () => {
+    const parsed = parseMixDuetJobPayload({ reference_asset_id: "asset-1", offset_ms: 0 });
+    expect(parsed?.mode).toBe("layer");
+    expect(parsed?.segments).toBeNull();
+  });
+
+  it("parses mode and segments for an atisma payload", () => {
+    const parsed = parseMixDuetJobPayload({
+      reference_asset_id: "asset-1",
+      offset_ms: 0,
+      mode: "atisma",
+      segments: [
+        { source: "original", startMs: 0, endMs: 1000 },
+        { source: "contribution", startMs: 0, endMs: 1200 },
+      ],
+    });
+    expect(parsed?.mode).toBe("atisma");
+    expect(parsed?.segments).toEqual([
+      { source: "original", startMs: 0, endMs: 1000 },
+      { source: "contribution", startMs: 0, endMs: 1200 },
+    ]);
+  });
+
+  it("parses mode 'cypher' with segments null (segments are atisma-only)", () => {
+    const parsed = parseMixDuetJobPayload({
+      reference_asset_id: "asset-1",
+      offset_ms: 0,
+      mode: "cypher",
+      segments: [{ source: "original", startMs: 0, endMs: 1000 }],
+    });
+    expect(parsed?.mode).toBe("cypher");
+    expect(parsed?.segments).toBeNull();
+  });
+});
+
+describe("validateDuetSegments", () => {
+  it("rejects an empty segment list", () => {
+    expect(() => validateDuetSegments([])).toThrow(/at least one segment/);
+  });
+
+  it("rejects more than the maximum number of segments", () => {
+    const segments: DuetSegment[] = Array.from({ length: 41 }, (_, i) => ({
+      source: i % 2 === 0 ? "original" : "contribution",
+      startMs: i * 100,
+      endMs: i * 100 + 50,
+    }));
+    expect(() => validateDuetSegments(segments)).toThrow(/at most 40 segments/);
+  });
+
+  it("rejects a segment whose end is not after its start", () => {
+    expect(() =>
+      validateDuetSegments([{ source: "original", startMs: 1000, endMs: 1000 }]),
+    ).toThrow(/Invalid segment bounds/);
+  });
+
+  it("rejects a negative start", () => {
+    expect(() =>
+      validateDuetSegments([{ source: "original", startMs: -1, endMs: 100 }]),
+    ).toThrow(/Invalid segment bounds/);
+  });
+
+  it("rejects overlapping segments within the same source", () => {
+    expect(() =>
+      validateDuetSegments([
+        { source: "original", startMs: 0, endMs: 1000 },
+        { source: "original", startMs: 500, endMs: 1500 },
+      ]),
+    ).toThrow(/monotonic and non-overlapping/);
+  });
+
+  it("allows interleaved sources whose own timelines are each monotonic", () => {
+    expect(() =>
+      validateDuetSegments([
+        { source: "original", startMs: 0, endMs: 1000 },
+        { source: "contribution", startMs: 0, endMs: 1200 },
+        { source: "original", startMs: 1000, endMs: 2000 },
+        { source: "contribution", startMs: 1200, endMs: 2400 },
+      ]),
+    ).not.toThrow();
+  });
+
+  it("rejects a total duration over the maximum", () => {
+    expect(() =>
+      validateDuetSegments([{ source: "original", startMs: 0, endMs: 30 * 60 * 1000 + 1 }]),
+    ).toThrow(/maximum/);
+  });
+});
+
+describe("buildAtismaMixFilterComplex", () => {
+  it("throws on an empty segment list", () => {
+    expect(() => buildAtismaMixFilterComplex([])).toThrow(/at least one segment/);
+  });
+
+  it("throws on overlapping segments", () => {
+    expect(() =>
+      buildAtismaMixFilterComplex([
+        { source: "contribution", startMs: 0, endMs: 1000 },
+        { source: "contribution", startMs: 500, endMs: 1500 },
+      ]),
+    ).toThrow(/monotonic and non-overlapping/);
+  });
+
+  it("throws when the total exceeds the maximum duration", () => {
+    expect(() =>
+      buildAtismaMixFilterComplex([{ source: "original", startMs: 0, endMs: 30 * 60 * 1000 + 1 }]),
+    ).toThrow(/maximum/);
+  });
+
+  it("builds a single atrim with no crossfade for one segment", () => {
+    const result = buildAtismaMixFilterComplex([{ source: "original", startMs: 0, endMs: 1000 }]);
+    expect(result.segmentCount).toBe(1);
+    expect(result.outputMap).toBe("[mixed]");
+    expect(result.filterComplex).toBe(
+      "[0:a]atrim=start=0.000:end=1.000,asetpts=PTS-STARTPTS[seg0];[seg0]anull[mixed]",
+    );
+  });
+
+  it("selects input 0 for 'original' segments and input 1 for 'contribution' segments", () => {
+    const result = buildAtismaMixFilterComplex([
+      { source: "original", startMs: 0, endMs: 1000 },
+      { source: "contribution", startMs: 0, endMs: 1000 },
+    ]);
+    expect(result.filterComplex).toContain("[0:a]atrim=start=0.000:end=1.000");
+    expect(result.filterComplex).toContain("[1:a]atrim=start=0.000:end=1.000");
+  });
+
+  it("crossfades consecutive segments pairwise, folding left", () => {
+    const result = buildAtismaMixFilterComplex(
+      [
+        { source: "original", startMs: 0, endMs: 1000 },
+        { source: "contribution", startMs: 0, endMs: 1000 },
+        { source: "original", startMs: 1000, endMs: 2000 },
+      ],
+      { crossfadeMs: 40 },
+    );
+    expect(result.segmentCount).toBe(3);
+    expect(result.filterComplex).toContain("[seg0][seg1]acrossfade=d=0.040:c1=tri:c2=tri[xf1]");
+    expect(result.filterComplex).toContain("[xf1][seg2]acrossfade=d=0.040:c1=tri:c2=tri[mixed]");
+  });
+
+  it("clamps the crossfade duration down for a very short segment rather than erroring", () => {
+    const result = buildAtismaMixFilterComplex(
+      [
+        { source: "original", startMs: 0, endMs: 20 },
+        { source: "contribution", startMs: 0, endMs: 1000 },
+      ],
+      { crossfadeMs: 40 },
+    );
+    expect(result.filterComplex).toContain("acrossfade=d=0.020:c1=tri:c2=tri[mixed]");
+  });
+
+  it("enhances contribution-sourced segments only, leaving original segments untouched", () => {
+    const result = buildAtismaMixFilterComplex(
+      [
+        { source: "original", startMs: 0, endMs: 1000 },
+        { source: "contribution", startMs: 0, endMs: 1000 },
+      ],
+      { presetFilter: "loudnorm=I=-14" },
+    );
+    expect(result.filterComplex).toContain(
+      "[0:a]atrim=start=0.000:end=1.000,asetpts=PTS-STARTPTS[seg0]",
+    );
+    expect(result.filterComplex).toContain(
+      "[1:a]atrim=start=0.000:end=1.000,asetpts=PTS-STARTPTS,loudnorm=I=-14[seg1]",
+    );
+  });
+});
+
+describe("buildCypherMixFilterComplex", () => {
+  it("applies the preset to the contribution stem only, then concatenates after the parent", () => {
+    const result = buildCypherMixFilterComplex({ presetFilter: "loudnorm=I=-14" });
+    expect(result.filterComplex).toBe(
+      "[1:a]loudnorm=I=-14[contrib];[0:a][contrib]concat=n=2:v=0:a=1[mixed]",
+    );
+    expect(result.outputMap).toBe("[mixed]");
+  });
+
+  it("chains the advanced EQ after the preset on the contribution stem", () => {
+    const result = buildCypherMixFilterComplex({ presetFilter: "loudnorm=I=-14", advancedEq: { 60: 5 } });
+    expect(result.filterComplex).toContain("[1:a]loudnorm=I=-14,equalizer=f=60:t=q:w=1:g=5");
+  });
+
+  it("never applies the preset to input 0 (the parent's already-rendered audio)", () => {
+    const result = buildCypherMixFilterComplex({ presetFilter: "afftdn=nf=-25" });
+    expect(result.filterComplex.split(";")[1]).not.toContain("afftdn");
   });
 });

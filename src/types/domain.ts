@@ -20,6 +20,7 @@ import type {
   CommentAudience,
   ContentOrigin,
   ConversationKind,
+  DuetMode,
   DuetRequestStatus,
   FollowStatus,
   Json,
@@ -52,6 +53,7 @@ export type {
   CommentAudience,
   ContentOrigin,
   ConversationKind,
+  DuetMode,
   DuetRequestStatus,
   FollowStatus,
   Json,
@@ -80,6 +82,8 @@ export const PERMISSION_AUDIENCES = ["everyone", "followers", "following", "nobo
 export const COMMENT_AUDIENCES = ["everyone", "followers", "nobody"] as const;
 export const WAVE_VISIBILITIES = ["everyone", "followers", "only_me"] as const;
 export const WAVE_CREATION_TYPES = ["recorded", "uploaded", "duet"] as const;
+/** Wave D. `layer` is the original simultaneous mix. */
+export const DUET_MODES = ["layer", "atisma", "cypher"] as const;
 export const BACKING_TRACK_LICENSES = ["cc0", "cc_by", "owner_upload"] as const;
 export const CONTENT_ORIGINS = ["original", "cover", "licensed", "unknown"] as const;
 export const THEME_BACKGROUND_COLORS = ["ink", "slate", "sand", "mist", "plum", "forest"] as const;
@@ -281,6 +285,14 @@ export interface WaveCounts {
   duets: number;
 }
 
+/** One turn of a call-and-response (`atisma`) Duet — see `Wave.duet.segments`. Mirrors `DuetSegment` in `src/lib/duet/ffmpegChain.ts` (structurally identical, declared separately so `types/**` has no dependency on `lib/**`). */
+export type DuetSegmentSource = "original" | "contribution";
+export interface DuetSegment {
+  source: DuetSegmentSource;
+  startMs: number;
+  endMs: number;
+}
+
 export interface WaveDuetLineage {
   /** Root of the Duet chain; null on an original Wave. */
   originalWaveId: string | null;
@@ -288,6 +300,12 @@ export interface WaveDuetLineage {
   parentWaveId: string | null;
   duetRequestId: string | null;
   depth: number;
+  /** Wave D. `null` for a non-duet Wave; `'layer'` for every duet Wave published before this stage. */
+  mode: DuetMode | null;
+  /** Wave D, `mode: 'atisma'` only. */
+  segments: DuetSegment[] | null;
+  /** Wave D, `mode: 'cypher'` only — 1-based position, capped at 4. */
+  cypherOrder: number | null;
 }
 
 export interface Wave {
@@ -449,6 +467,23 @@ export interface DuetTreeNode {
   wave: Wave;
   creator: Profile;
   children: DuetTreeNode[];
+}
+
+/**
+ * Wave D — a creator's own Wave marked "open for anyone to Duet"
+ * (docs/PRODUCT_V2.md §3-4). `answerOpenCall()` skips the request/accept
+ * round trip and creates an already-accepted `DuetRequest` directly.
+ */
+export interface OpenCall {
+  id: string;
+  waveId: string;
+  creatorId: string;
+  prompt: string | null;
+  deadlineAt: string | null;
+  isOpen: boolean;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string | null;
 }
 
 /* ------------------------------------------------------------------------ */

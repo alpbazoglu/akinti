@@ -19,6 +19,7 @@ import type {
   MessageRow,
   ModerationActionRow,
   NotificationRow,
+  OpenCallRow,
   ProfileRow,
   ReportRow,
   ShareRow,
@@ -35,10 +36,12 @@ import type {
   Conversation,
   ConversationMember,
   DuetRequest,
+  DuetSegment,
   EnhancementReport,
   Message,
   ModerationAction,
   Notification,
+  OpenCall,
   PlaybackOutcome,
   Profile,
   Report,
@@ -143,6 +146,28 @@ export function toAudioProcessingJob(row: AudioProcessingJobRow): AudioProcessin
   };
 }
 
+/** Defensive parse: `segments` is jsonb, so it is `unknown` until proven otherwise — mirrors `toWaveformPeaks` above. */
+export function toDuetSegments(value: Json | null): DuetSegment[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  const segments: DuetSegment[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return null;
+    }
+    const record = entry as Record<string, unknown>;
+    const source = record.source;
+    const startMs = record.startMs;
+    const endMs = record.endMs;
+    if ((source !== "original" && source !== "contribution") || typeof startMs !== "number" || typeof endMs !== "number") {
+      return null;
+    }
+    segments.push({ source, startMs, endMs });
+  }
+  return segments;
+}
+
 export function toWave(row: WaveRow): Wave {
   return {
     id: row.id,
@@ -159,6 +184,9 @@ export function toWave(row: WaveRow): Wave {
       parentWaveId: row.parent_wave_id,
       duetRequestId: row.duet_request_id,
       depth: row.duet_depth,
+      mode: row.duet_mode,
+      segments: toDuetSegments(row.segments),
+      cypherOrder: row.cypher_order,
     },
     backingTrackId: row.backing_track_id,
     contentOrigin: row.content_origin,
@@ -193,6 +221,20 @@ export function toBackingTrack(row: BackingTrackRow): BackingTrack {
     isCurated: row.is_curated,
     openForVocals: row.open_for_vocals,
     createdAt: row.created_at,
+  };
+}
+
+export function toOpenCall(row: OpenCallRow): OpenCall {
+  return {
+    id: row.id,
+    waveId: row.wave_id,
+    creatorId: row.creator_id,
+    prompt: row.prompt,
+    deadlineAt: row.deadline_at,
+    isOpen: row.is_open,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    closedAt: row.closed_at,
   };
 }
 
