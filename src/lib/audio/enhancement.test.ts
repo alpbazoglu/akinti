@@ -6,11 +6,13 @@ import {
   ADVANCED_EQ_BANDS,
   ADVANCED_EQ_MAX_GAIN_DB,
   ENHANCEMENT_PRESETS,
+  PRO_ENHANCEMENT_PRESETS,
   clampEqGain,
   createAdvancedEqGraph,
   createPreviewGraph,
   defaultAdvancedEqSettings,
   getEnhancementPreset,
+  isProOnlyEnhancementPresetId,
 } from "./enhancement";
 
 /**
@@ -170,5 +172,34 @@ describe("advanced EQ", () => {
 
     expect(connections).toHaveLength(5);
     expect(connections.every((edge) => edge.to.startsWith("biquad"))).toBe(true);
+  });
+});
+
+describe("PRO_ENHANCEMENT_PRESETS", () => {
+  it("has exactly the two Pro-only sounds, distinct from the six free ids", () => {
+    const ids = PRO_ENHANCEMENT_PRESETS.map((preset) => preset.id);
+    expect(ids).toEqual(["pitch_snap", "self_harmony"]);
+    for (const id of ids) {
+      expect(WORKER_PRESET_IDS).not.toContain(id);
+    }
+  });
+
+  it("gives every Pro sound a non-empty label, description and real chain", () => {
+    for (const preset of PRO_ENHANCEMENT_PRESETS) {
+      expect(preset.label.length).toBeGreaterThan(0);
+      expect(preset.description.length).toBeGreaterThan(0);
+      // Real EQ/compressor settings, not a placeholder no-op chain.
+      expect(preset.chain.length).toBeGreaterThan(0);
+      expect(preset.chain.some((step) => step.type === "compressor" || step.type === "biquad")).toBe(true);
+    }
+  });
+
+  it("isProOnlyEnhancementPresetId is true only for the two Pro ids", () => {
+    expect(isProOnlyEnhancementPresetId("pitch_snap")).toBe(true);
+    expect(isProOnlyEnhancementPresetId("self_harmony")).toBe(true);
+    for (const freeId of WORKER_PRESET_IDS) {
+      expect(isProOnlyEnhancementPresetId(freeId)).toBe(false);
+    }
+    expect(isProOnlyEnhancementPresetId("not-a-real-preset")).toBe(false);
   });
 });

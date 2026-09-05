@@ -26,7 +26,9 @@ import { getProfileByUsername } from "@/lib/db/profiles";
 import { DatabaseError, ForbiddenError, NotFoundError } from "@/lib/db/types";
 import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { isRateLimitError, RATE_LIMIT_MESSAGE } from "@/lib/moderation/errors";
+import { isProOnlyEnhancementPresetId } from "@/lib/audio/enhancement";
 import { sniffAudioKind } from "@/lib/audio/validateFile";
+import { requirePro } from "@/lib/billing/entitlements";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
@@ -103,6 +105,29 @@ export async function createUploadTicket(
 ): Promise<CreateUploadTicketResult> {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: NOT_CONFIGURED_ERROR };
+  }
+
+  // AKINTI Pro gate (PRODUCT_V2 §4/§5, docs/BILLING.md "Never paywall a
+  // previously free feature"): `pitch_snap`/`self_harmony` aren't in
+  // `AUDIO_ENHANCEMENT_PRESETS` (see `src/lib/audio/enhancement.ts`'s
+  // `PRO_ENHANCEMENT_PRESETS` doc comment for why), so this has to check the
+  // raw value BEFORE the schema below, which would otherwise reject either
+  // id for every caller with a generic "invalid" error instead of the honest
+  // "needs Pro" one a non-Pro caller should see.
+  if (args.enhancementPreset && isProOnlyEnhancementPresetId(args.enhancementPreset)) {
+    const gateUser = await getCurrentUser();
+    if (!gateUser) {
+      return { ok: false, error: SIGN_IN_ERROR };
+    }
+    const gateDb = await createServerSupabaseClient();
+    try {
+      await requirePro(gateDb, gateUser.id);
+    } catch (err) {
+      if (err instanceof ForbiddenError) {
+        return { ok: false, error: "This sound needs AKINTI Pro." };
+      }
+      return { ok: false, error: describeError(err, "We couldn't confirm your AKINTI Pro status. Try again.") };
+    }
   }
 
   const parsed = createUploadTicketSchema.safeParse(args);

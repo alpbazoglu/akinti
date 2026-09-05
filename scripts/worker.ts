@@ -63,6 +63,7 @@ import {
   parseMixDuetJobPayload,
   type AdvancedEqPayload,
 } from "@/lib/duet/ffmpegChain";
+import type { ProEnhancementPresetId } from "@/lib/audio/enhancement";
 import type { SupabaseAdminClient } from "@/lib/supabase/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AUDIO_BUCKET, audioProcessedPath } from "@/lib/supabase/config";
@@ -107,7 +108,7 @@ const PEAK_SAMPLE_RATE = 8000;
  * operations rather than raw knobs: noise reduction, normalization, EQ,
  * light reverb where the preset calls for atmosphere.
  */
-const PRESET_FILTERS: Record<AudioEnhancementPreset, string> = {
+const PRESET_FILTERS: Record<AudioEnhancementPreset | ProEnhancementPresetId, string> = {
   natural: "loudnorm=I=-16:TP=-1.5:LRA=11",
   studio:
     "afftdn=nf=-25,acompressor=threshold=-18dB:ratio=3:attack=5:release=50,loudnorm=I=-14:TP=-1.5:LRA=9",
@@ -116,6 +117,18 @@ const PRESET_FILTERS: Record<AudioEnhancementPreset, string> = {
   warm: "equalizer=f=200:t=q:w=1:g=3,equalizer=f=8000:t=q:w=1:g=-2,loudnorm=I=-16:TP=-1.5:LRA=11",
   deep: "equalizer=f=100:t=q:w=1:g=6,lowpass=f=12000,loudnorm=I=-16:TP=-1.5:LRA=11",
   atmospheric: "aecho=0.8:0.9:1000:0.3,loudnorm=I=-16:TP=-1.5:LRA=11",
+  // AKINTI Pro only (PRODUCT_V2 §4/§5, `src/lib/audio/enhancement.ts`'s
+  // `PRO_ENHANCEMENT_PRESETS`). `audio_enhancement_preset` (the Postgres enum
+  // backing `enhancement_preset`) does not carry these two values yet — that
+  // is a migration outside this wave's file ownership — so a job can never
+  // actually reach these two keys today; `create/actions.ts`'s
+  // `requirePro()` gate also already blocks a non-Pro submission before it
+  // gets this far. Filled in now, ahead of that migration, so the real chain
+  // exists the moment the enum does.
+  pitch_snap:
+    "highpass=f=110,acompressor=threshold=-16dB:ratio=4:attack=2:release=60,equalizer=f=2800:t=q:w=1.2:g=3,equalizer=f=9000:t=q:w=1:g=-1.5,loudnorm=I=-16:TP=-1.5:LRA=11",
+  self_harmony:
+    "acompressor=threshold=-20dB:ratio=2.5:attack=8:release=150,equalizer=f=1500:t=q:w=1:g=2,aecho=0.6:0.7:35:0.25,loudnorm=I=-16:TP=-1.5:LRA=11",
 };
 
 /* ------------------------------------------------------------------------ */

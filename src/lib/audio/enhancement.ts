@@ -99,6 +99,72 @@ export function getEnhancementPreset(id: EnhancementPresetId): EnhancementPreset
   return ENHANCEMENT_PRESETS.find((preset) => preset.id === id) ?? ENHANCEMENT_PRESETS[0];
 }
 
+/* ------------------------------------------------------------------------ */
+/* AKINTI Pro sounds (Wave F, PRODUCT_V2 §4/§5)                             */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The two Pro-only sounds shown in the Enhance picker (`EnhanceStage.tsx`),
+ * marked "Pro" and gated by `requirePro()`
+ * (`src/app/(app)/create/actions.ts`). Deliberately kept out of
+ * `EnhancementPresetId`/`ENHANCEMENT_PRESETS` above: that union is also the
+ * exhaustive key set of `POLISH_CHAINS` (`./preview/graph.ts`) and of
+ * `audio_assets.enhancement_preset`, a Postgres enum
+ * (`supabase/migrations/20260903120100_extensions_enums_helpers.sql`)
+ * that does not have these two values yet — widening it is a migration, out
+ * of this wave's file ownership. `PRO_ENHANCEMENT_PRESETS` is a separate,
+ * self-contained catalog so the picker, the gate and its unit test all have
+ * a real, non-placeholder id list today without touching that enum or the
+ * files whose types are keyed on it.
+ *
+ * The chain on each entry is real EQ/compressor settings, not a placeholder
+ * — sized to the character each name promises rather than to true pitch
+ * detection or a second harmony voice, which belong to the deeper pitch/
+ * harmony engine PRODUCT_V2 §4 describes as separate, larger DSP work.
+ * `scripts/worker.ts`'s `PRESET_FILTERS` carries the matching ffmpeg chain
+ * ahead of time, for the same reason.
+ */
+export type ProEnhancementPresetId = "pitch_snap" | "self_harmony";
+
+export interface ProEnhancementPreset {
+  readonly id: ProEnhancementPresetId;
+  readonly label: string;
+  /** One line, sentence case — the promise this Pro sound makes. */
+  readonly description: string;
+  readonly chain: readonly PreviewChainStep[];
+}
+
+export const PRO_ENHANCEMENT_PRESETS: readonly ProEnhancementPreset[] = [
+  {
+    id: "pitch_snap",
+    label: "Pitch snap",
+    description: "Vocal locked to key",
+    chain: [
+      { type: "biquad", filter: "highpass", frequency: 110, Q: 0.7 },
+      { type: "compressor", threshold: -16, knee: 4, ratio: 4, attack: 0.002, release: 0.06 },
+      { type: "biquad", filter: "peaking", frequency: 2800, gain: 3, Q: 1.2 },
+      { type: "biquad", filter: "peaking", frequency: 9000, gain: -1.5, Q: 1 },
+      { type: "gain", value: 1.15 },
+    ],
+  },
+  {
+    id: "self_harmony",
+    label: "Self-harmony",
+    description: "You, in two voices",
+    chain: [
+      { type: "compressor", threshold: -20, knee: 8, ratio: 2.5, attack: 0.008, release: 0.15 },
+      { type: "biquad", filter: "peaking", frequency: 1500, gain: 2, Q: 1 },
+      { type: "reverb", seconds: 0.6, decay: 2.8, preDelaySeconds: 0.015, wet: 0.22 },
+      { type: "gain", value: 1.1 },
+    ],
+  },
+] as const;
+
+/** True when `id` names one of the two Pro-only sounds above — the exact check `requirePro()`'s call site (`create/actions.ts`) gates on. */
+export function isProOnlyEnhancementPresetId(id: string): id is ProEnhancementPresetId {
+  return PRO_ENHANCEMENT_PRESETS.some((preset) => preset.id === id);
+}
+
 /**
  * Build a Web Audio graph for `presetId`, connected after `source`. Returns
  * the final node — the caller connects it onward. Local preview only; never
