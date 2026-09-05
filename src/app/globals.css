@@ -1,173 +1,198 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   AKINTI design tokens
+   AKINTI design tokens, v2 "Waterline"
    ---------------------------------------------------------------------
-   Direction: minimalist, premium, calm, audio-centric. One accent colour.
-   The waveform is the visual motif; everything else stays quiet.
-   No glassmorphism, no gradient washes, no decorative noise.
-   All colours meet WCAG AA against their intended background.
+   Source of truth: docs/design/DESIGN.md (§3 type, §4 colour, §5 space
+   and shape, §6 waterline, §7 motion) and docs/design/DESIGN_DNA.json.
+
+   One drawing primitive: the waterline. Everything else is ink on warm
+   paper, left-hung on a 44px rail. No cards, no shadows below sheet
+   level, no gradients (one exception: the 24px edge fade on a full-bleed
+   trace), no pills, no second colour.
+
+   Signal (the one accent) appears only where audio is live: the played
+   part of a trace, the record lamp, the live level, the unheard mark and
+   the open-for-Duet mark. Never on tabs, keys, links or badges (§12.3).
    ===================================================================== */
 
 :root {
   color-scheme: light;
 
-  /* Surfaces */
-  --akinti-bg: #fbfbfc;
-  --akinti-surface: #ffffff;
-  --akinti-surface-raised: #ffffff;
-  --akinti-surface-muted: #f2f3f5;
-  --akinti-surface-inset: #eceef1;
-  --akinti-overlay: rgb(12 16 22 / 0.45);
+  /* ---- Colour: light theme, "Gündüz" (§4.2) ---------------------- */
+  --akinti-paper: #efefec;
+  --akinti-paper-raised: #f6f6f4;
+  --akinti-paper-sunk: #e4e4e0;
 
-  /* Lines */
-  --akinti-border: #e3e5ea;
-  --akinti-border-strong: #cfd3da;
+  --akinti-ink: #191a17;
+  --akinti-ink-muted: #52534c;
+  --akinti-ink-subtle: #6a6b63;
 
-  /* Text */
-  --akinti-fg: #0f1216;
-  --akinti-fg-muted: #4e555f;
-  --akinti-fg-subtle: #6b727c;
-  --akinti-fg-on-accent: #ffffff;
+  --akinti-hairline: #d6d6d1;
+  --akinti-hairline-strong: #b4b4ad;
 
-  /* Accent: a single deep teal, the "water" of a Wave */
-  --akinti-accent: #0e7c86;
-  --akinti-accent-hover: #0b6a73;
-  --akinti-accent-active: #095960;
-  --akinti-accent-soft: #e4f2f3;
-  --akinti-accent-soft-fg: #0a5a62;
+  --akinti-signal: #de3c11;
+  --akinti-signal-deep: #a32a08;
+  --akinti-signal-wash: #fae3dc;
 
-  /* Status */
-  --akinti-danger: #b42318;
-  --akinti-danger-hover: #971c12;
-  --akinti-danger-soft: #fdeceb;
-  --akinti-danger-soft-fg: #8f1c12;
-  --akinti-success: #0a7b4b;
-  --akinti-success-soft: #e6f4ee;
-  --akinti-warning: #9a5b06;
-  --akinti-warning-soft: #fdf1e0;
+  --akinti-wave-rest: #b4b4ad;
+  --akinti-wave-dormant: #86877e;
 
-  /* Waveform */
-  --akinti-wave-track: #c9ced6;
-  --akinti-wave-progress: var(--akinti-accent);
-  --akinti-wave-cursor: #0f1216;
+  --akinti-overlay: rgb(25 26 23 / 0.42);
 
-  /* Focus */
-  --akinti-ring: #0e7c86;
+  /* Derived roles. The trace is drawn from these four values only. */
+  --akinti-wave-played: var(--akinti-signal);
+  --akinti-playhead: var(--akinti-ink);
+  --akinti-focus: var(--akinti-ink);
+  --akinti-on-ink: var(--akinti-paper);
 
-  /* Radii */
-  --akinti-radius-xs: 0.25rem;
-  --akinti-radius-sm: 0.375rem;
-  --akinti-radius-md: 0.625rem;
-  --akinti-radius-lg: 0.875rem;
-  --akinti-radius-xl: 1.25rem;
-  --akinti-radius-2xl: 1.75rem;
+  /* ---- Elevation (§5.3). Level 0 is the whole product. ----------- */
+  --akinti-shadow-sheet: 0 -1px 0 0 #d6d6d1, 0 24px 48px -12px rgb(25 26 23 / 0.18);
+  --akinti-shadow-lifted: 0 8px 24px -8px rgb(25 26 23 / 0.22);
 
-  /* Elevation: restrained, never glassy */
-  --akinti-shadow-xs: 0 1px 2px rgb(15 18 22 / 0.05);
-  --akinti-shadow-sm: 0 1px 3px rgb(15 18 22 / 0.07), 0 1px 2px rgb(15 18 22 / 0.04);
-  --akinti-shadow-md: 0 4px 12px rgb(15 18 22 / 0.08), 0 1px 3px rgb(15 18 22 / 0.05);
-  --akinti-shadow-lg: 0 16px 40px rgb(15 18 22 / 0.14), 0 2px 8px rgb(15 18 22 / 0.06);
+  /* ---- Texture (§5.5) -------------------------------------------- */
+  --akinti-grain-opacity: 0.03;
+  --akinti-grain-blend: multiply;
 
-  /* Layout */
-  --akinti-bottom-nav-h: 3.75rem;
-  --akinti-top-bar-h: 3.5rem;
-  --akinti-side-nav-w: 15rem;
-  --akinti-content-max: 40rem;
+  /* ---- Radius encodes role (§5.2) -------------------------------- */
+  --akinti-radius-line: 0px;
+  --akinti-radius-label: 2px;
+  --akinti-radius-tag: 6px;
+  --akinti-radius-field: 10px;
+  --akinti-radius-key: 14px;
+  --akinti-radius-object: 16px;
+  --akinti-radius-sheet: 24px;
+  /* Record keys share one curvature, not one radius: 0.295 x side. */
+  --akinti-radius-key-36: 11px;
+  --akinti-radius-key-44: 13px;
+  --akinti-radius-key-72: 21px;
+  --akinti-radius-key-88: 26px;
+  --akinti-radius-key-96: 28px;
+
+  /* ---- Layout (§5.1, §5.4, §8.1, §8.2) --------------------------- */
+  --akinti-rail: 44px;
+  --akinti-rail-gap: 20px;
+  --akinti-page-inline: 20px;
+  --akinti-keyboard-h: 64px;
+  --akinti-top-bar-h: 56px;
+  --akinti-context-bar-h: 48px;
+  --akinti-icon-rail-w: 72px;
+  --akinti-labelled-rail-w: 200px;
+  --akinti-content-max: 600px;
+  --akinti-frame-max: 1160px;
+
+  /* ---- Motion (§7.1) --------------------------------------------- */
+  --dur-micro: 90ms;
+  --dur-quick: 140ms;
+  --dur-normal: 200ms;
+  --dur-morph: 180ms;
+  --dur-macro: 380ms;
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-press: cubic-bezier(0.3, 0, 0.2, 1);
+  --ease-time: linear;
+
+  /* ---- Type scale (§3.3). Size / line-height / weight / tracking. -- */
+  --type-display-xl-size: 2.5rem;
+  --type-display-xl-leading: 2.5rem;
+  --type-display-size: 2rem;
+  --type-display-leading: 2.125rem;
+  --type-title-size: 1.75rem;
+  --type-title-leading: 1.875rem;
+  --type-heading-size: 1.1875rem;
+  --type-heading-leading: 1.5rem;
+  --type-subhead-size: 0.9375rem;
+  --type-subhead-leading: 1.25rem;
+  --type-body-size: 1rem;
+  --type-body-leading: 1.5625rem;
+  --type-body-sm-size: 0.875rem;
+  --type-body-sm-leading: 1.25rem;
+  --type-caption-size: 0.8125rem;
+  --type-caption-leading: 1.0625rem;
+  --type-micro-size: 0.6875rem;
+  --type-micro-leading: 0.875rem;
+  --type-mono-display-size: 2.75rem;
+  --type-mono-display-leading: 2.75rem;
+  --type-mono-lg-size: 1.375rem;
+  --type-mono-lg-leading: 1.625rem;
+  --type-mono-size: 0.9375rem;
+  --type-mono-leading: 1.125rem;
+  --type-mono-sm-size: 0.75rem;
+  --type-mono-sm-leading: 0.9375rem;
+
+  /* Width axis is the pairing (§3.1): display runs expanded, UI normal,
+     the mono sits at 87.5 so digits read as a meter. */
+  --wdth-display-xl: 112;
+  --wdth-display: 108;
+  --wdth-ui: 100;
+  --wdth-wordmark: 118;
+  --wdth-mono: 87.5;
 }
 
-/* System dark, unless the reader pinned light */
+/* System dark, unless the reader pinned light. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
 
-    --akinti-bg: #0a0c0f;
-    --akinti-surface: #111419;
-    --akinti-surface-raised: #161a20;
-    --akinti-surface-muted: #171b21;
-    --akinti-surface-inset: #1d222a;
-    --akinti-overlay: rgb(3 5 8 / 0.66);
+    /* Dark theme, "Gece" (§4.3). A warm graphite with a green cast —
+       never #0A0A0A with translucent white borders (§12.13). */
+    --akinti-paper: #131412;
+    --akinti-paper-raised: #1c1d19;
+    --akinti-paper-sunk: #0c0d0b;
 
-    --akinti-border: #232830;
-    --akinti-border-strong: #353c46;
+    --akinti-ink: #edede8;
+    --akinti-ink-muted: #a0a199;
+    --akinti-ink-subtle: #7e7f77;
 
-    --akinti-fg: #eceef1;
-    --akinti-fg-muted: #a9b1bc;
-    --akinti-fg-subtle: #838b96;
-    --akinti-fg-on-accent: #04171a;
+    --akinti-hairline: #292a26;
+    --akinti-hairline-strong: #3f403a;
 
-    --akinti-accent: #34c3ce;
-    --akinti-accent-hover: #55d2db;
-    --akinti-accent-active: #71dce3;
-    --akinti-accent-soft: #10282c;
-    --akinti-accent-soft-fg: #7cdde5;
+    --akinti-signal: #ff5c33;
+    --akinti-signal-deep: #ff9376;
+    --akinti-signal-wash: #2a140e;
 
-    --akinti-danger: #ff8078;
-    --akinti-danger-hover: #ff9b95;
-    --akinti-danger-soft: #2c1513;
-    --akinti-danger-soft-fg: #ffa9a3;
-    --akinti-success: #4cc38a;
-    --akinti-success-soft: #10241b;
-    --akinti-warning: #e0a458;
-    --akinti-warning-soft: #2a2013;
+    --akinti-wave-rest: #3f403a;
+    --akinti-wave-dormant: #63645d;
 
-    --akinti-wave-track: #363d47;
-    --akinti-wave-progress: var(--akinti-accent);
-    --akinti-wave-cursor: #eceef1;
+    --akinti-overlay: rgb(6 7 5 / 0.62);
 
-    --akinti-ring: #34c3ce;
+    --akinti-shadow-sheet: 0 -1px 0 0 #292a26, 0 24px 48px -12px rgb(0 0 0 / 0.55);
+    --akinti-shadow-lifted: 0 8px 24px -8px rgb(0 0 0 / 0.5);
 
-    --akinti-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.5);
-    --akinti-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.55), 0 1px 2px rgb(0 0 0 / 0.4);
-    --akinti-shadow-md: 0 4px 12px rgb(0 0 0 / 0.55), 0 1px 3px rgb(0 0 0 / 0.4);
-    --akinti-shadow-lg: 0 16px 40px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.45);
+    --akinti-grain-opacity: 0.045;
+    --akinti-grain-blend: screen;
   }
 }
 
-/* Explicit dark, regardless of system preference */
+/* Explicit dark, regardless of system preference. */
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --akinti-bg: #0a0c0f;
-  --akinti-surface: #111419;
-  --akinti-surface-raised: #161a20;
-  --akinti-surface-muted: #171b21;
-  --akinti-surface-inset: #1d222a;
-  --akinti-overlay: rgb(3 5 8 / 0.66);
+  --akinti-paper: #131412;
+  --akinti-paper-raised: #1c1d19;
+  --akinti-paper-sunk: #0c0d0b;
 
-  --akinti-border: #232830;
-  --akinti-border-strong: #353c46;
+  --akinti-ink: #edede8;
+  --akinti-ink-muted: #a0a199;
+  --akinti-ink-subtle: #7e7f77;
 
-  --akinti-fg: #eceef1;
-  --akinti-fg-muted: #a9b1bc;
-  --akinti-fg-subtle: #838b96;
-  --akinti-fg-on-accent: #04171a;
+  --akinti-hairline: #292a26;
+  --akinti-hairline-strong: #3f403a;
 
-  --akinti-accent: #34c3ce;
-  --akinti-accent-hover: #55d2db;
-  --akinti-accent-active: #71dce3;
-  --akinti-accent-soft: #10282c;
-  --akinti-accent-soft-fg: #7cdde5;
+  --akinti-signal: #ff5c33;
+  --akinti-signal-deep: #ff9376;
+  --akinti-signal-wash: #2a140e;
 
-  --akinti-danger: #ff8078;
-  --akinti-danger-hover: #ff9b95;
-  --akinti-danger-soft: #2c1513;
-  --akinti-danger-soft-fg: #ffa9a3;
-  --akinti-success: #4cc38a;
-  --akinti-success-soft: #10241b;
-  --akinti-warning: #e0a458;
-  --akinti-warning-soft: #2a2013;
+  --akinti-wave-rest: #3f403a;
+  --akinti-wave-dormant: #63645d;
 
-  --akinti-wave-track: #363d47;
-  --akinti-wave-progress: var(--akinti-accent);
-  --akinti-wave-cursor: #eceef1;
+  --akinti-overlay: rgb(6 7 5 / 0.62);
 
-  --akinti-ring: #34c3ce;
+  --akinti-shadow-sheet: 0 -1px 0 0 #292a26, 0 24px 48px -12px rgb(0 0 0 / 0.55);
+  --akinti-shadow-lifted: 0 8px 24px -8px rgb(0 0 0 / 0.5);
 
-  --akinti-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.5);
-  --akinti-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.55), 0 1px 2px rgb(0 0 0 / 0.4);
-  --akinti-shadow-md: 0 4px 12px rgb(0 0 0 / 0.55), 0 1px 3px rgb(0 0 0 / 0.4);
-  --akinti-shadow-lg: 0 16px 40px rgb(0 0 0 / 0.6), 0 2px 8px rgb(0 0 0 / 0.45);
+  --akinti-grain-opacity: 0.045;
+  --akinti-grain-blend: screen;
 }
 
 /* `dark:` utilities follow the same resolution order as the tokens above. */
@@ -184,66 +209,155 @@
 
 /* =====================================================================
    Tailwind theme mapping
+   ---------------------------------------------------------------------
+   The v2 names (paper / ink / hairline / signal / wave) are canonical.
+   The v1 names below them are kept as thin aliases onto the same values
+   so every screen in the product inherits the new palette in one step
+   instead of drifting between two systems. Every alias resolves to a v2
+   token: there is no independent teal, green, amber or blue left in the
+   product (§4.4, §12.44 - no new token without deleting one).
    ===================================================================== */
 
 @theme inline {
-  --color-bg: var(--akinti-bg);
-  --color-surface: var(--akinti-surface);
-  --color-surface-raised: var(--akinti-surface-raised);
-  --color-surface-muted: var(--akinti-surface-muted);
-  --color-surface-inset: var(--akinti-surface-inset);
+  /* -- Canonical colour ------------------------------------------- */
+  --color-paper: var(--akinti-paper);
+  --color-paper-raised: var(--akinti-paper-raised);
+  --color-paper-sunk: var(--akinti-paper-sunk);
+  --color-ink: var(--akinti-ink);
+  --color-ink-muted: var(--akinti-ink-muted);
+  --color-ink-subtle: var(--akinti-ink-subtle);
+  --color-hairline: var(--akinti-hairline);
+  --color-hairline-strong: var(--akinti-hairline-strong);
+  --color-signal: var(--akinti-signal);
+  --color-signal-deep: var(--akinti-signal-deep);
+  --color-signal-wash: var(--akinti-signal-wash);
+  --color-wave-rest: var(--akinti-wave-rest);
+  --color-wave-dormant: var(--akinti-wave-dormant);
+  --color-wave-played: var(--akinti-wave-played);
+  --color-playhead: var(--akinti-playhead);
+  --color-on-ink: var(--akinti-on-ink);
   --color-overlay: var(--akinti-overlay);
 
-  --color-border: var(--akinti-border);
-  --color-border-strong: var(--akinti-border-strong);
+  /* -- v1 aliases, all resolving to v2 tokens ---------------------- */
+  --color-bg: var(--akinti-paper);
+  --color-surface: var(--akinti-paper);
+  --color-surface-raised: var(--akinti-paper-raised);
+  --color-surface-muted: var(--akinti-paper-sunk);
+  --color-surface-inset: var(--akinti-paper-sunk);
+  --color-border: var(--akinti-hairline);
+  --color-border-strong: var(--akinti-hairline-strong);
+  --color-fg: var(--akinti-ink);
+  --color-fg-muted: var(--akinti-ink-muted);
+  --color-fg-subtle: var(--akinti-ink-subtle);
+  --color-fg-on-accent: var(--akinti-on-ink);
+  /* The generic "accent" is ink: an accent that leaves audio state is
+     the fastest way to destroy this system (§12.3). */
+  --color-accent: var(--akinti-ink);
+  --color-accent-hover: var(--akinti-ink);
+  --color-accent-active: var(--akinti-ink);
+  --color-accent-soft: var(--akinti-paper-sunk);
+  --color-accent-soft-fg: var(--akinti-ink);
+  /* Semantic colour is ink-based (§4.4): success and warning are ink and
+     a sentence; error is the AA-safe Signal. */
+  --color-danger: var(--akinti-signal-deep);
+  --color-danger-hover: var(--akinti-signal-deep);
+  --color-danger-soft: var(--akinti-signal-wash);
+  --color-danger-soft-fg: var(--akinti-signal-deep);
+  --color-success: var(--akinti-ink);
+  --color-success-soft: var(--akinti-paper-sunk);
+  --color-warning: var(--akinti-ink);
+  --color-warning-soft: var(--akinti-paper-sunk);
+  --color-wave-track: var(--akinti-wave-dormant);
+  --color-wave-progress: var(--akinti-signal);
+  --color-wave-cursor: var(--akinti-playhead);
+  --color-ring: var(--akinti-focus);
 
-  --color-fg: var(--akinti-fg);
-  --color-fg-muted: var(--akinti-fg-muted);
-  --color-fg-subtle: var(--akinti-fg-subtle);
-  --color-fg-on-accent: var(--akinti-fg-on-accent);
+  /* -- Radius: role, not taste (§5.2) ------------------------------ */
+  --radius-line: var(--akinti-radius-line);
+  --radius-label: var(--akinti-radius-label);
+  --radius-tag: var(--akinti-radius-tag);
+  --radius-field: var(--akinti-radius-field);
+  --radius-key: var(--akinti-radius-key);
+  --radius-object: var(--akinti-radius-object);
+  --radius-sheet: var(--akinti-radius-sheet);
+  /* v1 aliases land on the same ladder: rounded-md is a field, rounded-lg
+     is a key, rounded-xl is a bounded object, rounded-2xl is a sheet. */
+  --radius-xs: var(--akinti-radius-label);
+  --radius-sm: var(--akinti-radius-tag);
+  --radius-md: var(--akinti-radius-field);
+  --radius-lg: var(--akinti-radius-key);
+  --radius-xl: var(--akinti-radius-object);
+  --radius-2xl: var(--akinti-radius-sheet);
 
-  --color-accent: var(--akinti-accent);
-  --color-accent-hover: var(--akinti-accent-hover);
-  --color-accent-active: var(--akinti-accent-active);
-  --color-accent-soft: var(--akinti-accent-soft);
-  --color-accent-soft-fg: var(--akinti-accent-soft-fg);
+  /* -- Elevation: only sheets and menus carry one (§5.3) ----------- */
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: var(--akinti-shadow-sheet);
+  --shadow-lg: var(--akinti-shadow-sheet);
+  --shadow-sheet: var(--akinti-shadow-sheet);
+  --shadow-lifted: var(--akinti-shadow-lifted);
 
-  --color-danger: var(--akinti-danger);
-  --color-danger-hover: var(--akinti-danger-hover);
-  --color-danger-soft: var(--akinti-danger-soft);
-  --color-danger-soft-fg: var(--akinti-danger-soft-fg);
-  --color-success: var(--akinti-success);
-  --color-success-soft: var(--akinti-success-soft);
-  --color-warning: var(--akinti-warning);
-  --color-warning-soft: var(--akinti-warning-soft);
-
-  --color-wave-track: var(--akinti-wave-track);
-  --color-wave-progress: var(--akinti-wave-progress);
-  --color-wave-cursor: var(--akinti-wave-cursor);
-
-  --color-ring: var(--akinti-ring);
-
-  --radius-xs: var(--akinti-radius-xs);
-  --radius-sm: var(--akinti-radius-sm);
-  --radius-md: var(--akinti-radius-md);
-  --radius-lg: var(--akinti-radius-lg);
-  --radius-xl: var(--akinti-radius-xl);
-  --radius-2xl: var(--akinti-radius-2xl);
-
-  --shadow-xs: var(--akinti-shadow-xs);
-  --shadow-sm: var(--akinti-shadow-sm);
-  --shadow-md: var(--akinti-shadow-md);
-  --shadow-lg: var(--akinti-shadow-lg);
-
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+  /* -- Families (§3.1) --------------------------------------------- */
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
+  --font-mono: var(--font-martian-mono), ui-monospace, SFMono-Regular, Menlo,
     Consolas, monospace;
 
-  --spacing-bottom-nav: var(--akinti-bottom-nav-h);
+  /* -- Type scale (§3.3) ------------------------------------------- */
+  --text-display-xl: var(--type-display-xl-size);
+  --text-display-xl--line-height: var(--type-display-xl-leading);
+  --text-display-xl--font-weight: 600;
+  --text-display-xl--letter-spacing: -0.025em;
+
+  --text-display: var(--type-display-size);
+  --text-display--line-height: var(--type-display-leading);
+  --text-display--font-weight: 600;
+  --text-display--letter-spacing: -0.022em;
+
+  --text-title: var(--type-title-size);
+  --text-title--line-height: var(--type-title-leading);
+  --text-title--font-weight: 600;
+  --text-title--letter-spacing: -0.02em;
+
+  --text-heading: var(--type-heading-size);
+  --text-heading--line-height: var(--type-heading-leading);
+  --text-heading--font-weight: 600;
+  --text-heading--letter-spacing: -0.015em;
+
+  --text-subhead: var(--type-subhead-size);
+  --text-subhead--line-height: var(--type-subhead-leading);
+  --text-subhead--font-weight: 600;
+  --text-subhead--letter-spacing: -0.006em;
+
+  --text-body: var(--type-body-size);
+  --text-body--line-height: var(--type-body-leading);
+  --text-body--font-weight: 400;
+  --text-body--letter-spacing: -0.002em;
+
+  --text-body-sm: var(--type-body-sm-size);
+  --text-body-sm--line-height: var(--type-body-sm-leading);
+  --text-body-sm--font-weight: 400;
+  --text-body-sm--letter-spacing: 0em;
+
+  --text-caption: var(--type-caption-size);
+  --text-caption--line-height: var(--type-caption-leading);
+  --text-caption--font-weight: 500;
+  --text-caption--letter-spacing: 0.004em;
+
+  --text-micro: var(--type-micro-size);
+  --text-micro--line-height: var(--type-micro-leading);
+  --text-micro--font-weight: 500;
+  --text-micro--letter-spacing: 0.02em;
+
+  /* -- Layout scale ------------------------------------------------ */
+  --spacing-rail: var(--akinti-rail);
+  --spacing-page: var(--akinti-page-inline);
+  --spacing-keyboard: var(--akinti-keyboard-h);
   --spacing-top-bar: var(--akinti-top-bar-h);
-  --spacing-side-nav: var(--akinti-side-nav-w);
+  --spacing-context-bar: var(--akinti-context-bar-h);
+  --spacing-side-nav: var(--akinti-labelled-rail-w);
   --spacing-content: var(--akinti-content-max);
+  --spacing-bottom-nav: var(--akinti-keyboard-h);
 }
 
 /* =====================================================================
@@ -252,7 +366,7 @@
 
 @layer base {
   * {
-    border-color: var(--akinti-border);
+    border-color: var(--akinti-hairline);
   }
 
   html {
@@ -261,39 +375,243 @@
   }
 
   body {
-    background-color: var(--akinti-bg);
-    color: var(--akinti-fg);
+    background-color: var(--akinti-paper);
+    color: var(--akinti-ink);
     font-family: var(--font-sans);
+    font-size: var(--type-body-size);
+    line-height: var(--type-body-leading);
+    font-variation-settings: "wdth" var(--wdth-ui);
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
   }
 
-  /* One consistent, always-visible focus treatment. */
+  /* Grain (§5.5). Fixed, painted once, never on a scrolling container,
+     never over an interactive surface. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: var(--akinti-grain-opacity);
+    mix-blend-mode: var(--akinti-grain-blend);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+
+  /* Dropped entirely where the reader asked for less, or where the
+     device cannot spare the composite (§5.5). */
+  @media (prefers-reduced-transparency: reduce) {
+    body::after {
+      display: none;
+    }
+  }
+
+  :root[data-grain="off"] body::after {
+    display: none;
+  }
+
+  /* One focus treatment on every focusable thing (§8.9). */
   :focus-visible {
-    outline: 2px solid var(--akinti-ring);
+    outline: 2px solid var(--akinti-focus);
     outline-offset: 2px;
-    border-radius: var(--akinti-radius-xs);
+    border-radius: var(--akinti-radius-label);
   }
 
   ::selection {
-    background-color: var(--akinti-accent-soft);
-    color: var(--akinti-accent-soft-fg);
+    background-color: var(--akinti-paper-sunk);
+    color: var(--akinti-ink);
   }
 
   [hidden] {
     display: none !important;
   }
+
+  /* Numerals are Martian Mono, tabular, everywhere they are a readout. */
+  code,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+    font-variation-settings: "wdth" var(--wdth-mono);
+  }
 }
+
+/* =====================================================================
+   Type utilities (§3.3, §3.4)
+   ---------------------------------------------------------------------
+   Each one carries size, line-height, weight, tracking and the width
+   axis, because the width axis is the pairing and a Tailwind text-*
+   utility cannot express `font-variation-settings`.
+   ===================================================================== */
+
+@layer utilities {
+  .type-display-xl,
+  .type-display,
+  .type-title,
+  .type-heading,
+  .type-subhead,
+  .type-body,
+  .type-body-sm,
+  .type-caption,
+  .type-caption-strong,
+  .type-micro {
+    font-family: var(--font-sans);
+    text-transform: none;
+  }
+
+  .type-display-xl {
+    font-size: var(--type-display-xl-size);
+    line-height: var(--type-display-xl-leading);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    font-variation-settings: "wdth" var(--wdth-display-xl);
+    text-wrap: balance;
+  }
+
+  .type-display {
+    font-size: var(--type-display-size);
+    line-height: var(--type-display-leading);
+    font-weight: 600;
+    letter-spacing: -0.022em;
+    font-variation-settings: "wdth" var(--wdth-display);
+    text-wrap: balance;
+  }
+
+  .type-title {
+    font-size: var(--type-title-size);
+    line-height: var(--type-title-leading);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variation-settings: "wdth" var(--wdth-ui);
+    text-wrap: balance;
+  }
+
+  .type-heading {
+    font-size: var(--type-heading-size);
+    line-height: var(--type-heading-leading);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    font-variation-settings: "wdth" var(--wdth-ui);
+  }
+
+  .type-subhead {
+    font-size: var(--type-subhead-size);
+    line-height: var(--type-subhead-leading);
+    font-weight: 600;
+    letter-spacing: -0.006em;
+    font-variation-settings: "wdth" var(--wdth-ui);
+  }
+
+  .type-body {
+    font-size: var(--type-body-size);
+    line-height: var(--type-body-leading);
+    font-weight: 400;
+    letter-spacing: -0.002em;
+    font-variation-settings: "wdth" var(--wdth-ui);
+    text-wrap: pretty;
+  }
+
+  .type-body-sm {
+    font-size: var(--type-body-sm-size);
+    line-height: var(--type-body-sm-leading);
+    font-weight: 400;
+    letter-spacing: 0;
+    font-variation-settings: "wdth" var(--wdth-ui);
+    text-wrap: pretty;
+  }
+
+  .type-caption {
+    font-size: var(--type-caption-size);
+    line-height: var(--type-caption-leading);
+    font-weight: 500;
+    letter-spacing: 0.004em;
+    font-variation-settings: "wdth" var(--wdth-ui);
+  }
+
+  /* The only 13px weight change in the system: in-content section labels
+     ("Comments (24)", "Today") so a label never needs to be bigger,
+     coloured or capitalised (§3.3). */
+  .type-caption-strong {
+    font-size: var(--type-caption-size);
+    line-height: var(--type-caption-leading);
+    font-weight: 600;
+    letter-spacing: 0.004em;
+    font-variation-settings: "wdth" var(--wdth-ui);
+  }
+
+  .type-micro {
+    font-size: var(--type-micro-size);
+    line-height: var(--type-micro-leading);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    font-variation-settings: "wdth" var(--wdth-ui);
+  }
+
+  /* Every readout in the product: timecodes, dB, latency, counts,
+     character counters, analytics figures (§3.4). */
+  .type-mono-display,
+  .type-mono-lg,
+  .type-mono,
+  .type-mono-sm,
+  .tabular {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    font-variation-settings: "wdth" var(--wdth-mono);
+    /* Martian Mono's dotted capitals reach past its ascender metric, so a
+       readout that must hold a Latin capital never clips (§3.2). */
+    text-transform: none;
+  }
+
+  .type-mono-display {
+    font-size: var(--type-mono-display-size);
+    line-height: var(--type-mono-display-leading);
+    letter-spacing: -0.01em;
+  }
+
+  .type-mono-lg {
+    font-size: var(--type-mono-lg-size);
+    line-height: var(--type-mono-lg-leading);
+  }
+
+  .type-mono {
+    font-size: var(--type-mono-size);
+    line-height: var(--type-mono-leading);
+  }
+
+  .type-mono-sm {
+    font-size: var(--type-mono-sm-size);
+    line-height: var(--type-mono-sm-leading);
+    letter-spacing: 0.01em;
+  }
+
+  .type-wordmark {
+    font-family: var(--font-sans);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    font-variation-settings: "wdth" var(--wdth-wordmark);
+  }
+
+  /* Prose is capped at 62 characters (§3.5). */
+  .measure {
+    max-width: 62ch;
+  }
+}
+
+/* =====================================================================
+   Structure utilities (§5.4 the rail, §5.5 the edge fade, §8 keys)
+   ===================================================================== */
 
 @layer utilities {
   /* Skip link, visible only on focus. */
   .akinti-skip-link {
     position: absolute;
-    left: 0.75rem;
-    top: 0.75rem;
+    left: var(--akinti-page-inline);
+    top: var(--akinti-page-inline);
     z-index: 100;
     transform: translateY(-200%);
-    transition: transform 150ms ease;
+    transition: transform var(--dur-quick) var(--ease-enter);
   }
   .akinti-skip-link:focus-visible {
     transform: translateY(0);
@@ -302,11 +620,107 @@
   .akinti-safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  .akinti-safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Every stream item, comment, message and notification hangs on the
+     same 44px rail; the text column starts at x = 64 (§5.4). */
+  .akinti-rail {
+    display: grid;
+    grid-template-columns: var(--akinti-rail) minmax(0, 1fr);
+    column-gap: var(--akinti-rail-gap);
+  }
+
+  .akinti-rail-span {
+    grid-column: 1 / -1;
+  }
+
+  .akinti-page {
+    padding-inline: var(--akinti-page-inline);
+  }
+
+  /* The one gradient in the product: a 24px fade at both ends of a
+     full-bleed trace so it does not hard-cut at the page edge (§5.5). */
+  .akinti-edge-fade {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 24px,
+      #000 calc(100% - 24px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 24px,
+      #000 calc(100% - 24px),
+      transparent 100%
+    );
+  }
+
+  /* Press is physical: scale, plus a 1px inset hairline so a key reads
+     as depressed rather than dimmed (§7.2). */
+  .akinti-press {
+    transition:
+      transform var(--dur-micro) var(--ease-press),
+      box-shadow var(--dur-micro) var(--ease-press);
+  }
+  .akinti-press:active:not(:disabled) {
+    transform: scale(0.975);
+    box-shadow: inset 0 0 0 1px var(--akinti-hairline-strong);
+  }
+
+  .akinti-scrim {
+    background-color: var(--akinti-overlay);
+  }
 }
 
 /* =====================================================================
-   Motion: respect the reader's preference (spec section 29)
+   Motion (§7)
    ===================================================================== */
+
+@keyframes akinti-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes akinti-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The only infinite animation in the product: the record lamp (§7.2). */
+@keyframes akinti-lamp {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@layer utilities {
+  .akinti-enter {
+    animation: akinti-enter var(--dur-normal) var(--ease-enter) both;
+  }
+
+  .akinti-lamp {
+    animation: akinti-lamp 1400ms ease-in-out infinite;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -321,40 +735,11 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
 
-@keyframes akinti-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes akinti-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(1rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes akinti-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.45;
-  }
-}
-
-@keyframes akinti-spin {
-  to {
-    transform: rotate(360deg);
+  /* Nothing that communicates state is removed, only the movement that
+     carried it: the lamp becomes a static filled Signal dot (§7.3). */
+  .akinti-lamp {
+    animation: none !important;
+    opacity: 1 !important;
   }
 }

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo, Martian_Mono } from "next/font/google";
 
 import { BRAND_DESCRIPTION, SITE } from "@/config/terminology";
 import { getCurrentUserWithProfile } from "@/lib/auth/server";
@@ -8,14 +8,29 @@ import { getCurrentUserWithProfile } from "@/lib/auth/server";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+/**
+ * Archivo Variable carries display, UI and body: the width axis, not a second
+ * family, supplies the contrast (`docs/design/DESIGN.md` §3.1). `latin-ext` is
+ * not optional — ı, İ, ğ, Ğ, ş and Ş live there, and requesting only `latin`
+ * makes Turkish words fall back to a system font mid-word (§3.2). Fonts are
+ * deliberately not preloaded: on mobile they must not compete with the LCP
+ * element for bandwidth (`docs/research/mobile-guidelines.md` rule 43).
+ */
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin", "latin-ext"],
+  axes: ["wdth"],
+  display: "swap",
+  preload: false,
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+/** Numerals and technical values only: timecodes, dB, latency, counts (§3.4). */
+const martianMono = Martian_Mono({
+  variable: "--font-martian-mono",
+  subsets: ["latin", "latin-ext"],
+  axes: ["wdth"],
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -44,8 +59,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfbfc" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0c0f" },
+    { media: "(prefers-color-scheme: light)", color: "#efefec" },
+    { media: "(prefers-color-scheme: dark)", color: "#131412" },
   ],
 };
 
@@ -54,8 +69,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html
-      lang={SITE.locale}
-      className={`${geistSans.variable} ${geistMono.variable} h-full`}
+      lang={SITE.htmlLang}
+      className={`${archivo.variable} ${martianMono.variable} h-full`}
       suppressHydrationWarning
     >
       <body className="min-h-full">

@@ -203,4 +203,14 @@ export const SITE = {
   titleTemplate: `%s · ${BRAND}`,
   description: BRAND_DESCRIPTION,
   locale: "en",
+  /**
+   * The document language, which is not the UI string language.
+   *
+   * Interface copy ships in English today, but `lang` is what switches the
+   * `locl` OpenType feature on, and Turkish is a first-class script here:
+   * without `lang="tr"` the dotted/dotless i pair and the g-breve render with
+   * the wrong localised forms the moment Turkish content appears in a Wave
+   * title, a display name or a comment (`docs/design/DESIGN.md` §3.2).
+   */
+  htmlLang: "tr",
 } as const;
