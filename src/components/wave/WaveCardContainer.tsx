@@ -39,7 +39,7 @@ import { usePlaybackStore } from "@/lib/audio";
 import { saveReducer } from "@/lib/interactions";
 import { emitAnalyticsEvent, usePlayTracker } from "@/lib/metrics";
 import { routes } from "@/config/routes";
-import { useToast } from "@/components/ui";
+import { useActionToast } from "@/components/ui";
 
 import { WaveCard, type WaveCardProps, type WaveCardWave } from "./WaveCard";
 
@@ -78,7 +78,12 @@ export function WaveCardContainer({
   const tWavePlayer = useTranslations("WavePlayer");
   const store = usePlaybackStore();
   const router = useRouter();
-  const { toast } = useToast();
+  // `useActionToast`'s own `toast` escape hatch (`./useActionToast.ts`'s
+  // doc comment: "the rare call site that needs a custom action button" —
+  // here it's a custom *message*, since Save must keep the server's
+  // specific error text rather than the shared generic one) rather than
+  // `notify()` directly.
+  const { toast } = useActionToast();
   usePlayTracker();
 
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -210,6 +215,11 @@ export function WaveCardContainer({
   /** Save/Unsave with optimistic UI and rollback on failure (spec §14). */
   const handleSave = useCallback(
     (waveId: string) => {
+      // Blocks a double-submit while the previous toggle's request is
+      // still in flight (DESIGN_V3_DESKTOP.md "Feedback": "disable
+      // double-submit") — `saveReducer`'s own `status` already tracks
+      // this, this just reads it before acting.
+      if (saveState.status === "pending") return;
       onSave?.(waveId);
       const willSave = !saveState.isSaved;
       dispatchSave({ type: "toggle" });
@@ -230,7 +240,7 @@ export function WaveCardContainer({
         });
       });
     },
-    [onSave, saveState.isSaved, t, toast],
+    [onSave, saveState.isSaved, saveState.status, t, toast],
   );
 
   const handleShare = useCallback(

@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, Mic, X } from "@/components/ui/icons";
-import { Avatar, Badge, Button, EmptyState, TabPanel, Tabs, tabId, tabPanelId } from "@/components/ui";
+import { Avatar, Badge, Button, EmptyState, TabPanel, Tabs, tabId, tabPanelId, useActionToast } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { cn, timeAgo } from "@/lib/ui";
 import type { DuetRequestStatus } from "@/types/domain";
@@ -113,6 +113,7 @@ function RequestList({
 function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "received" | "sent" }) {
   const t = useTranslations("DuetRequestsView");
   const router = useRouter();
+  const { notify } = useActionToast();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const name = item.counterpart.displayName ?? item.counterpart.username;
@@ -123,8 +124,10 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
       const result = await task();
       if (!result.ok) {
         setError(result.error ?? t("genericError"));
+        notify("duet", "error");
         return;
       }
+      notify("duet", "success");
       router.refresh();
     });
   };

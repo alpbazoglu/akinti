@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Handshake } from "@/components/ui/icons";
 
-import { Button, ErrorState, Textarea } from "@/components/ui";
+import { Button, ErrorState, Textarea, useActionToast } from "@/components/ui";
 import { routes } from "@/config/routes";
 
 import { requestDuet } from "@/app/(app)/w/[id]/duet/actions";
@@ -26,6 +26,7 @@ export function DuetRequestForm({ waveId, className }: DuetRequestFormProps) {
   const t = useTranslations("DuetRequestForm");
   const tTerms = useTranslations("Terms");
   const router = useRouter();
+  const { notify } = useActionToast();
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -38,9 +39,11 @@ export function DuetRequestForm({ waveId, className }: DuetRequestFormProps) {
       const result = await requestDuet(waveId, message.trim() || null);
       if (!result.ok) {
         setError(result.error);
+        notify("duet", "error");
         return;
       }
       setSent(true);
+      notify("duet", "success");
       router.push(routes.duets());
     });
   };

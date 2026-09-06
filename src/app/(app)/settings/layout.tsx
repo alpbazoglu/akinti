@@ -63,6 +63,10 @@ const SETTINGS_MESSAGE_NAMESPACES = [
   "MessagesActions",
   "ErrorPage",
   "NotFoundPage",
+  // `WaveCardContainer`'s Save action now calls `useActionToast`, which
+  // reads "Layout" (previously unneeded here: only `AppShell` chrome
+  // outside this provider used it).
+  "Layout",
 ] as const;
 
 export default async function SettingsLayout({ children }: { children: ReactNode }) {

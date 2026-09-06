@@ -34,7 +34,7 @@ import {
   type PublishStage,
   type RecordStageBackingTrack,
 } from "@/components/create";
-import { Button, useToast } from "@/components/ui";
+import { Button, useActionToast } from "@/components/ui";
 import {
   applyTrim,
   decodeToPeaks,
@@ -100,7 +100,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
   const t = useTranslations("CreateFlow");
   const tTerms = useTranslations("Terms");
   const router = useRouter();
-  const { toast } = useToast();
+  const { toast, notify } = useActionToast();
   const [step, setStep] = useState<Step>("capture");
   const [captureMode, setCaptureMode] = useState<CaptureMode>("record");
   const [backingTrack, setBackingTrack] = useState<RecordStageBackingTrack | null>(
@@ -301,9 +301,16 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
 
       setPublishStage("done");
       markFirstPublish();
+      // Publish already has its own explicit multi-stage progress UI
+      // (`PublishProgress`) and per-stage inline errors above, so only the
+      // success side adopts `useActionToast` here — a generic error toast
+      // stacked on top of five already-specific inline failure messages
+      // would just be noise (the hook's own doc comment: whether an action
+      // toasts on success or only on error is a per-screen call).
+      notify("publish", "success");
       router.push(routes.wave(published.waveId));
     },
-    [backingTrack, initialChallenge, router, t, toast],
+    [backingTrack, initialChallenge, notify, router, t, toast],
   );
 
   const handlePublish = (draft: CreateWaveDraft) => {

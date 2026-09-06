@@ -38,6 +38,10 @@ const CREATE_MESSAGE_NAMESPACES = [
   "Sheet",
   "ErrorPage",
   "NotFoundPage",
+  // `CreateFlow` now calls `useActionToast` on a successful publish, which
+  // reads "Layout" (previously unneeded here: only `AppShell` chrome
+  // outside this provider used it).
+  "Layout",
 ] as const;
 
 export default async function CreateLayout({ children }: { children: ReactNode }) {
