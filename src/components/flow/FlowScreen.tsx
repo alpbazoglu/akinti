@@ -13,7 +13,7 @@ import { Avatar, useToast } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { usePlaybackSelector, usePlaybackStore, useWaveControls, useWavePlayback } from "@/lib/audio";
 import { emitAnalyticsEvent } from "@/lib/metrics";
-import { formatDuration } from "@/lib/ui";
+import { formatDuration, useIsDesktopViewport } from "@/lib/ui";
 
 import { FlowActionBar } from "./FlowActionBar";
 import { FlowCommentsPreview } from "./FlowCommentsPreview";
@@ -24,7 +24,6 @@ import { FlowTransport } from "./FlowTransport";
 import { FlowUpNextList } from "./FlowUpNextList";
 import { FlowWaveView } from "./FlowWaveView";
 import { flowTraceHue, type FlowWave } from "./types";
-import { useIsDesktopFlow } from "./useIsDesktopFlow";
 
 const ShareSheet = dynamic(() => import("@/components/share").then((mod) => mod.ShareSheet));
 const FlowCommentSheet = dynamic(() => import("./FlowCommentSheet").then((mod) => mod.FlowCommentSheet));
@@ -71,7 +70,7 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
   const tTerms = useTranslations("Terms");
   const tFlow = useTranslations("Flow");
   const tFlowWaveView = useTranslations("FlowWaveView");
-  const isDesktop = useIsDesktopFlow();
+  const isDesktop = useIsDesktopViewport();
 
   const [items, setItems] = useState<FlowWave[]>(() => [...initialItems]);
   const [cursor, setCursor] = useState<string | null>(initialCursor);

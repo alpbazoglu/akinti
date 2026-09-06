@@ -1,4 +1,5 @@
 export { cn } from "./cn";
+export { useIsDesktopViewport } from "./useIsDesktopViewport";
 export {
   formatAbsoluteTime,
   formatCount,
