@@ -50,7 +50,20 @@
     "emptyDescription": "Follow a few creators, or record something of your own to get the current moving.",
     "unreachable": "{brand} isn't reachable from this build.",
     "audioLoadError": "This Wave's audio didn't load.",
-    "saveError": "That save didn't stick. Try again."
+    "saveError": "That save didn't stick. Try again.",
+    "upNextHeading": "Up next",
+    "openForDuetHeading": "Open for Duet",
+    "duetHeading": "{duet}",
+    "openForDuetBody": "The creator is open to a second voice on \"{title}\".",
+    "duetChainCount": "{count} {duets} grew from this Wave.",
+    "noDuetsYet": "No Duets yet.",
+    "sendTheRequest": "Send the request",
+    "viewFullChain": "View full chain",
+    "seeAll": "See all",
+    "beFirstToComment": "Be the first to comment",
+    "kbdPlayPause": "play or pause",
+    "kbdBrowse": "browse",
+    "kbdSpaceKey": "Space"
   },
   "Settings": {
     "language": "Language",

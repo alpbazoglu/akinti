@@ -50,7 +50,20 @@
     "emptyDescription": "Birkaç yaratıcıyı takip et, ya da akıntıyı hareketlendirmek için kendinden bir şey kaydet.",
     "unreachable": "{brand} bu derlemeden ulaşılamıyor.",
     "audioLoadError": "Bu Wave'in sesi yüklenemedi.",
-    "saveError": "Kaydetme işlemi tutmadı. Tekrar dene."
+    "saveError": "Kaydetme işlemi tutmadı. Tekrar dene.",
+    "upNextHeading": "Sırada",
+    "openForDuetHeading": "Duet'e açık",
+    "duetHeading": "{duet}",
+    "openForDuetBody": "Yaratıcı \"{title}\" için ikinci bir sese açık.",
+    "duetChainCount": "Bu Wave'den {count} {duets} doğdu.",
+    "noDuetsYet": "Henüz Duet yok.",
+    "sendTheRequest": "İsteği gönder",
+    "viewFullChain": "Tüm zinciri gör",
+    "seeAll": "Tümünü gör",
+    "beFirstToComment": "İlk yorumu sen yap",
+    "kbdPlayPause": "oynat veya durdur",
+    "kbdBrowse": "gezin",
+    "kbdSpaceKey": "Boşluk"
   },
   "Settings": {
     "language": "Dil",

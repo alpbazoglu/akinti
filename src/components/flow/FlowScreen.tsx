@@ -1,20 +1,30 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { loadMoreFlow, sendFlowEvent } from "@/app/(app)/flow/actions";
 import { saveWave, unsaveWave } from "@/app/(app)/w/[id]/interactions";
-import { useToast } from "@/components/ui";
+import { genreHueForTag } from "@/components/feed";
+import { Avatar, useToast } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { usePlaybackSelector, usePlaybackStore, useWaveControls, useWavePlayback } from "@/lib/audio";
 import { emitAnalyticsEvent } from "@/lib/metrics";
+import { formatDuration } from "@/lib/ui";
 
+import { FlowActionBar } from "./FlowActionBar";
+import { FlowCommentsPreview } from "./FlowCommentsPreview";
+import { FlowDuetCallout } from "./FlowDuetCallout";
 import { FlowEmptyState } from "./FlowEmptyState";
+import { FlowTrace } from "./FlowTrace";
+import { FlowTransport } from "./FlowTransport";
+import { FlowUpNextList } from "./FlowUpNextList";
 import { FlowWaveView } from "./FlowWaveView";
-import type { FlowWave } from "./types";
+import { flowTraceHue, type FlowWave } from "./types";
+import { useIsDesktopFlow } from "./useIsDesktopFlow";
 
 const ShareSheet = dynamic(() => import("@/components/share").then((mod) => mod.ShareSheet));
 const FlowCommentSheet = dynamic(() => import("./FlowCommentSheet").then((mod) => mod.FlowCommentSheet));
@@ -60,6 +70,8 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
   const store = usePlaybackStore();
   const tTerms = useTranslations("Terms");
   const tFlow = useTranslations("Flow");
+  const tFlowWaveView = useTranslations("FlowWaveView");
+  const isDesktop = useIsDesktopFlow();
 
   const [items, setItems] = useState<FlowWave[]>(() => [...initialItems]);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
@@ -409,6 +421,132 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
     return <FlowEmptyState error={loadError} onRetry={() => router.refresh()} />;
   }
 
+  const sheets = (
+    <>
+      {shareTarget ? (
+        <ShareSheet open onClose={() => setShareTarget(null)} wave={{ id: shareTarget.id, title: shareTarget.title }} />
+      ) : null}
+
+      {commentTarget ? (
+        <FlowCommentSheet
+          open
+          onClose={() => setCommentTarget(null)}
+          waveId={commentTarget.id}
+          waveCreatorId={commentTarget.creatorId}
+          commentCount={commentTarget.metrics.comments}
+        />
+      ) : null}
+    </>
+  );
+
+  if (isDesktop) {
+    const activeName = activeWave.creator.displayName ?? activeWave.creator.username;
+    const hue = flowTraceHue(activeWave, genreHueForTag);
+    const modeLabel =
+      activeWave.creationType === "duet" ? tTerms("duet") : (activeWave.genre ?? tTerms(activeWave.creationType));
+    const progress = playback.duration > 0 ? Math.min(1, playback.currentTime / playback.duration) : 0;
+    const upNext = items.slice(index + 1, index + 4);
+    const activeSaved = savedById[activeWave.id] ?? activeWave.isSaved;
+
+    return (
+      <>
+        {/* `AppShell` now renders the real sidebar/top bar/now-playing bar
+            for `/flow` at >= 1024px (fixed after this pass flagged the
+            unconditional mobile takeover to the shell owner) — this only
+            needs to be the page's own content, exactly like Explore or the
+            Wave page, not a second header. The right rail is built here
+            rather than through `AppShell`'s `aside` slot: that slot is a
+            prop on a component instantiated above every page in
+            `(app)/layout.tsx`, which a Server Component page has no way to
+            reach — the same reason no other screen in the product uses it
+            today either. */}
+        <div
+          className="flex flex-col gap-10 py-2 outline-none lg:flex-row lg:items-start"
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
+        >
+          <div className="flex min-h-[60vh] min-w-0 flex-1 flex-col justify-center gap-8 lg:max-w-[720px]">
+            <div className="flex flex-col gap-3">
+              <Link
+                href={routes.profile(activeWave.creator.username)}
+                className="flex items-center gap-2.5 self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
+              >
+                <Avatar name={activeName} src={activeWave.creator.avatarUrl} size="md" />
+                <span className="flex flex-col">
+                  <span className="type-subhead text-ink">{activeName}</span>
+                  <span className="type-caption text-ink-subtle">@{activeWave.creator.username}</span>
+                </span>
+              </Link>
+
+              <h1 className="type-desktop-title pt-1 text-ink">{activeWave.title}</h1>
+              <p className="type-caption flex items-center gap-2 text-ink-subtle">
+                <span>{modeLabel}</span>
+                <span aria-hidden="true">·</span>
+                <span className="type-mono-sm">{formatDuration(activeWave.duration ?? 0)}</span>
+                {activeWave.isInvitation ? (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>{tFlowWaveView("singOverThis")}</span>
+                  </>
+                ) : null}
+              </p>
+            </div>
+
+            <FlowTrace
+              peaks={activeWave.peaks}
+              progress={progress}
+              loaded={playback.buffered}
+              state={playback.isPlaying ? "playing" : "unplayed"}
+              hue={hue}
+              height={220}
+              onScrub={handleScrub}
+            />
+
+            <div className="flex items-center justify-center">
+              <FlowTransport
+                isPlaying={playback.isPlaying}
+                hasStarted={hasStarted}
+                currentTime={playback.currentTime}
+                duration={playback.duration || activeWave.duration || 0}
+                onToggle={handleToggle}
+                upNextPeaks={null}
+              />
+            </div>
+
+            <FlowActionBar
+              isSaved={activeSaved}
+              saveCount={activeWave.metrics.saves}
+              commentCount={activeWave.metrics.comments}
+              shareCount={activeWave.metrics.shares}
+              duetCount={activeWave.metrics.duets}
+              canRequestDuet={activeWave.canRequestDuet}
+              openForDuet={activeWave.canRequestDuet}
+              onReplay={handleReplay}
+              onSave={handleSave}
+              onComment={() => setCommentTarget(activeWave)}
+              onShare={() => setShareTarget(activeWave)}
+              onDuet={handleDuet}
+            />
+          </div>
+
+          <aside className="hidden w-right-rail shrink-0 flex-col gap-8 lg:flex">
+            <FlowUpNextList items={upNext} onSelect={(waveId) => goToIndex(items.findIndex((wave) => wave.id === waveId))} />
+            <div className="h-px bg-hairline" aria-hidden="true" />
+            <FlowDuetCallout wave={activeWave} onRequestDuet={handleDuet} />
+            <div className="h-px bg-hairline" aria-hidden="true" />
+            <FlowCommentsPreview
+              waveId={activeWave.id}
+              commentCount={activeWave.metrics.comments}
+              onOpenAll={() => setCommentTarget(activeWave)}
+            />
+          </aside>
+        </div>
+
+        {sheets}
+      </>
+    );
+  }
+
   return (
     <div
       // `AppShell` (`src/components/layout/AppShell.tsx`) renders no chrome
@@ -471,19 +609,7 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
         ))}
       </div>
 
-      {shareTarget ? (
-        <ShareSheet open onClose={() => setShareTarget(null)} wave={{ id: shareTarget.id, title: shareTarget.title }} />
-      ) : null}
-
-      {commentTarget ? (
-        <FlowCommentSheet
-          open
-          onClose={() => setCommentTarget(null)}
-          waveId={commentTarget.id}
-          waveCreatorId={commentTarget.creatorId}
-          commentCount={commentTarget.metrics.comments}
-        />
-      ) : null}
+      {sheets}
     </div>
   );
 }
