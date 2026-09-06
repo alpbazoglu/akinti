@@ -9,7 +9,13 @@
  * Three tiers, each degrading honestly rather than faking a pass:
  *  1. Schema reachability — always run. `plans`/`subscriptions`/
  *     `billing_events` are queryable, `has_pro` and the rate-limit RPCs are
- *     callable, and `'billing_checkout'` is in the rate-limit whitelist.
+ *     callable, EVERY rate-limited action used anywhere in this codebase
+ *     (review3 finding 1 — `rate_limit_actions`,
+ *     `20260906140000_rate_limit_actions_union.sql`) is accepted by
+ *     `check_rate_limit`/`record_rate_limit_event`, and the two AKINTI Pro
+ *     bypasses named in review3 findings 3/4 (`enqueue_audio_job` payload,
+ *     `audio_assets.enhancement_preset` PATCH) are rejected for a real
+ *     non-Pro session.
  *  2. Webhook signature verification + idempotent apply — always run,
  *     against a SYNTHETIC (self-signed, using this codebase's own secret
  *     values) payload per provider, exercised in-process through
@@ -150,6 +156,252 @@ async function checkBillingCheckoutRateLimitWhitelisted(
       status: "FAIL",
       detail: err instanceof Error ? err.message : String(err),
     };
+  }
+}
+
+/**
+ * The full union of `rate_limit_events.action` values used anywhere in this
+ * codebase, as of review3 finding 1's fix
+ * (`supabase/migrations/20260906140000_rate_limit_actions_union.sql`). Kept
+ * as an explicit list (not read from `rate_limit_actions` itself) so this
+ * check fails loudly if a future migration adds a code-side action without
+ * inserting it into the lookup table, rather than silently agreeing with
+ * whatever the table currently contains.
+ */
+const ALL_RATE_LIMIT_ACTIONS = [
+  "comment",
+  "follow",
+  "message",
+  "duet_request",
+  "share",
+  "report",
+  "audio_upload",
+  "challenge_entry",
+  "billing_checkout",
+  "flow_event",
+] as const;
+
+/**
+ * Regression guard for review3 finding 1: two same-day migrations each
+ * rewrote `rate_limit_events_action_known` from scratch and silently
+ * dropped the other's action. Calling `check_rate_limit` for every action
+ * used anywhere in the codebase catches a future regression of the same
+ * shape immediately, not just for `billing_checkout`.
+ */
+async function checkAllRateLimitActionsWhitelisted(
+  baseUrl: string,
+  headers: Record<string, string>,
+): Promise<CheckResult> {
+  const rejected: string[] = [];
+  for (const action of ALL_RATE_LIMIT_ACTIONS) {
+    try {
+      const res = await fetch(`${baseUrl}/rest/v1/rpc/check_rate_limit`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          p_profile_id: PROBE_USER_ID,
+          p_action: action,
+          p_max_count: 999999,
+          p_window: "1 hour",
+        }),
+      });
+      if (!res.ok) {
+        rejected.push(action);
+      }
+    } catch {
+      rejected.push(action);
+    }
+  }
+  if (rejected.length > 0) {
+    return {
+      name: "rpc:check_rate_limit(all actions)",
+      status: "FAIL",
+      detail: `rejected by rate_limit_actions/rate_limit_events_action_known: ${rejected.join(", ")}`,
+    };
+  }
+  return {
+    name: "rpc:check_rate_limit(all actions)",
+    status: "PASS",
+    detail: `all ${ALL_RATE_LIMIT_ACTIONS.length} actions accepted (${ALL_RATE_LIMIT_ACTIONS.join(", ")})`,
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Negative tests for review3 findings 3 and 4 — AKINTI Pro must not be     */
+/* reachable from the browser via either the enqueue_audio_job payload or a */
+/* direct PATCH of audio_assets.enhancement_preset, for a real non-Pro      */
+/* session (not just a service-role probe).                                */
+/* ------------------------------------------------------------------------ */
+
+async function createThrowawayUser(
+  baseUrl: string,
+  adminHeaders: Record<string, string>,
+  email: string,
+  password: string,
+): Promise<string> {
+  const res = await fetch(`${baseUrl}/auth/v1/admin/users`, {
+    method: "POST",
+    headers: { ...adminHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, email_confirm: true }),
+  });
+  if (!res.ok) {
+    throw new Error(`create user failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+  }
+  const user = (await res.json()) as { id: string };
+  return user.id;
+}
+
+async function signIn(baseUrl: string, anonKey: string, email: string, password: string): Promise<string> {
+  const res = await fetch(`${baseUrl}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: anonKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    throw new Error(`sign-in failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+  }
+  const session = (await res.json()) as { access_token: string };
+  return session.access_token;
+}
+
+/**
+ * Finding 3: `enqueue_audio_job` granted to `authenticated` must reject a
+ * Pro-only preset (`pitch_snap`/`self_harmony`) for a caller `has_pro()`
+ * says is not Pro — provisions one throwaway non-Pro user, one asset they
+ * own, and calls the RPC directly with their own real JWT (not the
+ * service-role key), the exact shape of the bypass the finding describes.
+ */
+async function checkEnqueueAudioJobRejectsNonProPreset(
+  baseUrl: string,
+  adminHeaders: Record<string, string>,
+  anonKey: string,
+): Promise<CheckResult> {
+  const name = "rpc:enqueue_audio_job(non-Pro, pitch_snap)";
+  const probeId = crypto.randomUUID();
+  const email = `verify-billing-${probeId}@akinti.internal`;
+  const password = `Vv${probeId.replace(/-/g, "")}!`;
+  let userId: string | null = null;
+
+  try {
+    userId = await createThrowawayUser(baseUrl, adminHeaders, email, password);
+
+    const assetRes = await fetch(`${baseUrl}/rest/v1/audio_assets`, {
+      method: "POST",
+      headers: { ...adminHeaders, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({
+        owner_id: userId,
+        original_path: `verify/${probeId}.wav`,
+        mime_type: "audio/wav",
+        byte_size: 1,
+      }),
+    });
+    if (!assetRes.ok) {
+      return { name, status: "FAIL", detail: `create audio asset failed: HTTP ${assetRes.status} ${(await assetRes.text()).slice(0, 200)}` };
+    }
+    const [asset] = (await assetRes.json()) as { id: string }[];
+
+    const token = await signIn(baseUrl, anonKey, email, password);
+
+    const rpcRes = await fetch(`${baseUrl}/rest/v1/rpc/enqueue_audio_job`, {
+      method: "POST",
+      headers: { apikey: anonKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        p_audio_asset_id: asset.id,
+        p_job_type: "process_audio",
+        p_payload: { preset: "pitch_snap", advanced_eq: null },
+      }),
+    });
+
+    if (rpcRes.ok) {
+      return { name, status: "FAIL", detail: "non-Pro caller was allowed to enqueue a pitch_snap job — AKINTI Pro gate bypassed" };
+    }
+    const body = await rpcRes.text();
+    return { name, status: "PASS", detail: `correctly rejected: HTTP ${rpcRes.status} ${body.slice(0, 150)}` };
+  } catch (err) {
+    return { name, status: "FAIL", detail: err instanceof Error ? err.message : String(err) };
+  } finally {
+    if (userId) {
+      await fetch(`${baseUrl}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: adminHeaders }).catch(() => {});
+    }
+  }
+}
+
+/**
+ * Finding 4: a direct PostgREST PATCH of `audio_assets.enhancement_preset`
+ * to a Pro-only id must be rejected by `audio_assets_guard_update` for a
+ * non-Pro owner, independent of finding 3's RPC-level fix.
+ */
+async function checkPatchEnhancementPresetRejectsNonPro(
+  baseUrl: string,
+  adminHeaders: Record<string, string>,
+  anonKey: string,
+): Promise<CheckResult> {
+  const name = "patch:audio_assets.enhancement_preset(non-Pro, pitch_snap)";
+  const probeId = crypto.randomUUID();
+  const email = `verify-billing-${probeId}@akinti.internal`;
+  const password = `Vv${probeId.replace(/-/g, "")}!`;
+  let userId: string | null = null;
+
+  try {
+    userId = await createThrowawayUser(baseUrl, adminHeaders, email, password);
+
+    const assetRes = await fetch(`${baseUrl}/rest/v1/audio_assets`, {
+      method: "POST",
+      headers: { ...adminHeaders, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({
+        owner_id: userId,
+        original_path: `verify/${probeId}.wav`,
+        mime_type: "audio/wav",
+        byte_size: 1,
+        enhancement_preset: "natural",
+      }),
+    });
+    if (!assetRes.ok) {
+      return { name, status: "FAIL", detail: `create audio asset failed: HTTP ${assetRes.status} ${(await assetRes.text()).slice(0, 200)}` };
+    }
+    const [asset] = (await assetRes.json()) as { id: string }[];
+
+    const token = await signIn(baseUrl, anonKey, email, password);
+
+    // `Prefer: return=minimal`, not `return=representation`: the latter
+    // makes PostgREST re-select the full row afterward, which 403s on ANY
+    // update to this table (even a legitimate own-preset change) because
+    // `original_path`/`processed_path` are deliberately not in the
+    // column-scoped SELECT grant (migration 15) — a pre-existing, unrelated
+    // wrinkle that would mask this check's actual signal. What this check
+    // needs to know is only "did the row change", read back separately with
+    // the admin client below.
+    const patchRes = await fetch(`${baseUrl}/rest/v1/audio_assets?id=eq.${asset.id}`, {
+      method: "PATCH",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ enhancement_preset: "pitch_snap" }),
+    });
+
+    const afterRes = await fetch(
+      `${baseUrl}/rest/v1/audio_assets?id=eq.${asset.id}&select=enhancement_preset`,
+      { headers: adminHeaders },
+    );
+    const [afterRow] = afterRes.ok ? ((await afterRes.json()) as { enhancement_preset: string }[]) : [];
+
+    if (afterRow?.enhancement_preset === "pitch_snap") {
+      return { name, status: "FAIL", detail: "non-Pro owner PATCHed enhancement_preset to pitch_snap — AKINTI Pro gate bypassed" };
+    }
+    if (patchRes.ok) {
+      return { name, status: "FAIL", detail: `PATCH returned HTTP ${patchRes.status} with no error, but row is unexpectedly "${afterRow?.enhancement_preset}" — investigate` };
+    }
+    const body = await patchRes.text();
+    return { name, status: "PASS", detail: `correctly rejected: HTTP ${patchRes.status} ${body.slice(0, 150)} (row still "${afterRow?.enhancement_preset}")` };
+  } catch (err) {
+    return { name, status: "FAIL", detail: err instanceof Error ? err.message : String(err) };
+  } finally {
+    if (userId) {
+      await fetch(`${baseUrl}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: adminHeaders }).catch(() => {});
+    }
   }
 }
 
@@ -345,8 +597,17 @@ async function checkLivePaddleCheckout(baseUrl: string, headers: Record<string, 
   }
 }
 
+function getAnonKey(): string {
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!anonKey) {
+    throw new Error("Missing required environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+  return anonKey;
+}
+
 async function main(): Promise<void> {
   const { url, serviceRoleKey } = getSupabaseEnv();
+  const anonKey = getAnonKey();
   const headers = { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` };
 
   // Captured BEFORE the webhook round-trip checks run, which set synthetic
@@ -364,6 +625,9 @@ async function main(): Promise<void> {
   }
   results.push(await checkHasPro(url, headers));
   results.push(await checkBillingCheckoutRateLimitWhitelisted(url, headers));
+  results.push(await checkAllRateLimitActionsWhitelisted(url, headers));
+  results.push(await checkEnqueueAudioJobRejectsNonProPreset(url, headers, anonKey));
+  results.push(await checkPatchEnhancementPresetRejectsNonPro(url, headers, anonKey));
 
   results.push(...(await checkIyzicoWebhookRoundTrip()));
   results.push(...(await checkPaddleWebhookRoundTrip()));

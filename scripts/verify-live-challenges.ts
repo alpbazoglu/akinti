@@ -136,6 +136,70 @@ async function checkSeededChallenge(
 }
 
 /**
+ * The full union of `rate_limit_events.action` values used anywhere in this
+ * codebase, as of review3 finding 1's fix
+ * (`supabase/migrations/20260906140000_rate_limit_actions_union.sql`). Kept
+ * explicit (not read from `rate_limit_actions` itself) so a future code
+ * change that adds an action without a matching lookup-table insert fails
+ * this check rather than silently agreeing with the table's current
+ * contents.
+ */
+const ALL_RATE_LIMIT_ACTIONS = [
+  "comment",
+  "follow",
+  "message",
+  "duet_request",
+  "share",
+  "report",
+  "audio_upload",
+  "challenge_entry",
+  "billing_checkout",
+  "flow_event",
+] as const;
+
+/**
+ * Regression guard for review3 finding 1: two same-day migrations
+ * (`20260906100000_subscriptions.sql`, `20260906110000_flow.sql`) each
+ * rewrote `rate_limit_events_action_known` from scratch and silently
+ * dropped the other's action — `'challenge_entry'` itself was the subject
+ * of an earlier instance of exactly this bug
+ * (`20260905140000_rate_limit_challenge_entry.sql`). Calling
+ * `check_rate_limit` for every action used anywhere in the codebase catches
+ * a future regression of the same shape immediately.
+ */
+async function checkAllRateLimitActionsWhitelisted(
+  baseUrl: string,
+  headers: Record<string, string>,
+): Promise<CheckResult> {
+  const rejected: string[] = [];
+  for (const action of ALL_RATE_LIMIT_ACTIONS) {
+    const res = await fetch(`${baseUrl}/rest/v1/rpc/check_rate_limit`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        p_profile_id: PROBE_ID,
+        p_action: action,
+        p_max_count: 999999,
+        p_window: "1 hour",
+      }),
+    }).catch(() => null);
+    if (!res || !res.ok) rejected.push(action);
+  }
+  if (rejected.length > 0) {
+    return {
+      name: "rpc:check_rate_limit(all actions)",
+      ok: false,
+      detail: `rejected by rate_limit_actions/rate_limit_events_action_known: ${rejected.join(", ")}`,
+    };
+  }
+  return {
+    name: "rpc:check_rate_limit(all actions)",
+    ok: true,
+    detail: `all ${ALL_RATE_LIMIT_ACTIONS.length} actions accepted (${ALL_RATE_LIMIT_ACTIONS.join(", ")})`,
+  };
+}
+
+/**
  * End-to-end regression check for the `challenge_entry` rate-limit action
  * (migration `20260905140000_rate_limit_challenge_entry.sql` — the check
  * constraint `rate_limit_events_action_known` originally rejected it,
@@ -431,6 +495,8 @@ async function main(): Promise<void> {
 
   results.push(await checkSeededChallenge(url, headers, "opening-week"));
   results.push(await checkSeededChallenge(url, headers, "atisma-call"));
+
+  results.push(await checkAllRateLimitActionsWhitelisted(url, headers));
 
   results.push(await checkEnterChallengeEndToEnd(url, headers, anonKey));
   results.push(await checkPrivateEntryVisibility(url, headers, anonKey));
