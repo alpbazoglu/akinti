@@ -33,7 +33,6 @@ import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/
 import { isRateLimitError } from "@/lib/moderation/errors";
 import { notifyDuetPush } from "@/lib/push/send";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { translateValidationMessage, type MessageTranslator } from "@/lib/validation/translate";
@@ -124,10 +123,14 @@ export async function requestDuet(waveId: string, message: string | null): Promi
     return { ok: false, error: describeError(err, t) };
   }
 
+  // i18n (`docs/I18N.md`): keys + params only — resolved against the
+  // *recipient's* own `profiles.locale` inside `notifyDuetPush`/
+  // `sendPushToUser`, which may differ from this actor's request locale (`t`).
   void notifyDuetPush(db, {
     recipientId: wave.creatorId,
-    title: t("DuetRecordActions.newDuetRequestTitle"),
-    body: t("DuetRecordActions.newDuetRequestBody", { duet: TERMS.duet, wave: TERMS.wave }),
+    titleKey: "DuetRecordActions.newDuetRequestTitle",
+    bodyKey: "DuetRecordActions.newDuetRequestBody",
+    bodyParams: { duet: "duet", wave: "wave" },
     url: routes.duets(),
     tag: `duet-request:${requestId}`,
   });
@@ -315,8 +318,9 @@ export async function answerOpenCall(waveId: string): Promise<AnswerOpenCallResu
   if (openCallWave) {
     void notifyDuetPush(db, {
       recipientId: openCallWave.creatorId,
-      title: t("DuetRecordActions.openCallAnsweredTitle"),
-      body: t("DuetRecordActions.openCallAnsweredBody", { duet: TERMS.duet }),
+      titleKey: "DuetRecordActions.openCallAnsweredTitle",
+      bodyKey: "DuetRecordActions.openCallAnsweredBody",
+      bodyParams: { duet: "duet" },
       url: routes.duets(),
       tag: `duet-answer:${requestId}`,
     });

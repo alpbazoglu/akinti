@@ -19,6 +19,17 @@
  * exists via `push_notification()` regardless of whether the push itself
  * lands) — every export here is best-effort and swallows its own errors,
  * logging instead.
+ *
+ * i18n (`docs/I18N.md`): the notification is for the *recipient*, who is
+ * never the caller whose request triggered it — there is no ambient request
+ * locale to read the way a Server Action's own `getTranslations()` response
+ * does. Every payload here is a message key (+ params), resolved against the
+ * recipient's own `profiles.locale` (falling back to Turkish, this
+ * product's primary language, when unset) via `resolvePushMessage`
+ * (`./messages.ts`), never a caller-supplied literal string — a caller
+ * building a title/body in its own request locale and handing it to this
+ * module would show every recipient the sender's language instead of their
+ * own.
  */
 
 import "server-only";
@@ -29,11 +40,19 @@ import { getProfileById } from "@/lib/db/profiles";
 import type { Db } from "@/lib/db/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { resolvePushMessage } from "./messages";
 import { listPushSubscriptionsForUser } from "./subscriptions";
 
+/** This product's primary language (`docs/I18N.md`) — the fallback when a recipient has no `profiles.locale` preference on file yet. */
+const PUSH_FALLBACK_LOCALE = "tr";
+
 export interface PushNotificationPayload {
-  readonly title: string;
-  readonly body?: string;
+  /** `"Namespace.key"` into `src/messages/{tr,en}.json`, resolved for the recipient's own locale. */
+  readonly titleKey: string;
+  /** Each value is a `Terms.*` key (`./messages.ts`'s doc comment), not a literal display string. */
+  readonly titleParams?: Record<string, string>;
+  readonly bodyKey?: string;
+  readonly bodyParams?: Record<string, string>;
   /** App-relative path opened on notification click (`src/app/sw.ts`). */
   readonly url?: string;
   /** Collapses repeat pushes about the same thing, e.g. `duet:<requestId>`. */
@@ -74,6 +93,12 @@ function ensureVapidConfigured(): boolean {
  * that subscription is gone for good (the user uninstalled, cleared site
  * data, or revoked notification permission) and is deleted so it stops being
  * retried forever.
+ *
+ * Resolves `userId`'s own `profiles.locale` here (never trusts a locale the
+ * caller might pass) so `payload`'s keys always render in the language the
+ * recipient themselves chose — falling back to Turkish, not
+ * `DEFAULT_LOCALE`/English, matching `docs/I18N.md`'s "Turkish-first" framing
+ * for a reader who has never set a preference at all.
  */
 export async function sendPushToUser(userId: string, payload: PushNotificationPayload): Promise<void> {
   if (!ensureVapidConfigured()) return;
@@ -89,9 +114,15 @@ export async function sendPushToUser(userId: string, payload: PushNotificationPa
   }
   if (subscriptions.length === 0) return;
 
-  const body = JSON.stringify({
-    title: payload.title,
-    body: payload.body,
+  const recipient = await getProfileById(admin, userId).catch(() => null);
+  const locale = recipient?.locale ?? PUSH_FALLBACK_LOCALE;
+
+  const title = resolvePushMessage(locale, payload.titleKey, payload.titleParams);
+  const body = payload.bodyKey ? resolvePushMessage(locale, payload.bodyKey, payload.bodyParams) : undefined;
+
+  const pushPayload = JSON.stringify({
+    title,
+    body,
     url: payload.url,
     tag: payload.tag,
   });
@@ -104,7 +135,7 @@ export async function sendPushToUser(userId: string, payload: PushNotificationPa
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
-          body,
+          pushPayload,
         );
       } catch (err) {
         const statusCode = err instanceof webpush.WebPushError ? err.statusCode : null;
@@ -161,8 +192,10 @@ export async function notifyDuetPush(db: Db, notification: DuetPushNotification)
     const recipient = await getProfileById(db, notification.recipientId);
     if (recipient?.notificationPreferences?.duet === false) return;
     await sendPushToUser(notification.recipientId, {
-      title: notification.title,
-      body: notification.body,
+      titleKey: notification.titleKey,
+      titleParams: notification.titleParams,
+      bodyKey: notification.bodyKey,
+      bodyParams: notification.bodyParams,
       url: notification.url,
       tag: notification.tag,
     });

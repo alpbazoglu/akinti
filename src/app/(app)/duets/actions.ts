@@ -26,7 +26,6 @@ import { DatabaseError } from "@/lib/db/types";
 import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { notifyDuetPush } from "@/lib/push/send";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { translateValidationMessage, type MessageTranslator } from "@/lib/validation/translate";
@@ -108,16 +107,18 @@ export async function respondToDuetRequest(
     return { ok: false, error: describeError(err, t("DuetsActions.onlyRecipientCanRespond"), t) };
   }
 
+  // i18n (`docs/I18N.md`): keys + params only, never a resolved string —
+  // `notifyDuetPush`/`sendPushToUser` resolve them against the *recipient's*
+  // own `profiles.locale`, which may differ from this actor's own request
+  // locale (`t` above).
   void notifyDuetPush(db, {
     recipientId: request.requesterId,
-    title:
+    titleKey:
       decision === "accepted"
-        ? t("DuetsActions.duetRequestAcceptedTitle")
-        : t("DuetsActions.duetRequestDeclinedTitle"),
-    body:
-      decision === "accepted"
-        ? t("DuetsActions.duetRequestAcceptedBody", { duetRequest: TERMS.duetRequest })
-        : t("DuetsActions.duetRequestDeclinedBody", { duetRequest: TERMS.duetRequest }),
+        ? "DuetsActions.duetRequestAcceptedTitle"
+        : "DuetsActions.duetRequestDeclinedTitle",
+    bodyKey: decision === "accepted" ? "DuetsActions.duetRequestAcceptedBody" : "DuetsActions.duetRequestDeclinedBody",
+    bodyParams: { duetRequest: "duetRequest" },
     url: routes.duets(),
     tag: `duet-answer:${parsed.data.requestId}`,
   });
