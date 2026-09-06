@@ -55,6 +55,17 @@ export async function updateProfile(
   return toProfile(unwrap("updateProfile", result));
 }
 
+/** Settings → language row: persists the chosen UI locale onto the profile (`src/i18n/locale.ts`). */
+export async function updateProfileLocale(db: Db, profileId: string, locale: "tr" | "en"): Promise<Profile> {
+  const result = await db
+    .from("profiles")
+    .update({ locale })
+    .eq("id", profileId)
+    .select("*")
+    .single();
+  return toProfile(unwrap("updateProfileLocale", result));
+}
+
 /** Step 2 of onboarding (spec s8): claim a real username, optionally seed interests. */
 export async function completeOnboarding(
   db: Db,

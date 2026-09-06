@@ -41,6 +41,7 @@ function stubProfile(id: string): Profile {
     notificationPreferences: {},
     isModerator: false,
     suspendedUntil: null,
+    locale: null,
     counts: { followers: 0, following: 0, waves: 0 },
     createdAt: "2026-01-01T00:00:00.000Z",
   };

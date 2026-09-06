@@ -1,16 +1,19 @@
 "use server";
 
+import { cookies } from "next/headers";
+
 import { getCurrentUser } from "@/lib/auth/server";
 import type { AuthActionResult } from "@/lib/auth/types";
 import { fieldErrorsFromZod } from "@/lib/auth/types";
 import { unblockProfile } from "@/lib/db/blocks";
 import { toComment, toWave } from "@/lib/db/mappers";
 import { updateNotificationPreferences as updateNotificationPreferencesDb } from "@/lib/db/notifications";
-import { getProfileById, isUsernameAvailable, updateProfile } from "@/lib/db/profiles";
+import { getProfileById, isUsernameAvailable, updateProfile, updateProfileLocale } from "@/lib/db/profiles";
+import { isAppLocale, LOCALE_COOKIE, type AppLocale } from "@/i18n/locale";
 import { DatabaseError } from "@/lib/db/types";
 import type { AccountDataExport } from "@/lib/privacy/dataExport";
 import { serializeAccountDataExport } from "@/lib/privacy/dataExport";
-import { AUDIO_BUCKET, AVATAR_BUCKET } from "@/lib/supabase/config";
+import { AUDIO_BUCKET, AVATAR_BUCKET, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { deleteUserStorageObjects } from "@/lib/storage/userObjects";
@@ -175,6 +178,43 @@ export async function updateAppearance(input: UpdateAppearanceFormInput): Promis
   }
 
   return { ok: true, message: "Appearance saved." };
+}
+
+/**
+ * Settings → language row (i18n infrastructure). Writes both signals the
+ * resolution order in `src/i18n/locale.ts` reads: the `akinti_locale` cookie
+ * (works signed out, and is the fast path — no round trip needed on the very
+ * next request) and, for a signed-in user, `profiles.locale` (the strongest
+ * signal, so the choice follows the account across devices/browsers). The
+ * cookie write always happens, even when Supabase is unreachable, so the
+ * switch still works without a configured backend.
+ */
+export async function setLocale(locale: AppLocale): Promise<AuthActionResult> {
+  if (!isAppLocale(locale)) {
+    return { ok: false, formError: "That language isn't available." };
+  }
+
+  const store = await cookies();
+  store.set(LOCALE_COOKIE, locale, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+
+  const user = await getCurrentUser();
+  if (user && isSupabaseConfigured()) {
+    const supabase = await createServerSupabaseClient();
+    try {
+      await updateProfileLocale(supabase, user.id, locale);
+    } catch {
+      // The cookie is already set, so the UI still switches language even if
+      // the profile write fails — it just won't follow this account to
+      // another device until it succeeds on a later attempt.
+      return { ok: true, message: "Language updated on this device." };
+    }
+  }
+
+  return { ok: true, message: "Language updated." };
 }
 
 /** Settings → Safety: unblock. Deleting the `blocks` row does not restore any severed follow. */

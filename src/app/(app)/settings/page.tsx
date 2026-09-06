@@ -4,7 +4,7 @@ import { ChevronRight, LogOut } from "@/components/ui/icons";
 
 import { signOut } from "@/app/(auth)/actions";
 import { PageHeader } from "@/components/layout";
-import { DeleteAccountSheet } from "@/components/settings";
+import { DeleteAccountSheet, LanguageSwitchRow } from "@/components/settings";
 import { Avatar } from "@/components/ui";
 import { SETTINGS_SECTIONS, routes, type SettingsSection } from "@/config/routes";
 import { BRAND, TERMS } from "@/config/terminology";
@@ -92,6 +92,10 @@ export default async function SettingsPage() {
             ),
           )}
         </nav>
+
+        <div className="mt-7 flex flex-col border-t border-hairline">
+          <LanguageSwitchRow />
+        </div>
 
         <div className="flex flex-col items-start gap-3 pt-8">
           <form action={handleSignOut}>

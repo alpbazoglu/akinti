@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 /**
  * Security headers (spec §30 deployment hardening). Applied to every route
@@ -157,4 +158,12 @@ const nextConfig: NextConfig = {
  * actual precache/runtime-caching/push logic and
  * `src/app/layout.tsx`'s `SerwistProvider` for client-side registration.
  */
-export default nextConfig;
+/**
+ * next-intl (see `docs/research/libraries.md`/i18n decision): auto-detects
+ * `src/i18n/request.ts`. This app never routes on locale (no `/tr`/`/en`
+ * prefix — `src/i18n/locale.ts` resolves it per request instead), so no
+ * `routing`/middleware config is needed here.
+ */
+const withNextIntl = createNextIntlPlugin();
+
+export default withNextIntl(nextConfig);

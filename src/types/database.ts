@@ -166,6 +166,8 @@ export type ProfileRow = {
   is_moderator: boolean;
   /** Server-owned (migration 23) — set only by `resolve_report(..., 'suspend_user')`. */
   suspended_until: string | null;
+  /** User-chosen UI locale (migration `20260906130000`). `null` means no explicit preference — resolve from cookie/header instead (`src/i18n/locale.ts`). */
+  locale: "tr" | "en" | null;
   follower_count: number;
   following_count: number;
   wave_count: number;

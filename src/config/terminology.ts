@@ -7,12 +7,25 @@
  *
  * Product rule (§3.4): there are no Likes anywhere in this product. Do not add a
  * "like" term, icon, count, or placeholder to this file or anywhere else.
+ *
+ * i18n (`docs/I18N.md`): `TERMS` below is the English-only original and stays
+ * in place because ~150 call sites still import it as a plain compile-time
+ * constant (including several `export const metadata = { title: TERMS.x }`
+ * assignments, which run once at module load, before any request — and
+ * therefore before any per-request locale — exists). Locale-aware surfaces
+ * use `messages/{tr,en}.json`'s `Terms` namespace instead, which mirrors
+ * every key here 1:1 (`useTranslations("Terms")` / `getTranslations("Terms")`).
+ * Migrating a call site off `TERMS.x` and onto the translated `Terms`
+ * namespace is left to whichever stage next touches that screen — see
+ * `docs/I18N.md` for the ones already migrated and the ones still pending.
  */
 
 export const BRAND = "AKINTI" as const;
 
+/** English fallback only — the translated tagline lives at `Terms.tagline` in `messages/{tr,en}.json`. */
 export const BRAND_TAGLINE = "Where voices become connections." as const;
 
+/** English fallback only — the translated description lives at `Metadata.description` in `messages/{tr,en}.json`. */
 export const BRAND_DESCRIPTION =
   "An audio-first social network. Share your voice, discover creators, and turn listening into collaboration." as const;
 
@@ -264,20 +277,14 @@ export function getProcessingErrorMessage(code: string | null | undefined): stri
   return PROCESSING_ERROR_MESSAGES[code as ProcessingErrorCode] ?? DEFAULT_PROCESSING_ERROR_MESSAGE;
 }
 
+/**
+ * `title`/`titleTemplate`/`description`/`htmlLang` used to live here as
+ * static fields, but all four are now locale-dependent: `<html lang>` and
+ * `generateMetadata`'s title/description (`src/app/layout.tsx`) resolve per
+ * request through `src/i18n/request.ts` instead, and `src/app/manifest.ts`
+ * does the same for the PWA manifest. `SITE.name` is the one piece that
+ * never translates — the brand name itself.
+ */
 export const SITE = {
   name: BRAND,
-  title: `${BRAND} · ${BRAND_TAGLINE}`,
-  titleTemplate: `%s · ${BRAND}`,
-  description: BRAND_DESCRIPTION,
-  locale: "en",
-  /**
-   * The document language, which is not the UI string language.
-   *
-   * Interface copy ships in English today, but `lang` is what switches the
-   * `locl` OpenType feature on, and Turkish is a first-class script here:
-   * without `lang="tr"` the dotted/dotless i pair and the g-breve render with
-   * the wrong localised forms the moment Turkish content appears in a Wave
-   * title, a display name or a comment (`docs/design/DESIGN.md` §3.2).
-   */
-  htmlLang: "tr",
 } as const;

@@ -82,6 +82,7 @@ export function toProfile(row: ProfileRow): Profile {
     notificationPreferences: row.notification_preferences,
     isModerator: row.is_moderator,
     suspendedUntil: row.suspended_until,
+    locale: row.locale,
     counts: {
       followers: row.follower_count,
       following: row.following_count,

@@ -179,6 +179,8 @@ export interface Profile {
   isModerator: boolean;
   /** Set only by `resolve_report(..., 'suspend_user')`. `null` or a past timestamp means not suspended. */
   suspendedUntil: string | null;
+  /** User-chosen UI locale. `null` means no explicit preference — see `src/i18n/locale.ts`. */
+  locale: "tr" | "en" | null;
   counts: ProfileCounts;
   createdAt: string;
 }

@@ -18,6 +18,7 @@ const PROFILE: Profile = {
   notificationPreferences: {},
   isModerator: false,
   suspendedUntil: null,
+  locale: null,
   counts: { followers: 10, following: 5, waves: 2 },
   createdAt: "2026-01-01T00:00:00.000Z",
 };
