@@ -8,7 +8,7 @@
  */
 
 import { resolveWavePeaks } from "@/lib/audio/peaks";
-import { getAudioAssetById } from "@/lib/db/audioAssets";
+import { getAudioAssetsByIds } from "@/lib/db/audioAssets";
 import { getProfilesByIds } from "@/lib/db/profiles";
 import type { Db } from "@/lib/db/types";
 import { getWavesByIds, listSavedWaveIds } from "@/lib/db/waves";
@@ -33,13 +33,15 @@ export async function hydrateFlowWaves(
   const waveById = new Map(waves.map((wave) => [wave.id, wave]));
 
   const creatorIds = [...new Set(waves.map((wave) => wave.creatorId))];
+  const assetIds = [...new Set(waves.map((wave) => wave.audioAssetId))];
   const [creators, assets, savedWaveIds] = await Promise.all([
     getProfilesByIds(db, creatorIds),
-    Promise.all(waves.map((wave) => getAudioAssetById(db, wave.audioAssetId))),
+    getAudioAssetsByIds(db, assetIds),
     listSavedWaveIds(db, viewerId, waveIds),
   ]);
   const creatorById = new Map(creators.map((creator) => [creator.id, creator]));
-  const assetByWaveId = new Map(waves.map((wave, position) => [wave.id, assets[position]]));
+  const assetById = new Map(assets.map((asset) => [asset.id, asset]));
+  const assetByWaveId = new Map(waves.map((wave) => [wave.id, assetById.get(wave.audioAssetId)]));
 
   const items: FlowWave[] = [];
   for (const { waveId, bucket } of ranked) {

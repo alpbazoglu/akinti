@@ -114,6 +114,27 @@ export async function getAudioAssetById(db: Db, assetId: string): Promise<AudioA
 }
 
 /**
+ * Batched form of `getAudioAssetById` — one round trip for every id, exactly
+ * like `getProfilesByIds` (`src/lib/db/profiles.ts`). `hydrateFlow.ts`
+ * (Flow) used to call `getAudioAssetById` once per Wave in a `Promise.all`,
+ * ten round trips per page instead of one (review3 finding 19).
+ */
+export async function getAudioAssetsByIds(db: Db, assetIds: string[]): Promise<AudioAsset[]> {
+  if (assetIds.length === 0) {
+    return [];
+  }
+  const result = await db
+    .from("audio_assets")
+    .select(SAFE_AUDIO_ASSET_COLUMNS.join(","))
+    .in("id", assetIds);
+  const rows = unwrap(
+    "getAudioAssetsByIds",
+    { data: (result.data ?? []) as unknown as SafeAudioAssetRow[], error: result.error },
+  );
+  return rows.map(toRedactedAudioAsset);
+}
+
+/**
  * Authorize, without ever selecting the path columns: `can_view_audio_asset`
  * is `security definer`, so it reads `audio_assets` with the *function
  * owner's* privileges, not the caller's — calling it does not require the
