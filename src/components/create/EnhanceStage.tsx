@@ -21,6 +21,8 @@ import {
 import { useReducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/ui";
 
+import { useStageShortcuts } from "./useStageShortcuts";
+
 /**
  * Translated parallel to `PRO_ENHANCEMENT_PRESETS`'s English `label`/
  * `description` (`@/lib/audio`, English-only — same reasoning as
@@ -147,97 +149,122 @@ export function EnhanceStage({
   // goes dormant instead of drawing invented amplitudes.
   const tracePrepared = trace.length > 0;
 
+  // "Enter = continue" (`DESIGN_V3_DESKTOP.md`) — no "R = retake" here:
+  // Enhance has no re-record concept of its own, "Start over" is its own
+  // ghost button below, unchanged.
+  useStageShortcuts({ onContinue });
+
   return (
-    <section className={cn("flex flex-col gap-6", className)}>
-      <div
-        className={cn(
-          "-mx-page",
-          !reducedMotion && "transition-opacity duration-[--dur-morph] ease-[--ease-enter]",
-          morphing && !reducedMotion && "opacity-70",
-        )}
-      >
-        <Waveform
-          peaks={trace}
-          height={56}
-          state={tracePrepared ? "unplayed" : "dormant"}
-          readOnly
-          fullBleed
-          label={mode === "polished" ? t("yourTakePolished") : t("yourTakeAsRecorded")}
+    <section className={cn("flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10", className)}>
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
+        <div
+          className={cn(
+            "-mx-page lg:mx-0",
+            !reducedMotion && "transition-opacity duration-[--dur-morph] ease-[--ease-enter]",
+            morphing && !reducedMotion && "opacity-70",
+          )}
+        >
+          <Waveform
+            peaks={trace}
+            height={56}
+            state={tracePrepared ? "unplayed" : "dormant"}
+            readOnly
+            fullBleed
+            label={mode === "polished" ? t("yourTakePolished") : t("yourTakeAsRecorded")}
+          />
+        </div>
+        {!tracePrepared ? (
+          <p className="type-body-sm measure text-ink-muted">{t("couldNotPrepareTrace")}</p>
+        ) : null}
+        {tracePrepared && proPresetSelected ? (
+          <p className="type-body-sm measure text-ink-muted">{t("previewAfterProcessing")}</p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-6 lg:w-[420px] lg:shrink-0">
+        <EnhancementPicker
+          blob={blob}
+          preset={proPresetSelected ? "natural" : preset}
+          onPresetChange={onPresetChange}
+          advancedEq={advancedEq}
+          onAdvancedEqChange={onAdvancedEqChange}
+          onModeChange={handleModeChange}
         />
-      </div>
-      {!tracePrepared ? (
-        <p className="type-body-sm measure text-ink-muted">{t("couldNotPrepareTrace")}</p>
-      ) : null}
-      {tracePrepared && proPresetSelected ? (
-        <p className="type-body-sm measure text-ink-muted">{t("previewAfterProcessing")}</p>
-      ) : null}
 
-      <EnhancementPicker
-        blob={blob}
-        preset={proPresetSelected ? "natural" : preset}
-        onPresetChange={onPresetChange}
-        advancedEq={advancedEq}
-        onAdvancedEqChange={onAdvancedEqChange}
-        onModeChange={handleModeChange}
-      />
-
-      {/* AKINTI Pro sounds (PRODUCT_V2 §4/§5): the same 56px row as the six
-          free sounds above, marked "Pro". A non-Pro caller tapping one never
-          selects it — it opens the paywall moment instead (`ProGate`), the
-          sheet that explains AKINTI Pro and links to the real Pro screen.
-          There is no modal on app open, ever: this only ever opens from this
-          tap. A Pro caller selects it directly, exactly like the six free
-          sounds above — there is real DSP behind both now (the sidecar's
-          /pitch-snap and /harmony), just no honest local preview for it yet
-          (see "Preview after processing" above). */}
-      <div role="group" aria-label={t("akintiProSounds")} className="flex flex-col">
-        {PRO_ENHANCEMENT_PRESETS.map((item) => {
-          const selected = preset === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              disabled={proStatusLoading}
-              onClick={() =>
-                isPro ? onPresetChange(item.id) : setProGateFeature(tProPresets(PRO_PRESET_MESSAGE_KEY[item.id].label))
-              }
-              className={cn(
-                "flex h-14 items-center gap-4 border-t border-hairline px-3 text-left",
-                "transition-colors duration-[--dur-micro]",
-                "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
-                selected ? "bg-paper-sunk" : "hover:bg-paper-sunk/50",
-              )}
-            >
-              <span
-                aria-hidden="true"
+        {/* AKINTI Pro sounds (PRODUCT_V2 §4/§5): the same row treatment as
+            the six free sounds above (including their `lg:` card look), just
+            marked "Pro" in sand — the one accent this brand reserves for
+            Pro/backing-track/Cypher marks. A non-Pro caller tapping one never
+            selects it — it opens the paywall moment instead (`ProGate`), the
+            sheet that explains AKINTI Pro and links to the real Pro screen.
+            There is no modal on app open, ever: this only ever opens from
+            this tap. A Pro caller selects it directly, exactly like the six
+            free sounds above — there is real DSP behind both now (the
+            sidecar's /pitch-snap and /harmony), just no honest local preview
+            for it yet (see "Preview after processing" above). */}
+        <div
+          role="group"
+          aria-label={t("akintiProSounds")}
+          className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-3"
+        >
+          {PRO_ENHANCEMENT_PRESETS.map((item) => {
+            const selected = preset === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                disabled={proStatusLoading}
+                onClick={() =>
+                  isPro ? onPresetChange(item.id) : setProGateFeature(tProPresets(PRO_PRESET_MESSAGE_KEY[item.id].label))
+                }
                 className={cn(
-                  "size-3 shrink-0 rounded-full border",
-                  selected ? "border-ink bg-ink" : "border-hairline-strong",
+                  "flex h-14 items-center gap-4 border-t border-hairline px-3 text-left",
+                  "transition-colors duration-[--dur-micro]",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+                  "lg:h-auto lg:flex-col lg:items-start lg:gap-1.5 lg:rounded-card lg:border lg:border-sand-deep/60 lg:px-4 lg:py-3.5",
+                  selected
+                    ? "bg-paper-sunk lg:border-sand-deep lg:bg-sand/10"
+                    : "hover:bg-paper-sunk/50 lg:hover:bg-sand/5",
                 )}
-              />
-              <span className="type-subhead min-w-28 text-ink">
-                {tProPresets(PRO_PRESET_MESSAGE_KEY[item.id].label)}
-              </span>
-              <span className="type-caption truncate text-ink-subtle">
-                {tProPresets(PRO_PRESET_MESSAGE_KEY[item.id].description)}
-              </span>
-              <span className="type-caption ml-auto shrink-0 text-ink-subtle">{t("pro")}</span>
-            </button>
-          );
-        })}
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "size-3 shrink-0 rounded-full border lg:hidden",
+                    selected ? "border-ink bg-ink" : "border-hairline-strong",
+                  )}
+                />
+                <span className="type-subhead min-w-28 text-ink lg:min-w-0">
+                  {tProPresets(PRO_PRESET_MESSAGE_KEY[item.id].label)}
+                </span>
+                <span className="type-caption truncate text-ink-subtle lg:whitespace-normal">
+                  {tProPresets(PRO_PRESET_MESSAGE_KEY[item.id].description)}
+                </span>
+                <span className="type-caption ml-auto shrink-0 text-sand-deep lg:ml-0">{t("pro")}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <ProGate
+          open={proGateFeature !== null}
+          onClose={() => setProGateFeature(null)}
+          featureLabel={proGateFeature ?? undefined}
+        />
+
+        <Button size="lg" fullWidth onClick={onContinue}>
+          {t("continueAction")}
+        </Button>
+
+        <p className="type-caption hidden items-center gap-1.5 text-ink-subtle lg:flex">
+          <kbd className="rounded-label border border-hairline-strong bg-elevation-2 px-1.5 py-0.5 type-mono-sm">
+            {t("enterKey")}
+          </kbd>
+          {t("enterToContinueHint")}
+        </p>
       </div>
-
-      <ProGate
-        open={proGateFeature !== null}
-        onClose={() => setProGateFeature(null)}
-        featureLabel={proGateFeature ?? undefined}
-      />
-
-      <Button size="lg" fullWidth onClick={onContinue}>
-        {t("continueAction")}
-      </Button>
     </section>
   );
 }

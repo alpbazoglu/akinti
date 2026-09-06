@@ -217,7 +217,11 @@ export function EnhancementPicker({
         ) : null}
       </div>
 
-      <div role="radiogroup" aria-label={t("soundsLike")} className="flex flex-col">
+      <div
+        role="radiogroup"
+        aria-label={t("soundsLike")}
+        className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-3"
+      >
         {ENHANCEMENT_PRESETS.map((item) => {
           const selected = preset === item.id;
           return (
@@ -227,22 +231,41 @@ export function EnhancementPicker({
               role="radio"
               aria-checked={selected}
               onClick={() => onPresetChange(item.id)}
+              // Desktop-only "hover previews" (`DESIGN_V3_DESKTOP.md`): while
+              // a comparison is already playing (started by a real click on
+              // the Original/Polished keys above, never by hover itself —
+              // CLAUDE.md "no autoplay without a gesture"), moving the
+              // pointer across the other sounds swaps the live processing
+              // graph to audition them without committing the selection.
+              // Leaving the row (or a touch device, which never fires this)
+              // reverts to whatever preset is actually selected.
+              onMouseEnter={() => {
+                if (playing) engine.setPreset(item.id, advancedEq);
+              }}
+              onMouseLeave={() => {
+                if (playing) engine.setPreset(preset, advancedEq);
+              }}
               className={cn(
                 "flex h-14 items-center gap-4 border-t border-hairline px-3 text-left",
                 "transition-colors duration-[--dur-micro]",
                 "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
-                selected ? "bg-paper-sunk" : "hover:bg-paper-sunk/50",
+                "lg:h-auto lg:flex-col lg:items-start lg:gap-1.5 lg:rounded-card lg:border lg:border-hairline lg:px-4 lg:py-3.5",
+                selected
+                  ? "bg-paper-sunk lg:border-tide lg:bg-elevation-2"
+                  : "hover:bg-paper-sunk/50 lg:hover:border-hairline-strong lg:hover:bg-elevation-2",
               )}
             >
               <span
                 aria-hidden="true"
                 className={cn(
-                  "size-3 shrink-0 rounded-full border",
+                  "size-3 shrink-0 rounded-full border lg:hidden",
                   selected ? "border-ink bg-ink" : "border-hairline-strong",
                 )}
               />
-              <span className="type-subhead min-w-28 text-ink">{tPresets(PRESET_MESSAGE_KEY[item.id].label)}</span>
-              <span className="type-caption truncate text-ink-subtle">
+              <span className="type-subhead min-w-28 text-ink lg:min-w-0">
+                {tPresets(PRESET_MESSAGE_KEY[item.id].label)}
+              </span>
+              <span className="type-caption truncate text-ink-subtle lg:whitespace-normal">
                 {tPresets(PRESET_MESSAGE_KEY[item.id].description)}
               </span>
             </button>

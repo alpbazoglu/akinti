@@ -575,6 +575,7 @@
     "reportMessage": "Mesajı bildir"
   },
   "MessagesView": {
+    "messagesTitle": "Mesajlar",
     "couldNotLoadMore": "Daha fazla konuşma yüklenemedi.",
     "emptyTitle": "Henüz konuşma yok",
     "emptyDescription": "Sesli mesajlar özeldir. Asla Wave olmazlar ve akışta ya da Keşfet'te hiç görünmezler.",
@@ -584,6 +585,15 @@
     "noMatchesDescription": "Bu isimle eşleşen bir konuşma yok.",
     "loadMore": "Daha fazla yükle",
     "reachedStart": "Gelen kutunun başına ulaştın."
+  },
+  "AppearancePreview": {
+    "livePreviewLabel": "Canlı önizleme",
+    "previewFallbackName": "Adın"
+  },
+  "MessagesEmptyPane": {
+    "title": "Bir konuşma seç",
+    "description": "Listeden bir konuşma seç ya da birinin profilinden yeni bir mesaj başlat.",
+    "findPeople": "Mesaj atacak birini bul"
   },
   "ReportMessageSheet": {
     "title": "Mesajı bildir",
@@ -694,6 +704,10 @@
     "decline": "Reddet",
     "accepted": "Kabul edildi",
     "declined": "Reddedildi"
+  },
+  "NotificationWavePreview": {
+    "playLabel": "Bu Wave'i çal",
+    "couldNotLoad": "Bu Wave'in sesi yüklenemedi."
   },
   "NotificationsView": {
     "emptyTitle": "Henüz bildirim yok",
@@ -1010,6 +1024,7 @@
     "yearly": "Yıllık",
     "monthUnit": "ay",
     "yearUnit": "yıl",
+    "savePercent": "%{percent} tasarruf et",
     "paymentsNotSetUp": "Ödemeler henüz kurulmadı. Daha sonra tekrar kontrol et.",
     "startPro": "Pro'yu başlat",
     "billingDetailsTitle": "Fatura bilgileri",
@@ -1237,7 +1252,9 @@
     "previewAfterProcessing": "İşlemden sonra önizlenebilir.",
     "akintiProSounds": "AKINTI Pro sesleri",
     "pro": "Pro",
-    "continueAction": "Devam et"
+    "continueAction": "Devam et",
+    "enterKey": "Enter",
+    "enterToContinueHint": "devam etmek için"
   },
   "MicPermission": {
     "micPrimer": "Kaydetmek için mikrofonuna ihtiyacımız var. Sen yayınlayana kadar hiçbir şey yüklenmez.",
@@ -1287,7 +1304,11 @@
     "useWholeTake": "Kaydın tamamını kullan",
     "interruptedDescription": "Sayfadan ayrıldığında kayıt durdu. O ana kadarki her şey burada.",
     "continueAction": "Devam et",
-    "reRecord": "Tekrar kaydet"
+    "reRecord": "Tekrar kaydet",
+    "enterKey": "Enter",
+    "enterToContinueHint": "devam etmek için",
+    "rKey": "R",
+    "rToRetakeHint": "tekrar kaydetmek için"
   },
   "HashtagPage": {
     "fallbackTitle": "Etiket",
@@ -1410,7 +1431,10 @@
     "announceInterrupted": "Sayfa gizlendiği için kayıt durdu. Kaydın saklandı.",
     "announceAutoStopped": "Kayıt en yüksek uzunlukta durdu.",
     "announceFinished": "Kayıt tamamlandı.",
-    "announceFailed": "Kayıt başarısız oldu."
+    "announceFailed": "Kayıt başarısız oldu.",
+    "spaceKey": "Boşluk",
+    "spaceToArmHint": "mikrofonu hazırlamak için",
+    "spaceToStartHint": "kaydı başlatmak için"
   },
   "EnhancementPicker": {
     "cleaningUpNoise": "Arka plan gürültüsü temizleniyor…",
@@ -1656,6 +1680,7 @@
   "NotificationsActions": {
     "notificationNotFound": "Bu bildirim bulunamadı.",
     "waveNotFound": "Bu Wave bulunamadı.",
+    "audioNotReady": "Bu Wave'in sesi henüz oynatılmaya hazır değil.",
     "invitationResolved": "Bu davet zaten sonuçlandırıldı."
   },
   "ProfileActions": {

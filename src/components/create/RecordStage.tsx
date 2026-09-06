@@ -30,6 +30,7 @@ import { cn, formatDuration } from "@/lib/ui";
 import { Countdown } from "./Countdown";
 import { LevelReadout, PitchMeter } from "./Readouts";
 import { MicDenied, MicPrimer, MicUnsupported } from "./MicPermission";
+import { useStageShortcuts } from "./useStageShortcuts";
 import { useTrackAudio } from "./useTrackAudio";
 
 export interface RecordStageBackingTrack {
@@ -339,6 +340,26 @@ export function RecordStage({
     };
   }, []);
 
+  // "space = arm/stop" (`DESIGN_V3_DESKTOP.md`): mirrors the tap gesture in
+  // `handlePointerUp` above exactly — a first press arms, a second starts,
+  // and a press while live stops. No-op during the count-in; there is
+  // nothing a space press should interrupt there.
+  const handleSpace = useCallback(() => {
+    if (live) {
+      stop();
+      return;
+    }
+    if (gate === "counting") return;
+    if (armed) {
+      primeTrack();
+      beginTake();
+    } else {
+      setArmed(true);
+    }
+  }, [live, gate, armed, primeTrack, beginTake, stop]);
+
+  useStageShortcuts({ onSpace: handleSpace });
+
   const toggleMonitoring = (on: boolean) => {
     setRecordPreferences({ monitoring: on, headphonesHintSeen: true });
     monitor.setMonitoring(on);
@@ -368,101 +389,122 @@ export function RecordStage({
   const counting = gate === "counting";
 
   return (
-    <section className={cn("flex min-h-0 flex-1 flex-col gap-8", className)}>
-      {/* The trace. Dormant ticks before anything is pressed — not zeros, not
-          a flat line, and never a fake waveform (§6.2). */}
-      <div className="akinti-edge-fade -mx-page">
-        {live || counting ? (
-          <LiveWaterline monitor={monitor} active={recording} height={96} onSample={setSample} />
-        ) : (
-          <Waveform peaks={NO_PEAKS} state="dormant" height={96} readOnly label={t("nothingRecordedYet")} />
-        )}
-      </div>
-
-      <div className="flex items-baseline justify-between gap-4">
-        <p className="type-mono-lg text-ink">
-          {formatDuration(elapsedSeconds)}
-          <span className="type-mono text-ink-subtle"> / {formatDuration(MAX_RECORDING_MS / 1000)}</span>
-        </p>
-        {live ? <LevelReadout db={sample.db} rms={sample.rms} /> : null}
-      </div>
-
-      {live ? <PitchMeter pitch={sample.pitch} /> : null}
-
-      <div aria-live="polite" role="status" className="sr-only">
-        {announce(state.status, state.autoStopped, state.interrupted, t)}
-      </div>
-
-      {counting ? (
-        <Countdown onComplete={onCountdownComplete} />
-      ) : (
-        <div className="flex items-center gap-8">
-          {live ? (
-            <>
-              <IconButton
-                label={paused ? t("resumeRecording") : t("pauseRecording")}
-                icon={
-                  paused ? (
-                    <Play className="size-5 translate-x-px" weight="fill" />
-                  ) : (
-                    <Pause className="size-5" weight="fill" />
-                  )
-                }
-                variant="secondary"
-                shape="round"
-                size="md"
-                onClick={paused ? resume : pause}
-              />
-              <RecordKey
-                label={t("stopRecording")}
-                size={72}
-                state={paused ? "paused" : "recording"}
-                onClick={stop}
-              />
-            </>
+    <section className={cn("flex min-h-0 flex-1 flex-col gap-8 lg:flex-row lg:items-start lg:gap-10", className)}>
+      {/* LEFT at desktop (`DESIGN_V3_DESKTOP.md`): the trace stage, the
+          transport (the largest control on this screen either way) and the
+          live count-in/level readouts. This is exactly the mobile flow's own
+          top-to-bottom order — only the wrapping div is new, so mobile's
+          rendered output (a `flex flex-col gap-8` of the same children,
+          under the same outer gap) is unchanged. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-8">
+        {/* The trace. Dormant ticks before anything is pressed — not zeros, not
+            a flat line, and never a fake waveform (§6.2). */}
+        <div className="akinti-edge-fade -mx-page lg:mx-0 lg:px-0">
+          {live || counting ? (
+            <LiveWaterline monitor={monitor} active={recording} height={96} onSample={setSample} />
           ) : (
-            <RecordKey
-              label={armed ? t("startRecording") : t("armTheMicrophone")}
-              size={88}
-              state={
-                state.status === "requesting" ? "armed" : armed ? "armed" : "idle"
-              }
-              onPointerDown={handlePointerDown}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  handleKeyActivate();
-                }
-              }}
-            />
+            <Waveform peaks={NO_PEAKS} state="dormant" height={96} readOnly label={t("nothingRecordedYet")} />
           )}
         </div>
-      )}
 
-      {!live && !counting ? (
-        <div className="flex flex-col gap-3">
-          <p className="type-caption text-ink-subtle">
-            {armed ? t("pressAgainToStart") : t("holdToRecordTapToArm")}
+        <div className="flex items-baseline justify-between gap-4">
+          <p className="type-mono-lg text-ink">
+            {formatDuration(elapsedSeconds)}
+            <span className="type-mono text-ink-subtle"> / {formatDuration(MAX_RECORDING_MS / 1000)}</span>
           </p>
-          <MicPrimer />
+          {live ? <LevelReadout db={sample.db} rms={sample.rms} /> : null}
         </div>
-      ) : null}
 
-      {live ? (
-        <p className="type-caption text-ink-subtle">
-          {paused ? t("pausedNothingSaved") : t("recordingNothingSaved")}
-        </p>
-      ) : null}
+        {live ? <PitchMeter pitch={sample.pitch} /> : null}
 
-      {state.autoStopped ? (
-        <p className="type-body-sm measure text-ink-muted">
-          {t("autoStoppedDescription", { duration: formatDuration(MAX_RECORDING_MS / 1000) })}
-        </p>
-      ) : null}
+        <div aria-live="polite" role="status" className="sr-only">
+          {announce(state.status, state.autoStopped, state.interrupted, t)}
+        </div>
 
-      <div className="mt-auto flex flex-col">
+        {counting ? (
+          <Countdown onComplete={onCountdownComplete} />
+        ) : (
+          <div className="flex items-center gap-8">
+            {live ? (
+              <>
+                <IconButton
+                  label={paused ? t("resumeRecording") : t("pauseRecording")}
+                  icon={
+                    paused ? (
+                      <Play className="size-5 translate-x-px" weight="fill" />
+                    ) : (
+                      <Pause className="size-5" weight="fill" />
+                    )
+                  }
+                  variant="secondary"
+                  shape="round"
+                  size="md"
+                  onClick={paused ? resume : pause}
+                />
+                <RecordKey
+                  label={t("stopRecording")}
+                  size={72}
+                  state={paused ? "paused" : "recording"}
+                  onClick={stop}
+                />
+              </>
+            ) : (
+              <RecordKey
+                label={armed ? t("startRecording") : t("armTheMicrophone")}
+                size={88}
+                state={
+                  state.status === "requesting" ? "armed" : armed ? "armed" : "idle"
+                }
+                onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleKeyActivate();
+                  }
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        {!live && !counting ? (
+          <div className="flex flex-col gap-3">
+            <p className="type-caption text-ink-subtle">
+              {armed ? t("pressAgainToStart") : t("holdToRecordTapToArm")}
+            </p>
+            <MicPrimer />
+            {/* Keyboard hints (`DESIGN_V3_DESKTOP.md`): space arms/starts,
+                mirroring the tap/hold gesture above — desktop-only, since a
+                touch screen has no space bar to hint at. */}
+            <p className="type-caption hidden items-center gap-1.5 text-ink-subtle lg:flex">
+              <kbd className="rounded-label border border-hairline-strong bg-elevation-2 px-1.5 py-0.5 type-mono-sm">
+                {t("spaceKey")}
+              </kbd>
+              {armed ? t("spaceToStartHint") : t("spaceToArmHint")}
+            </p>
+          </div>
+        ) : null}
+
+        {live ? (
+          <p className="type-caption text-ink-subtle">
+            {paused ? t("pausedNothingSaved") : t("recordingNothingSaved")}
+          </p>
+        ) : null}
+
+        {state.autoStopped ? (
+          <p className="type-body-sm measure text-ink-muted">
+            {t("autoStoppedDescription", { duration: formatDuration(MAX_RECORDING_MS / 1000) })}
+          </p>
+        ) : null}
+      </div>
+
+      {/* RIGHT at desktop: mic/monitoring settings, the backing-track row,
+          the upload switch — everything that was `mt-auto`'d to the bottom
+          of the single mobile column now becomes its own settings rail.
+          `lg:sticky` keeps it in view while a long take's trace scrolls. */}
+      <div className="mt-auto flex flex-col lg:sticky lg:top-[calc(var(--akinti-top-bar-h)+2rem)] lg:mt-0 lg:w-[340px] lg:shrink-0">
         {backingTrack ? (
           <TrackRow
             track={backingTrack}

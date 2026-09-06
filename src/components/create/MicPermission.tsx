@@ -150,7 +150,11 @@ export function MicDenied({ onRetry, onUpload, className }: MicDeniedProps) {
   });
 
   return (
-    <section className={cn("flex flex-col gap-6", className)}>
+    // `lg:max-w-md`: unlike the two-column stages, this is plain text and
+    // steps — `CreateFlow`'s container drops its `max-w-xl` cap at desktop
+    // for those, so a fallback screen like this one needs its own bound
+    // rather than stretching edge to edge.
+    <section className={cn("flex flex-col gap-6 lg:max-w-md", className)}>
       <div className="flex flex-col gap-2">
         <h2 className="type-heading text-ink">{t("micNeeded")}</h2>
         <p className="type-body-sm measure text-ink-muted">{t("canStillUpload")}</p>
@@ -190,7 +194,7 @@ export interface MicUnsupportedProps {
 export function MicUnsupported({ onUpload, reason, className }: MicUnsupportedProps) {
   const t = useTranslations("MicPermission");
   return (
-    <section className={cn("flex flex-col gap-6", className)}>
+    <section className={cn("flex flex-col gap-6 lg:max-w-md", className)}>
       <div className="flex flex-col gap-2">
         <h2 className="type-heading text-ink">{t("browserCannotRecord")}</h2>
         <p className="type-body-sm measure text-ink-muted">

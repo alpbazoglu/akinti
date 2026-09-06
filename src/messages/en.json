@@ -575,6 +575,7 @@
     "reportMessage": "Report message"
   },
   "MessagesView": {
+    "messagesTitle": "Messages",
     "couldNotLoadMore": "Could not load more conversations.",
     "emptyTitle": "No conversations yet",
     "emptyDescription": "Audio messages are private. They are never Waves, and they never appear in a feed or in Explore.",
@@ -584,6 +585,15 @@
     "noMatchesDescription": "No conversation matches that name.",
     "loadMore": "Load more",
     "reachedStart": "You've reached the start of your inbox."
+  },
+  "AppearancePreview": {
+    "livePreviewLabel": "Live preview",
+    "previewFallbackName": "Your name"
+  },
+  "MessagesEmptyPane": {
+    "title": "Select a conversation",
+    "description": "Choose a thread from the list, or find someone new to message from their profile.",
+    "findPeople": "Find people to message"
   },
   "ReportMessageSheet": {
     "title": "Report message",
@@ -694,6 +704,10 @@
     "decline": "Decline",
     "accepted": "Accepted",
     "declined": "Declined"
+  },
+  "NotificationWavePreview": {
+    "playLabel": "Play this Wave",
+    "couldNotLoad": "This Wave's audio didn't load."
   },
   "NotificationsView": {
     "emptyTitle": "No notifications yet",
@@ -1010,6 +1024,7 @@
     "yearly": "Yearly",
     "monthUnit": "month",
     "yearUnit": "year",
+    "savePercent": "Save {percent}%",
     "paymentsNotSetUp": "Payments are not set up yet. Check back soon.",
     "startPro": "Start Pro",
     "billingDetailsTitle": "Billing details",
@@ -1237,7 +1252,9 @@
     "previewAfterProcessing": "Preview after processing.",
     "akintiProSounds": "AKINTI Pro sounds",
     "pro": "Pro",
-    "continueAction": "Continue"
+    "continueAction": "Continue",
+    "enterKey": "Enter",
+    "enterToContinueHint": "to continue"
   },
   "MicPermission": {
     "micPrimer": "We need your mic to record. Nothing is uploaded until you publish.",
@@ -1287,7 +1304,11 @@
     "useWholeTake": "Use the whole take",
     "interruptedDescription": "Recording stopped when you left the page. Everything up to that point is here.",
     "continueAction": "Continue",
-    "reRecord": "Re-record"
+    "reRecord": "Re-record",
+    "enterKey": "Enter",
+    "enterToContinueHint": "to continue",
+    "rKey": "R",
+    "rToRetakeHint": "to re-record"
   },
   "HashtagPage": {
     "fallbackTitle": "Hashtag",
@@ -1410,7 +1431,10 @@
     "announceInterrupted": "Recording stopped because the page was hidden. Your take is kept.",
     "announceAutoStopped": "Recording stopped at the maximum length.",
     "announceFinished": "Recording finished.",
-    "announceFailed": "Recording failed."
+    "announceFailed": "Recording failed.",
+    "spaceKey": "Space",
+    "spaceToArmHint": "to arm the microphone",
+    "spaceToStartHint": "to start recording"
   },
   "EnhancementPicker": {
     "cleaningUpNoise": "Cleaning up background noise…",
@@ -1656,6 +1680,7 @@
   "NotificationsActions": {
     "notificationNotFound": "That notification could not be found.",
     "waveNotFound": "That Wave could not be found.",
+    "audioNotReady": "This Wave's audio isn't ready to play yet.",
     "invitationResolved": "This invitation was already resolved."
   },
   "ProfileActions": {

@@ -82,8 +82,12 @@ export function UploadDropzone({ onFileAccepted, onRecord, className }: UploadDr
   };
 
   return (
+    // Full-width in the stage at desktop (`DESIGN_V3_DESKTOP.md`) — the
+    // upload path replaces `RecordStage`'s two-column split entirely rather
+    // than getting a narrow left column of its own, since there is no
+    // per-take settings rail to put beside it.
     <section className={cn("flex flex-col gap-6", className)}>
-      <div className="-mx-page akinti-edge-fade">
+      <div className="-mx-page akinti-edge-fade lg:mx-0 lg:px-0">
         <Waveform peaks={NO_PEAKS} state="dormant" height={96} readOnly label={t("noFileChosenYet")} />
       </div>
 
@@ -95,7 +99,7 @@ export function UploadDropzone({ onFileAccepted, onRecord, className }: UploadDr
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         className={cn(
-          "flex flex-col gap-3 border-t py-4 transition-colors duration-[--dur-micro]",
+          "flex flex-col gap-3 border-t py-4 transition-colors duration-[--dur-micro] lg:items-center lg:py-10 lg:text-center",
           dragOver ? "border-ink" : "border-hairline",
         )}
       >

@@ -182,123 +182,134 @@ export function CreateWaveForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={cn("flex flex-col gap-6", className)} noValidate>
-      <div className="flex flex-col gap-3 border-b border-hairline pb-4">
-        <TakeStrip blob={audio.blob} peaks={audio.previewPeaks} durationMs={audio.durationMs} />
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge>{tTerms(creationMeta.id)}</Badge>
-          {backingTrackTitle ? <Badge>{t("over", { title: backingTrackTitle })}</Badge> : null}
+    <form
+      onSubmit={handleSubmit}
+      className={cn("flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10", className)}
+      noValidate
+    >
+      {/* LEFT at desktop: the take itself stays the subject — an enlarged
+          reference strip, what it's called and what it's about. */}
+      <div className="flex min-w-0 flex-col gap-6 lg:flex-1">
+        <div className="flex flex-col gap-3 border-b border-hairline pb-4 lg:border-b-0 lg:pb-0">
+          <TakeStrip blob={audio.blob} peaks={audio.previewPeaks} durationMs={audio.durationMs} />
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge>{tTerms(creationMeta.id)}</Badge>
+            {backingTrackTitle ? <Badge>{t("over", { title: backingTrackTitle })}</Badge> : null}
+          </div>
         </div>
-      </div>
 
-      <Input
-        id={`${idPrefix}-title`}
-        label={t("titleLabel")}
-        value={title}
-        onChange={(event) => {
-          setTitle(event.target.value);
-          if (titleError) setTitleError(null);
-        }}
-        maxLength={TITLE_MAX_LENGTH}
-        error={titleError}
-        required
-      />
-
-      <Textarea
-        id={`${idPrefix}-description`}
-        label={t("whatIsThis")}
-        value={description}
-        onChange={(event) => setDescription(event.target.value)}
-        maxLength={DESCRIPTION_MAX_LENGTH}
-        showCount
-      />
-
-      {showOpenCall ? (
-        <div className="border-t border-hairline pt-4">
-          <Switch
-            label={tTerms("openForDuet")}
-            description={t("openForDuetDescription")}
-            checked={openCall === true}
-            onCheckedChange={(next) => onOpenCallChange?.(next)}
-          />
-        </div>
-      ) : null}
-
-      <Select
-        id={`${idPrefix}-visibility`}
-        label={t("whoCanHearIt")}
-        value={visibility}
-        onChange={(event) => setVisibility(event.target.value as WaveVisibility)}
-        options={visibilityOptions}
-        hint={t("visibilityHint")}
-      />
-
-      <Select
-        id={`${idPrefix}-comment-permission`}
-        label={t("whoCanComment")}
-        value={commentPermission ?? ""}
-        onChange={(event) =>
-          setCommentPermission((event.target.value || null) as PermissionAudience | null)
-        }
-        options={permissionOptionsWithDefault}
-      />
-
-      <Select
-        id={`${idPrefix}-duet-permission`}
-        label={t("whoCanRequestDuet", { duet: tTerms("duet") })}
-        value={duetPermission ?? ""}
-        onChange={(event) =>
-          setDuetPermission((event.target.value || null) as PermissionAudience | null)
-        }
-        options={permissionOptionsWithDefault}
-      />
-
-      <div className="flex flex-col gap-2">
         <Input
-          id={`${idPrefix}-collaborators`}
-          label={tTerms("collaborators")}
-          value={collaboratorInput}
-          onChange={(event) => setCollaboratorInput(event.target.value)}
-          onKeyDown={handleCollaboratorKeyDown}
-          onBlur={addCollaborator}
-          hint={t("collaboratorsHint")}
-          disabled={collaborators.length >= MAX_COLLABORATORS}
+          id={`${idPrefix}-title`}
+          label={t("titleLabel")}
+          value={title}
+          onChange={(event) => {
+            setTitle(event.target.value);
+            if (titleError) setTitleError(null);
+          }}
+          maxLength={TITLE_MAX_LENGTH}
+          error={titleError}
+          required
         />
-        {collaborators.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {collaborators.map((username) => (
-              <Chip
-                key={username}
-                selected
-                icon={<X className="size-3.5" />}
-                onClick={() => removeCollaborator(username)}
-                aria-label={t("removeUsername", { username })}
-              >
-                @{username}
-              </Chip>
-            ))}
+
+        <Textarea
+          id={`${idPrefix}-description`}
+          label={t("whatIsThis")}
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          maxLength={DESCRIPTION_MAX_LENGTH}
+          showCount
+        />
+
+        {showOpenCall ? (
+          <div className="border-t border-hairline pt-4">
+            <Switch
+              label={tTerms("openForDuet")}
+              description={t("openForDuetDescription")}
+              checked={openCall === true}
+              onCheckedChange={(next) => onOpenCallChange?.(next)}
+            />
           </div>
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <span className="type-caption-strong text-ink-muted">{t("tags")}</span>
-        <div role="group" aria-label={t("tags")} className="flex flex-wrap gap-2">
-          {WAVE_CATEGORY_OPTIONS.map((category) => (
-            <Chip
-              key={category}
-              selected={categories.includes(category)}
-              onClick={() => toggleCategory(category)}
-            >
-              {CATEGORY_LABEL_KEY[category] ? t(CATEGORY_LABEL_KEY[category]) : category}
-            </Chip>
-          ))}
-        </div>
-      </div>
+      {/* RIGHT at desktop: distribution settings and the publish key. */}
+      <div className="flex flex-col gap-6 lg:w-[360px] lg:shrink-0">
+        <Select
+          id={`${idPrefix}-visibility`}
+          label={t("whoCanHearIt")}
+          value={visibility}
+          onChange={(event) => setVisibility(event.target.value as WaveVisibility)}
+          options={visibilityOptions}
+          hint={t("visibilityHint")}
+        />
 
-      <Button type="submit" size="lg" loading={submitting} loadingLabel={t("publishing")} fullWidth>
-        {submitLabel}
-      </Button>
+        <Select
+          id={`${idPrefix}-comment-permission`}
+          label={t("whoCanComment")}
+          value={commentPermission ?? ""}
+          onChange={(event) =>
+            setCommentPermission((event.target.value || null) as PermissionAudience | null)
+          }
+          options={permissionOptionsWithDefault}
+        />
+
+        <Select
+          id={`${idPrefix}-duet-permission`}
+          label={t("whoCanRequestDuet", { duet: tTerms("duet") })}
+          value={duetPermission ?? ""}
+          onChange={(event) =>
+            setDuetPermission((event.target.value || null) as PermissionAudience | null)
+          }
+          options={permissionOptionsWithDefault}
+        />
+
+        <div className="flex flex-col gap-2">
+          <Input
+            id={`${idPrefix}-collaborators`}
+            label={tTerms("collaborators")}
+            value={collaboratorInput}
+            onChange={(event) => setCollaboratorInput(event.target.value)}
+            onKeyDown={handleCollaboratorKeyDown}
+            onBlur={addCollaborator}
+            hint={t("collaboratorsHint")}
+            disabled={collaborators.length >= MAX_COLLABORATORS}
+          />
+          {collaborators.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {collaborators.map((username) => (
+                <Chip
+                  key={username}
+                  selected
+                  icon={<X className="size-3.5" />}
+                  onClick={() => removeCollaborator(username)}
+                  aria-label={t("removeUsername", { username })}
+                >
+                  @{username}
+                </Chip>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="type-caption-strong text-ink-muted">{t("tags")}</span>
+          <div role="group" aria-label={t("tags")} className="flex flex-wrap gap-2">
+            {WAVE_CATEGORY_OPTIONS.map((category) => (
+              <Chip
+                key={category}
+                selected={categories.includes(category)}
+                onClick={() => toggleCategory(category)}
+              >
+                {CATEGORY_LABEL_KEY[category] ? t(CATEGORY_LABEL_KEY[category]) : category}
+              </Chip>
+            ))}
+          </div>
+        </div>
+
+        <Button type="submit" size="lg" loading={submitting} loadingLabel={t("publishing")} fullWidth>
+          {submitLabel}
+        </Button>
+      </div>
     </form>
   );
 }

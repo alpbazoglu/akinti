@@ -325,7 +325,11 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
     <>
       <PageHeader title={t("createAWave", { aWave: tTerms("aWave") })} />
 
-      <div className="akinti-page flex w-full max-w-xl flex-col gap-6 pb-24">
+      {/* `max-w-xl` stays the single-column mobile/tablet measure; at
+          `>= 1024px` each stage owns its own two-column split
+          (`RecordStage`/`ReviewStage`/`EnhanceStage`/`CreateWaveForm`), so
+          the shared container just needs to stop capping their width. */}
+      <div className="akinti-page flex w-full max-w-xl flex-col gap-6 pb-24 lg:max-w-none">
         {step === "capture" ? (
           captureMode === "record" ? (
             <RecordStage
