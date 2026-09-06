@@ -268,6 +268,39 @@ function checkEmDash(): boolean {
   return clean;
 }
 
+/**
+ * Key-set diff between `src/messages/en.json` and `tr.json` (review3
+ * finding 26): `src/i18n/global.ts`'s doc comment claims `tr.json` "must
+ * have the exact same keys as en.json by convention, checked by
+ * scripts/i18n-check.ts" — nothing actually did until now. A key missing
+ * from `tr.json` renders next-intl's `getMessageFallback` (the raw key
+ * path) to a Turkish reader with no build or test failure, so this has no
+ * baseline: any asymmetry is a real regression.
+ */
+function checkKeyParity(): boolean {
+  const enPath = path.join(ROOT, "src/messages/en.json");
+  const trPath = path.join(ROOT, "src/messages/tr.json");
+  if (!existsSync(enPath) || !existsSync(trPath)) return true;
+
+  const enKeys = new Set<string>();
+  const trKeys = new Set<string>();
+  walkMessageStrings(JSON.parse(readFileSync(enPath, "utf8")), "", (keyPath) => enKeys.add(keyPath));
+  walkMessageStrings(JSON.parse(readFileSync(trPath, "utf8")), "", (keyPath) => trKeys.add(keyPath));
+
+  const missingFromTr = [...enKeys].filter((key) => !trKeys.has(key)).sort();
+  const missingFromEn = [...trKeys].filter((key) => !enKeys.has(key)).sort();
+
+  if (missingFromTr.length === 0 && missingFromEn.length === 0) {
+    console.log(`i18n-check: en.json and tr.json have the same ${enKeys.size} key(s).`);
+    return true;
+  }
+
+  console.error("\ni18n-check: src/messages/en.json and tr.json key sets do not match:");
+  for (const key of missingFromTr) console.error(`  missing from tr.json: ${key}`);
+  for (const key of missingFromEn) console.error(`  missing from en.json: ${key}`);
+  return false;
+}
+
 type Baseline = Record<string, number>;
 
 function loadBaseline(): Baseline {
@@ -315,6 +348,7 @@ function main() {
   const updateBaseline = process.argv.includes("--update-baseline");
   const serverSurfacesClean = checkServerSurfaces();
   const emDashClean = checkEmDash();
+  const keyParityClean = checkKeyParity();
   const files = SCAN_DIRS.flatMap(listTsxFiles);
 
   const current: Baseline = {};
@@ -332,7 +366,7 @@ function main() {
     const sorted = Object.fromEntries(Object.entries(current).sort(([a], [b]) => a.localeCompare(b)));
     writeFileSync(BASELINE_PATH, `${JSON.stringify(sorted, null, 2)}\n`);
     console.log(`i18n-check: baseline updated — ${Object.keys(sorted).length} file(s), ${Object.values(sorted).reduce((a, b) => a + b, 0)} instance(s).`);
-    if (!serverSurfacesClean || !emDashClean) process.exit(1);
+    if (!serverSurfacesClean || !emDashClean || !keyParityClean) process.exit(1);
     return;
   }
 
@@ -365,7 +399,7 @@ function main() {
 
   if (newFiles.length === 0 && regressed.length === 0) {
     console.log("i18n-check: no new hardcoded copy beyond the recorded baseline.");
-    if (!serverSurfacesClean || !emDashClean) process.exit(1);
+    if (!serverSurfacesClean || !emDashClean || !keyParityClean) process.exit(1);
     return;
   }
 
