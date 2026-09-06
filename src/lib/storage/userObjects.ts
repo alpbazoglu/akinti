@@ -98,9 +98,11 @@ export async function listObjectPathsRecursive(
  * recursive listing, then batched `remove()` calls (`REMOVE_BATCH_SIZE`
  * paths per call). A no-op (no `remove()` call at all) when nothing exists
  * under the prefix. Throws on the first listing or removal failure — the
- * caller (`deleteAccount`) treats any failure here as "do not delete the
- * account", so this never partially deletes storage while reporting
- * success.
+ * caller (`deleteAccount`) runs this only AFTER `auth.admin.deleteUser`
+ * already succeeded (review3 finding 21), so a failure here never blocks
+ * or undoes the account deletion; it just leaves orphaned objects for a
+ * later sweep instead of silently destroying recordings while the account
+ * (and any retry of this same deletion) survives.
  */
 export async function deleteUserStorageObjects(
   storage: StorageBucketClient,

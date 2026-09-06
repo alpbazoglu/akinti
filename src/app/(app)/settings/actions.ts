@@ -373,10 +373,16 @@ export interface DeleteAccountFormInput {
  * `avatars/<uid>/` once the `audio_assets`/`profiles` rows are gone, so
  * every recording would otherwise be retained indefinitely with no row
  * pointing at it. `deleteUserStorageObjects` (`src/lib/storage/userObjects.ts`)
- * removes both buckets' objects for this account first — the same
- * admin-client storage cleanup `deleteWaveDetails` (`w/[id]/actions.ts`)
- * already does per Wave — and if that fails, the account is NOT deleted;
- * an orphaned account is recoverable, silently-retained audio is not.
+ * sweeps both buckets' objects for this account AFTER the auth user (and
+ * therefore every dependent row) is gone — deliberately the opposite order
+ * from `deleteWaveDetails` (`w/[id]/actions.ts`), whose per-Wave cleanup
+ * runs before the row it points at is removed. Deleting storage first here
+ * would mean: if `deleteUser` then failed, the account survives with every
+ * one of its recordings already destroyed and not one row changed —
+ * unrecoverable data loss on a product made of people's voices (review3
+ * finding 21). Deleting the auth user first means a failed or partial
+ * storage sweep only leaves orphaned objects behind, which a later sweep
+ * can still clean up; nothing is lost.
  */
 export async function deleteAccount(input: DeleteAccountFormInput): Promise<AuthActionResult> {
   const { user, result } = await requireSignedInUser();
@@ -417,20 +423,24 @@ export async function deleteAccount(input: DeleteAccountFormInput): Promise<Auth
   }
 
   try {
+    const { error } = await admin.auth.admin.deleteUser(user.id);
+    if (error) throw error;
+  } catch {
+    return { ok: false, formError: t("deleteAccountFailed") };
+  }
+
+  // The account is gone at this point (every dependent row cascaded with
+  // it) — a failure sweeping storage now only leaves orphaned objects
+  // behind for a later cleanup pass, never a deleted recording with a
+  // surviving account. Still reported to the user as success: the account
+  // deletion itself, the part that cannot be silently retried, succeeded.
+  try {
     await Promise.all([
       deleteUserStorageObjects(admin.storage.from(AUDIO_BUCKET), user.id),
       deleteUserStorageObjects(admin.storage.from(AVATAR_BUCKET), user.id),
     ]);
   } catch (err) {
-    console.error("[settings/actions] storage cleanup before account delete failed:", err);
-    return { ok: false, formError: t("deleteAccountFailed") };
-  }
-
-  try {
-    const { error } = await admin.auth.admin.deleteUser(user.id);
-    if (error) throw error;
-  } catch {
-    return { ok: false, formError: t("deleteAccountFailed") };
+    console.error("[settings/actions] storage cleanup after account delete failed (orphaned objects):", err);
   }
 
   return { ok: true, redirectTo: routes.login() };
