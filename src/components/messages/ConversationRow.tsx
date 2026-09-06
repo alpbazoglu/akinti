@@ -3,17 +3,19 @@ import { useTranslations } from "next-intl";
 
 import { routes } from "@/config/routes";
 import { formatMessagePreview } from "@/lib/messages";
-import { timeAgo } from "@/lib/ui";
+import { cn, timeAgo } from "@/lib/ui";
 import { Avatar } from "@/components/ui";
 import type { ConversationSummary } from "@/types/domain";
 
 export interface ConversationRowProps {
   summary: ConversationSummary;
   viewerId: string;
+  /** Desktop only: this row's thread is the one currently open in the right pane (`ConversationListPane`). Never set on the mobile list, which has no concurrent thread to mark. */
+  active?: boolean;
 }
 
 /** One row in the `/messages` inbox: other member, last-message preview by kind, timestamp, unread count. */
-export function ConversationRow({ summary, viewerId }: ConversationRowProps) {
+export function ConversationRow({ summary, viewerId, active = false }: ConversationRowProps) {
   const t = useTranslations("ConversationRow");
   const other = summary.members.find((m) => m.id !== viewerId) ?? summary.members[0] ?? null;
   const name = other?.displayName ?? (other ? `@${other.username}` : t("unknownMember"));
@@ -22,13 +24,17 @@ export function ConversationRow({ summary, viewerId }: ConversationRowProps) {
   return (
     <Link
       href={routes.conversation(summary.conversation.id)}
-      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:px-5"
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:px-5",
+        active && "bg-elevation-2 lg:hover:bg-elevation-2",
+      )}
     >
       <Avatar name={name} src={other?.avatarUrl} size="lg" className="shrink-0" />
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-semibold text-fg">{name}</p>
+          <p className={cn("truncate text-sm font-semibold", active ? "text-tide" : "text-fg")}>{name}</p>
           <span className="flex shrink-0 items-center gap-1.5">
             <time dateTime={summary.conversation.lastMessageAt} className="text-xs text-fg-subtle">
               {timeAgo(summary.conversation.lastMessageAt)}

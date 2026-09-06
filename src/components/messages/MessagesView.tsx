@@ -1,71 +1,44 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, useTransition } from "react";
 import { Search } from "@/components/ui/icons";
 
-import { loadMoreConversations } from "@/app/(app)/messages/actions";
-import { Button, EmptyState, Input } from "@/components/ui";
-import type { ConversationSummary } from "@/types/domain";
+import { Button, EmptyState, ErrorState, Input } from "@/components/ui";
+import { useIsDesktopViewport } from "@/lib/ui";
 
 import { ConversationRow } from "./ConversationRow";
-
-export interface MessagesViewProps {
-  viewerId: string;
-  initialItems: ConversationSummary[];
-  initialCursor: string | null;
-}
-
-function matchesQuery(summary: ConversationSummary, viewerId: string, query: string): boolean {
-  if (query.length === 0) return true;
-  const needle = query.toLowerCase();
-  return summary.members.some((member) => {
-    if (member.id === viewerId) return false;
-    return (
-      member.username.toLowerCase().includes(needle) ||
-      (member.displayName ?? "").toLowerCase().includes(needle)
-    );
-  });
-}
+import { useConversationList } from "./ConversationListContext";
+import { MessagesEmptyPane } from "./MessagesEmptyPane";
 
 /**
  * Client half of `/messages`: the conversation list, name search/filter over
  * what's loaded, and "Load more" cursor pagination (spec §22 deliverable 1).
+ *
+ * At >= 1024px the list itself already lives in `ConversationListPane`
+ * (`MessagesDesktopFrame`'s left sidebar, mounted once above every route
+ * under `/messages`) — this component's job on the bare `/messages` route at
+ * that width is only to fill the right pane with an invitation to pick a
+ * thread, exactly the branch `FlowScreen`/`ExploreView` take on
+ * `useIsDesktopViewport()`.
  */
-export function MessagesView({ viewerId, initialItems, initialCursor }: MessagesViewProps) {
+export function MessagesView() {
   const t = useTranslations("MessagesView");
-  const [items, setItems] = useState(initialItems);
-  const [cursor, setCursor] = useState(initialCursor);
-  const [query, setQuery] = useState("");
-  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const [isLoadingMore, startLoadingMore] = useTransition();
+  const router = useRouter();
+  const isDesktop = useIsDesktopViewport();
+  const { viewerId, items, query, setQuery, filtered, cursor, loadMore, isLoadingMore, loadMoreError, loadError } =
+    useConversationList();
 
-  const filtered = useMemo(
-    () => items.filter((summary) => matchesQuery(summary, viewerId, query.trim())),
-    [items, viewerId, query],
-  );
+  if (loadError) {
+    return <ErrorState description={loadError} onRetry={() => router.refresh()} />;
+  }
 
-  const handleLoadMore = () => {
-    if (!cursor) return;
-    setLoadMoreError(null);
-    startLoadingMore(async () => {
-      const result = await loadMoreConversations(cursor);
-      if (result.ok && result.data) {
-        setItems((current) => [...current, ...result.data!.items]);
-        setCursor(result.data.nextCursor);
-      } else {
-        setLoadMoreError(result.error ?? t("couldNotLoadMore"));
-      }
-    });
-  };
+  if (isDesktop) {
+    return <MessagesEmptyPane />;
+  }
 
   if (items.length === 0) {
-    return (
-      <EmptyState
-        title={t("emptyTitle")}
-        description={t("emptyDescription")}
-      />
-    );
+    return <EmptyState title={t("emptyTitle")} description={t("emptyDescription")} />;
   }
 
   return (
@@ -102,7 +75,7 @@ export function MessagesView({ viewerId, initialItems, initialCursor }: Messages
             </p>
           ) : null}
           {cursor ? (
-            <Button variant="secondary" size="sm" onClick={handleLoadMore} loading={isLoadingMore}>
+            <Button variant="secondary" size="sm" onClick={loadMore} loading={isLoadingMore}>
               {t("loadMore")}
             </Button>
           ) : (
