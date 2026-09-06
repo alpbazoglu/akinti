@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 
 import { BRAND } from "@/config/terminology";
 import { Switch, useToast } from "@/components/ui";
@@ -28,15 +28,28 @@ function urlBase64ToUint8Array(base64Url: string): Uint8Array<ArrayBuffer> {
 }
 
 /**
- * Feature/platform detection computed once, up front, rather than in an
- * effect: this is a pure read of the current browser (`window`/`navigator`),
- * not a subscription to anything that changes after mount, so there is
- * nothing an effect would add here. `false`/`"unsupported"` on the server
- * (no `window`) is corrected on the very first client render, same as
- * `src/components/pwa/InstallHint.tsx`'s equivalent check.
+ * `window`/`navigator`/`Notification` don't exist during SSR, so a
+ * `useState(detectSupport)` lazy initializer (the previous approach here)
+ * ran once on the server — always `"unsupported"`, no `window` — and once
+ * again on the client's very first render, before hydration reconciles,
+ * where a real browser usually answers `"supported"`. Because `support`
+ * and `permission` each pick between structurally different JSX below (a
+ * plain paragraph vs. a `<Switch>` row, plus a conditional hint paragraph),
+ * that divergence was a genuine structural hydration mismatch (React error
+ * #418), not a cosmetic one — this file's own past reasoning that "there is
+ * nothing an effect would add here" mixed up "detection never changes
+ * *after* mount" (true) with "detection agrees between server and the
+ * client's first render" (false). `useSyncExternalStore`'s third argument
+ * is exactly React's answer to a browser-only value: both the server and
+ * the client's first render see `getServerSnapshot`'s answer, and the real
+ * one lands the instant hydration finishes — same fix shape as
+ * `AudioPreferencesForm.tsx` and `ShareSheet.tsx`.
  */
+function subscribeToNothing(): () => void {
+  return () => {};
+}
+
 function detectSupport(): Support {
-  if (typeof window === "undefined") return "unsupported";
   if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
     return "unsupported";
   }
@@ -47,8 +60,16 @@ function detectSupport(): Support {
 }
 
 function detectPermission(): NotificationPermission {
-  if (typeof window === "undefined" || !("Notification" in window)) return "default";
+  if (!("Notification" in window)) return "default";
   return Notification.permission;
+}
+
+function useDetectedSupport(): Support {
+  return useSyncExternalStore(subscribeToNothing, detectSupport, () => "unsupported");
+}
+
+function useDetectedPermission(): NotificationPermission {
+  return useSyncExternalStore(subscribeToNothing, detectPermission, () => "default");
 }
 
 /**
@@ -66,8 +87,8 @@ function detectPermission(): NotificationPermission {
 export function PushToggle({ initialSubscribed }: PushToggleProps) {
   const { toast } = useToast();
   const t = useTranslations("PushToggle");
-  const [support] = useState<Support>(detectSupport);
-  const [permission, setPermission] = useState<NotificationPermission>(detectPermission);
+  const support = useDetectedSupport();
+  const permission = useDetectedPermission();
   const [subscribed, setSubscribed] = useState(initialSubscribed);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +127,10 @@ export function PushToggle({ initialSubscribed }: PushToggleProps) {
     startTransition(async () => {
       try {
         const permissionResult = await Notification.requestPermission();
-        setPermission(permissionResult);
+        // No explicit `setPermission` here: `permission` now comes from
+        // `useDetectedPermission()` (`useSyncExternalStore`), which re-reads
+        // the live `Notification.permission` on the next render this
+        // function's own `setError`/`setSubscribed` calls below trigger.
         if (permissionResult !== "granted") {
           setError(
             permissionResult === "denied"

@@ -15,7 +15,7 @@
  */
 
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { ArrowLeft, Check, Link as LinkIcon, MessageCircle, Send, Share2 } from "@/components/ui/icons";
 
 import { loadMoreConversations, shareWaveToConversation } from "@/app/(app)/messages/actions";
@@ -40,15 +40,41 @@ export interface ShareSheetProps {
 
 type View = "main" | "conversations";
 
+/** The browser's Web Share API support never changes mid-session, so there is nothing to subscribe to. */
+function subscribeToNothing(): () => void {
+  return () => {};
+}
+
+function getCanNativeShareSnapshot(): boolean {
+  return typeof navigator !== "undefined" && typeof navigator.share === "function";
+}
+
+/**
+ * `navigator.share` doesn't exist during SSR, so reading it directly in
+ * render makes the server's markup diverge from the client's whenever the
+ * real device supports it — a genuine structural hydration mismatch (React
+ * error #418: the whole `ShareOption` button below appears or disappears),
+ * not a cosmetic one `suppressHydrationWarning` would cover.
+ * `WaveCardContainer` mounts this component unconditionally (`open` just
+ * toggles the Sheet's visibility, the component itself is always in the
+ * tree), so this ran on every Wave card on every feed screen. `getServerSnapshot`
+ * gives React the same `false` for the server render and the client's very
+ * first render, exactly like `AudioPreferencesForm.tsx`'s own
+ * `useSyncExternalStore` use for the same reason; the real value lands the
+ * instant hydration finishes, with no extra render pass and no
+ * `setState`-in-effect.
+ */
+function useCanNativeShare(): boolean {
+  return useSyncExternalStore(subscribeToNothing, getCanNativeShareSnapshot, () => false);
+}
+
 export function ShareSheet({ open, onClose, wave }: ShareSheetProps) {
   const t = useTranslations("ShareSheet");
   const tTerms = useTranslations("Terms");
   const { toast } = useToast();
   const [view, setView] = useState<View>("main");
   const [copied, setCopied] = useState(false);
-
-  const canNativeShare =
-    typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const canNativeShare = useCanNativeShare();
 
   const shareUrl = () => buildWaveShareUrl(typeof window !== "undefined" ? window.location.origin : "", wave.id);
 

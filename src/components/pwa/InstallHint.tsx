@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { ArrowLineDown, X } from "@phosphor-icons/react";
 
 import {
@@ -13,17 +13,32 @@ import { BRAND } from "@/config/terminology";
 import { Button, IconButton } from "@/components/ui";
 
 /**
- * iOS Safari/Chrome never dispatch `beforeinstallprompt` — detect the
- * platform directly so the hint can still say something true there. `false`
- * on the server (no `window`) is the same "not iOS" default the first client
- * render recomputes correctly, so there is no hydration mismatch to worry
- * about beyond the one render React already reconciles silently.
+ * `window`/`navigator` don't exist during SSR, so a `useState(detectIOSNotStandalone)`
+ * lazy initializer (the previous approach here) ran once on the server —
+ * always `false`, no `window` — and once again on the client's very first
+ * render, before hydration reconciles, where a real iOS Safari visitor
+ * answers `true`. `isIOS` picks between structurally different copy AND
+ * whether the install `<Button>` renders at all below, and even affects
+ * whether this component returns `null` outright (the early `!canInstall
+ * && !isIOS` check) — a genuine structural hydration mismatch (React error
+ * #418), not the "one render React already reconciles silently" this file
+ * used to claim. Same fix shape as `PushToggle.tsx`/`ShareSheet.tsx`:
+ * `useSyncExternalStore`'s third argument gives the server and the client's
+ * first render the same `false`, and the real value lands the instant
+ * hydration finishes.
  */
+function subscribeToNothing(): () => void {
+  return () => {};
+}
+
 function detectIOSNotStandalone(): boolean {
-  if (typeof window === "undefined") return false;
   const ua = window.navigator.userAgent;
   const standalone = (window.navigator as { standalone?: boolean }).standalone === true;
   return /iphone|ipad|ipod/i.test(ua) && !standalone;
+}
+
+function useIsIOSNotStandalone(): boolean {
+  return useSyncExternalStore(subscribeToNothing, detectIOSNotStandalone, () => false);
 }
 
 /**
@@ -46,7 +61,7 @@ function detectIOSNotStandalone(): boolean {
  */
 export function InstallHint() {
   const { canInstall, hasPublished, dismissed, installed } = useInstallPromptState();
-  const [isIOS] = useState(detectIOSNotStandalone);
+  const isIOS = useIsIOSNotStandalone();
   const [installing, setInstalling] = useState(false);
   const t = useTranslations("InstallHint");
 
