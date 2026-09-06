@@ -230,6 +230,44 @@ function listServerFiles(dir: string): string[] {
   return out;
 }
 
+const MESSAGE_FILES = ["src/messages/en.json", "src/messages/tr.json"];
+/** DESIGN.md §12.22 bans the em dash in any user-visible string (review3 finding 22). */
+const EM_DASH = "—";
+
+/** Walks every string leaf of a parsed messages JSON tree, calling `visit(path, value)` for each. */
+function walkMessageStrings(value: unknown, keyPath: string, visit: (keyPath: string, value: string) => void): void {
+  if (typeof value === "string") {
+    visit(keyPath, value);
+  } else if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      walkMessageStrings(child, keyPath ? `${keyPath}.${key}` : key, visit);
+    }
+  }
+}
+
+/** Zero-tolerance em-dash scan over `src/messages/{en,tr}.json` — no baseline, no ratchet. */
+function checkEmDash(): boolean {
+  let clean = true;
+  for (const relPath of MESSAGE_FILES) {
+    const absPath = path.join(ROOT, relPath);
+    if (!existsSync(absPath)) continue;
+    const parsed = JSON.parse(readFileSync(absPath, "utf8")) as unknown;
+    walkMessageStrings(parsed, "", (keyPath, value) => {
+      if (value.includes(EM_DASH)) {
+        if (clean) console.error("\ni18n-check: em dash found in user-visible copy (DESIGN.md §12.22 bans it):");
+        console.error(`  ${relPath}#${keyPath} — "${value}"`);
+        clean = false;
+      }
+    });
+  }
+  if (clean) {
+    console.log(`i18n-check: no em dash in ${MESSAGE_FILES.join(", ")}.`);
+  } else {
+    console.error("\nReplace the em dash with a middle dot or a full stop.");
+  }
+  return clean;
+}
+
 type Baseline = Record<string, number>;
 
 function loadBaseline(): Baseline {
@@ -276,6 +314,7 @@ function checkServerSurfaces(): boolean {
 function main() {
   const updateBaseline = process.argv.includes("--update-baseline");
   const serverSurfacesClean = checkServerSurfaces();
+  const emDashClean = checkEmDash();
   const files = SCAN_DIRS.flatMap(listTsxFiles);
 
   const current: Baseline = {};
@@ -293,7 +332,7 @@ function main() {
     const sorted = Object.fromEntries(Object.entries(current).sort(([a], [b]) => a.localeCompare(b)));
     writeFileSync(BASELINE_PATH, `${JSON.stringify(sorted, null, 2)}\n`);
     console.log(`i18n-check: baseline updated — ${Object.keys(sorted).length} file(s), ${Object.values(sorted).reduce((a, b) => a + b, 0)} instance(s).`);
-    if (!serverSurfacesClean) process.exit(1);
+    if (!serverSurfacesClean || !emDashClean) process.exit(1);
     return;
   }
 
@@ -326,7 +365,7 @@ function main() {
 
   if (newFiles.length === 0 && regressed.length === 0) {
     console.log("i18n-check: no new hardcoded copy beyond the recorded baseline.");
-    if (!serverSurfacesClean) process.exit(1);
+    if (!serverSurfacesClean || !emDashClean) process.exit(1);
     return;
   }
 

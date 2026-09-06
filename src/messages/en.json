@@ -563,7 +563,7 @@
     "notConnectedTitle": "This isn't connected to a backend yet",
     "notConnectedDescription": "Supabase environment variables aren't set, so Duet Requests can't be sent here.",
     "ownWaveTitle": "This is your own Wave",
-    "ownWaveDescription": "You don't request a Duet on your own Wave — record one directly from it instead.",
+    "ownWaveDescription": "You don't request a Duet on your own Wave. Record one directly from it instead.",
     "notAllowedTitle": "You can't request a Duet on this Wave",
     "notAllowedDescription": "The creator may have Duets turned off for you, you may be blocked, the Wave may be private, or you already have a pending request for it.",
     "unavailableTitle": "This {wave} isn't available",
@@ -1372,7 +1372,7 @@
     "sessionExpired": "Your session has expired. Sign in again to continue.",
     "usernameTaken": "That username is taken.",
     "notConfigured": "This can't be completed right now. Try again later.",
-    "notConnected": "This isn't connected to a backend yet — Supabase environment variables are not set.",
+    "notConnected": "This isn't connected to a backend yet. Supabase environment variables are not set.",
     "signInToContinue": "Sign in to continue.",
     "signInToDoThat": "Sign in to do that.",
     "unblockFailed": "Could not unblock this account. Try again.",
@@ -1514,10 +1514,10 @@
     "duetRequestNoLongerAvailable": "This Duet Request is no longer available."
   },
   "ModerationActions": {
-    "notConfigured": "This isn't connected to a backend yet — Supabase environment variables are not set.",
+    "notConfigured": "This isn't connected to a backend yet. Supabase environment variables are not set.",
     "notModerator": "You don't have access to the moderation queue.",
     "claimFailed": "Could not claim this report. Try again.",
-    "claimed": "Report claimed — status is now Reviewing.",
+    "claimed": "Report claimed. Status is now Reviewing.",
     "resolveFailed": "Could not resolve this report. Try again.",
     "resolved": "Report resolved.",
     "dismissFailed": "Could not dismiss this report. Try again.",
@@ -1543,7 +1543,7 @@
     "reportSubmitted": "Report submitted. Our team will review it."
   },
   "WaveActions": {
-    "notConnected": "This isn't connected to a backend yet — Supabase environment variables are not set.",
+    "notConnected": "This isn't connected to a backend yet. Supabase environment variables are not set.",
     "signInError": "Sign in to do that.",
     "notFound": "That Wave could not be found.",
     "nothingToUpdate": "Nothing to update.",
@@ -1556,7 +1556,7 @@
     "duplicate": "You already have a pending Duet Request for this Wave.",
     "sendFailed": "We couldn't send this Duet Request. Try again.",
     "requestInvalid": "This Duet Request isn't valid.",
-    "cannotDuetOwnWave": "You can't request a Duet on your own Wave — record one directly instead.",
+    "cannotDuetOwnWave": "You can't request a Duet on your own Wave. Record one directly instead.",
     "newDuetRequestTitle": "New duet request",
     "newDuetRequestBody": "Wants to create a {duet} using your {wave}.",
     "openCallAnsweredTitle": "Your open call was answered",
