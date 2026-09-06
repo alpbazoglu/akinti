@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useReducer, useState, type MouseEvent, type ReactNode } from "react";
@@ -7,7 +8,6 @@ import { useCallback, useEffect, useMemo, useReducer, useState, type MouseEvent,
 import { saveWave, unsaveWave } from "@/app/(app)/w/[id]/interactions";
 import { WavePlayer } from "@/components/audio";
 import { useSignedAudio } from "@/components/feed";
-import { ShareSheet } from "@/components/share";
 import { Avatar, Badge, IconButton, useToast } from "@/components/ui";
 import { Bookmark, MessageSquare, Share2 } from "@/components/ui/icons";
 import { routes } from "@/config/routes";
@@ -15,6 +15,16 @@ import { CREATION_TYPES, METRICS, type CreationType, type MetricKey } from "@/co
 import { saveReducer } from "@/lib/interactions";
 import { emitAnalyticsEvent, usePlayTracker } from "@/lib/metrics";
 import { cn, formatAbsoluteTime, formatCount } from "@/lib/ui";
+
+/**
+ * Code-split, matching `WaveCardContainer.tsx`'s own `ShareSheet` import
+ * (fixQA2 item 4, TBT): every visit to a Wave's own page statically pulled in
+ * the whole Share Sheet, including its conversation picker and messaging
+ * actions, whether or not Share was ever tapped — closeout perf pass,
+ * `/w/[id]` was 3KB over its 340KB budget. Deferred to its own chunk,
+ * fetched only on first tap.
+ */
+const ShareSheet = dynamic(() => import("@/components/share").then((mod) => mod.ShareSheet));
 
 const METRIC_LABEL_KEY = {
   plays: "metricPlays",

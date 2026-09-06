@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import { createComment } from "@/app/(app)/w/[id]/interactions";
 import { Button, Input, Textarea } from "@/components/ui";
 import { emitAnalyticsEvent } from "@/lib/metrics";
-import { COMMENT_MAX_LENGTH } from "@/lib/validation/waves";
+import { COMMENT_MAX_LENGTH } from "@/lib/validation/limits";
 import type { CommentWithAuthor } from "@/types/domain";
 
 import { FEEDBACK_FIELDS, composeFeedback, type FeedbackFields, type FeedbackKey } from "./feedback";

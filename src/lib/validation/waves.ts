@@ -9,6 +9,9 @@ import {
 } from "@/types/domain";
 
 import { uuidSchema } from "./common";
+import { COMMENT_MAX_LENGTH } from "./limits";
+
+export { COMMENT_MAX_LENGTH } from "./limits";
 
 const titleSchema = z.string().trim().min(1, "validation.waveTitleRequired").max(120);
 const descriptionSchema = z.string().trim().max(2000).nullable();
@@ -93,9 +96,6 @@ export const updateWaveSchema = z
     tags: tagsSchema.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: "validation.nothingToUpdate" });
-
-/** Mirrors the `comments_body_len` CHECK constraint (migration 05) exactly. */
-export const COMMENT_MAX_LENGTH = 1000;
 
 export const createCommentSchema = z.object({
   wave_id: uuidSchema,

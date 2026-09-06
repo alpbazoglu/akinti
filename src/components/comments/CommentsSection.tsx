@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
@@ -11,7 +12,17 @@ import type { CommentWithAuthor, Page } from "@/types/domain";
 
 import { CommentComposer } from "./CommentComposer";
 import { CommentItem } from "./CommentItem";
-import { ReportCommentSheet } from "./ReportCommentSheet";
+
+/**
+ * Code-split, matching `WaveDetail.tsx`'s own `ShareSheet` import: reporting
+ * a comment is a rare interaction (moderation, spec §26), so the sheet and
+ * its report-reason form are fetched only once one is actually requested
+ * rather than shipped with every Wave page's first load — closeout perf
+ * pass, `/w/[id]` was over its 340KB budget.
+ */
+const ReportCommentSheet = dynamic(() =>
+  import("./ReportCommentSheet").then((mod) => mod.ReportCommentSheet),
+);
 
 export interface CommentsSectionProps {
   waveId: string;
