@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
 # Cancel superseded runs on the same branch/PR rather than letting them
@@ -48,15 +48,19 @@ jobs:
     name: e2e (backend-dependent specs)
     runs-on: ubuntu-latest
     needs: checks
-    # Only the two backend-dependent specs (e2e/auth.spec.ts, e2e/duet.spec.ts
-    # — see playwright.config.ts's BACKEND_SPECS) need a real Supabase
-    # project. This job — and the E2E_SUPABASE flag that unlocks those specs
-    # — only runs when a throwaway Supabase project's credentials are
-    # available as repository secrets (Settings → Secrets and variables →
-    # Actions): E2E_SUPABASE_URL, E2E_SUPABASE_ANON_KEY,
-    # E2E_SUPABASE_SERVICE_ROLE_KEY. Without them this job is skipped
-    # entirely rather than run and left to fail on every assertion.
-    if: ${{ secrets.E2E_SUPABASE_URL != '' && secrets.E2E_SUPABASE_ANON_KEY != '' && secrets.E2E_SUPABASE_SERVICE_ROLE_KEY != '' }}
+    # The `secrets` context is not available in a job-level `if:` (only in
+    # `steps`/`env`), so this can't gate directly on whether the three
+    # backend secrets are set. Gated instead on the repository variable
+    # E2E_ENABLED (Settings → Secrets and variables → Actions → Variables,
+    # not Secrets — variables ARE readable from a job `if:`), which a human
+    # sets to "true" once a throwaway Supabase project's credentials have
+    # also been added as repository secrets: E2E_SUPABASE_URL,
+    # E2E_SUPABASE_ANON_KEY, E2E_SUPABASE_SERVICE_ROLE_KEY. Backend-dependent
+    # specs: e2e/auth.spec.ts, e2e/duet.spec.ts, e2e/critical-journey.spec.ts
+    # — see playwright.config.ts's BACKEND_SPECS. Without E2E_ENABLED this
+    # job is skipped entirely rather than run and left to fail on every
+    # assertion against an unconfigured app — see docs/TESTING.md.
+    if: ${{ vars.E2E_ENABLED == 'true' }}
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.E2E_SUPABASE_ANON_KEY }}

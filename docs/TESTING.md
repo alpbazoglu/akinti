@@ -110,6 +110,19 @@ server per checkout, not per port. If nothing is listening on 3333 yet,
 `npm run dev -- -p 3333` first; the suite reuses whatever is already running
 there (do not kill or restart it if someone is browsing it).
 
+**CI (`.github/workflows/ci.yml`).** The `e2e` job runs these same
+backend-dependent specs (`E2E_SUPABASE=1 npm run e2e`) but only when the
+repository **variable** `E2E_ENABLED` is set to `"true"` (Settings → Secrets
+and variables → Actions → **Variables** tab, not Secrets) — a job-level
+`if:` cannot read the `secrets` context at all, only `vars`, so the gate has
+to live on a variable even though the actual credentials
+(`E2E_SUPABASE_URL`/`E2E_SUPABASE_ANON_KEY`/`E2E_SUPABASE_SERVICE_ROLE_KEY`)
+are real secrets read inside the job's `env:`. Set both — the three secrets
+and `E2E_ENABLED=true` — to turn this job on for a throwaway Supabase
+project; leave `E2E_ENABLED` unset (or anything other than `"true"`) to skip
+it entirely rather than run it and fail on every assertion against
+unconfigured credentials.
+
 ## What this layer is responsible for verifying
 
 **Migrations — validated by manual review, not by running Supabase
