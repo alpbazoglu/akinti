@@ -1,17 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  ACCENT_PRESETS,
-  BACKGROUND_PRESETS,
-  READABLE_DARK,
-  READABLE_LIGHT,
-  contrastRatio,
-  hexToRgb,
-  meetsAA,
-  pickReadableForeground,
-  relativeLuminance,
-  resolveProfileTheme,
-} from "./profileTheme";
+import { contrastRatio, hexToRgb, meetsAA, relativeLuminance } from "./profileTheme";
 
 describe("hexToRgb", () => {
   it("parses a 6-digit hex color", () => {
@@ -66,83 +55,5 @@ describe("meetsAA", () => {
   it("passes black-on-white and fails near-identical grays", () => {
     expect(meetsAA("#ffffff", "#000000")).toBe(true);
     expect(meetsAA("#888888", "#8a8a8a")).toBe(false);
-  });
-});
-
-describe("pickReadableForeground", () => {
-  it("picks the dark readable color for a light background", () => {
-    expect(pickReadableForeground("#f5f6f8")).toBe(READABLE_DARK);
-  });
-
-  it("picks the light readable color for a dark background", () => {
-    expect(pickReadableForeground("#0a0c0f")).toBe(READABLE_LIGHT);
-  });
-
-  it("always clears AA against the background it was chosen for", () => {
-    const samples = ["#ffffff", "#000000", "#808080", "#0e7c86", "#cbb996", "#48505c"];
-    for (const bg of samples) {
-      const fg = pickReadableForeground(bg);
-      expect(meetsAA(bg, fg)).toBe(true);
-    }
-  });
-});
-
-describe("curated presets are AA-safe by construction", () => {
-  it("every background preset pairs with a readable foreground at AA", () => {
-    for (const preset of Object.values(BACKGROUND_PRESETS)) {
-      const fg = pickReadableForeground(preset.hex);
-      expect(meetsAA(preset.hex, fg)).toBe(true);
-    }
-  });
-
-  it("every accent preset pairs with a readable foreground at AA", () => {
-    for (const preset of Object.values(ACCENT_PRESETS)) {
-      const fg = pickReadableForeground(preset.hex);
-      expect(meetsAA(preset.hex, fg)).toBe(true);
-    }
-  });
-});
-
-describe("resolveProfileTheme", () => {
-  it("resolves every preset id and exposes an AA-safe banner foreground", () => {
-    const resolved = resolveProfileTheme({
-      backgroundColor: "plum",
-      backgroundGradient: "dusk",
-      backgroundPattern: "rings",
-      accent: "rose",
-    });
-
-    expect(resolved.background.id).toBe("plum");
-    expect(resolved.gradient.id).toBe("dusk");
-    expect(resolved.pattern.id).toBe("rings");
-    expect(resolved.accent.id).toBe("rose");
-    expect(meetsAA(resolved.background.hex, resolved.bannerForeground)).toBe(true);
-    expect(meetsAA(resolved.accent.hex, resolved.accentForeground)).toBe(true);
-    expect(resolved.style["--profile-banner-bg"]).toBe(resolved.background.hex);
-  });
-
-  it("resolves 'none' gradient/pattern to a plain background with no extra image layers", () => {
-    const resolved = resolveProfileTheme({
-      backgroundColor: "ink",
-      backgroundGradient: "none",
-      backgroundPattern: "none",
-      accent: "aqua",
-    });
-
-    expect(resolved.style["--profile-banner-image"]).toBe("none");
-  });
-
-  it("layers gradient and pattern together when both are set", () => {
-    const resolved = resolveProfileTheme({
-      backgroundColor: "forest",
-      backgroundGradient: "aurora",
-      backgroundPattern: "dots",
-      accent: "emerald",
-    });
-
-    const image = resolved.style["--profile-banner-image"];
-    expect(image).not.toBe("none");
-    expect(image).toContain("linear-gradient");
-    expect(image).toContain("radial-gradient");
   });
 });

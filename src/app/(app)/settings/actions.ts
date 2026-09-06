@@ -13,6 +13,7 @@ import { toComment, toWave } from "@/lib/db/mappers";
 import { updateNotificationPreferences as updateNotificationPreferencesDb } from "@/lib/db/notifications";
 import { getProfileById, isUsernameAvailable, updateProfile, updateProfileLocale } from "@/lib/db/profiles";
 import { isAppLocale, LOCALE_COOKIE, type AppLocale } from "@/i18n/locale";
+import { isThemeMode, THEME_COOKIE, type ThemeMode } from "@/lib/ui/themeMode";
 import { DatabaseError } from "@/lib/db/types";
 import type { AccountDataExport } from "@/lib/privacy/dataExport";
 import { serializeAccountDataExport } from "@/lib/privacy/dataExport";
@@ -159,22 +160,17 @@ export async function updatePrivacy(input: UpdatePrivacyFormInput): Promise<Auth
 }
 
 export interface UpdateAppearanceFormInput {
-  bgColor: string;
-  bgGradient: string;
-  bgPattern: string;
-  accentColor: string;
+  /** One of `SIGNATURE_HUES` (`@/types/domain`), or `null` for no explicit choice. */
+  signatureHue: string | null;
 }
 
-/** Settings → Appearance: curated theme presets only (spec §21). */
+/** Settings → Appearance: the curated signature-hue presets only (COLOR_V2). */
 export async function updateAppearance(input: UpdateAppearanceFormInput): Promise<AuthActionResult> {
   const { user, result } = await requireSignedInUser();
   if (!user) return result!;
 
   const parsed = updateAppearanceSchema.safeParse({
-    bg_color: input.bgColor,
-    bg_gradient: input.bgGradient,
-    bg_pattern: input.bgPattern,
-    accent_color: input.accentColor,
+    signature_hue: input.signatureHue,
   });
   if (!parsed.success) {
     const t = (await getTranslations()) as MessageTranslator;
@@ -235,6 +231,36 @@ export async function setLocale(locale: AppLocale): Promise<AuthActionResult> {
   }
 
   return { ok: true, message: t("localeSaved") };
+}
+
+/**
+ * Settings → Appearance's theme row: system/light/dark. Cookie only — no
+ * profile column, unlike locale, since a theme preference has no product
+ * reason to follow the account across devices (`src/lib/ui/themeMode.ts`'s
+ * doc comment). `system` clears the cookie rather than writing the literal
+ * string, since its absence already resolves to system in `resolveThemeMode`.
+ */
+export async function setThemeMode(mode: ThemeMode): Promise<AuthActionResult> {
+  if (!isThemeMode(mode)) {
+    const t = await getTranslations("SettingsActions");
+    return { ok: false, formError: t("themeModeInvalid") };
+  }
+
+  const store = await cookies();
+  if (mode === "system") {
+    store.delete(THEME_COOKIE);
+  } else {
+    store.set(THEME_COOKIE, mode, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
+
+  const t = await getTranslations("SettingsActions");
+  return { ok: true, message: t("themeModeSaved") };
 }
 
 /** Settings → Safety: unblock. Deleting the `blocks` row does not restore any severed follow. */

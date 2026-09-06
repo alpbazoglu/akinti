@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { cookies } from "next/headers";
 
 import { PageHeader } from "@/components/layout";
 import { AppearanceForm } from "@/components/profile";
@@ -8,6 +9,7 @@ import { requireUser } from "@/lib/auth/server";
 import { getProfileById } from "@/lib/db/profiles";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { resolveThemeMode, THEME_COOKIE } from "@/lib/ui/themeMode";
 
 export async function generateMetadata() {
   const t = await getTranslations("Terms");
@@ -41,19 +43,18 @@ export default async function AppearanceSettingsPage() {
     );
   }
 
+  const cookieStore = await cookies();
+  const initialThemeMode = resolveThemeMode(cookieStore.get(THEME_COOKIE)?.value);
+
   return (
     <>
       <PageHeader
         title={t("title")}
       />
-      <div className="px-4 pb-8 sm:px-5">
+      <div className="akinti-page pb-8">
         <AppearanceForm
-          initialBgColor={profile.theme.backgroundColor}
-          initialBgGradient={profile.theme.backgroundGradient}
-          initialBgPattern={profile.theme.backgroundPattern}
-          initialAccent={profile.theme.accent}
-          name={profile.displayName ?? profile.username}
-          avatarUrl={profile.avatarUrl}
+          initialThemeMode={initialThemeMode}
+          initialSignatureHue={profile.signatureHue}
         />
       </div>
     </>

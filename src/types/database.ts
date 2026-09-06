@@ -59,10 +59,8 @@ export type PermissionAudience = "everyone" | "followers" | "following" | "nobod
 export type CommentAudience = "everyone" | "followers" | "nobody";
 export type FollowStatus = "pending" | "accepted";
 
-export type ThemeBackgroundColor = "ink" | "slate" | "sand" | "mist" | "plum" | "forest";
-export type ThemeBackgroundGradient = "none" | "dawn" | "dusk" | "tide" | "ember" | "aurora";
-export type ThemeBackgroundPattern = "none" | "waves" | "dots" | "grid" | "noise" | "rings";
-export type ThemeAccent = "aqua" | "violet" | "amber" | "rose" | "emerald" | "slate";
+/** Migration `20260906220000_profile_signature_hue`. See `SIGNATURE_HUES` in `src/types/domain.ts`. */
+export type SignatureHue = "current" | "genre-turku" | "genre-rap" | "genre-arabesk";
 
 export type AudioProcessingStatus = "pending" | "processing" | "ready" | "failed";
 export type AudioEnhancementPreset =
@@ -150,10 +148,8 @@ export type ProfileRow = {
   bio: string | null;
   avatar_url: string | null;
   privacy: ProfilePrivacy;
-  bg_color: ThemeBackgroundColor;
-  bg_gradient: ThemeBackgroundGradient;
-  bg_pattern: ThemeBackgroundPattern;
-  accent_color: ThemeAccent;
+  /** Migration `20260906220000_profile_signature_hue`. `null` = no explicit choice. */
+  signature_hue: SignatureHue | null;
   duet_permission: PermissionAudience;
   message_permission: PermissionAudience;
   comment_permission: CommentAudience;
@@ -332,8 +328,14 @@ export type DuetTreeNodeRow = {
 export type ChallengeRow = {
   id: string;
   slug: string;
+  /** English title (default/fallback). */
   title: string;
+  /** English brief (default/fallback). */
   brief: string;
+  /** Turkish title (migration `20260906220100_challenge_locale`). `null` falls back to `title`. */
+  title_tr: string | null;
+  /** Turkish brief. `null` falls back to `brief`. */
+  brief_tr: string | null;
   /** Stored without a leading '#', lowercase — matches `list_waves_by_hashtag(hashtag)`. */
   hashtag: string;
   starts_at: string;
@@ -799,7 +801,7 @@ export interface Database {
           Partial<
             Pick<
               ChallengeRow,
-              "id" | "backing_track_id" | "duet_mode" | "status" | "created_by"
+              "id" | "title_tr" | "brief_tr" | "backing_track_id" | "duet_mode" | "status" | "created_by"
             >
           >;
         Update: Partial<
@@ -807,6 +809,8 @@ export interface Database {
             ChallengeRow,
             | "title"
             | "brief"
+            | "title_tr"
+            | "brief_tr"
             | "hashtag"
             | "starts_at"
             | "ends_at"
@@ -1154,10 +1158,6 @@ export interface Database {
       profile_privacy: ProfilePrivacy;
       permission_audience: PermissionAudience;
       follow_status: FollowStatus;
-      theme_background_color: ThemeBackgroundColor;
-      theme_background_gradient: ThemeBackgroundGradient;
-      theme_background_pattern: ThemeBackgroundPattern;
-      theme_accent: ThemeAccent;
       audio_processing_status: AudioProcessingStatus;
       audio_enhancement_preset: AudioEnhancementPreset;
       audio_job_type: AudioJobType;

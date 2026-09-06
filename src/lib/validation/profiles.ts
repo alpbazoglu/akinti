@@ -4,21 +4,11 @@ import {
   COMMENT_AUDIENCES,
   PERMISSION_AUDIENCES,
   PROFILE_PRIVACIES,
-  THEME_ACCENTS,
-  THEME_BACKGROUND_COLORS,
-  THEME_BACKGROUND_GRADIENTS,
-  THEME_BACKGROUND_PATTERNS,
+  SIGNATURE_HUES,
   WAVE_VISIBILITIES,
 } from "@/types/domain";
 
 import { usernameSchema, uuidSchema } from "./common";
-
-export const profileThemeSchema = z.object({
-  bg_color: z.enum(THEME_BACKGROUND_COLORS),
-  bg_gradient: z.enum(THEME_BACKGROUND_GRADIENTS),
-  bg_pattern: z.enum(THEME_BACKGROUND_PATTERNS),
-  accent_color: z.enum(THEME_ACCENTS),
-});
 
 export const updateProfileSchema = z
   .object({
@@ -28,10 +18,7 @@ export const updateProfileSchema = z
     avatar_url: z.string().url().max(1000).nullable().optional(),
     privacy: z.enum(PROFILE_PRIVACIES).optional(),
 
-    bg_color: z.enum(THEME_BACKGROUND_COLORS).optional(),
-    bg_gradient: z.enum(THEME_BACKGROUND_GRADIENTS).optional(),
-    bg_pattern: z.enum(THEME_BACKGROUND_PATTERNS).optional(),
-    accent_color: z.enum(THEME_ACCENTS).optional(),
+    signature_hue: z.enum(SIGNATURE_HUES).nullable().optional(),
 
     duet_permission: z.enum(PERMISSION_AUDIENCES).optional(),
     message_permission: z.enum(PERMISSION_AUDIENCES).optional(),
@@ -91,8 +78,10 @@ export const updatePrivacySchema = z.object({
   default_wave_visibility: z.enum(WAVE_VISIBILITIES),
 });
 
-/** Settings → Appearance (spec §21/§25): curated theme presets only. */
-export const updateAppearanceSchema = profileThemeSchema;
+/** Settings → Appearance (spec §21/§25): the four curated signature-hue presets only, never an open colour field. */
+export const updateAppearanceSchema = z.object({
+  signature_hue: z.enum(SIGNATURE_HUES).nullable(),
+});
 
 /**
  * Settings → Delete account (SCREENS.md §11, DESIGN.md §11.2): retyping the

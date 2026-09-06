@@ -2,12 +2,14 @@ import { SerwistProvider } from "@serwist/next/react";
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import { Archivo, Martian_Mono } from "next/font/google";
 
 import { BRAND, SITE } from "@/config/terminology";
 import { getCurrentUserWithProfile } from "@/lib/auth/server";
 import { pickMessages } from "@/i18n/pickMessages";
+import { resolveThemeMode, themeModeToDataAttribute, THEME_COOKIE } from "@/lib/ui/themeMode";
 
 import { Providers } from "./providers";
 import "./globals.css";
@@ -126,16 +128,24 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [{ user, profile }, locale, messages] = await Promise.all([
+  const [{ user, profile }, locale, messages, cookieStore] = await Promise.all([
     getCurrentUserWithProfile(),
     getLocale(),
     getMessages(),
+    cookies(),
   ]);
   const rootMessages = pickMessages(messages, ROOT_MESSAGE_NAMESPACES);
+  // Settings → Appearance's theme row (`AppearanceForm.tsx`, `setThemeMode`
+  // in `src/app/(app)/settings/actions.ts`). `system` omits the attribute
+  // entirely, leaving `prefers-color-scheme` in charge — the CSS
+  // (`globals.css`) and the two canvas components already watch for this
+  // attribute, this is just what finally writes it.
+  const dataTheme = themeModeToDataAttribute(resolveThemeMode(cookieStore.get(THEME_COOKIE)?.value));
 
   return (
     <html
       lang={locale}
+      data-theme={dataTheme}
       className={`${archivo.variable} ${martianMono.variable} h-full`}
       suppressHydrationWarning
     >

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { WavePlayer } from "@/components/audio";
+import { WavePlayer, type TraceHue } from "@/components/audio";
 import { ProMark } from "@/components/pro/ProMark";
 import { Avatar, Badge, Button, IconButton, Skeleton } from "@/components/ui";
 import { Bookmark, MessageSquare, Share2 } from "@/components/ui/icons";
@@ -51,6 +51,12 @@ export interface WaveCardWave {
    * one of the five places Signal is allowed to appear (§4.1).
    */
   readonly unheard?: boolean;
+  /**
+   * The creator's signature hue (COLOR_V2 "Profile signature trace" /
+   * `Profile.signatureHue`, `src/types/domain.ts`), recolouring only the
+   * unplayed part of the trace. Omitted draws the plain current, as always.
+   */
+  readonly hue?: TraceHue;
 }
 
 export type WaveCardVariant = "stream" | "detail";
@@ -201,6 +207,7 @@ export function WaveCard({
         onProgress={onProgress}
         onEnded={onEnded}
         variant={detail ? "detail" : "inline"}
+        hue={wave.hue}
         fullBleed
       />
 

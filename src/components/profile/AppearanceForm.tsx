@@ -1,88 +1,83 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo, useState, useTransition, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
-import { updateAppearance } from "@/app/(app)/settings/actions";
+import { setThemeMode, updateAppearance } from "@/app/(app)/settings/actions";
 import { useCurrentUser } from "@/lib/auth";
-import type {
-  ThemeAccent,
-  ThemeBackgroundColor,
-  ThemeBackgroundGradient,
-  ThemeBackgroundPattern,
-} from "@/types/domain";
-import { Avatar, Button, useToast } from "@/components/ui";
-import {
-  ACCENT_PRESETS,
-  BACKGROUND_PRESETS,
-  GRADIENT_PRESETS,
-  PATTERN_PRESETS,
-  cn,
-  resolveProfileTheme,
-} from "@/lib/ui";
+import { SIGNATURE_HUES, type SignatureHue } from "@/types/domain";
+import { useToast } from "@/components/ui";
+import { Check } from "@/components/ui/icons";
+import { cn } from "@/lib/ui";
+import { THEME_MODES, type ThemeMode } from "@/lib/ui/themeMode";
 
 export interface AppearanceFormProps {
-  initialBgColor: ThemeBackgroundColor;
-  initialBgGradient: ThemeBackgroundGradient;
-  initialBgPattern: ThemeBackgroundPattern;
-  initialAccent: ThemeAccent;
-  name: string;
-  avatarUrl: string | null;
+  initialThemeMode: ThemeMode;
+  initialSignatureHue: SignatureHue | null;
 }
 
+const THEME_MODE_KEY: Record<ThemeMode, "themeSystem" | "themeLight" | "themeDark"> = {
+  system: "themeSystem",
+  light: "themeLight",
+  dark: "themeDark",
+};
+
+const SIGNATURE_HUE_KEY: Record<SignatureHue, "hueCurrent" | "hueReedGreen" | "hueDeepWaterBlue" | "hueSand"> = {
+  current: "hueCurrent",
+  "genre-turku": "hueReedGreen",
+  "genre-rap": "hueDeepWaterBlue",
+  "genre-arabesk": "hueSand",
+};
+
 /**
- * Settings → Appearance (spec §21/§25): background color, gradient, pattern
- * and accent — a curated set of presets only, never an open color field.
- * Every combination is AA-contrast-safe by construction
- * (`resolveProfileTheme`, `src/lib/ui/profileTheme.ts`), so there is no
- * "unreadable" pairing to guard against here.
+ * Settings → Appearance (COLOR_V2, QA `full2` defect #1's fix): theme mode
+ * (system/light/dark, `data-theme` on `<html>`, `src/app/layout.tsx`) plus
+ * an optional signature hue picked from the four fixed COLOR_V2 tints —
+ * never an open colour field, no gradients, no violet/plum, no cards
+ * (DESIGN.md §12): two rail-hung radiogroups, hairline-separated rows only.
+ * "Automatic" (`null`) leaves the signature trace to fall back to a
+ * tag-derived genre hue, same as before this feature existed
+ * (`deriveGenreHue`, `@/components/feed`).
  */
-export function AppearanceForm({
-  initialBgColor,
-  initialBgGradient,
-  initialBgPattern,
-  initialAccent,
-  name,
-  avatarUrl,
-}: AppearanceFormProps) {
+export function AppearanceForm({ initialThemeMode, initialSignatureHue }: AppearanceFormProps) {
+  const router = useRouter();
   const { refreshProfile } = useCurrentUser();
   const { toast } = useToast();
   const t = useTranslations("AppearanceForm");
-  const [bgColor, setBgColor] = useState(initialBgColor);
-  const [bgGradient, setBgGradient] = useState(initialBgGradient);
-  const [bgPattern, setBgPattern] = useState(initialBgPattern);
-  const [accent, setAccent] = useState(initialAccent);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [themeMode, setThemeModeState] = useState(initialThemeMode);
+  const [signatureHue, setSignatureHue] = useState(initialSignatureHue);
+  const [themePending, startThemeTransition] = useTransition();
+  const [huePending, startHueTransition] = useTransition();
 
-  const resolved = useMemo(
-    () =>
-      resolveProfileTheme({
-        backgroundColor: bgColor,
-        backgroundGradient: bgGradient,
-        backgroundPattern: bgPattern,
-        accent,
-      }),
-    [bgColor, bgGradient, bgPattern, accent],
-  );
-
-  const dirty =
-    bgColor !== initialBgColor ||
-    bgGradient !== initialBgGradient ||
-    bgPattern !== initialBgPattern ||
-    accent !== initialAccent;
-
-  function handleSave() {
-    setError(null);
-    startTransition(async () => {
-      const result = await updateAppearance({
-        bgColor,
-        bgGradient,
-        bgPattern,
-        accentColor: accent,
-      });
+  function handleThemeChange(next: ThemeMode) {
+    if (next === themeMode) return;
+    const previous = themeMode;
+    setThemeModeState(next);
+    startThemeTransition(async () => {
+      const result = await setThemeMode(next);
       if (!result.ok) {
-        setError(result.formError ?? t("saveErrorDefault"));
+        setThemeModeState(previous);
+        toast({ title: result.formError ?? t("saveErrorDefault"), tone: "error" });
+        return;
+      }
+      // The `data-theme` attribute is set server-side in the root layout
+      // from the cookie `setThemeMode` just wrote — refresh so this
+      // request's render picks it up immediately rather than on next nav.
+      router.refresh();
+      toast({ title: result.message ?? t("saved"), tone: "success" });
+    });
+  }
+
+  function handleHueChange(next: SignatureHue | null) {
+    if (next === signatureHue) return;
+    const previous = signatureHue;
+    setSignatureHue(next);
+    startHueTransition(async () => {
+      const result = await updateAppearance({ signatureHue: next });
+      if (!result.ok) {
+        setSignatureHue(previous);
+        toast({ title: result.formError ?? t("saveErrorDefault"), tone: "error" });
         return;
       }
       await refreshProfile();
@@ -90,147 +85,86 @@ export function AppearanceForm({
     });
   }
 
-  const bannerLayers = [resolved.gradient.css, resolved.pattern.backgroundImage].filter(
-    (layer): layer is string => layer !== null,
-  );
-
   return (
-    <div className="flex flex-col gap-6">
-      <section className="overflow-hidden rounded-xl border border-border bg-surface">
-        <div
-          aria-hidden="true"
-          style={{
-            backgroundColor: resolved.background.hex,
-            backgroundImage: bannerLayers.length > 0 ? bannerLayers.join(", ") : undefined,
-            backgroundSize: resolved.pattern.backgroundSize ?? undefined,
-          }}
-          className="h-24"
-        />
-        <div className="flex items-center gap-3 px-4 pt-0 pb-4">
-          <Avatar name={name} src={avatarUrl} size="lg" className="-mt-8 ring-4 ring-surface" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-fg">{name}</p>
-            <span
-              className="mt-1 inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium"
-              style={{ backgroundColor: resolved.accent.hex, color: resolved.accentForeground }}
-            >
-              {t("preview")}
-            </span>
-          </div>
+    <div className="flex flex-col gap-8">
+      <section className="flex flex-col gap-3">
+        <h2 className="type-caption text-ink-subtle">{t("themeLabel")}</h2>
+        <div role="radiogroup" aria-label={t("themeLabel")} className="flex flex-col">
+          {THEME_MODES.map((mode) => {
+            const selected = mode === themeMode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                disabled={themePending}
+                onClick={() => handleThemeChange(mode)}
+                className={cn(
+                  "flex h-12 items-center justify-between border-t border-hairline px-1 text-left type-body text-ink last:border-b last:border-hairline",
+                  "transition-colors duration-[--dur-micro]",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+                  selected && "bg-paper-sunk",
+                )}
+              >
+                {t(THEME_MODE_KEY[mode])}
+                {selected ? <Check className="size-4 text-tide" aria-hidden="true" /> : null}
+              </button>
+            );
+          })}
         </div>
       </section>
 
-      <PresetSection
-        label={t("backgroundLabel")}
-        presets={Object.values(BACKGROUND_PRESETS)}
-        value={bgColor}
-        onChange={(value) => setBgColor(value as ThemeBackgroundColor)}
-        swatch={(hex) => ({ backgroundColor: hex })}
-      />
-
-      <PresetSection
-        label={t("gradientLabel")}
-        presets={Object.values(GRADIENT_PRESETS).map((p) => ({ id: p.id, label: p.label, hex: "" }))}
-        value={bgGradient}
-        onChange={(value) => setBgGradient(value as ThemeBackgroundGradient)}
-        swatch={(_hex, id) => {
-          const preset = GRADIENT_PRESETS[id as ThemeBackgroundGradient];
-          return {
-            backgroundColor: resolved.background.hex,
-            backgroundImage: preset.css ?? undefined,
-          };
-        }}
-      />
-
-      <PresetSection
-        label={t("patternLabel")}
-        presets={Object.values(PATTERN_PRESETS).map((p) => ({ id: p.id, label: p.label, hex: "" }))}
-        value={bgPattern}
-        onChange={(value) => setBgPattern(value as ThemeBackgroundPattern)}
-        swatch={(_hex, id) => {
-          const preset = PATTERN_PRESETS[id as ThemeBackgroundPattern];
-          return {
-            backgroundColor: resolved.background.hex,
-            backgroundImage: preset.backgroundImage ?? undefined,
-            backgroundSize: preset.backgroundSize ?? undefined,
-          };
-        }}
-      />
-
-      <PresetSection
-        label={t("accentLabel")}
-        presets={Object.values(ACCENT_PRESETS)}
-        value={accent}
-        onChange={(value) => setAccent(value as ThemeAccent)}
-        swatch={(hex) => ({ backgroundColor: hex })}
-      />
-
-      {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-
-      <Button
-        type="button"
-        onClick={handleSave}
-        loading={isPending}
-        disabled={!dirty && !isPending}
-        className="self-start"
-      >
-        {t("saveAppearance")}
-      </Button>
-    </div>
-  );
-}
-
-interface PresetOption {
-  id: string;
-  label: string;
-  hex: string;
-}
-
-interface PresetSectionProps {
-  label: string;
-  presets: readonly PresetOption[];
-  value: string;
-  onChange: (value: string) => void;
-  swatch: (hex: string, id: string) => CSSProperties;
-}
-
-function PresetSection({ label, presets, value, onChange, swatch }: PresetSectionProps) {
-  return (
-    <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-5">
-      <h2 className="text-sm font-semibold text-fg">{label}</h2>
-      <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-3">
-        {presets.map((preset) => {
-          const selected = preset.id === value;
-          return (
-            <button
-              key={preset.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              aria-label={preset.label}
-              onClick={() => onChange(preset.id)}
-              className={cn(
-                "flex flex-col items-center gap-1.5 rounded-lg p-1.5 transition-colors",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-              )}
-            >
-              <span
-                aria-hidden="true"
-                style={swatch(preset.hex, preset.id)}
+      <section className="flex flex-col gap-3">
+        <h2 className="type-caption text-ink-subtle">{t("signatureHueLabel")}</h2>
+        <p className="type-caption text-ink-subtle">{t("signatureHueDescription")}</p>
+        <div role="radiogroup" aria-label={t("signatureHueLabel")} className="flex flex-col">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={signatureHue === null}
+            disabled={huePending}
+            onClick={() => handleHueChange(null)}
+            className={cn(
+              "flex h-14 items-center gap-4 border-t border-hairline px-1 text-left",
+              "transition-colors duration-[--dur-micro]",
+              "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+              signatureHue === null ? "bg-paper-sunk" : "hover:bg-paper-sunk/50",
+            )}
+          >
+            <span aria-hidden="true" className="size-3 shrink-0 rounded-full border border-hairline-strong" />
+            <span className="type-body flex-1 text-ink">{t("hueAutomatic")}</span>
+            {signatureHue === null ? <Check className="size-4 text-tide" aria-hidden="true" /> : null}
+          </button>
+          {SIGNATURE_HUES.map((hue) => {
+            const selected = hue === signatureHue;
+            return (
+              <button
+                key={hue}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                disabled={huePending}
+                onClick={() => handleHueChange(hue)}
                 className={cn(
-                  "size-9 rounded-full border-2",
-                  selected ? "border-accent" : "border-border-strong",
+                  "flex h-14 items-center gap-4 border-t border-hairline px-1 text-left last:border-b last:border-hairline",
+                  "transition-colors duration-[--dur-micro]",
+                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+                  selected ? "bg-paper-sunk" : "hover:bg-paper-sunk/50",
                 )}
-              />
-              <span className="text-[0.6875rem] text-fg-subtle">{preset.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </section>
+              >
+                <span
+                  aria-hidden="true"
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: `var(--akinti-hue-${hue})` }}
+                />
+                <span className="type-body flex-1 text-ink">{t(SIGNATURE_HUE_KEY[hue])}</span>
+                {selected ? <Check className="size-4 text-tide" aria-hidden="true" /> : null}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    </div>
   );
 }

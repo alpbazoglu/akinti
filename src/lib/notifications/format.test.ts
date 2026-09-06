@@ -12,7 +12,7 @@ const ACTOR: Profile = {
   bio: null,
   avatarUrl: null,
   privacy: "public",
-  theme: { backgroundColor: "ink", backgroundGradient: "none", backgroundPattern: "none", accent: "aqua" },
+  signatureHue: null,
   permissions: {
     duet: "everyone",
     message: "everyone",

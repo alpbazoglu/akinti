@@ -4,7 +4,6 @@ import {
   blockSchema,
   deleteAccountSchema,
   followSchema,
-  profileThemeSchema,
   respondToFollowRequestSchema,
   updateAccountSchema,
   updateAppearanceSchema,
@@ -100,19 +99,16 @@ describe("updatePrivacySchema", () => {
 });
 
 describe("updateAppearanceSchema", () => {
-  it("is the same shape as profileThemeSchema", () => {
-    const valid = { bg_color: "plum", bg_gradient: "dusk", bg_pattern: "rings", accent_color: "rose" };
-    expect(updateAppearanceSchema.safeParse(valid)).toEqual(profileThemeSchema.safeParse(valid));
+  it("accepts a curated signature hue", () => {
+    expect(updateAppearanceSchema.safeParse({ signature_hue: "genre-turku" }).success).toBe(true);
   });
 
-  it("rejects an uncurated background value", () => {
-    const result = updateAppearanceSchema.safeParse({
-      bg_color: "hotpink",
-      bg_gradient: "none",
-      bg_pattern: "none",
-      accent_color: "aqua",
-    });
-    expect(result.success).toBe(false);
+  it("accepts null (no explicit choice)", () => {
+    expect(updateAppearanceSchema.safeParse({ signature_hue: null }).success).toBe(true);
+  });
+
+  it("rejects an uncurated hue value", () => {
+    expect(updateAppearanceSchema.safeParse({ signature_hue: "violet" }).success).toBe(false);
   });
 });
 

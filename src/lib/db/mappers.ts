@@ -65,12 +65,7 @@ export function toProfile(row: ProfileRow): Profile {
     bio: row.bio,
     avatarUrl: row.avatar_url,
     privacy: row.privacy,
-    theme: {
-      backgroundColor: row.bg_color,
-      backgroundGradient: row.bg_gradient,
-      backgroundPattern: row.bg_pattern,
-      accent: row.accent_color,
-    },
+    signatureHue: row.signature_hue,
     permissions: {
       duet: row.duet_permission,
       message: row.message_permission,
@@ -251,6 +246,8 @@ export function toChallenge(row: ChallengeRow): Challenge {
     slug: row.slug,
     title: row.title,
     brief: row.brief,
+    titleTr: row.title_tr,
+    briefTr: row.brief_tr,
     hashtag: row.hashtag,
     startsAt: row.starts_at,
     endsAt: row.ends_at,

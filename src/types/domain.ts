@@ -36,10 +36,7 @@ import type {
   ReportStatus,
   ReportTargetType,
   ShareChannel,
-  ThemeAccent,
-  ThemeBackgroundColor,
-  ThemeBackgroundGradient,
-  ThemeBackgroundPattern,
+  SignatureHue,
   WaveCreationType,
   WaveVisibility,
 } from "./database";
@@ -70,10 +67,7 @@ export type {
   ReportStatus,
   ReportTargetType,
   ShareChannel,
-  ThemeAccent,
-  ThemeBackgroundColor,
-  ThemeBackgroundGradient,
-  ThemeBackgroundPattern,
+  SignatureHue,
   WaveCreationType,
   WaveVisibility,
 };
@@ -90,24 +84,22 @@ export const BACKING_TRACK_LICENSES = ["cc0", "cc_by", "owner_upload"] as const;
 /** Prompts & challenges (PRODUCT_V2 §4). `draft` is moderator/author-only. */
 export const CHALLENGE_STATUSES = ["draft", "live", "closed"] as const;
 export const CONTENT_ORIGINS = ["original", "cover", "licensed", "unknown"] as const;
-export const THEME_BACKGROUND_COLORS = ["ink", "slate", "sand", "mist", "plum", "forest"] as const;
-export const THEME_BACKGROUND_GRADIENTS = [
-  "none",
-  "dawn",
-  "dusk",
-  "tide",
-  "ember",
-  "aurora",
-] as const;
-export const THEME_BACKGROUND_PATTERNS = [
-  "none",
-  "waves",
-  "dots",
-  "grid",
-  "noise",
-  "rings",
-] as const;
-export const THEME_ACCENTS = ["aqua", "violet", "amber", "rose", "emerald", "slate"] as const;
+/**
+ * Signature hue presets (`docs/design/COLOR_V2.md` "Colour by mode and
+ * genre" / "Profile signature trace"): a curated set of four fixed hues
+ * already used elsewhere in the colour system, never an open colour field.
+ * Drives the profile signature trace and, where set, the creator's WaveCard
+ * hue (`src/app/(app)/u/[username]/page.tsx`). Replaces the former
+ * background/gradient/pattern/accent preset system (QA `full2` defect #1),
+ * which violated COLOR_V2 (violet/plum/gradients) and had no visible effect
+ * anywhere.
+ */
+export const SIGNATURE_HUES = [
+  "current",
+  "genre-turku",
+  "genre-rap",
+  "genre-arabesk",
+] as const satisfies readonly SignatureHue[];
 export const AUDIO_ENHANCEMENT_PRESETS = [
   "natural",
   "studio",
@@ -142,13 +134,6 @@ export const NOTIFICATION_CATEGORIES = ["message", "duet", "comment", "follower"
 /* Profile                                                                   */
 /* ------------------------------------------------------------------------ */
 
-export interface ProfileTheme {
-  backgroundColor: ThemeBackgroundColor;
-  backgroundGradient: ThemeBackgroundGradient;
-  backgroundPattern: ThemeBackgroundPattern;
-  accent: ThemeAccent;
-}
-
 export interface ProfilePermissions {
   duet: PermissionAudience;
   message: PermissionAudience;
@@ -169,7 +154,10 @@ export interface Profile {
   bio: string | null;
   avatarUrl: string | null;
   privacy: ProfilePrivacy;
-  theme: ProfileTheme;
+  /** The user's chosen signature hue (`null` = no explicit choice; draws the
+   *  plain current, or falls back to a tag-derived genre hue where one
+   *  applies). See `SIGNATURE_HUES` above. */
+  signatureHue: SignatureHue | null;
   permissions: ProfilePermissions;
   interests: string[];
   onboardedAt: string | null;
@@ -375,8 +363,13 @@ export interface BackingTrack {
 export interface Challenge {
   id: string;
   slug: string;
+  /** English (default/fallback). Use `localizeChallenge` (`@/lib/db/challenges`) to render by request locale. */
   title: string;
   brief: string;
+  /** Turkish title, or `null` to fall back to `title`. */
+  titleTr: string | null;
+  /** Turkish brief, or `null` to fall back to `brief`. */
+  briefTr: string | null;
   /** Stored without a leading '#'. */
   hashtag: string;
   startsAt: string;

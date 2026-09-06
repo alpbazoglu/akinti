@@ -159,9 +159,18 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const signature = canSeeContent
     ? composeSignature(waveCards.slice(0, SIGNATURE_SOURCE_LIMIT).map((card) => card.peaks))
     : [];
-  const signatureHue = canSeeContent
+  // The creator's own choice (Settings → Appearance, COLOR_V2 "Profile
+  // signature trace") wins outright; otherwise fall back to the tag-derived
+  // genre hue, same as before that setting existed.
+  const derivedHue = canSeeContent
     ? deriveGenreHue(waveTagLists.slice(0, SIGNATURE_SOURCE_LIMIT))
     : undefined;
+  const signatureHue = profile.signatureHue ?? derivedHue;
+
+  // Same resolved hue drives this creator's own WaveCard trace, everywhere
+  // on their profile (their Waves tab and their Duets tab alike).
+  const waveCardsWithHue = waveCards.map((card) => ({ ...card, hue: signatureHue }));
+  const duetCardsWithHue = duetCards.map((card) => ({ ...card, hue: signatureHue }));
 
   return (
     <>
@@ -179,7 +188,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
         }}
       />
       {canSeeContent ? (
-        <ProfileTabs waves={waveCards} duets={duetCards} isSelf={isSelf} username={profile.username} />
+        <ProfileTabs waves={waveCardsWithHue} duets={duetCardsWithHue} isSelf={isSelf} username={profile.username} />
       ) : (
         <LockedContent username={profile.username} requested={followStatus === "pending"} />
       )}

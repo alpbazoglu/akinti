@@ -11,7 +11,7 @@ const PROFILE: Profile = {
   bio: "Singer, songwriter.",
   avatarUrl: null,
   privacy: "public",
-  theme: { backgroundColor: "ink", backgroundGradient: "none", backgroundPattern: "none", accent: "aqua" },
+  signatureHue: null,
   permissions: { duet: "everyone", message: "everyone", comment: "everyone", defaultWaveVisibility: "everyone" },
   interests: ["Singing", "Songwriting"],
   onboardedAt: "2026-01-01T00:00:00.000Z",
