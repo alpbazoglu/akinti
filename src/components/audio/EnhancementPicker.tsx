@@ -20,6 +20,24 @@ import {
 } from "@/lib/audio";
 import { cn } from "@/lib/ui";
 
+/**
+ * Translated parallel to `ENHANCEMENT_PRESETS`'s English `label`/`description`
+ * (`@/lib/audio`, English-only per that module's own header comment — a
+ * plain module-level constant evaluated at import time, before any
+ * per-request locale exists). Mirrors `DuetModePicker.tsx`'s
+ * `MODE_DESCRIPTION_KEY` convention: the id list stays the single source of
+ * truth for ordering and identity, this only maps each id to its message key
+ * under the `EnhancementPresets` namespace.
+ */
+const PRESET_MESSAGE_KEY = {
+  natural: { label: "labelNatural", description: "descriptionNatural" },
+  studio: { label: "labelStudio", description: "descriptionStudio" },
+  clear_voice: { label: "labelClearVoice", description: "descriptionClearVoice" },
+  warm: { label: "labelWarm", description: "descriptionWarm" },
+  deep: { label: "labelDeep", description: "descriptionDeep" },
+  atmospheric: { label: "labelAtmospheric", description: "descriptionAtmospheric" },
+} as const satisfies Record<EnhancementPresetId, { label: string; description: string }>;
+
 export interface EnhancementPickerProps {
   blob: Blob;
   preset: EnhancementPresetId;
@@ -57,6 +75,7 @@ export function EnhancementPicker({
   className,
 }: EnhancementPickerProps) {
   const t = useTranslations("EnhancementPicker");
+  const tPresets = useTranslations("EnhancementPresets");
   const store = usePlaybackStore();
   const reactId = useId();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -222,8 +241,10 @@ export function EnhancementPicker({
                   selected ? "border-ink bg-ink" : "border-hairline-strong",
                 )}
               />
-              <span className="type-subhead min-w-28 text-ink">{item.label}</span>
-              <span className="type-caption truncate text-ink-subtle">{item.description}</span>
+              <span className="type-subhead min-w-28 text-ink">{tPresets(PRESET_MESSAGE_KEY[item.id].label)}</span>
+              <span className="type-caption truncate text-ink-subtle">
+                {tPresets(PRESET_MESSAGE_KEY[item.id].description)}
+              </span>
             </button>
           );
         })}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { TriangleAlert } from "@/components/ui/icons";
 
 import { getSharedWaveCard } from "@/app/(app)/messages/actions";
@@ -23,6 +24,7 @@ export interface WaveShareCardProps {
  * Wave they aren't otherwise allowed to see (spec §14).
  */
 export function WaveShareCard({ waveId }: WaveShareCardProps) {
+  const tTerms = useTranslations("Terms");
   const [state, setState] = useState<
     { status: "loading" } | { status: "error"; message: string } | { status: "ready"; wave: Wave; creator: Profile | null }
   >({ status: "loading" });
@@ -75,7 +77,7 @@ export function WaveShareCard({ waveId }: WaveShareCardProps) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-fg">{wave.title}</p>
         <p className="truncate text-xs text-fg-muted">
-          {creatorName} · {creationMeta.glyph} {creationMeta.label}
+          {creatorName} · {creationMeta.glyph} {tTerms(creationMeta.id)}
         </p>
       </div>
     </Link>

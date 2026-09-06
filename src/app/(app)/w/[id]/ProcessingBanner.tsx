@@ -17,13 +17,34 @@
  */
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { getProcessingErrorMessage } from "@/config/terminology";
+import type { ProcessingErrorCode } from "@/config/terminology";
 import type { AudioProcessingStatus } from "@/types/domain";
 import { cn } from "@/lib/ui";
 
 const POLL_INTERVAL_MS = 4000;
+
+/**
+ * Translated parallel to `getProcessingErrorMessage`'s English default map
+ * (`@/config/terminology`, kept English-only there — a handful of other
+ * call sites/tests still read the untranslated original directly). Same
+ * code list, resolved here against the `ProcessingErrors` namespace instead.
+ */
+const PROCESSING_ERROR_KEY = {
+  enhancement_failed: "enhancementFailed",
+  decode_failed: "decodeFailed",
+  silent_audio: "silentAudio",
+} as const satisfies Record<ProcessingErrorCode, string>;
+
+function translateProcessingError(
+  code: string | null | undefined,
+  t: (key: "enhancementFailed" | "decodeFailed" | "silentAudio") => string,
+): string {
+  const key = code && code in PROCESSING_ERROR_KEY ? PROCESSING_ERROR_KEY[code as ProcessingErrorCode] : null;
+  return t(key ?? "enhancementFailed");
+}
 
 export interface ProcessingBannerProps {
   assetId: string;
@@ -32,6 +53,8 @@ export interface ProcessingBannerProps {
 }
 
 export function ProcessingBanner({ assetId, initialStatus, initialError = null }: ProcessingBannerProps) {
+  const t = useTranslations("ProcessingBanner");
+  const tErrors = useTranslations("ProcessingErrors");
   const [status, setStatus] = useState<AudioProcessingStatus>(initialStatus);
   const [error, setError] = useState<string | null>(initialError);
 
@@ -80,9 +103,7 @@ export function ProcessingBanner({ assetId, initialStatus, initialError = null }
         isFailed ? "text-signal-deep" : "text-ink-muted",
       )}
     >
-      {isFailed
-        ? getProcessingErrorMessage(error)
-        : "Still working on the polished version. You are hearing the original, and the trace will sharpen when it lands."}
+      {isFailed ? translateProcessingError(error, tErrors) : t("stillWorking")}
     </p>
   );
 }

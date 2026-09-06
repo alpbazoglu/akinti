@@ -170,7 +170,7 @@ export function WaveCard({
           </div>
 
           <div className="flex">
-            <Badge>{creationType.label}</Badge>
+            <Badge>{tTerms(creationType.id)}</Badge>
           </div>
         </div>
 

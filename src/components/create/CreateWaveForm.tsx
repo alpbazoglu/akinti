@@ -158,7 +158,7 @@ export function CreateWaveForm({
       <div className="flex flex-col gap-3 border-b border-hairline pb-4">
         <TakeStrip blob={audio.blob} peaks={audio.previewPeaks} durationMs={audio.durationMs} />
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{creationMeta.label}</Badge>
+          <Badge>{tTerms(creationMeta.id)}</Badge>
           {backingTrackTitle ? <Badge>{t("over", { title: backingTrackTitle })}</Badge> : null}
         </div>
       </div>

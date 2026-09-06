@@ -7,7 +7,6 @@ import { useMemo } from "react";
 import { genreHueForTag } from "@/components/feed";
 import { Avatar } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { CREATION_TYPES } from "@/config/terminology";
 import { formatDuration } from "@/lib/ui";
 
 import { FlowRail } from "./FlowRail";
@@ -57,9 +56,10 @@ export function FlowWaveView({
   onDuet,
 }: FlowWaveViewProps) {
   const t = useTranslations("FlowWaveView");
+  const tTerms = useTranslations("Terms");
   const hue = useMemo(() => flowTraceHue(wave, genreHueForTag), [wave]);
   const creatorName = wave.creator.displayName ?? wave.creator.username;
-  const modeLabel = wave.creationType === "duet" ? CREATION_TYPES.duet.label : wave.genre ?? CREATION_TYPES[wave.creationType].label;
+  const modeLabel = wave.creationType === "duet" ? tTerms("duet") : wave.genre ?? tTerms(wave.creationType);
   const state = isActive && isPlaying ? "playing" : "unplayed";
   const progress = duration > 0 ? Math.min(1, currentTime / duration) : 0;
 

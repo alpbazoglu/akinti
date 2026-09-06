@@ -181,7 +181,7 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
           </p>
           <p className="type-caption flex items-center gap-2 text-ink-subtle">
             <time dateTime={wave.publishedAt}>{formatAbsoluteTime(wave.publishedAt)}</time>
-            <Badge>{creationType.label}</Badge>
+            <Badge>{tTerms(creationType.id)}</Badge>
           </p>
         </div>
       </div>

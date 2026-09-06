@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui";
 import { routes } from "@/config/routes";
@@ -28,6 +29,7 @@ function secondaryLine(wave: CreatorWavePerformance): string | null {
  * rather than faked.
  */
 export function WavePerformanceTable({ waves }: WavePerformanceTableProps) {
+  const tTerms = useTranslations("Terms");
   return (
     <ul className="flex flex-col">
       {waves.map((wave) => {
@@ -42,7 +44,7 @@ export function WavePerformanceTable({ waves }: WavePerformanceTableProps) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="type-body truncate text-ink">{wave.title}</span>
-                  <Badge className="shrink-0">{creationType.label}</Badge>
+                  <Badge className="shrink-0">{tTerms(creationType.id)}</Badge>
                 </div>
                 {secondary ? <p className="type-caption mt-0.5 text-ink-subtle">{secondary}</p> : null}
               </div>

@@ -1581,5 +1581,33 @@
     "sessionExpired": "Your session has expired. Sign in again to continue.",
     "usernameTaken": "That username is taken.",
     "saveFailed": "Could not save your details. Try again."
+  },
+  "EnhancementPresets": {
+    "labelNatural": "Natural",
+    "labelStudio": "Studio",
+    "labelClearVoice": "Clear voice",
+    "labelWarm": "Warm",
+    "labelDeep": "Deep",
+    "labelAtmospheric": "Atmospheric",
+    "descriptionNatural": "Sounds like you, just leveled",
+    "descriptionStudio": "Fuller, wider",
+    "descriptionClearVoice": "Speech forward",
+    "descriptionWarm": "Softer highs",
+    "descriptionDeep": "Low and rich",
+    "descriptionAtmospheric": "Room around the voice"
+  },
+  "ProEnhancementPresets": {
+    "labelPitchSnap": "Pitch snap",
+    "labelSelfHarmony": "Self-harmony",
+    "descriptionPitchSnap": "Vocal locked to key",
+    "descriptionSelfHarmony": "You, in two voices"
+  },
+  "ProcessingErrors": {
+    "enhancementFailed": "The polished version didn't finish. The original is what you are hearing.",
+    "decodeFailed": "This file couldn't be read as audio. The original upload is still what you are hearing.",
+    "silentAudio": "No sound was detected in this recording, so it couldn't be polished."
+  },
+  "ProcessingBanner": {
+    "stillWorking": "Still working on the polished version. You are hearing the original, and the trace will sharpen when it lands."
   }
 }

@@ -21,6 +21,16 @@ import {
 import { useReducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/ui";
 
+/**
+ * Translated parallel to `PRO_ENHANCEMENT_PRESETS`'s English `label`/
+ * `description` (`@/lib/audio`, English-only — same reasoning as
+ * `EnhancementPicker.tsx`'s `PRESET_MESSAGE_KEY`).
+ */
+const PRO_PRESET_MESSAGE_KEY = {
+  pitch_snap: { label: "labelPitchSnap", description: "descriptionPitchSnap" },
+  self_harmony: { label: "labelSelfHarmony", description: "descriptionSelfHarmony" },
+} as const satisfies Record<ProEnhancementPresetId, { label: string; description: string }>;
+
 export interface EnhanceStageProps {
   blob: Blob;
   /** The take's real peaks, from the local decode. */
@@ -62,6 +72,7 @@ export function EnhanceStage({
   className,
 }: EnhanceStageProps) {
   const t = useTranslations("EnhanceStage");
+  const tProPresets = useTranslations("ProEnhancementPresets");
   const reducedMotion = useReducedMotion();
   const decodedRef = useRef<AudioBuffer | null>(null);
   const morphTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -189,7 +200,9 @@ export function EnhanceStage({
               role="radio"
               aria-checked={selected}
               disabled={proStatusLoading}
-              onClick={() => (isPro ? onPresetChange(item.id) : setProGateFeature(item.label))}
+              onClick={() =>
+                isPro ? onPresetChange(item.id) : setProGateFeature(tProPresets(PRO_PRESET_MESSAGE_KEY[item.id].label))
+              }
               className={cn(
                 "flex h-14 items-center gap-4 border-t border-hairline px-3 text-left",
                 "transition-colors duration-[--dur-micro]",
@@ -204,8 +217,12 @@ export function EnhanceStage({
                   selected ? "border-ink bg-ink" : "border-hairline-strong",
                 )}
               />
-              <span className="type-subhead min-w-28 text-ink">{item.label}</span>
-              <span className="type-caption truncate text-ink-subtle">{item.description}</span>
+              <span className="type-subhead min-w-28 text-ink">
+                {tProPresets(PRO_PRESET_MESSAGE_KEY[item.id].label)}
+              </span>
+              <span className="type-caption truncate text-ink-subtle">
+                {tProPresets(PRO_PRESET_MESSAGE_KEY[item.id].description)}
+              </span>
               <span className="type-caption ml-auto shrink-0 text-ink-subtle">{t("pro")}</span>
             </button>
           );

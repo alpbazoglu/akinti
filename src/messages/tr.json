@@ -1581,5 +1581,33 @@
     "sessionExpired": "Oturumunuzun süresi doldu. Devam etmek için tekrar giriş yapın.",
     "usernameTaken": "Bu kullanıcı adı alınmış.",
     "saveFailed": "Bilgileriniz kaydedilemedi. Tekrar deneyin."
+  },
+  "EnhancementPresets": {
+    "labelNatural": "Doğal",
+    "labelStudio": "Stüdyo",
+    "labelClearVoice": "Net ses",
+    "labelWarm": "Sıcak",
+    "labelDeep": "Derin",
+    "labelAtmospheric": "Atmosferik",
+    "descriptionNatural": "Sen gibi, sadece dengeli",
+    "descriptionStudio": "Daha dolgun, daha geniş",
+    "descriptionClearVoice": "Konuşma öne çıkar",
+    "descriptionWarm": "Daha yumuşak tizler",
+    "descriptionDeep": "Derin ve zengin",
+    "descriptionAtmospheric": "Ses etrafında oda hissi"
+  },
+  "ProEnhancementPresets": {
+    "labelPitchSnap": "Perde kilidi",
+    "labelSelfHarmony": "Kendi armonin",
+    "descriptionPitchSnap": "Vokal tona kilitlendi",
+    "descriptionSelfHarmony": "Sen, iki seste"
+  },
+  "ProcessingErrors": {
+    "enhancementFailed": "Cilalı sürüm tamamlanamadı. Duyduğunuz orijinal kayıt.",
+    "decodeFailed": "Bu dosya ses olarak okunamadı. Duyduğunuz hâlâ orijinal yükleme.",
+    "silentAudio": "Bu kayıtta ses algılanmadı, bu yüzden cilalanamadı."
+  },
+  "ProcessingBanner": {
+    "stillWorking": "Cilalı sürüm üzerinde hâlâ çalışılıyor. Şu an orijinali duyuyorsunuz, iz hazır olduğunda netleşecek."
   }
 }
