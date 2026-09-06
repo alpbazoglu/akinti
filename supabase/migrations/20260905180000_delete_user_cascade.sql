@@ -35,6 +35,18 @@
 -- deletes the message with it. `messages.sender_id` (`on delete cascade`)
 -- and `messages.conversation_id` (`on delete cascade`) are untouched — they
 -- already cascade correctly and were never the source of this bug.
+--
+-- review3 finding 32 — this cascade also fires on an ORDINARY delete, not
+-- just account deletion: `deleteWaveDetails` (`w/[id]/actions.ts`) deletes
+-- one of your own Waves, and if someone else shared that Wave into a
+-- conversation with you (`kind = 'wave_share'`), or a Duet request pointing
+-- at it still exists, that other person's message is now silently removed
+-- from their conversation too, with no notice on either side — the analysis
+-- above only reasoned about the account-deletion case. Left as-is
+-- deliberately (a tombstone row reads better but needs
+-- `messages_payload_matches_kind` relaxed to allow a null payload, which is
+-- a different, larger change than this bug fix); documented here and in
+-- docs/DATABASE.md so the next reader doesn't rediscover it.
 alter table public.messages drop constraint messages_audio_asset_id_fkey;
 alter table public.messages drop constraint messages_shared_wave_id_fkey;
 alter table public.messages drop constraint messages_duet_request_id_fkey;
