@@ -1,8 +1,11 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 
 import { getCurrentUser } from "@/lib/auth/server";
+import { cancelSubscriptionForUser } from "@/lib/billing";
+import { getLatestSubscriptionForUser } from "@/lib/billing/repository";
 import type { AuthActionResult } from "@/lib/auth/types";
 import { fieldErrorsFromZod } from "@/lib/auth/types";
 import { unblockProfile } from "@/lib/db/blocks";
@@ -28,6 +31,7 @@ import {
   updateAvatarSchema,
   updatePrivacySchema,
 } from "@/lib/validation/profiles";
+import { translateFieldErrors, type MessageTranslator } from "@/lib/validation/translate";
 
 /**
  * Settings Server Actions (spec §25). Every action here validates with Zod,
@@ -41,11 +45,12 @@ import {
 async function requireSignedInUser() {
   const user = await getCurrentUser();
   if (!user) {
+    const t = await getTranslations("Common");
     return {
       user: null,
       result: {
         ok: false,
-        formError: "Your session has expired. Sign in again to continue.",
+        formError: t("sessionExpired"),
       } satisfies AuthActionResult,
     };
   }
@@ -69,25 +74,27 @@ export async function updateAccount(input: UpdateAccountFormInput): Promise<Auth
     bio: input.bio,
   });
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    const t = (await getTranslations()) as MessageTranslator;
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
+  const t = (await getTranslations()) as MessageTranslator;
 
   if (!(await isUsernameAvailable(supabase, parsed.data.username, user.id))) {
-    return { ok: false, fieldErrors: { username: "That username is taken." } };
+    return { ok: false, fieldErrors: { username: t("Common.usernameTaken") } };
   }
 
   try {
     await updateProfile(supabase, user.id, parsed.data);
   } catch (error) {
     if (error instanceof DatabaseError && error.code === "23505") {
-      return { ok: false, fieldErrors: { username: "That username is taken." } };
+      return { ok: false, fieldErrors: { username: t("Common.usernameTaken") } };
     }
-    return { ok: false, formError: "Could not save your changes. Try again." };
+    return { ok: false, formError: t("SettingsActions.saveFailed") };
   }
 
-  return { ok: true, message: "Account details saved." };
+  return { ok: true, message: t("SettingsActions.accountSaved") };
 }
 
 /** Settings → Account: avatar. `avatarUrl` is already a public URL in the `avatars` bucket
@@ -98,18 +105,19 @@ export async function updateAvatar(avatarUrl: string): Promise<AuthActionResult>
   if (!user) return result!;
 
   const parsed = updateAvatarSchema.safeParse({ avatar_url: avatarUrl });
+  const t = await getTranslations("SettingsActions");
   if (!parsed.success) {
-    return { ok: false, formError: "That image could not be saved. Try again." };
+    return { ok: false, formError: t("avatarInvalid") };
   }
 
   const supabase = await createServerSupabaseClient();
   try {
     await updateProfile(supabase, user.id, parsed.data);
   } catch {
-    return { ok: false, formError: "Could not save your new photo. Try again." };
+    return { ok: false, formError: t("avatarSaveFailed") };
   }
 
-  return { ok: true, message: "Profile photo updated." };
+  return { ok: true, message: t("avatarSaved") };
 }
 
 export interface UpdatePrivacyFormInput {
@@ -133,19 +141,21 @@ export async function updatePrivacy(input: UpdatePrivacyFormInput): Promise<Auth
     default_wave_visibility: input.defaultWaveVisibility,
   });
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    const t = (await getTranslations()) as MessageTranslator;
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
+  const t = await getTranslations("SettingsActions");
   try {
     // Switching to private keeps existing followers (spec §25) — this is a
     // plain column update; `follows` rows are untouched either direction.
     await updateProfile(supabase, user.id, parsed.data);
   } catch {
-    return { ok: false, formError: "Could not save your privacy settings. Try again." };
+    return { ok: false, formError: t("privacySaveFailed") };
   }
 
-  return { ok: true, message: "Privacy settings saved." };
+  return { ok: true, message: t("privacySaved") };
 }
 
 export interface UpdateAppearanceFormInput {
@@ -167,17 +177,19 @@ export async function updateAppearance(input: UpdateAppearanceFormInput): Promis
     accent_color: input.accentColor,
   });
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    const t = (await getTranslations()) as MessageTranslator;
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
+  const t = await getTranslations("SettingsActions");
   try {
     await updateProfile(supabase, user.id, parsed.data);
   } catch {
-    return { ok: false, formError: "Could not save your appearance settings. Try again." };
+    return { ok: false, formError: t("appearanceSaveFailed") };
   }
 
-  return { ok: true, message: "Appearance saved." };
+  return { ok: true, message: t("appearanceSaved") };
 }
 
 /**
@@ -191,7 +203,8 @@ export async function updateAppearance(input: UpdateAppearanceFormInput): Promis
  */
 export async function setLocale(locale: AppLocale): Promise<AuthActionResult> {
   if (!isAppLocale(locale)) {
-    return { ok: false, formError: "That language isn't available." };
+    const t = await getTranslations("SettingsActions");
+    return { ok: false, formError: t("localeInvalid") };
   }
 
   const store = await cookies();
@@ -200,6 +213,11 @@ export async function setLocale(locale: AppLocale): Promise<AuthActionResult> {
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",
   });
+
+  // Resolved AFTER the cookie write, from `locale` (not the request's prior
+  // locale) — a language switch should confirm in the language just chosen,
+  // not the one being left.
+  const t = await getTranslations({ locale, namespace: "SettingsActions" });
 
   const user = await getCurrentUser();
   if (user && isSupabaseConfigured()) {
@@ -210,11 +228,11 @@ export async function setLocale(locale: AppLocale): Promise<AuthActionResult> {
       // The cookie is already set, so the UI still switches language even if
       // the profile write fails — it just won't follow this account to
       // another device until it succeeds on a later attempt.
-      return { ok: true, message: "Language updated on this device." };
+      return { ok: true, message: t("localeSavedDeviceOnly") };
     }
   }
 
-  return { ok: true, message: "Language updated." };
+  return { ok: true, message: t("localeSaved") };
 }
 
 /** Settings → Safety: unblock. Deleting the `blocks` row does not restore any severed follow. */
@@ -224,17 +242,19 @@ export async function unblockUser(blockedId: string): Promise<AuthActionResult> 
 
   const parsed = uuidSchema.safeParse(blockedId);
   if (!parsed.success) {
-    return { ok: false, formError: "That account could not be found." };
+    const t = await getTranslations("SettingsActions");
+    return { ok: false, formError: t("accountNotFound") };
   }
 
   const supabase = await createServerSupabaseClient();
+  const t = await getTranslations("Common");
   try {
     await unblockProfile(supabase, user.id, parsed.data);
   } catch {
-    return { ok: false, formError: "Could not unblock this account. Try again." };
+    return { ok: false, formError: t("unblockFailed") };
   }
 
-  return { ok: true, message: "Account unblocked." };
+  return { ok: true, message: t("accountUnblocked") };
 }
 
 export interface UpdateNotificationPreferencesFormInput {
@@ -258,18 +278,19 @@ export async function updateNotificationPreferences(
   if (!user) return result!;
 
   const parsed = notificationPreferencesSchema.safeParse(input);
+  const t = await getTranslations("SettingsActions");
   if (!parsed.success) {
-    return { ok: false, formError: "Could not save your notification preferences." };
+    return { ok: false, formError: t("notifPrefsInvalid") };
   }
 
   const supabase = await createServerSupabaseClient();
   try {
     await updateNotificationPreferencesDb(supabase, user.id, parsed.data);
   } catch {
-    return { ok: false, formError: "Could not save your notification preferences. Try again." };
+    return { ok: false, formError: t("notifPrefsSaveFailed") };
   }
 
-  return { ok: true, message: "Notification preferences saved." };
+  return { ok: true, message: t("notifPrefsSaved") };
 }
 
 export interface ExportAccountDataResult extends AuthActionResult {
@@ -291,11 +312,12 @@ export async function exportAccountData(): Promise<ExportAccountDataResult> {
   if (!user) return result!;
 
   const supabase = await createServerSupabaseClient();
+  const t = await getTranslations("SettingsActions");
 
   try {
     const profile = await getProfileById(supabase, user.id);
     if (!profile) {
-      return { ok: false, formError: "Your account could not be found." };
+      return { ok: false, formError: t("profileNotFound") };
     }
 
     const [wavesResult, commentsResult] = await Promise.all([
@@ -321,7 +343,7 @@ export async function exportAccountData(): Promise<ExportAccountDataResult> {
     const data = serializeAccountDataExport({ profile, waves, comments });
     return { ok: true, data };
   } catch {
-    return { ok: false, formError: "Could not prepare your data export. Try again." };
+    return { ok: false, formError: t("exportFailed") };
   }
 }
 
@@ -361,17 +383,38 @@ export async function deleteAccount(input: DeleteAccountFormInput): Promise<Auth
   if (!user) return result!;
 
   const parsed = deleteAccountSchema.safeParse({ confirmHandle: input.confirmHandle });
+  const t = await getTranslations("SettingsActions");
   if (!parsed.success) {
-    return { ok: false, fieldErrors: { confirmHandle: "Type your handle to confirm." } };
+    return { ok: false, fieldErrors: { confirmHandle: t("handleConfirmRequired") } };
   }
 
   const supabase = await createServerSupabaseClient();
   const profile = await getProfileById(supabase, user.id);
   if (!profile || parsed.data.confirmHandle !== profile.username) {
-    return { ok: false, fieldErrors: { confirmHandle: "That doesn't match your handle." } };
+    return { ok: false, fieldErrors: { confirmHandle: t("handleMismatch") } };
   }
 
   const admin = createAdminClient();
+
+  // AKINTI Pro must be cancelled at the provider before the account is
+  // deleted (review3 finding 6): `subscriptions.user_id` is `on delete
+  // cascade`, so once the auth user is gone the local record linking a
+  // still-charging subscription to a person disappears with it. Same
+  // "refuse rather than partially delete" shape as the storage cleanup
+  // below — nobody is ever deleted while still being billed.
+  const activeSubscription = await getLatestSubscriptionForUser(admin, user.id);
+  if (
+    activeSubscription &&
+    activeSubscription.status !== "canceled" &&
+    activeSubscription.status !== "expired"
+  ) {
+    try {
+      await cancelSubscriptionForUser(admin, user.id);
+    } catch (err) {
+      console.error("[settings/actions] subscription cancel before account delete failed:", err);
+      return { ok: false, formError: t("deleteAccountFailed") };
+    }
+  }
 
   try {
     await Promise.all([
@@ -380,14 +423,14 @@ export async function deleteAccount(input: DeleteAccountFormInput): Promise<Auth
     ]);
   } catch (err) {
     console.error("[settings/actions] storage cleanup before account delete failed:", err);
-    return { ok: false, formError: "Could not delete your account. Try again." };
+    return { ok: false, formError: t("deleteAccountFailed") };
   }
 
   try {
     const { error } = await admin.auth.admin.deleteUser(user.id);
     if (error) throw error;
   } catch {
-    return { ok: false, formError: "Could not delete your account. Try again." };
+    return { ok: false, formError: t("deleteAccountFailed") };
   }
 
   return { ok: true, redirectTo: routes.login() };
