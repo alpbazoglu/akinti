@@ -1,7 +1,8 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { BackingTracksLane, type BackingTrackCard } from "@/components/feed";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { requireOnboarded } from "@/lib/auth/server";
 import { resolveWavePeaks } from "@/lib/audio/peaks";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
@@ -9,7 +10,10 @@ import { listBackingTracks } from "@/lib/db/backingTracks";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient, type SupabaseServerClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Tracks" };
+export async function generateMetadata() {
+  const t = await getTranslations("TracksPage");
+  return { title: t("title") };
+}
 
 const PAGE_SIZE = 50;
 
@@ -25,13 +29,15 @@ const PAGE_SIZE = 50;
  */
 export default async function TracksPage() {
   await requireOnboarded(routes.tracks());
+  const t = await getTranslations("TracksPage");
+  const tTerms = await getTranslations("Terms");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="Tracks" />
+        <PageHeader title={t("title")} />
         <p className="akinti-page type-body measure text-ink-muted">
-          The track library isn&apos;t reachable from this build.
+          {t("unreachable")}
         </p>
       </>
     );
@@ -49,18 +55,17 @@ export default async function TracksPage() {
 
   return (
     <>
-      <PageHeader title="Tracks" />
+      <PageHeader title={t("title")} />
 
       {loadError ? (
         <p className="akinti-page type-body measure text-ink-muted">
-          Couldn&apos;t load the track library. Try again in a moment.
+          {t("loadError")}
         </p>
       ) : tracks.length === 0 ? (
         <div className="akinti-page flex flex-col items-start gap-3">
-          <p className="type-body measure text-ink">No tracks are open for vocals yet.</p>
+          <p className="type-body measure text-ink">{t("emptyTitle")}</p>
           <p className="type-body-sm measure text-ink-muted">
-            You can still {TERMS.record.toLowerCase()} without one, or upload your own instrumental
-            from {TERMS.create}.
+            {t("emptyDescription", { record: tTerms("record").toLowerCase(), create: tTerms("create") })}
           </p>
         </div>
       ) : (

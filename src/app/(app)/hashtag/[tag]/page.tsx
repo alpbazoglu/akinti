@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -36,7 +37,9 @@ export async function generateMetadata({ params }: HashtagPageProps) {
   const { tag: rawTag } = await params;
   const decoded = decodeTagParam(rawTag);
   const parsed = decoded ? listWavesByHashtagSchema.shape.tag.safeParse(decoded) : null;
-  return { title: parsed?.success ? `#${parsed.data}` : "Hashtag" };
+  if (parsed?.success) return { title: `#${parsed.data}` };
+  const t = await getTranslations("HashtagPage");
+  return { title: t("fallbackTitle") };
 }
 
 /**
@@ -61,6 +64,7 @@ export async function generateMetadata({ params }: HashtagPageProps) {
 export default async function HashtagPage({ params, searchParams }: HashtagPageProps) {
   const { tag: rawTag } = await params;
   const { cursor } = await searchParams;
+  const t = await getTranslations("HashtagPage");
 
   const decoded = decodeTagParam(rawTag);
   const parsed = decoded
@@ -76,8 +80,8 @@ export default async function HashtagPage({ params, searchParams }: HashtagPageP
       <>
         <PageHeader title={`#${tag}`} />
         <EmptyState
-          title="This isn't connected to a backend yet"
-          description="Supabase environment variables aren't set, so this hashtag can't be loaded here."
+          title={t("notConnectedTitle")}
+          description={t("notConnectedDescription")}
         />
       </>
     );
@@ -105,8 +109,8 @@ export default async function HashtagPage({ params, searchParams }: HashtagPageP
       <div className="akinti-page flex flex-col pb-16">
         {cards.length === 0 ? (
           <EmptyState
-            title="Nothing tagged with this yet"
-            description={`No Wave visible to you carries #${tag} yet.`}
+            title={t("emptyTitle")}
+            description={t("emptyDescription", { tag })}
           />
         ) : (
           <div className="flex flex-col divide-y divide-hairline border-t border-hairline">
@@ -121,7 +125,7 @@ export default async function HashtagPage({ params, searchParams }: HashtagPageP
             href={`${routes.hashtag(tag)}?cursor=${encodeURIComponent(page.nextCursor)}`}
             className="type-body-sm self-start pt-4 text-ink underline"
           >
-            Older Waves
+            {t("olderWaves")}
           </Link>
         ) : null}
       </div>
