@@ -55,9 +55,8 @@ export const duetSegmentsSchema = z
 
 /**
  * `publishDuetWave` Server Action input (`src/app/(app)/create/duetActions.ts`).
- * `offsetMs` is intentionally signed — unlike `enqueueDuetMixSchema` in
- * `src/lib/validation/audio.ts` (which floors at 0), a Duet contribution may
- * genuinely start before the reference once the manual nudge is applied
+ * `offsetMs` is intentionally signed: a Duet contribution may genuinely
+ * start before the reference once the manual nudge is applied
  * (`src/lib/duet/sync.ts`). Everything else about the finished Wave (title,
  * description, visibility) mirrors `publishWaveSchema` in
  * `src/lib/validation/waves.ts` — duplicated here rather than imported so

@@ -3,12 +3,13 @@
  *
  * `enqueueDuetMix` already exists in `src/lib/db/audioAssets.ts`, but its
  * payload is `{ preset, reference_asset_id, offset_ms }` — no `advanced_eq`
- * (spec §19 flags this as a gap `scripts/worker.ts` needs fixed) and
- * `offsetMs` is validated `>= 0` there (`enqueueDuetMixSchema` in
- * `src/lib/validation/audio.ts`), which cannot express "the contribution
- * started before the reference." Rather than edit a file owned by the audio
- * pipeline, this calls the same `enqueue_audio_job` RPC directly with the
- * fuller payload `scripts/worker.ts`'s `runMixDuetJob` now expects (see
+ * (spec §19 flags this as a gap `scripts/worker.ts` needs fixed), and it
+ * takes a plain `number` `offsetMs` with no floor, which cannot express
+ * "the contribution started before the reference" the way this module's
+ * own signed `offsetMs` (`publishDuetWaveSchema` below) needs to. Rather
+ * than edit a file owned by the audio pipeline, this calls the same
+ * `enqueue_audio_job` RPC directly with the fuller payload
+ * `scripts/worker.ts`'s `runMixDuetJob` now expects (see
  * `src/lib/duet/ffmpegChain.ts`'s `parseMixDuetJobPayload`, which accepts
  * either shape).
  */

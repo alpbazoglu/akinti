@@ -125,29 +125,17 @@ export const finalizeUploadSchema = z.object({
   skipAutoProcessing: z.boolean().optional().default(false),
 });
 
-export const enqueueProcessingSchema = z.object({
-  audioAssetId: uuidSchema,
-  preset: z.enum(AUDIO_ENHANCEMENT_PRESETS).default("natural"),
-});
-
-export const enqueueDuetMixSchema = z.object({
-  /** The new take recorded against the original. */
-  audioAssetId: uuidSchema,
-  /** The original Wave's audio, used as the reference stem. */
-  referenceAssetId: uuidSchema,
-  /**
-   * Start of the new take relative to the reference, in milliseconds.
-   * Negative values are rejected: the contribution cannot start before the
-   * reference does. See docs/DUET_SPEC.md.
-   */
-  offsetMs: z.number().int().min(0).max(MAX_AUDIO_DURATION_MS),
-  preset: z.enum(AUDIO_ENHANCEMENT_PRESETS).default("studio"),
-});
+// `enqueueProcessingSchema`/`enqueueDuetMixSchema` used to live here but were
+// never called from anywhere except their own doc comments (review3 finding
+// 35) — `enqueueAudioProcessing`/`enqueueDuetMix` (`src/lib/db/audioAssets.ts`)
+// build their job payload directly from already-typed, already-validated
+// arguments. Deleted rather than wired in: `enqueueProcessingSchema`'s preset
+// enum (`AUDIO_ENHANCEMENT_PRESETS`) excluded the two Pro preset ids that
+// `enqueueAudioProcessing` legitimately accepts, so calling it as written
+// would have started rejecting AKINTI Pro's own presets.
 
 export type WaveformPeaksInput = z.infer<typeof waveformPeaksSchema>;
 export type CreateAudioAssetInput = z.infer<typeof createAudioAssetSchema>;
 export type AdvancedEqSettingsInput = z.infer<typeof advancedEqSettingsSchema>;
 export type CreateUploadTicketInput = z.infer<typeof createUploadTicketSchema>;
 export type FinalizeUploadInput = z.infer<typeof finalizeUploadSchema>;
-export type EnqueueProcessingInput = z.infer<typeof enqueueProcessingSchema>;
-export type EnqueueDuetMixInput = z.infer<typeof enqueueDuetMixSchema>;
