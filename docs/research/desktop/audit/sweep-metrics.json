@@ -1,0 +1,172 @@
+{
+  "search": {
+    "url": "/search",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)"
+    ]
+  },
+  "create": {
+    "url": "/create",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)",
+      "rgb(169, 189, 180)"
+    ]
+  },
+  "duets": {
+    "url": "/duets",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)"
+    ]
+  },
+  "challenges": {
+    "url": "/challenges",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)"
+    ]
+  },
+  "tracks": {
+    "url": "/tracks",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)"
+    ]
+  },
+  "analytics": {
+    "url": "/analytics",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)",
+      "rgb(15, 26, 24)"
+    ]
+  },
+  "pro": {
+    "url": "/settings/pro",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)"
+    ]
+  },
+  "settings": {
+    "url": "/settings",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)"
+    ]
+  },
+  "messages": {
+    "url": "/messages",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)"
+    ]
+  },
+  "notifications": {
+    "url": "/notifications",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)"
+    ]
+  },
+  "flow": {
+    "url": "/flow",
+    "mainWidth": null,
+    "mainLeft": null,
+    "distinctBgColours": [
+      "rgb(233, 239, 236)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)"
+    ]
+  },
+  "explore": {
+    "url": "/explore",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)"
+    ]
+  },
+  "profile": {
+    "url": "/u/e2esweepmtpl78mgw0yy",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)",
+      "rgb(169, 189, 180)"
+    ]
+  },
+  "wave-detail": {
+    "url": "/w/cbd53216-9fef-4342-9b22-9933acda6d13",
+    "mainWidth": 600,
+    "mainLeft": 200,
+    "distinctBgColours": [
+      "rgb(222, 231, 227)",
+      "rgb(211, 224, 217)",
+      "rgb(14, 107, 107)",
+      "rgb(222, 60, 17)",
+      "rgb(233, 239, 236)",
+      "rgb(15, 26, 24)"
+    ]
+  }
+}
