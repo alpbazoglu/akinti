@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -14,7 +15,6 @@ import {
 } from "@/lib/db/challenges";
 import { getWavesByIds, listProfileWaves } from "@/lib/db/waves";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -35,14 +35,16 @@ const ENTRIES_PAGE_SIZE = 20;
 export default async function ChallengePage({ params, searchParams }: ChallengePageProps) {
   const { slug } = await params;
   const { entriesCursor } = await searchParams;
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("ChallengePage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title={TERMS.challenge} />
+        <PageHeader title={t("challenge")} />
         <EmptyState
-          title="This isn't connected to a backend yet"
-          description="Supabase environment variables aren't set, so this challenge can't be loaded here."
+          title={tPage("notConnectedTitle")}
+          description={tPage("notConnectedDescription")}
         />
       </>
     );
@@ -86,7 +88,7 @@ export default async function ChallengePage({ params, searchParams }: ChallengeP
           </Link>
           <p className="type-body measure whitespace-pre-line text-ink">{challenge.brief}</p>
           <p className="type-body-sm text-ink-muted">
-            {phase === "upcoming" ? "Starts" : phase === "ended" ? "Ended" : "Ends"}{" "}
+            {phase === "upcoming" ? tPage("starts") : phase === "ended" ? tPage("ended") : tPage("ends")}{" "}
             {new Date(phase === "upcoming" ? challenge.startsAt : challenge.endsAt).toLocaleDateString()}
           </p>
 
@@ -110,16 +112,16 @@ export default async function ChallengePage({ params, searchParams }: ChallengeP
                 href={routes.create({ challenge: challenge.slug })}
                 className="type-body-sm text-ink underline"
               >
-                Enter with a new Wave
+                {tPage("enterWithNewWave")}
               </Link>
             </div>
           ) : null}
         </div>
 
         <section className="flex flex-col gap-3">
-          <h2 className="type-caption-strong text-ink-muted">{TERMS.topFive}</h2>
+          <h2 className="type-caption-strong text-ink-muted">{t("topFive")}</h2>
           {picks.length === 0 ? (
-            <p className="type-body-sm text-ink-muted">No picks yet.</p>
+            <p className="type-body-sm text-ink-muted">{tPage("noPicksYet")}</p>
           ) : (
             <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
               {picks.map((pick) => {
@@ -142,9 +144,9 @@ export default async function ChallengePage({ params, searchParams }: ChallengeP
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="type-caption-strong text-ink-muted">Entries</h2>
+          <h2 className="type-caption-strong text-ink-muted">{tPage("entriesHeading")}</h2>
           {entryPage.items.length === 0 ? (
-            <p className="type-body-sm text-ink-muted">No entries yet.</p>
+            <p className="type-body-sm text-ink-muted">{tPage("noEntriesYet")}</p>
           ) : (
             <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
               {entryPage.items.map((entry) => {
@@ -165,7 +167,7 @@ export default async function ChallengePage({ params, searchParams }: ChallengeP
               href={`${routes.challenge(challenge.slug)}?entriesCursor=${encodeURIComponent(entryPage.nextCursor)}`}
               className="type-body-sm self-start text-ink underline"
             >
-              Older entries
+              {tPage("olderEntries")}
             </Link>
           ) : null}
         </section>

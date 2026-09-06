@@ -10,13 +10,13 @@
  * backing track and enters it automatically after publish.
  */
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { enterChallengeAction } from "@/app/(app)/challenges/actions";
 import { Button, ErrorState, Sheet } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { timeAgo } from "@/lib/ui";
 
 export interface EnterChallengeWaveOption {
@@ -39,6 +39,8 @@ export function EnterChallengeWavePicker({
   className,
 }: EnterChallengeWavePickerProps) {
   const router = useRouter();
+  const t = useTranslations("EnterChallengeWavePicker");
+  const tTerms = useTranslations("Terms");
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enteringId, setEnteringId] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function EnterChallengeWavePicker({
     startTransition(async () => {
       const result = await enterChallengeAction({ challengeId, waveId, challengeSlug });
       if (!result.ok) {
-        setError(result.formError ?? "We couldn't enter this challenge. Try again.");
+        setError(result.formError ?? t("couldNotEnter"));
         setEnteringId(null);
         return;
       }
@@ -71,20 +73,22 @@ export function EnterChallengeWavePicker({
         leadingIcon={<span aria-hidden="true" className="size-1.5 rounded-full bg-tide" />}
         onClick={() => setOpen(true)}
       >
-        {TERMS.enterExistingWave}
+        {tTerms("enterExistingWave")}
       </Button>
 
-      <Sheet open={open} onClose={() => setOpen(false)} title={TERMS.enterExistingWave}>
+      <Sheet open={open} onClose={() => setOpen(false)} title={tTerms("enterExistingWave")}>
         <div className="flex flex-col gap-4">
-          {error ? <ErrorState size="sm" title="Couldn't enter this challenge" description={error} /> : null}
+          {error ? <ErrorState size="sm" title={t("couldntEnterTitle")} description={error} /> : null}
 
           {waves.length === 0 ? (
             <p className="type-body-sm measure text-ink-muted">
-              You don&apos;t have a published {TERMS.wave.toLowerCase()} yet. Record one from{" "}
-              <a href={routes.create()} className="text-ink underline">
-                {TERMS.create}
-              </a>
-              , then come back to enter it.
+              {t.rich("noPublishedWave", {
+                link: (chunks) => (
+                  <a href={routes.create()} className="text-ink underline">
+                    {chunks}
+                  </a>
+                ),
+              })}
             </p>
           ) : (
             <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
@@ -100,7 +104,7 @@ export function EnterChallengeWavePicker({
                     disabled={isPending}
                     onClick={() => handleEnter(wave.id)}
                   >
-                    {TERMS.enterChallenge}
+                    {tTerms("enterChallenge")}
                   </Button>
                 </li>
               ))}

@@ -1,15 +1,18 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
 import { deriveChallengePhase, listChallenges } from "@/lib/db/challenges";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Challenge } from "@/types/domain";
 
-export const metadata = { title: TERMS.challenges };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  return { title: t("challenges") };
+}
 
 const PAGE_SIZE = 50;
 
@@ -21,13 +24,16 @@ const PAGE_SIZE = 50;
  * screen work.
  */
 export default async function ChallengesPage() {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("ChallengesPage");
+
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title={TERMS.challenges} />
+        <PageHeader title={t("challenges")} />
         <EmptyState
-          title="This isn't connected to a backend yet"
-          description="Supabase environment variables aren't set, so challenges can't be loaded here."
+          title={tPage("notConnectedTitle")}
+          description={tPage("notConnectedDescription")}
         />
       </>
     );
@@ -54,14 +60,14 @@ export default async function ChallengesPage() {
 
   return (
     <>
-      <PageHeader title={TERMS.challenges} />
+      <PageHeader title={t("challenges")} />
       <div className="akinti-page pb-16">
         {loadError ? (
-          <p className="type-body measure text-ink-muted">Couldn&apos;t load challenges. Try again in a moment.</p>
+          <p className="type-body measure text-ink-muted">{tPage("loadError")}</p>
         ) : challenges.length === 0 ? (
           <EmptyState
-            title="No challenges yet"
-            description="This week's theme will show up here once one is live."
+            title={tPage("emptyTitle")}
+            description={tPage("emptyDescription")}
           />
         ) : (
           <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
@@ -73,7 +79,7 @@ export default async function ChallengesPage() {
                 >
                   <span className="type-heading text-ink">{challenge.title}</span>
                   <span className="type-body-sm text-ink-muted">
-                    #{challenge.hashtag} · {phaseCopy(challenge)}
+                    #{challenge.hashtag} · {phaseCopy(challenge, tPage)}
                   </span>
                 </Link>
               </li>
@@ -85,9 +91,9 @@ export default async function ChallengesPage() {
   );
 }
 
-function phaseCopy(challenge: Challenge): string {
+function phaseCopy(challenge: Challenge, t: (key: "startsSoon" | "ended" | "liveNow") => string): string {
   const phase = deriveChallengePhase(challenge);
-  if (phase === "upcoming") return "Starts soon";
-  if (phase === "ended") return "Ended";
-  return "Live now";
+  if (phase === "upcoming") return t("startsSoon");
+  if (phase === "ended") return t("ended");
+  return t("liveNow");
 }

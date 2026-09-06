@@ -8,6 +8,7 @@
  * `usePlaybackStore` directly rather than through `WaveCard`.
  */
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { IconButton } from "@/components/ui";
@@ -31,6 +32,7 @@ export function ChallengeBackingTrack({
   className,
 }: ChallengeBackingTrackProps) {
   const store = usePlaybackStore();
+  const t = useTranslations("ChallengeBackingTrack");
   const trackKey = `backing-track:${assetId}`;
   const playback = useWavePlayback(trackKey, durationMs ? durationMs / 1000 : 0);
   const [url, setUrl] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export function ChallengeBackingTrack({
       setUrl(data.url);
       store.play(trackKey, data.url, { title, creatorUsername: artistCredit, duration: playback.duration });
     } catch {
-      setError("This track's audio could not be loaded. Try again.");
+      setError(t("couldNotLoad"));
     } finally {
       setLoading(false);
     }
@@ -70,7 +72,7 @@ export function ChallengeBackingTrack({
           backing-track mark is sand, distinct from a Wave's own transport,
           which is the current (`docs/design/COLOR_V2.md` "Challenges"). */}
       <IconButton
-        label={isPlaying ? `Pause ${title}` : `Play ${title}`}
+        label={isPlaying ? t("pauseTrack", { title }) : t("playTrack", { title })}
         icon={
           <span className="text-sand">
             {isPlaying ? (
