@@ -23,12 +23,16 @@ let sessionCachePromise: Promise<void> | null = null;
  * already renders nothing at `0`) when signed out.
  */
 export function useFlowNewCount(userId: string | null): number {
-  const [fetched, setFetched] = useState<{ userId: string; count: number } | null>(sessionCache);
+  const [fetched, setFetched] = useState<{ userId: string; count: number } | null>(null);
 
   useEffect(() => {
     if (!userId) return;
     if (sessionCache?.userId === userId) {
-      setFetched(sessionCache);
+      // Already cached for this user — nothing to fetch. The render below
+      // reads `sessionCache` directly for this case, so no `setState` call
+      // is needed here (calling one synchronously in an effect body is
+      // itself the pattern to avoid: it forces an extra render on top of
+      // the one that already has this value available).
       return;
     }
     let cancelled = false;
@@ -49,5 +53,6 @@ export function useFlowNewCount(userId: string | null): number {
     };
   }, [userId]);
 
-  return userId && fetched?.userId === userId ? fetched.count : 0;
+  const current = fetched?.userId === userId ? fetched : sessionCache?.userId === userId ? sessionCache : null;
+  return userId && current ? current.count : 0;
 }

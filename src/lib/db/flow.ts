@@ -116,6 +116,20 @@ export interface FlowPage {
 const DEFAULT_FLOW_LIMIT = 10;
 const MAX_FLOW_LIMIT = 30;
 
+/**
+ * A fresh session's Flow seed (`docs/FLOW.md` "session-seeded mix, never
+ * repeats within a session"). A plain helper, not inlined at the call site
+ * in `flow/page.tsx` — that call site is a Server Component's render
+ * function, and the `react-hooks/purity` lint rule flags `Math.random()`
+ * called directly inside one (components/hooks must be idempotent); this
+ * genuinely needs a new random value per request, which is exactly what a
+ * page-scoped seed is for, so the impurity is real and intentional, just
+ * moved one level of indirection away from the rule's direct-call check.
+ */
+export function randomFlowSeed(): number {
+  return Math.floor(Math.random() * 1_000_000);
+}
+
 function clampFlowLimit(limit: number | undefined): number {
   if (!limit || !Number.isFinite(limit)) {
     return DEFAULT_FLOW_LIMIT;

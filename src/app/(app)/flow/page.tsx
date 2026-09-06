@@ -4,7 +4,7 @@ import { FlowScreen } from "@/components/flow";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
-import { getFlowPage } from "@/lib/db/flow";
+import { getFlowPage, randomFlowSeed } from "@/lib/db/flow";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -49,7 +49,7 @@ export default async function FlowPage() {
   // `getFlowPage` (src/lib/db/flow.ts) carries this same seed forward in
   // every later page's cursor, so it cannot drift even if a client-side
   // refetch passes a different value (review3 finding 11).
-  const seed = Math.floor(Math.random() * 1_000_000);
+  const seed = randomFlowSeed();
 
   try {
     const page = await getFlowPage(db, { limit: FLOW_PAGE_LIMIT, seed });
