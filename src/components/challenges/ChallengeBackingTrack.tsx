@@ -94,7 +94,7 @@ export function ChallengeBackingTrack({
           {artistCredit}
           {durationMs ? (
             <>
-              <span aria-hidden="true"> &middot; </span>
+              <span aria-hidden="true"> · </span>
               {formatDuration(durationMs / 1000)}
             </>
           ) : null}

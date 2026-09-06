@@ -115,7 +115,7 @@ export default async function SettingsPage() {
           {profile ? <DeleteAccountSheet username={profile.username} /> : null}
         </div>
 
-        <p className="type-caption pt-8 text-ink-subtle">{BRAND} &middot; 2026</p>
+        <p className="type-caption pt-8 text-ink-subtle">{BRAND} · 2026</p>
       </div>
     </>
   );
