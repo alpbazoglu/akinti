@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
 import { Select, type SelectOption } from "@/components/ui";
@@ -7,21 +8,6 @@ import { cn, formatCount } from "@/lib/ui";
 import type { CreatorAnalyticsDay } from "@/types/domain";
 
 type MetricKey = "plays" | "uniqueListeners" | "replays" | "saves" | "comments" | "shares" | "newFollowers";
-
-const METRIC_LABELS: Record<MetricKey, string> = {
-  plays: "Plays",
-  uniqueListeners: "Unique listeners",
-  replays: "Replays",
-  saves: "Saves",
-  comments: "Comments",
-  shares: "Shares",
-  newFollowers: "New followers",
-};
-
-const METRIC_OPTIONS: SelectOption[] = Object.entries(METRIC_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
 
 function formatShortDate(iso: string): string {
   const date = new Date(`${iso}T00:00:00.000Z`);
@@ -48,6 +34,22 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
   const [metric, setMetric] = useState<MetricKey>("plays");
   const [showTable, setShowTable] = useState(false);
   const titleId = useId();
+  const t = useTranslations("AnalyticsTimeseriesChart");
+  const tTerms = useTranslations("Terms");
+
+  const metricLabels: Record<MetricKey, string> = {
+    plays: tTerms("plays"),
+    uniqueListeners: t("metricUniqueListeners"),
+    replays: tTerms("replays"),
+    saves: tTerms("saves"),
+    comments: tTerms("comments"),
+    shares: tTerms("shares"),
+    newFollowers: t("metricNewFollowers"),
+  };
+  const metricOptions: SelectOption[] = Object.entries(metricLabels).map(([value, label]) => ({
+    value,
+    label,
+  }));
 
   const values = days.map((day) => day[metric]);
   const max = Math.max(1, ...values);
@@ -62,18 +64,18 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 id={titleId} className="type-caption font-semibold text-ink-muted">
-            Daily {METRIC_LABELS[metric].toLowerCase()}
+            {t("dailyMetric", { metric: metricLabels[metric] })}
           </h3>
           {rangeLabel ? <p className="type-caption text-ink-subtle">{rangeLabel}</p> : null}
         </div>
         <div className="flex items-center gap-2">
           <Select
             id="analytics-chart-metric"
-            label="Chart metric"
+            label={t("chartMetricLabel")}
             hideLabel
             value={metric}
             onChange={(event) => setMetric(event.target.value as MetricKey)}
-            options={METRIC_OPTIONS}
+            options={metricOptions}
             containerClassName="w-44"
           />
           <button
@@ -82,7 +84,7 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
             aria-pressed={showTable}
             className="akinti-press type-caption h-10 shrink-0 text-ink-muted underline decoration-hairline-strong decoration-1 underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            {showTable ? "Show chart" : "Show table"}
+            {showTable ? t("showChart") : t("showTable")}
           </button>
         </div>
       </div>
@@ -90,14 +92,14 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
       {showTable ? (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[480px] border-collapse text-left text-xs">
-            <caption className="sr-only">Daily {METRIC_LABELS[metric].toLowerCase()}</caption>
+            <caption className="sr-only">{t("dailyMetric", { metric: metricLabels[metric] })}</caption>
             <thead>
               <tr className="border-b border-border text-fg-subtle">
                 <th scope="col" className="py-1.5 pr-3 font-medium">
-                  Date
+                  {t("dateColumn")}
                 </th>
                 <th scope="col" className="py-1.5 pr-3 font-medium">
-                  {METRIC_LABELS[metric]}
+                  {metricLabels[metric]}
                 </th>
               </tr>
             </thead>
@@ -132,7 +134,7 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
                 rx={2}
                 className={value > 0 ? "fill-accent" : "fill-surface-inset"}
               >
-                <title>{`${formatShortDate(day.day)}: ${formatCount(value)} ${METRIC_LABELS[metric].toLowerCase()}`}</title>
+                <title>{t("barTitle", { date: formatShortDate(day.day), value: formatCount(value), metric: metricLabels[metric] })}</title>
               </rect>
             );
           })}

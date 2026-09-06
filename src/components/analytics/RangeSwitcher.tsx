@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { setAnalyticsRange } from "@/app/(app)/analytics/actions";
 import { ANALYTICS_RANGE_OPTIONS } from "@/lib/analytics/range";
 import { cn } from "@/lib/ui";
@@ -20,9 +22,11 @@ export interface RangeSwitcherProps {
  * Kept as one `<form>` per option — same no-JS-required design as before —
  * so the switcher still works with JavaScript disabled.
  */
-export function RangeSwitcher({ current, section, className }: RangeSwitcherProps) {
+export async function RangeSwitcher({ current, section, className }: RangeSwitcherProps) {
+  const t = await getTranslations("RangeSwitcher");
+
   return (
-    <div role="group" aria-label="Date range" className={cn("flex items-center gap-5", className)}>
+    <div role="group" aria-label={t("dateRangeLabel")} className={cn("flex items-center gap-5", className)}>
       {ANALYTICS_RANGE_OPTIONS.map((option) => {
         const selected = option.value === current;
         return (

@@ -1,11 +1,12 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { ProductHealthMetrics, RangeSwitcher } from "@/components/analytics";
 import { PageHeader } from "@/components/layout";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
+import { BRAND } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { parseAnalyticsRangeDays } from "@/lib/analytics/range";
 import { getProductHealth, isModeratorForAnalytics } from "@/lib/db/analytics";
@@ -13,7 +14,10 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { AnalyticsRangeDays } from "@/types/domain";
 
-export const metadata = { title: `Product health · ${TERMS.brand}` };
+export async function generateMetadata() {
+  const t = await getTranslations("AnalyticsHealthPage");
+  return { title: t("metaTitle", { brand: BRAND }) };
+}
 
 interface HealthPageProps {
   searchParams: Promise<{ days?: string }>;
@@ -29,13 +33,14 @@ interface HealthPageProps {
  */
 export default async function AnalyticsHealthPage({ searchParams }: HealthPageProps) {
   await requireUser(routes.analyticsHealth());
+  const t = await getTranslations("AnalyticsHealthPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="Product health" />
+        <PageHeader title={t("title")} />
         <div className="px-4 pb-8 sm:px-5">
-          <EmptyState title="Backend not configured" description="Product health is unavailable in this environment." />
+          <EmptyState title={t("backendNotConfiguredTitle")} description={t("backendNotConfiguredDescription")} />
         </div>
       </>
     );
@@ -52,11 +57,11 @@ export default async function AnalyticsHealthPage({ searchParams }: HealthPagePr
   return (
     <>
       <PageHeader
-        title="Product health"
+        title={t("title")}
         actions={<RangeSwitcher current={days} section="health" />}
       />
       <div className="px-4 pb-8 sm:px-5">
-        <Suspense fallback={<HealthSkeleton />}>
+        <Suspense fallback={<HealthSkeleton loadingLabel={t("loadingSr")} />}>
           <HealthContent days={days} />
         </Suspense>
       </div>
@@ -66,6 +71,7 @@ export default async function AnalyticsHealthPage({ searchParams }: HealthPagePr
 
 async function HealthContent({ days }: { days: AnalyticsRangeDays }) {
   const supabase = await createServerSupabaseClient();
+  const t = await getTranslations("AnalyticsHealthPage");
 
   let health: Awaited<ReturnType<typeof getProductHealth>> | null = null;
   try {
@@ -76,17 +82,17 @@ async function HealthContent({ days }: { days: AnalyticsRangeDays }) {
 
   if (!health) {
     return (
-      <ErrorState description="We could not load product health right now. Check your connection and try again." />
+      <ErrorState description={t("loadErrorDescription")} />
     );
   }
 
   return <ProductHealthMetrics health={health} />;
 }
 
-function HealthSkeleton() {
+function HealthSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
     <div aria-busy="true" aria-live="polite" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <span className="sr-only">Loading product health…</span>
+      <span className="sr-only">{loadingLabel}</span>
       {Array.from({ length: 10 }, (_, i) => (
         <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4">
           <Skeleton width="70%" />
