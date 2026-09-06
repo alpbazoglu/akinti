@@ -1,0 +1,18 @@
+PASS  P0-2 CSP: cdn.paddle.com script-src
+      allowed (no securitypolicyviolation fired)
+PASS  P0-2 CSP: static.iyzipay.com script-src
+      allowed (no securitypolicyviolation fired)
+PASS  P0-2 CSP: buy.paddle.com frame-src
+      allowed (no securitypolicyviolation fired)
+PASS  P0-2 CSP: iyzipay.com frame-src
+      allowed (no securitypolicyviolation fired)
+PASS  P0-2 CSP: paddle.com connect-src
+      allowed (no securitypolicyviolation fired)
+PASS  P0-2 CSP: iyzipay.com connect-src
+      allowed (no securitypolicyviolation fired)
+PASS  P0-2 all violations captured
+      []
+PASS  P0-5 analyser reads NON-ZERO amplitude WITH crossOrigin=anonymous (the fix)
+      {"corsError":null,"maxAmplitude":0.22394975749311627,"readyState":4,"currentTime":1.532}
+PASS  P0-5 negative control: analyser reads ~ZERO amplitude WITHOUT crossOrigin (proves the bug was real)
+      {"corsError":null,"maxAmplitude":0,"readyState":4,"currentTime":1.521333}
