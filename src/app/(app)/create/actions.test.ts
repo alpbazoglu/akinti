@@ -114,22 +114,19 @@ describe("createUploadTicket — AKINTI Pro gate", () => {
     expect(result).toEqual({ ok: false, error: "This sound needs AKINTI Pro." });
   });
 
-  it("clears a Pro caller past the gate (never the 'needs Pro' message)", async () => {
-    // `pitch_snap`/`self_harmony` aren't in `AUDIO_ENHANCEMENT_PRESETS` yet —
-    // that enum lives on `audio_assets.enhancement_preset`, a Postgres enum
-    // this wave doesn't own the migration for (see `enhancement.ts`'s
-    // `PRO_ENHANCEMENT_PRESETS` doc comment) — so `createUploadTicketSchema`
-    // still rejects the value below the gate. The gate itself is what this
-    // test asserts: a Pro caller never sees the "needs Pro" message, however
-    // that later validation resolves.
+  it("clears a Pro caller past the gate and all the way through to a real upload ticket", async () => {
+    // `pitch_snap`/`self_harmony` are now valid `audio_enhancement_preset`
+    // enum values (migration `20260906120000_pro_presets_pitch.sql`) and
+    // `createUploadTicketSchema` accepts them (`src/lib/validation/audio.ts`)
+    // — a Pro caller submitting one is no longer rejected below the gate.
     getCurrentUserMock.mockResolvedValue(SIGNED_IN_USER);
     requireProMock.mockResolvedValue(undefined);
 
     const result = await createUploadTicket(baseArgs("pitch_snap"));
 
     expect(requireProMock).toHaveBeenCalledWith(expect.anything(), SIGNED_IN_USER.id);
-    if (result.ok) throw new Error("expected the schema to still reject this preset id");
-    expect(result.error).not.toBe("This sound needs AKINTI Pro.");
+    if (!result.ok) throw new Error(`expected a real upload ticket, got error: ${result.error}`);
+    expect(createAudioAssetMock).toHaveBeenCalled();
   });
 
   it("never calls requirePro for one of the six free presets", async () => {
