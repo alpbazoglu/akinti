@@ -313,7 +313,13 @@
 
     --akinti-ink: #eaf2ef;
     --akinti-ink-muted: #9fb3ad;
-    --akinti-ink-subtle: #6c7f79;
+    /* #6c7f79 (the founder's original DESKTOP_RESEARCH.md value) cleared
+       4.5:1 against elevation-1 but dropped to 3.55:1 on elevation-3, the
+       brightest desktop card surface — axe flagged it as a serious
+       violation in this pass's QA run. Nudged to the lightest value that
+       still reads as the same hue while clearing 4.5:1 on every elevation
+       step (4.88:1 on elevation-3, the tightest case; docs/qa/desktop-shell). */
+    --akinti-ink-subtle: #84978f;
 
     --akinti-hairline: #23302c;
     --akinti-hairline-strong: #324640;
