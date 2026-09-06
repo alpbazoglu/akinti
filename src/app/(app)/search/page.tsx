@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
+import type { BackingTrackCard } from "@/components/feed";
 import { PageHeader } from "@/components/layout";
 import { SearchView } from "@/components/feed";
 import type { WaveCardContainerWave } from "@/components/wave";
@@ -10,6 +11,8 @@ import { hydrateWaveCards } from "@/lib/feed";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { Profile } from "@/types/domain";
+
+import { searchTracks } from "./actions";
 
 export const metadata = { title: TERMS.search };
 
@@ -41,15 +44,20 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   let profiles: Profile[] = [];
   let waves: WaveCardContainerWave[] = [];
+  let tracks: BackingTrackCard[] = [];
   let loadError: string | null = null;
 
   if (query.length > 0) {
     try {
       const user = await getCurrentUser();
       const supabase = await createServerSupabaseClient();
-      const result = await searchAll(supabase, { query, limit: 20 });
+      const [result, trackMatches] = await Promise.all([
+        searchAll(supabase, { query, limit: 20 }),
+        searchTracks(supabase, query),
+      ]);
       profiles = result.profiles;
       waves = await hydrateWaveCards(supabase, result.waves, user?.id ?? null);
+      tracks = trackMatches;
     } catch {
       loadError = t("searchFailed");
     }
@@ -62,6 +70,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         initialQuery={query}
         initialProfiles={profiles}
         initialWaves={waves}
+        initialTracks={tracks}
         initialError={loadError}
       />
     </>

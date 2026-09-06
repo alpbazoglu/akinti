@@ -958,9 +958,19 @@ appears when at least one track has that value, never a fixed list of options th
 all be empty. Each `TrackCard` carries the same hover-reveal play button and genre tint as
 `ExploreWaveCard`, and a "Sing over this" primary key linking straight to `/create?track=`.
 
+### Search (`/search`)
+`SearchView` picks a second render path at `lg`: results in tabs (Waves, People, Tracks,
+Tags — `Tabs`, already WAI-ARIA with arrow-key/Home/End navigation, so no extra keyboard
+wiring was needed), each tab a card grid or list, only tabs with actual results shown.
+"Tracks" filters the backing-track library's own title/artist/genre text (no dedicated
+track-search index exists — `runSearch`'s own doc comment); "Tags" is not a fetch at all,
+just the real Wave results' own `tags`, deduped and counted, never a global hashtag index.
+Recent searches render as removable chips with a clock icon at `lg`; mobile's original
+plain-list recent searches and stacked result sections are unchanged.
+
 ### Not yet built
-Duets, Search, Notifications, Messages and Settings have not had a desktop-specific pass —
-they render whatever their existing mobile-first layout produces at desktop width (correct,
-but not redesigned to Direction A's card/rail language). `loading.tsx` skeletons for
+Duets, Notifications, Messages and Settings have not had a desktop-specific pass — they
+render whatever their existing mobile-first layout produces at desktop width (correct, but
+not redesigned to Direction A's card/rail language). `loading.tsx` skeletons for
 Flow/Explore/Wave/Profile have not been reshaped to the new desktop layouts; they still
 describe the pre-existing mobile shape.

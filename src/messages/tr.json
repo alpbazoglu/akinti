@@ -297,7 +297,9 @@
     "noMatch": "“{query}” ile eşleşen bir şey yok.",
     "browseExplore": "{explore}'e göz at",
     "people": "Kişiler",
-    "followers": "takipçi"
+    "followers": "takipçi",
+    "tags": "Etiketler",
+    "resultsTabsLabel": "Arama sonuçları"
   },
   "TraceRow": {
     "retry": "{title} için tekrar dene",

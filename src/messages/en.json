@@ -297,7 +297,9 @@
     "noMatch": "Nothing matched “{query}”.",
     "browseExplore": "Browse {explore}",
     "people": "People",
-    "followers": "followers"
+    "followers": "followers",
+    "tags": "Tags",
+    "resultsTabsLabel": "Search results"
   },
   "TraceRow": {
     "retry": "Retry {title}",
