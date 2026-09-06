@@ -1,4 +1,18 @@
 @import "tailwindcss";
+/* Tailwind 4's automatic source detection walks the whole project tree
+   upward from this file, including `docs/**` and `scripts/**` — neither
+   directory contains real markup, but `docs/qa/reviewA/REVIEW.md` and
+   `docs/qa/review2/REVIEW.md` both quote a literal
+   `rounded-[var(--akinti-radius-key-36/44/72/88/96)]` utility (a design-QA
+   note about the token's own name, not a class ever used in the app), which
+   the scanner still picks up as a candidate class and tries to generate —
+   the `/` inside the arbitrary-value var() reference isn't valid utility
+   syntax, so the generated rule fails to parse and `next dev`/`next build`
+   500 on every route. Scope detection away from both directories instead of
+   relying on their content staying clean of anything that looks like a
+   class name. */
+@source not "../../docs";
+@source not "../../scripts";
 
 /* =====================================================================
    AKINTI design tokens, v2 "Waterline"
