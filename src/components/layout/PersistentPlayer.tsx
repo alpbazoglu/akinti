@@ -40,7 +40,7 @@ import { usePlaybackSelector, usePlaybackStore, useWaveControls } from "@/lib/au
 import { routes } from "@/config/routes";
 import { cn } from "@/lib/ui";
 
-interface ActivePlayback {
+export interface ActivePlayback {
   readonly waveId: string;
   readonly title: string;
   readonly creatorUsername: string | null;
@@ -49,7 +49,10 @@ interface ActivePlayback {
   readonly progress: number;
   readonly peaks: readonly number[];
   readonly buffered: number;
+  readonly currentTime: number;
+  readonly duration: number;
   readonly toggle: () => void;
+  readonly seekToRatio: (ratio: number) => void;
 }
 
 /**
@@ -63,7 +66,13 @@ function isBackingTrackId(waveId: string): boolean {
   return waveId.startsWith("backing-track:") || waveId.startsWith("atisma-original:");
 }
 
-function useActivePlayback(): ActivePlayback | null {
+/**
+ * Exported so `NowPlayingBar` (the desktop v3 full-width bar,
+ * DESIGN_V3_DESKTOP.md "Shell") reads the same single playback store rather
+ * than standing up a second query surface — there is still exactly one
+ * `<audio>` element and one source of truth for "what's playing".
+ */
+export function useActivePlayback(): ActivePlayback | null {
   const pathname = usePathname();
   const waveId = usePlaybackSelector((state) => state.waveId);
   const src = usePlaybackSelector((state) => state.src);
@@ -78,7 +87,7 @@ function useActivePlayback(): ActivePlayback | null {
 
   // Hooks run unconditionally: the fallbacks below are inert until `eligible`
   // is true, which is also the only time their result is read.
-  const { toggle } = useWaveControls(waveId ?? "", src ?? "", {
+  const { toggle, seekToRatio } = useWaveControls(waveId ?? "", src ?? "", {
     title,
     creatorUsername,
     duration,
@@ -95,6 +104,9 @@ function useActivePlayback(): ActivePlayback | null {
 
   return {
     waveId,
+    currentTime,
+    duration,
+    seekToRatio,
     title: title ?? "Wave",
     creatorUsername: creatorUsername ?? null,
     isPlaying: status === "playing",

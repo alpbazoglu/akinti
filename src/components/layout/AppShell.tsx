@@ -8,7 +8,11 @@ import { routes } from "@/config/routes";
 import { cn } from "@/lib/ui";
 
 import { BottomNav } from "./BottomNav";
-import { DesktopPlayerStrip, MobilePlayerStrip, useHasActivePersistentPlayer } from "./PersistentPlayer";
+import { DesktopSideNav } from "./DesktopSideNav";
+import { DesktopTopBar } from "./DesktopTopBar";
+import { NowPlayingBar } from "./NowPlayingBar";
+import { MobilePlayerStrip } from "./PersistentPlayer";
+import { RouteProgress } from "./RouteProgress";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 
@@ -42,11 +46,6 @@ export function AppShell({
   aside,
   className,
 }: AppShellProps) {
-  // A playing Wave earns the right column even on a page that has nothing
-  // else contextual to put there — the persistent player is not "context"
-  // (SCREENS.md's "if there is nothing contextual to show, the column stays
-  // empty" is about the context list underneath it, not the player itself).
-  const hasPlayer = useHasActivePersistentPlayer();
   const pathname = usePathname();
   const t = useTranslations("Layout");
 
@@ -65,6 +64,7 @@ export function AppShell({
 
   return (
     <div className="flex min-h-dvh w-full">
+      <RouteProgress />
       <a
         href="#main"
         className="akinti-skip-link rounded-key bg-paper-raised px-4 py-3 type-subhead text-ink shadow-sheet"
@@ -73,26 +73,33 @@ export function AppShell({
       </a>
 
       <SideNav badges={badges} />
+      <DesktopSideNav badges={badges} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar actions={topBarActions} />
+        <DesktopTopBar />
 
-        <div className="flex w-full min-w-0 flex-1 gap-8 lg:max-w-[1160px]">
+        {/* No `lg:max-w-*` cap on this row: DESIGN_V3_DESKTOP.md's "main
+            column fluid, max 1280px, 32px gutters" replaces the old fixed
+            1160px frame that left 40-58% of a wide desktop viewport as flat
+            paper (`docs/research/desktop/FEEDBACK_AUDIT.md` #5) — the cap now
+            lives on `<main>` itself, and the row is free to fill whatever
+            width the viewport actually has. */}
+        <div className="flex w-full min-w-0 flex-1 gap-8 lg:px-desktop-gutter">
           <main
             id="main"
             tabIndex={-1}
             className={cn(
               "min-w-0 flex-1 pb-[calc(var(--akinti-keyboard-h)+2rem)] md:pb-16",
-              "lg:max-w-content",
+              "lg:max-w-desktop-content lg:pb-[calc(var(--akinti-now-playing-h)+2rem)]",
               className,
             )}
           >
             {children}
           </main>
 
-          {aside || hasPlayer ? (
-            <aside className="hidden w-75 shrink-0 flex-col gap-8 py-8 lg:flex">
-              <DesktopPlayerStrip />
+          {aside ? (
+            <aside className="hidden w-right-rail shrink-0 flex-col gap-8 py-8 lg:flex">
               {aside}
             </aside>
           ) : null}
@@ -100,6 +107,7 @@ export function AppShell({
       </div>
 
       <MobilePlayerStrip />
+      <NowPlayingBar />
       <BottomNav badges={badges} />
     </div>
   );

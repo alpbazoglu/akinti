@@ -24,11 +24,11 @@ export interface SideNavProps {
 }
 
 /**
- * The desktop adaptation of the keyboard (§8.1, SCREENS.md).
- *
- * At 768px the bar becomes a 72px icon rail; at 1024px a 200px labelled rail.
- * Same five destinations, same filled-glyph active state, same left-hung
- * alignment — the rail is the layout at every width (§5.4, §12.42).
+ * The tablet icon rail (§8.1, SCREENS.md): 768-1023px only. `DesktopSideNav`
+ * takes over at 1024px and up (`docs/design/DESIGN_V3_DESKTOP.md`) — this
+ * component now hides itself there (`lg:hidden`) instead of growing into a
+ * 200px labelled rail, so the 768-1023px behaviour this file already had
+ * stays pixel-for-pixel unchanged while desktop gets its own component.
  */
 export function SideNav({ badges, className }: SideNavProps) {
   const pathname = usePathname();
@@ -48,7 +48,7 @@ export function SideNav({ badges, className }: SideNavProps) {
     <div
       className={cn(
         "sticky top-0 hidden h-dvh shrink-0 flex-col gap-6 border-r border-hairline",
-        "w-18 px-3 py-5 md:flex lg:w-50 lg:px-4",
+        "w-18 px-3 py-5 md:flex lg:hidden",
         className,
       )}
     >
