@@ -49,18 +49,28 @@ export function AppShell({
   const pathname = usePathname();
   const t = useTranslations("Layout");
 
-  // Flow (`docs/FLOW.md`) is a full-screen takeover: no top bar, side rail,
-  // bottom nav or persistent player strip underneath it. Previously
-  // `FlowScreen`/`FlowEmptyState` faked this with a `fixed inset-0 z-40`
-  // overlay from inside `{children}`, which still left the whole shell
-  // mounted (and, briefly, painted) beneath it. Branching here instead means
-  // the chrome is never rendered on `/flow` at all — the shared providers
-  // above this component (playback, auth, motion) stay mounted either way,
-  // so the persistent player's state survives navigating away from Flow.
+  // Flow (`docs/FLOW.md`, amended by `docs/design/DESIGN_V3_DESKTOP.md`'s
+  // shell section — "optional right rail 320px on Flow/Wave") is a
+  // full-screen takeover ONLY below 1024px: no top bar, side rail, bottom
+  // nav or persistent player strip underneath it there. At 1024px and above
+  // it sits inside the normal desktop shell like every other screen, with
+  // its own `aside` slot reaching it exactly the way Explore's or Wave's
+  // does (flagged by the desktop-screens agent building Flow's desktop
+  // layout: the previous unconditional early return skipped the shell, and
+  // therefore the `aside` slot, at every viewport).
+  //
+  // This can't be two separate JSX branches with `{children}` mounted in
+  // each (one CSS-hidden below lg, one above) — that would mount Flow's
+  // screen component twice at once, double-firing its data fetches and
+  // audio/session side effects. Instead `{children}` renders exactly once,
+  // in the same `<main>` used everywhere else, and only the four
+  // components that exist purely to be mobile/tablet chrome (`SideNav`,
+  // `TopBar`, `BottomNav`, `MobilePlayerStrip` — each already invisible at
+  // >= 1024px via its own breakpoint classes) are skipped for this route.
+  // `DesktopSideNav`/`DesktopTopBar`/`NowPlayingBar`/`RouteProgress` already
+  // self-hide below 1024px the same way, so leaving them mounted costs
+  // nothing below that width and needs no Flow-specific branching at all.
   const isFlow = pathname === routes.flow();
-  if (isFlow) {
-    return <>{children}</>;
-  }
 
   return (
     <div className="flex min-h-dvh w-full">
@@ -72,11 +82,11 @@ export function AppShell({
         {t("skipToContent")}
       </a>
 
-      <SideNav badges={badges} />
+      {isFlow ? null : <SideNav badges={badges} />}
       <DesktopSideNav badges={badges} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar actions={topBarActions} />
+        {isFlow ? null : <TopBar actions={topBarActions} />}
         <DesktopTopBar />
 
         {/* No `lg:max-w-*` cap on this row: DESIGN_V3_DESKTOP.md's "main
@@ -90,7 +100,11 @@ export function AppShell({
             id="main"
             tabIndex={-1}
             className={cn(
-              "min-w-0 flex-1 pb-[calc(var(--akinti-keyboard-h)+2rem)] md:pb-16",
+              "min-w-0 flex-1",
+              // Flow's mobile/tablet takeover reserves no space for the
+              // keyboard or a bottom nav bar, because this pass doesn't
+              // render either of them for Flow below 1024px (see above).
+              isFlow ? "pb-0" : "pb-[calc(var(--akinti-keyboard-h)+2rem)] md:pb-16",
               "lg:max-w-desktop-content lg:pb-[calc(var(--akinti-now-playing-h)+2rem)]",
               className,
             )}
@@ -106,9 +120,9 @@ export function AppShell({
         </div>
       </div>
 
-      <MobilePlayerStrip />
+      {isFlow ? null : <MobilePlayerStrip />}
       <NowPlayingBar />
-      <BottomNav badges={badges} />
+      {isFlow ? null : <BottomNav badges={badges} />}
     </div>
   );
 }
