@@ -43,6 +43,8 @@ import { markFirstPublish } from "@/lib/pwa/installPrompt";
 import { AUDIO_BUCKET } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
 import { routes } from "@/config/routes";
+import { DUET_MODE_LABEL } from "@/config/terminology";
+import { cn } from "@/lib/ui";
 import type { DuetMode, DuetSegment } from "@/types/domain";
 
 import { createUploadTicket, finalizeUpload } from "@/app/(app)/create/actions";
@@ -86,6 +88,13 @@ export interface DuetRecorderProps {
   originalCreatorUsername: string;
   originalPeaks: readonly number[];
   originalDurationMs: number;
+  /**
+   * The Cypher verse this take will occupy (2-4), or `null` when it cannot
+   * be computed (e.g. the chain is already at the 4-participant cap) — see
+   * `computeCypherOrder` (`src/lib/duet/chain.ts`), called by
+   * `/w/[id]/duet/record/page.tsx`. Only ever read when `mode === "cypher"`.
+   */
+  nextCypherOrder?: number | null;
   className?: string;
 }
 
@@ -96,10 +105,12 @@ export function DuetRecorder({
   originalCreatorUsername,
   originalPeaks,
   originalDurationMs,
+  nextCypherOrder = null,
   className,
 }: DuetRecorderProps) {
   const t = useTranslations("DuetRecorder");
   const tTerms = useTranslations("Terms");
+  const tModePicker = useTranslations("DuetModePicker");
   const router = useRouter();
 
   const [stage, setStage] = useState<Stage>("mode");
@@ -294,18 +305,26 @@ export function DuetRecorder({
             </Button>
 
             {mode === "layer" ? (
-              <RecordStage
-                onCaptured={(captured) => handleLayerOrCypherCaptured(captured, captured.startOffsetMs)}
-                onUpload={() => {}}
-                onChooseTrack={() => {}}
-                onClearTrack={() => {}}
-                backingTrack={backingTrack}
-                hideUpload
-                hideChooseTrack
-              />
+              <>
+                <p className="type-body-sm measure text-ink-muted">{tModePicker("descriptionLayer")}</p>
+                <RecordStage
+                  onCaptured={(captured) => handleLayerOrCypherCaptured(captured, captured.startOffsetMs)}
+                  onUpload={() => {}}
+                  onChooseTrack={() => {}}
+                  onClearTrack={() => {}}
+                  backingTrack={backingTrack}
+                  hideUpload
+                  hideChooseTrack
+                />
+              </>
             ) : mode === "cypher" ? (
               <>
                 <p className="type-body-sm measure text-ink-muted">{t("cypherInstructions")}</p>
+                <CypherOrderMarks
+                  order={nextCypherOrder}
+                  label={t("verseOrder")}
+                  sentence={nextCypherOrder ? t("yourVerse", { order: nextCypherOrder, max: 4 }) : null}
+                />
                 <RecordStage
                   onCaptured={(captured) => handleLayerOrCypherCaptured(captured, 0)}
                   onUpload={() => {}}
@@ -362,30 +381,143 @@ export function DuetRecorder({
         ) : null}
 
         {stage === "details" && take ? (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
+              <div className="flex min-w-0 flex-1 flex-col gap-5">
+                {publishStage === null ? (
+                  <form onSubmit={handlePublish} className="flex flex-col gap-5" noValidate>
+                    <Input
+                      id="duet-title"
+                      label={t("titleLabel")}
+                      value={title}
+                      onChange={(event) => setTitle(event.target.value)}
+                      maxLength={120}
+                      required
+                    />
+                    {publishError ? (
+                      <ErrorState size="sm" title={t("publishingFailed")} description={publishError} />
+                    ) : null}
+                    <Button type="submit" size="lg" fullWidth>
+                      {t("publishDuet", { duet: tTerms("duet") })}
+                    </Button>
+                  </form>
+                ) : null}
+              </div>
+
+              {/* Right column (desktop only, mobile is unaffected below):
+                  a recap of the mode this take was made in, since Details is
+                  reached well after the mode picker scrolled out of view. */}
+              <aside className="hidden flex-col gap-4 lg:flex lg:w-[300px] lg:shrink-0">
+                <RecapPanel
+                  mode={mode}
+                  nextCypherOrder={nextCypherOrder}
+                  description={tModePicker(MODE_DESCRIPTION_KEY[mode])}
+                  modeLabel={DUET_MODE_LABEL[mode]}
+                  verseOrderLabel={t("verseOrder")}
+                  verseSentence={mode === "cypher" && nextCypherOrder ? t("yourVerse", { order: nextCypherOrder, max: 4 }) : null}
+                  heading={t("aboutThisDuet", { duet: tTerms("duet") })}
+                />
+              </aside>
+            </div>
+
             {publishStage !== null ? (
               <PublishProgress stage={publishStage} error={publishError} onRetry={() => void runPublish()} />
-            ) : (
-              <form onSubmit={handlePublish} className="flex flex-col gap-5" noValidate>
-                <Input
-                  id="duet-title"
-                  label={t("titleLabel")}
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  maxLength={120}
-                  required
-                />
-                {publishError ? (
-                  <ErrorState size="sm" title={t("publishingFailed")} description={publishError} />
-                ) : null}
-                <Button type="submit" size="lg" fullWidth>
-                  {t("publishDuet", { duet: tTerms("duet") })}
-                </Button>
-              </form>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** Parallel to `DuetModePicker`'s own private map — same three keys, translated. */
+const MODE_DESCRIPTION_KEY = {
+  layer: "descriptionLayer",
+  atisma: "descriptionAtisma",
+  cypher: "descriptionCypher",
+} as const satisfies Record<DuetMode, string>;
+
+/** One class string per verse, so Tailwind sees a literal utility class rather than an interpolated one it cannot statically find. */
+const CYPHER_HUE_CLASSES = [
+  "border-hue-cypher-1 bg-hue-cypher-1",
+  "border-hue-cypher-2 bg-hue-cypher-2",
+  "border-hue-cypher-3 bg-hue-cypher-3",
+  "border-hue-cypher-4 bg-hue-cypher-4",
+] as const;
+
+/**
+ * The Cypher verse order (this pass's brief, item 1: "verse order for Cypher
+ * with the four hue marks") — four dots in the fixed hue sequence
+ * `docs/design/COLOR_V2.md` already assigns per verse (teal, reed green,
+ * sand, deep-water blue). Filled up to and including this take's own verse;
+ * the current one carries a focus-style ring so it reads as "you are here",
+ * not just "taken". Renders nothing when `order` is `null` (the cap was hit
+ * or the computation failed) rather than drawing a guess.
+ */
+function CypherOrderMarks({
+  order,
+  label,
+  sentence,
+}: {
+  order: number | null;
+  label: string;
+  sentence: string | null;
+}) {
+  if (!order) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="type-caption-strong text-ink-muted">{label}</p>
+      <div className="flex items-center gap-2">
+        {CYPHER_HUE_CLASSES.map((hueClass, index) => {
+          const position = index + 1;
+          const filled = position <= order;
+          const isYours = position === order;
+          return (
+            <span
+              key={hueClass}
+              aria-hidden="true"
+              className={cn(
+                "size-3 rounded-full border-2",
+                filled ? hueClass : "border-hairline-strong bg-transparent",
+                isYours && "ring-2 ring-tide ring-offset-2 ring-offset-paper",
+              )}
+            />
+          );
+        })}
+      </div>
+      {sentence ? <p className="type-caption text-ink-subtle">{sentence}</p> : null}
+    </div>
+  );
+}
+
+/** The Details step's right column: which mode this take was made in, and why it sounds the way it does. */
+function RecapPanel({
+  mode,
+  nextCypherOrder,
+  description,
+  modeLabel,
+  heading,
+  verseOrderLabel,
+  verseSentence,
+}: {
+  mode: DuetMode;
+  nextCypherOrder: number | null;
+  description: string;
+  modeLabel: string;
+  heading: string;
+  verseOrderLabel: string;
+  verseSentence: string | null;
+}) {
+  return (
+    <div className="flex flex-col gap-4 rounded-object border border-hairline p-4">
+      <div className="flex flex-col gap-1">
+        <p className="type-caption-strong text-ink-muted">{heading}</p>
+        <p className="type-subhead text-ink">{modeLabel}</p>
+        <p className="type-body-sm text-ink-muted">{description}</p>
+      </div>
+      {mode === "cypher" ? (
+        <CypherOrderMarks order={nextCypherOrder} label={verseOrderLabel} sentence={verseSentence} />
+      ) : null}
     </div>
   );
 }

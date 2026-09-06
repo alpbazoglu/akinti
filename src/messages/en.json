@@ -660,7 +660,11 @@
     "turnOf": "Turn {current} of {total}",
     "playingTheirTurn": "Playing their turn",
     "playTheirTurn": "Play their turn",
-    "skipAheadAndRecord": "Skip ahead and record my reply"
+    "skipAheadAndRecord": "Skip ahead and record my reply",
+    "turnList": "Turns",
+    "repliedLabel": "Replied",
+    "upNowLabel": "Up now",
+    "notYetLabel": "Not yet"
   },
   "DuetRecorder": {
     "defaultTitle": "{duet} with @{username}",
@@ -671,6 +675,9 @@
     "continue": "Continue",
     "changeDuetMode": "Change Duet mode",
     "cypherInstructions": "Listen to the Wave above first, then record your verse. It plays after everyone else's.",
+    "verseOrder": "Verse order",
+    "yourVerse": "Your verse will be number {order} of {max}.",
+    "aboutThisDuet": "About this {duet}",
     "titleLabel": "Title",
     "publishingFailed": "Publishing failed",
     "publishDuet": "Publish {duet}"
@@ -1025,7 +1032,7 @@
     "monthUnit": "month",
     "yearUnit": "year",
     "savePercent": "Save {percent}%",
-    "paymentsNotSetUp": "Payments are not set up yet. Check back soon.",
+    "paymentsNotSetUp": "Pro checkout isn't live yet. Payment setup for your region is still in progress.",
     "startPro": "Start Pro",
     "billingDetailsTitle": "Billing details",
     "billingDetailsDescription": "iyzico needs these to process a Turkish Lira payment.",
@@ -1145,6 +1152,8 @@
     "uploadIncompleteConnectionError": "The upload didn't complete. Check your connection and try again.",
     "publishedButCouldNotEnter": "Published, but couldn't enter {title}",
     "tryEnteringAgain": "Try entering it again from the challenge page.",
+    "publishedButOpenCallFailed": "Published, but couldn't open it for anyone to Duet",
+    "tryOpenCallAgain": "Try turning on open for Duet again from the Wave page.",
     "createAWave": "Create {aWave}",
     "startOver": "Start over",
     "entering": "Entering {title}",
@@ -1347,6 +1356,7 @@
     "visibilityHint": "This controls who can open it, not just what is shown.",
     "whoCanComment": "Who can comment",
     "whoCanRequestDuet": "Who can request a {duet}",
+    "duetPermissionHint": "Defaults to everyone. Change it if you want to limit who can ask.",
     "collaboratorsHint": "A username at a time. They accept before they are credited.",
     "removeUsername": "Remove {username}",
     "tags": "Tags",

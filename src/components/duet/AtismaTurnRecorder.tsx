@@ -31,10 +31,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Waveform } from "@/components/audio";
 import { RecordStage, type CapturedTake } from "@/components/create";
+import { useStageShortcuts } from "@/components/create/useStageShortcuts";
 import { Button, ErrorState } from "@/components/ui";
-import { Pause, Play } from "@/components/ui/icons";
+import { Check, Pause, Play } from "@/components/ui/icons";
 import { usePlaybackStore, useWaveControls, useWavePlayback } from "@/lib/audio";
-import { formatDuration } from "@/lib/ui";
+import { cn, formatDuration } from "@/lib/ui";
 import type { DuetSegment } from "@/types/domain";
 
 import { concatenateAtismaTurns, type AtismaTurnTake } from "./atismaAudio";
@@ -63,6 +64,8 @@ export function AtismaTurnRecorder({
   className,
 }: AtismaTurnRecorderProps) {
   const t = useTranslations("AtismaTurnRecorder");
+  const tModePicker = useTranslations("DuetModePicker");
+  const tRecordStage = useTranslations("RecordStage");
   const store = usePlaybackStore();
   const waveId = useMemo(() => `atisma-original:${originalAssetId}`, [originalAssetId]);
 
@@ -193,14 +196,21 @@ export function AtismaTurnRecorder({
     setPhase("recording");
   };
 
+  // "space = play/pause their turn" while listening — the desktop two-column
+  // layout's left stage has no other transport to compete with here (unlike
+  // `RecordStage`, which already owns space for arm/stop once mounted below,
+  // so this is deliberately `undefined` outside the listening phase rather
+  // than double-handling the key).
+  useStageShortcuts({ onSpace: phase === "listening" ? toggle : undefined });
+
   if (originalLoadError) {
     return <ErrorState title={t("originalCouldNotBeLoaded")} description={originalLoadError} className={className} />;
   }
 
   if (phase === "setup") {
     return (
-      <section className={className}>
-        <div className="flex flex-col gap-6">
+      <section className={cn("flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10", className)}>
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
           <div className="flex flex-col gap-1">
             <p className="type-subhead text-ink">{t("howManyExchanges")}</p>
             <p className="type-body-sm measure text-ink-muted">
@@ -232,6 +242,15 @@ export function AtismaTurnRecorder({
             {originalUrl ? t("startFirstTurn") : t("loadingOriginal")}
           </Button>
         </div>
+
+        {/* Right column (desktop only, this pass's brief, item 1): a preview
+            of the turns this count will produce, and what Atışma is, since
+            the mode picker's own one-line explanation has already scrolled
+            out of view by the time the reader is here. */}
+        <aside className="hidden flex-col gap-5 lg:flex lg:w-[280px] lg:shrink-0">
+          <TurnList turnCount={turnCount} completedCount={0} currentIndex={-1} t={t} />
+          <ModeAndHint description={tModePicker("descriptionAtisma")} hint={tRecordStage("bestWithHeadphones")} />
+        </aside>
       </section>
     );
   }
@@ -255,9 +274,14 @@ export function AtismaTurnRecorder({
     );
   }
 
+  const trim =
+    originalDurationMs > 0
+      ? { start: turnStartMs / originalDurationMs, end: turnEndMs / originalDurationMs }
+      : undefined;
+
   return (
-    <section className={className}>
-      <div className="flex flex-col gap-6">
+    <section className={cn("flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10", className)}>
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
         <div className="flex items-baseline justify-between">
           <p className="type-caption-strong text-ink-muted">
             {t("turnOf", { current: turnIndex + 1, total: turnCount })}
@@ -267,8 +291,24 @@ export function AtismaTurnRecorder({
           </p>
         </div>
 
-        <div className="-mx-page">
+        {/* Mobile: this turn's own slice, unchanged. */}
+        <div className="-mx-page lg:hidden">
           <Waveform peaks={slicePeaks} progress={0} duration={(turnEndMs - turnStartMs) / 1000} readOnly fullBleed />
+        </div>
+
+        {/* Desktop ("original trace with segments", this pass's brief, item
+            1): the whole original, with this turn's window carved out via
+            `Waveform`'s existing trim highlight rather than a second trace
+            style invented for this screen. */}
+        <div className="hidden lg:block">
+          <Waveform
+            peaks={originalPeaks}
+            progress={0}
+            duration={originalDurationMs / 1000}
+            trim={trim}
+            readOnly
+            label={t("turnOf", { current: turnIndex + 1, total: turnCount })}
+          />
         </div>
 
         {phase === "listening" ? (
@@ -286,18 +326,108 @@ export function AtismaTurnRecorder({
             </Button>
           </div>
         ) : (
-          <RecordStage
-            key={`turn-${turnIndex}`}
-            onCaptured={handleCaptured}
-            onUpload={() => {}}
-            onChooseTrack={() => {}}
-            onClearTrack={() => {}}
-            backingTrack={null}
-            hideUpload
-            hideChooseTrack
-          />
+          <>
+            {/* A slim progress row instead of a second right column here —
+                `RecordStage` below already draws its own desktop two-column
+                split (trace/transport left, monitoring/headphones settings
+                right, per `DESIGN_V3_DESKTOP.md`), so a second full rail
+                next to it would only crowd it. The full turn list lives in
+                the listening phase's right column instead. */}
+            <div className="hidden items-center gap-1.5 lg:flex" aria-hidden="true">
+              {Array.from({ length: turnCount }).map((_, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    "h-1.5 flex-1 rounded-full",
+                    index < takes.length ? "bg-atisma" : index === turnIndex ? "bg-tide" : "bg-hairline-strong",
+                  )}
+                />
+              ))}
+            </div>
+            <RecordStage
+              key={`turn-${turnIndex}`}
+              onCaptured={handleCaptured}
+              onUpload={() => {}}
+              onChooseTrack={() => {}}
+              onClearTrack={() => {}}
+              backingTrack={null}
+              hideUpload
+              hideChooseTrack
+            />
+          </>
         )}
       </div>
+
+      {/* Right column, listening only (desktop) — see the note above for why
+          "recording" does not also get one. */}
+      {phase === "listening" ? (
+        <aside className="hidden flex-col gap-5 lg:flex lg:w-[280px] lg:shrink-0">
+          <TurnList turnCount={turnCount} completedCount={takes.length} currentIndex={turnIndex} t={t} />
+          <ModeAndHint description={tModePicker("descriptionAtisma")} hint={tRecordStage("bestWithHeadphones")} />
+        </aside>
+      ) : null}
     </section>
+  );
+}
+
+/** The turn list (this pass's brief, item 1): who sings when, with reed-green marks for turns already replied to. */
+function TurnList({
+  turnCount,
+  completedCount,
+  currentIndex,
+  t,
+}: {
+  turnCount: number;
+  completedCount: number;
+  currentIndex: number;
+  t: ReturnType<typeof useTranslations<"AtismaTurnRecorder">>;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="type-caption-strong text-ink-muted">{t("turnList")}</p>
+      <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
+        {Array.from({ length: turnCount }).map((_, index) => {
+          const status: "done" | "current" | "upcoming" =
+            index < completedCount ? "done" : index === currentIndex ? "current" : "upcoming";
+          return (
+            <li key={index} className="flex items-center gap-3 py-2.5">
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "flex size-5 shrink-0 items-center justify-center rounded-full border",
+                  status === "done"
+                    ? "border-atisma bg-atisma text-on-ink"
+                    : status === "current"
+                      ? "border-tide text-tide"
+                      : "border-hairline-strong text-ink-subtle",
+                )}
+              >
+                {status === "done" ? (
+                  <Check className="size-3" weight="bold" />
+                ) : (
+                  <span className="type-mono-sm">{index + 1}</span>
+                )}
+              </span>
+              <span className="flex min-w-0 flex-col">
+                <span className="type-body-sm text-ink">{t("turnOf", { current: index + 1, total: turnCount })}</span>
+                <span className="type-caption text-ink-subtle">
+                  {status === "done" ? t("repliedLabel") : status === "current" ? t("upNowLabel") : t("notYetLabel")}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** One-sentence mode explanation + the headphone tip, reused verbatim from `DuetModePicker`/`RecordStage` rather than forked into new copy. */
+function ModeAndHint({ description, hint }: { description: string; hint: string }) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-hairline pt-4">
+      <p className="type-body-sm measure text-ink-muted">{description}</p>
+      <p className="type-caption text-ink-subtle">{hint}</p>
+    </div>
   );
 }

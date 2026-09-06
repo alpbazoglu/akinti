@@ -660,7 +660,11 @@
     "turnOf": "{total} turdan {current}.",
     "playingTheirTurn": "Onların turu çalıyor",
     "playTheirTurn": "Onların turunu çal",
-    "skipAheadAndRecord": "İleri atla ve yanıtımı kaydet"
+    "skipAheadAndRecord": "İleri atla ve yanıtımı kaydet",
+    "turnList": "Turlar",
+    "repliedLabel": "Yanıtlandı",
+    "upNowLabel": "Şimdi sırada",
+    "notYetLabel": "Henüz değil"
   },
   "DuetRecorder": {
     "defaultTitle": "@{username} ile {duet}",
@@ -671,6 +675,9 @@
     "continue": "Devam et",
     "changeDuetMode": "Duet modunu değiştir",
     "cypherInstructions": "Önce yukarıdaki Wave'i dinle, sonra kendi dizeni kaydet. Herkesinkinden sonra çalar.",
+    "verseOrder": "Dize sırası",
+    "yourVerse": "Dizen {max} üzerinden {order}. sırada olacak.",
+    "aboutThisDuet": "Bu {duet} hakkında",
     "titleLabel": "Başlık",
     "publishingFailed": "Yayınlama başarısız oldu",
     "publishDuet": "{duet}'i yayınla"
@@ -1025,7 +1032,7 @@
     "monthUnit": "ay",
     "yearUnit": "yıl",
     "savePercent": "%{percent} tasarruf et",
-    "paymentsNotSetUp": "Ödemeler henüz kurulmadı. Daha sonra tekrar kontrol et.",
+    "paymentsNotSetUp": "Pro satın alma henüz açık değil. Bölgen için ödeme kurulumu hâlâ sürüyor.",
     "startPro": "Pro'yu başlat",
     "billingDetailsTitle": "Fatura bilgileri",
     "billingDetailsDescription": "iyzico, Türk Lirası ödemesi işleyebilmek için bunlara ihtiyaç duyuyor.",
@@ -1145,6 +1152,8 @@
     "uploadIncompleteConnectionError": "Yükleme tamamlanamadı. Bağlantını kontrol edip tekrar dene.",
     "publishedButCouldNotEnter": "Yayınlandı ama {title} meydan okumasına girilemedi",
     "tryEnteringAgain": "Meydan okuma sayfasından tekrar girmeyi dene.",
+    "publishedButOpenCallFailed": "Yayınlandı ama herkese Duet'e açılamadı",
+    "tryOpenCallAgain": "Wave sayfasından Duet'e açık ayarını tekrar açmayı dene.",
     "createAWave": "{aWave} oluştur",
     "startOver": "Baştan başla",
     "entering": "{title} meydan okumasına giriliyor",
@@ -1347,6 +1356,7 @@
     "visibilityHint": "Bu, sadece neyin gösterileceğini değil, kimin açabileceğini belirler.",
     "whoCanComment": "Kimler yorum yapabilir",
     "whoCanRequestDuet": "Kimler {duet} isteyebilir",
+    "duetPermissionHint": "Varsayılan olarak herkes. Kimlerin isteyebileceğini sınırlamak istersen değiştir.",
     "collaboratorsHint": "Bir seferde bir kullanıcı adı. Kredilendirilmeden önce kabul etmeleri gerekir.",
     "removeUsername": "{username} kişisini kaldır",
     "tags": "Etiketler",

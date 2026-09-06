@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui";
 import { DuetRecorder } from "@/components/duet";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
 import { getDuetRequestById } from "@/lib/db/duetRequests";
+import { computeCypherOrder } from "@/lib/duet/chain";
 import { resolveWavePeaks } from "@/lib/audio/peaks";
 import { getProfileById } from "@/lib/db/profiles";
 import { getWaveById } from "@/lib/db/waves";
@@ -89,12 +90,31 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
 
   const creator = await getProfileById(db, originalWave.creatorId);
 
+  // The Cypher right column's "four hue marks" (this pass's brief, item 1)
+  // needs a real verse number, not an invented one — `computeCypherOrder`
+  // (`src/lib/duet/chain.ts`) is the same pure function the database's own
+  // `waves_derive_duet_lineage` trigger mirrors, so this is a preview of the
+  // number the take will actually be assigned, not a guess. Swallowed to
+  // `null` at the cap (4 participants) rather than throwing the page — the
+  // mode picker offering Cypher past the cap is a pre-existing gap outside
+  // this pass's UI-only brief, not something to paper over with a fake order.
+  let nextCypherOrder: number | null = null;
+  try {
+    nextCypherOrder = computeCypherOrder({
+      creationType: originalWave.creationType,
+      duetMode: originalWave.duet.mode,
+      cypherOrder: originalWave.duet.cypherOrder,
+    });
+  } catch {
+    nextCypherOrder = null;
+  }
+
   return (
     <>
       <PageHeader
         title={recordYourDuetTitle}
       />
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-24 sm:px-5">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-24 sm:px-5 lg:max-w-4xl">
         <DuetRecorder
           requestId={request.id}
           originalAssetId={original.id}
@@ -102,6 +122,7 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
           originalCreatorUsername={creator?.username ?? "unknown"}
           originalPeaks={resolveWavePeaks(original.peaks?.data, original.id, original.peaks?.bits)}
           originalDurationMs={original.durationMs ?? 0}
+          nextCypherOrder={nextCypherOrder}
         />
       </div>
     </>
