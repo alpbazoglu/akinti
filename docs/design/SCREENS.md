@@ -968,9 +968,31 @@ just the real Wave results' own `tags`, deduped and counted, never a global hash
 Recent searches render as removable chips with a clock icon at `lg`; mobile's original
 plain-list recent searches and stacked result sections are unchanged.
 
+### Duets (`/duets`, mode picker, requests inbox) — partial
+`DuetModePicker` gains a three-card grid with an icon per mode at `lg` (Layer a stack,
+Atışma a swap, Cypher a loop — all drawn from the existing approved Phosphor set); mobile
+keeps its original rail rows. `/duets` becomes a two-pane list/detail at `lg`
+(`DuetRequestsTwoPane`, new, inside `DuetRequestsView`): a compact selectable row list on
+the left, the selected request's full message and Accept/Decline/Cancel/Record actions on
+the right (`RequestDetailPane`, sharing its pending/error logic with the mobile row via a
+small `useRequestRunAction` hook rather than duplicating it); mobile keeps its original
+single-column list with actions inline on every row.
+
+**Not done in this pass, and why:** the Atışma/Cypher recorders' "two-column stage" (left
+stage, right turn list/verse order) and the Duet chain tree with hover highlighting were
+not attempted. The recorder stage (`DuetRecorder.tsx`, `AtismaTurnRecorder.tsx`) wraps
+`RecordStage`/`ReviewStage`/`EnhanceStage` from `src/components/create/**`, a route owned
+by a concurrently-running agent this pass — reshaping the capture stage safely without
+touching that boundary would need those components to expose turn/verse progress they
+don't today, which is real product surgery on a live audio-capture path, not a layout pass.
+A chain tree has no data layer at all yet: only immediate-parent/root lineage exists
+(`DuetLineage`), not a fetch for a whole Duet chain's descendants — building one from
+scratch was out of scope for a desktop layout pass and risked fabricating a tree the
+database cannot actually produce.
+
 ### Not yet built
-Duets, Notifications, Messages and Settings have not had a desktop-specific pass — they
-render whatever their existing mobile-first layout produces at desktop width (correct, but
-not redesigned to Direction A's card/rail language). `loading.tsx` skeletons for
+Notifications, Messages and Settings have not had a desktop-specific pass — they render
+whatever their existing mobile-first layout produces at desktop width (correct, but not
+redesigned to Direction A's card/rail language). `loading.tsx` skeletons for
 Flow/Explore/Wave/Profile have not been reshaped to the new desktop layouts; they still
 describe the pre-existing mobile shape.
