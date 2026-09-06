@@ -79,7 +79,7 @@ export async function signUp(
   });
 
   if (error) {
-    return { ok: false, formError: mapAuthError(error) };
+    return { ok: false, formError: mapAuthError(error, t) };
   }
 
   if (!data.session) {
@@ -103,8 +103,8 @@ export async function signIn(
     password: formData.get("password"),
   });
 
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    const t = (await getTranslations()) as MessageTranslator;
     return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
@@ -112,7 +112,7 @@ export async function signIn(
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    return { ok: false, formError: mapAuthError(error) };
+    return { ok: false, formError: mapAuthError(error, t) };
   }
 
   const next = sanitizeNextPath(formData.get("next"));
@@ -151,7 +151,8 @@ export async function signOut(): Promise<AuthActionResult> {
   const { error } = await supabase.auth.signOut();
 
   if (error) {
-    return { ok: false, formError: mapAuthError(error) };
+    const t = (await getTranslations()) as MessageTranslator;
+    return { ok: false, formError: mapAuthError(error, t) };
   }
 
   // Deliberately NOT `redirect()` here, for the same reason `signIn` isn't
@@ -188,7 +189,7 @@ export async function requestPasswordReset(
   // an account; match that here rather than branching on `error` for a
   // "not found" case that would leak account existence.
   if (error && error.code !== "user_not_found") {
-    return { ok: false, formError: mapAuthError(error) };
+    return { ok: false, formError: mapAuthError(error, t) };
   }
 
   return {
@@ -217,7 +218,7 @@ export async function updatePassword(
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
 
   if (error) {
-    return { ok: false, formError: mapAuthError(error) };
+    return { ok: false, formError: mapAuthError(error, t) };
   }
 
   return { ok: true, message: t("AuthActions.passwordUpdated") };
