@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { ChartColumn, Pencil } from "@/components/ui/icons";
+import { ChartColumn, MusicNotes, Pencil, UserPlus, Users } from "@/components/ui/icons";
 
 import { WaveformCanvas, type TraceHue } from "@/components/audio";
 import { ProMark } from "@/components/pro/ProMark";
@@ -94,6 +94,13 @@ export async function ProfileHeader({
 
   return (
     <div className={cn("flex flex-col", className)}>
+      {/* `DESIGN_V3_DESKTOP.md` (`Profile`: "signature trace as a wide
+          banner (dark)") needs no `lg:` override here: `--akinti-paper-sunk`
+          is itself re-aliased to the dark elevation-0 floor at >= 1024px
+          (globals.css's desktop elevation block, "dark is the desktop
+          default regardless of system preference"), so this banner is
+          already the dark Akış ground at that width without a class
+          change — same as every other `bg-paper*` surface in the product. */}
       <div className="w-full bg-paper-sunk" style={{ height: SIGNATURE_HEIGHT }}>
         {signature.length > 0 ? (
           <WaveformCanvas peaks={signature} height={SIGNATURE_HEIGHT} state="unplayed" hue={hue} />
@@ -167,11 +174,15 @@ export async function ProfileHeader({
           ) : null}
         </div>
 
+        {/* `DESIGN_V3_DESKTOP.md` "Icons": "every ... metadata line has an
+            icon" — desktop-only (`hidden lg:inline`) since the mobile stats
+            row (`docs/design/DESIGN.md`) is deliberately icon-free text. */}
         <div className="flex items-center gap-4 text-sm">
           <Link
             href={routes.profileFollowers(profile.username)}
-            className="hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="flex items-center gap-1.5 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
+            <Users className="hidden size-3.5 text-fg-subtle lg:inline" aria-hidden="true" />
             <span className="font-semibold text-fg tabular-nums">
               {formatCount(profile.counts.followers)}
             </span>{" "}
@@ -179,14 +190,16 @@ export async function ProfileHeader({
           </Link>
           <Link
             href={routes.profileFollowing(profile.username)}
-            className="hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="flex items-center gap-1.5 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
+            <UserPlus className="hidden size-3.5 text-fg-subtle lg:inline" aria-hidden="true" />
             <span className="font-semibold text-fg tabular-nums">
               {formatCount(profile.counts.following)}
             </span>{" "}
             <span className="text-fg-subtle">{tTerms("following")}</span>
           </Link>
-          <span>
+          <span className="flex items-center gap-1.5">
+            <MusicNotes className="hidden size-3.5 text-fg-subtle lg:inline" aria-hidden="true" />
             <span className="font-semibold text-fg tabular-nums">
               {formatCount(profile.counts.waves)}
             </span>{" "}

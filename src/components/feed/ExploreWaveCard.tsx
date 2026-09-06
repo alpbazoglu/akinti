@@ -71,7 +71,10 @@ export function ExploreWaveCard({ wave, unheard = false }: ExploreWaveCardProps)
 
   const creationType = CREATION_TYPES[wave.creationType];
   const creatorName = wave.creator.displayName ?? wave.creator.username;
-  const hue = genreHueForTag(wave.tags?.[0] ?? null);
+  // Profile's own grid (`ProfileTabs`) already attaches a per-profile
+  // signature hue to every card via `wave.hue`; Explore's cards don't set
+  // that, so this falls back to the per-Wave genre tag there.
+  const hue = wave.hue ?? genreHueForTag(wave.tags?.[0] ?? null);
   const duration = playback.duration || wave.duration || 0;
   const progress = duration > 0 ? playback.currentTime / duration : 0;
 

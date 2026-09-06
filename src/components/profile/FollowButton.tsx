@@ -1,13 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { UserCheck, UserPlus } from "@/components/ui/icons";
 
 import { cancelFollowRequest, follow, unfollow } from "@/app/(app)/u/[username]/actions";
 import { routes } from "@/config/routes";
 import type { FollowStatus } from "@/types/domain";
-import { Button, type ButtonSize } from "@/components/ui";
+import { Button, type ButtonSize, useActionToast } from "@/components/ui";
 import { resolveFollowButtonState } from "@/lib/ui";
 
 export interface FollowButtonProps {
@@ -38,6 +38,7 @@ export function FollowButton({
   className,
 }: FollowButtonProps) {
   const router = useRouter();
+  const { notify } = useActionToast();
   const [status, setStatus] = useState<FollowStatus | null>(initialFollowStatus);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -54,10 +55,20 @@ export function FollowButton({
     setStatus(initialFollowStatus);
   }
 
+  // Optimistic (DESIGN_V3_DESKTOP.md "Feedback": "optimistic for follow/
+  // save/replay"): the button reflects the new status the instant it's
+  // pressed. `useOptimistic` reverts to `status` on its own once the
+  // transition below settles — a failed request just never calls
+  // `setStatus`, so the revert happens for free, no manual rollback needed.
+  const [optimisticStatus, setOptimisticStatus] = useOptimistic(
+    status,
+    (_current: FollowStatus | null, next: FollowStatus | null) => next,
+  );
+
   const state = resolveFollowButtonState({
     isSelf: false,
     isSignedIn,
-    followStatus: status,
+    followStatus: optimisticStatus,
     followsViewer,
   });
 
@@ -68,20 +79,31 @@ export function FollowButton({
     }
 
     setError(null);
+    const action = state.action;
+    // Guesses "accepted" for a fresh follow — right for the common public
+    // profile, and for a private one it settles to "pending" the instant
+    // `result.status` comes back (this button doesn't know the target's
+    // privacy up front). A one-frame correction beats waiting on every
+    // follow just to protect the rarer private case.
+    const optimisticNext: FollowStatus | null =
+      action === "follow" ? "accepted" : action === "cancel" ? null : null;
 
     startTransition(async () => {
+      setOptimisticStatus(optimisticNext);
       const result =
-        state.action === "follow"
+        action === "follow"
           ? await follow(profileId)
-          : state.action === "cancel"
+          : action === "cancel"
             ? await cancelFollowRequest(profileId)
             : await unfollow(profileId);
 
       if (!result.ok) {
         setError(result.formError ?? "Something went wrong.");
+        if (action !== "cancel") notify(action === "follow" ? "follow" : "unfollow", "error");
         return;
       }
       setStatus(result.status ?? null);
+      if (action !== "cancel") notify(action === "follow" ? "follow" : "unfollow", "success");
       router.refresh();
     });
   }
@@ -98,7 +120,11 @@ export function FollowButton({
         size={size}
         fullWidth={hideIcon}
         onClick={handleClick}
-        loading={isPending}
+        // Disabled, not `loading`: `loading` hides the label behind a
+        // spinner, which would erase the whole point of the optimistic
+        // label above. Still blocks a double-submit while the request is
+        // in flight.
+        disabled={isPending}
         leadingIcon={
           hideIcon ? undefined : state.isMuted ? (
             <UserCheck className="size-4" />

@@ -1,5 +1,6 @@
 export { BackingTracksLane, type BackingTrackCard, type BackingTracksLaneProps } from "./BackingTracksLane";
 export { ExploreView, type ExploreViewProps } from "./ExploreView";
+export { ExploreWaveCard, type ExploreWaveCardProps } from "./ExploreWaveCard";
 export {
   deriveGenreHue,
   genreHueForTag,
