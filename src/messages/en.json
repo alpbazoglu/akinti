@@ -105,6 +105,15 @@
     "waveform": "Waveform",
     "duration": "Duration"
   },
+  "Layout": {
+    "skipToContent": "Skip to content",
+    "primaryNav": "Primary",
+    "unreadNotifications": "unread notifications",
+    "unreadItem": "unread {item}",
+    "closePlayer": "Close player",
+    "accountMenu": "Account",
+    "accountMenuLabel": "{name}, account menu"
+  },
   "FlowWaveView": {
     "singOverThis": "Sing over this",
     "tapToStart": "Tap to start listening"
@@ -130,6 +139,30 @@
     "emptyCompositions": "No music here yet.",
     "emptyOpenForDuet": "Nobody is open for a Duet right now.",
     "findPeopleToFollow": "Find people to follow"
+  },
+  "ProfilePage": {
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. Profiles are unavailable until this environment is connected to a Supabase project.",
+    "unavailableTitle": "Profile unavailable",
+    "unavailableDescription": "This profile doesn't exist, or isn't available to you."
+  },
+  "FollowersPage": {
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Follower lists are unavailable in this environment.",
+    "unavailableTitle": "Profile unavailable",
+    "unavailableDescription": "This profile doesn't exist, or isn't available to you.",
+    "emptyTitle": "No followers yet",
+    "emptySelf": "Once people follow you, they'll show up here.",
+    "emptyOther": "@{username} doesn't have any followers yet."
+  },
+  "FollowingPage": {
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Following lists are unavailable in this environment.",
+    "unavailableTitle": "Profile unavailable",
+    "unavailableDescription": "This profile doesn't exist, or isn't available to you.",
+    "emptyTitle": "Not following anyone yet",
+    "emptySelf": "Accounts you follow will show up here.",
+    "emptyOther": "@{username} isn't following anyone yet."
   },
   "BackingTracksLane": {
     "title": "Tracks to sing over",
@@ -176,6 +209,121 @@
   "WaveFeedList": {
     "tryAgain": "Try again",
     "loadMore": "Load more"
+  },
+  "Report": {
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Harassment",
+    "reasonImpersonation": "Impersonation",
+    "reasonCopyright": "Copyright concern",
+    "reasonInappropriate": "Inappropriate content",
+    "reasonAbusive": "Abusive behavior",
+    "reasonOther": "Other",
+    "statusOpen": "Open",
+    "statusReviewing": "Reviewing",
+    "statusActioned": "Actioned",
+    "statusDismissed": "Dismissed"
+  },
+  "AccountForm": {
+    "displayNameLabel": "Display name",
+    "usernameLabel": "Username",
+    "usernameHint": "Lowercase letters, numbers and underscores only.",
+    "bioLabel": "Bio",
+    "saveChanges": "Save changes",
+    "saved": "Saved."
+  },
+  "AppearanceForm": {
+    "preview": "Preview",
+    "backgroundLabel": "Background",
+    "gradientLabel": "Gradient",
+    "patternLabel": "Pattern",
+    "accentLabel": "Accent",
+    "saveAppearance": "Save appearance",
+    "saveErrorDefault": "Could not save your appearance settings.",
+    "saved": "Saved."
+  },
+  "AvatarUploader": {
+    "backendNotConfigured": "Backend not configured. Avatar upload is unavailable in this environment.",
+    "sessionExpired": "Your session has expired. Sign in again to continue.",
+    "invalidType": "Use a PNG, JPEG, WebP or AVIF image.",
+    "tooLarge": "That image is larger than the {mb} MB limit.",
+    "couldNotSaveNewPhoto": "Could not save your new photo.",
+    "profilePhotoUpdated": "Profile photo updated.",
+    "couldNotUpload": "Could not upload that image. Try a different file.",
+    "uploadLabel": "Upload profile photo",
+    "changePhoto": "Change photo",
+    "hint": "PNG, JPEG, WebP or AVIF. Resized to {px}px automatically."
+  },
+  "BlockedList": {
+    "emptyTitle": "No blocked accounts",
+    "emptyDescription": "Accounts you block cannot view your profile, message you, or send Duet Requests.",
+    "couldNotUnblock": "Could not unblock this account.",
+    "unblocked": "Account unblocked."
+  },
+  "FollowRequestsList": {
+    "emptyTitle": "No pending follow requests",
+    "emptyDescription": "When someone requests to follow your private account, they'll show up here.",
+    "couldNotUpdate": "Could not update this request.",
+    "decline": "Decline",
+    "accept": "Accept"
+  },
+  "LockedContent": {
+    "title": "This profile is private",
+    "pending": "Your follow request to @{username} is pending. Once accepted, you'll see their {waves} and {duets} here.",
+    "notFollowing": "Follow @{username} to see their {waves} and {duets} once they accept."
+  },
+  "PrivacyForm": {
+    "privateAccountLabel": "Private account",
+    "privateAccountDescription": "Only accepted followers can see your Waves and follower list. Switching to private keeps everyone who already follows you.",
+    "pendingFollowRequests": "Pending follow requests",
+    "whoCanReachYou": "Who can reach you",
+    "whoCanMessageLabel": "Who can message me",
+    "whoCanDuetLabel": "Who can send Duet Requests",
+    "whoCanCommentLabel": "Who can comment on my Waves by default",
+    "commentHint": "Each Wave can override this when you publish it.",
+    "publishingHeading": "Publishing",
+    "defaultVisibilityLabel": "Default Wave visibility",
+    "defaultVisibilityHint": "This actually controls who can open it. You can still change it per Wave when publishing.",
+    "saveErrorDefault": "Could not save your privacy settings.",
+    "saved": "Saved.",
+    "audienceEveryone": "Everyone",
+    "audienceFollowing": "People I follow",
+    "audienceNobody": "Nobody",
+    "visibilityOnlyMe": "Only me"
+  },
+  "ProfileHeader": {
+    "analytics": "Analytics",
+    "signatureWithWaves": "Your signature, from your last 12 Waves.",
+    "signatureEmpty": "Your signature appears once you publish."
+  },
+  "ProfileOverflowMenu": {
+    "somethingWrong": "Something went wrong.",
+    "done": "Done.",
+    "moreActions": "More actions"
+  },
+  "ProfileTabs": {
+    "tabsLabel": "Profile content",
+    "noWavesSelf": "You haven't published a Wave yet",
+    "noWavesOther": "No Waves yet",
+    "recordCta": "Record or upload your first Wave to get started.",
+    "noDuets": "No Duets yet",
+    "duetsDescriptionSelf": "Duets you publish will show up here, credited back to the original Wave.",
+    "duetsDescriptionOther": "@{username} hasn't published a Duet yet."
+  },
+  "ReportSheet": {
+    "title": "Report @{username}",
+    "description": "Tell us what's wrong. Reports are reviewed by our team. This does not notify the account.",
+    "cancel": "Cancel",
+    "submitReport": "Submit report",
+    "reasonLabel": "Reason",
+    "detailsLabel": "Details (optional)",
+    "detailsPlaceholder": "Add any context that will help our team review this.",
+    "couldNotSubmit": "Could not submit your report.",
+    "reportSubmitted": "Report submitted."
+  },
+  "ReportsList": {
+    "emptyTitle": "No reports filed",
+    "emptyDescription": "Reports you submit are reviewed by our team. Nothing is auto-actioned on a single report.",
+    "filedAt": "Filed {time}"
   },
   "WaveCard": {
     "unheard": "Unheard",
@@ -253,6 +401,21 @@
     "detailsOptional": "Details (optional)",
     "detailsPlaceholder": "Anything that helps the review."
   },
+  "ConversationPage": {
+    "notFoundTitle": "Conversation not found",
+    "notFoundDescription": "This conversation doesn't exist, or you're not part of it.",
+    "loadErrorDefault": "We could not load this conversation right now."
+  },
+  "NewConversationPage": {
+    "title": "New message",
+    "metaTitle": "New message · {messages}",
+    "backTo": "Back to {messages}",
+    "noOneTitle": "No one to message",
+    "noOneDescription": "Open a profile and choose Message to start a conversation.",
+    "cantStartTitle": "Can't start this conversation",
+    "cantStartDefault": "This account can't be messaged right now.",
+    "viewProfile": "View profile"
+  },
   "DuetModePicker": {
     "duetMode": "Duet mode",
     "descriptionLayer": "Sing or play alongside the original, at the same time.",
@@ -268,6 +431,74 @@
   "DuetsPage": {
     "notConnectedTitle": "This isn't connected to a backend yet",
     "notConnectedDescription": "Supabase environment variables aren't set, so Duet Requests can't be loaded here."
+  },
+  "AudioMessageBubble": {
+    "loading": "Loading audio message",
+    "couldNotLoad": "This audio message could not be loaded.",
+    "title": "Audio message"
+  },
+  "BlockedNotice": {
+    "cantReply": "You can't reply to this conversation."
+  },
+  "Composer": {
+    "couldNotSend": "Could not send that message. Try again.",
+    "defaultDisabled": "You can't send messages in this conversation.",
+    "recordAudioLabel": "Record an audio message",
+    "messageLabel": "Message",
+    "messagePlaceholder": "Message…",
+    "sendLabel": "Send message",
+    "recordSheetTitle": "Audio message",
+    "recordSheetDescription": "Recorded audio is private. It is never a Wave and never appears in a feed.",
+    "previewTitle": "Preview",
+    "retake": "Retake",
+    "send": "Send",
+    "couldNotStartUpload": "We couldn't start this upload. Try again.",
+    "uploadIncomplete": "The upload didn't complete. Try again.",
+    "uploadIncompleteConnection": "The upload didn't complete. Check your connection and try again.",
+    "couldNotFinishPreparing": "We couldn't finish preparing this recording.",
+    "couldNotSendRecording": "Could not send that recording. Try again.",
+    "audioMessageSent": "Audio message sent."
+  },
+  "ConversationRow": {
+    "unknownMember": "Unknown",
+    "unreadSr": "{count} unread"
+  },
+  "MessageBubble": {
+    "them": "them",
+    "readReceipt": "Read",
+    "reportMessage": "Report message"
+  },
+  "MessagesView": {
+    "couldNotLoadMore": "Could not load more conversations.",
+    "emptyTitle": "No conversations yet",
+    "emptyDescription": "Audio messages are private. They are never Waves, and they never appear in a feed or in Explore.",
+    "searchLabel": "Search conversations",
+    "searchPlaceholder": "Search by name",
+    "noMatchesTitle": "No matches",
+    "noMatchesDescription": "No conversation matches that name.",
+    "loadMore": "Load more",
+    "reachedStart": "You've reached the start of your inbox."
+  },
+  "ReportMessageSheet": {
+    "title": "Report message",
+    "description": "Tell us what's wrong. Reports are reviewed by our team. This does not notify the sender.",
+    "cancel": "Cancel",
+    "submitReport": "Submit report",
+    "reasonLabel": "Reason",
+    "detailsLabel": "Details (optional)",
+    "detailsPlaceholder": "Add any context that will help our team review this.",
+    "couldNotSubmit": "Could not submit your report.",
+    "reportSubmitted": "Report submitted."
+  },
+  "ThreadHeader": {
+    "fallbackName": "Conversation",
+    "backToMessages": "Back to {messages}"
+  },
+  "ThreadView": {
+    "loadEarlier": "Load earlier messages",
+    "startOfConversation": "Start of your conversation",
+    "noMessagesYet": "No messages yet. Say hello.",
+    "loadingConversation": "Loading conversation"
   },
   "DuetRequestForm": {
     "sentRedirecting": "{duetRequest} sent. Redirecting to your requests…",
@@ -350,6 +581,46 @@
     "originalUnavailableDescription": "The original Wave is no longer available.",
     "cantRecordTitle": "Can't record this Duet right now"
   },
+  "NotificationItem": {
+    "somethingWrong": "Something went wrong.",
+    "nothingToRespond": "There is nothing to respond to.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "accepted": "Accepted",
+    "declined": "Declined"
+  },
+  "NotificationsView": {
+    "emptyTitle": "No notifications yet",
+    "emptyDescription": "When someone follows you, comments, saves or shares one of your Waves, or asks you for a Duet, you will hear about it here.",
+    "unreadCount": "{count} unread",
+    "allCaughtUp": "All caught up",
+    "markAllAsRead": "Mark all as read",
+    "couldNotLoadMore": "Could not load more notifications.",
+    "loadMore": "Load more",
+    "allCaughtUpFull": "You're all caught up."
+  },
+  "NotificationsSettingsPage": {
+    "metaTitle": "Notifications · {settings}",
+    "title": "Notifications",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Notification preferences are unavailable in this environment."
+  },
+  "PushToggle": {
+    "couldNotTurnOff": "Could not turn off push notifications.",
+    "turnedOff": "Push notifications turned off.",
+    "couldNotTurnOffRetry": "Could not turn off push notifications. Try again.",
+    "notSetUp": "Push notifications aren't set up for this environment.",
+    "blockedRetry": "Notifications are blocked for this site. Enable them in the browser's site settings, then try again.",
+    "needsPermission": "Notifications need your permission to turn on.",
+    "couldNotTurnOnRetry": "Could not turn on push notifications. Try again.",
+    "couldNotTurnOn": "Could not turn on push notifications.",
+    "turnedOn": "Push notifications turned on.",
+    "unsupported": "Push notifications aren't available in this browser.",
+    "iosNotInstalled": "Add {brand} to your home screen (Share, then \"Add to Home Screen\") to turn on push notifications.",
+    "label": "Push notifications",
+    "description": "Get notified about Duet requests, answers, and open-call answers, even when {brand} isn't open.",
+    "blockedHint": "Notifications are blocked for this site. Enable them in the browser's site settings to turn this on."
+  },
   "WavePage": {
     "statusAccepted": "Accepted",
     "statusInvited": "Invited",
@@ -385,6 +656,134 @@
     "statusPlaying": "Playing",
     "statusPaused": "Paused",
     "statusFinished": "Finished"
+  },
+  "AccountSettingsPage": {
+    "metaTitle": "Account · {settings}",
+    "title": "Account",
+    "profileHeading": "Profile",
+    "profileDescription": "Your photo, display name, username and bio, visible on @{username}.",
+    "emailHeading": "Email",
+    "passwordHeading": "Password",
+    "passwordDescription": "Choose a new password for your account.",
+    "sessionHeading": "Session",
+    "signOutDescription": "Sign out of {brand} on this device."
+  },
+  "ChangePasswordForm": {
+    "passwordsDontMatch": "Passwords do not match.",
+    "newPasswordLabel": "New password",
+    "newPasswordHint": "At least 8 characters.",
+    "confirmPasswordLabel": "Confirm new password",
+    "updating": "Updating",
+    "updatePassword": "Update password"
+  },
+  "AppearanceSettingsPage": {
+    "metaTitle": "Appearance · {settings}",
+    "title": "Appearance",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Appearance settings are unavailable in this environment.",
+    "couldNotLoadTitle": "Could not load your profile",
+    "couldNotLoadDescription": "Try refreshing the page."
+  },
+  "AudioSettingsPage": {
+    "metaTitle": "Audio · {settings}",
+    "title": "Audio"
+  },
+  "AudioPreferencesForm": {
+    "qualityAuto": "Auto (best available)",
+    "qualityDataSaver": "Data saver",
+    "autoplayLabel": "Autoplay next Wave",
+    "autoplayDescription": "When a Wave finishes, start the next one automatically where a queue exists (e.g. a feed).",
+    "qualityLabel": "Preferred quality",
+    "qualityHint": "Saved on this device only. {brand} currently delivers one processed file per Wave, this preference is stored for when adaptive quality ships and doesn't change playback yet.",
+    "deviceOnlyNote": "These preferences live on this device only, they are not stored on your account and will not follow you to another browser or phone."
+  },
+  "ContentSettingsPage": {
+    "metaTitle": "Content · {settings}",
+    "title": "Content",
+    "navLabel": "Content",
+    "savedLabel": "Saved",
+    "savedDescription": "{waves} you've saved for later.",
+    "commentedLabel": "Commented",
+    "commentedDescription": "{waves} you've left a {comment} on.",
+    "wavesDescription": "Every {wave} you've published.",
+    "duetsDescription": "Every {duet} you've published."
+  },
+  "ContentWaveList": {
+    "couldNotLoadMore": "Could not load more. Try again.",
+    "loadMore": "Load more"
+  },
+  "CommentedContentPage": {
+    "metaTitle": "Commented · {settings}",
+    "title": "Commented",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Commented Waves are unavailable in this environment.",
+    "emptyTitle": "No comments yet",
+    "emptyDescription": "Waves you comment on will show up here."
+  },
+  "MyDuetsContentPage": {
+    "metaTitle": "Duets · {settings}",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Your Duets are unavailable in this environment.",
+    "emptyTitle": "No Duets yet",
+    "emptyDescription": "Duets you publish will show up here, credited back to the original Wave."
+  },
+  "SavedContentPage": {
+    "metaTitle": "Saved · {settings}",
+    "title": "Saved",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Saved Waves are unavailable in this environment.",
+    "emptyTitle": "Nothing saved yet",
+    "emptyDescription": "Tap {save} on any {wave} to collect it here."
+  },
+  "MyWavesContentPage": {
+    "metaTitle": "Waves · {settings}",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Your Waves are unavailable in this environment.",
+    "emptyTitle": "You haven't published a Wave yet",
+    "emptyDescription": "Record or upload your first Wave to get started."
+  },
+  "FollowRequestsPage": {
+    "title": "Follow requests",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Follow requests are unavailable in this environment."
+  },
+  "PrivacySettingsPage": {
+    "metaTitle": "Privacy · {settings}",
+    "title": "Privacy",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Privacy settings are unavailable in this environment.",
+    "couldNotLoadTitle": "Could not load your profile",
+    "couldNotLoadDescription": "Try refreshing the page."
+  },
+  "ProSettingsPage": {
+    "metaTitle": "{brand} Pro · {settings}",
+    "title": "{brand} Pro",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. {brand} Pro is unavailable until this environment is connected to a Supabase project.",
+    "statusErrorDefault": "We couldn't load your {brand} Pro status. Try again."
+  },
+  "SafetySettingsPage": {
+    "metaTitle": "Safety · {settings}",
+    "title": "Safety",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Safety settings are unavailable in this environment.",
+    "moderationQueue": "Moderation queue",
+    "blockedAccountsHeading": "Blocked accounts",
+    "yourReportsHeading": "Your reports",
+    "yourDataHeading": "Your data"
+  },
+  "DownloadDataButton": {
+    "couldNotPrepare": "Could not prepare your data export.",
+    "description": "Get a JSON file with your profile, your Waves' metadata, and your comments.",
+    "downloadButton": "Download my data",
+    "exportDownloaded": "Your data export has downloaded."
+  },
+  "DeleteAccountSheet": {
+    "deleteAccount": "Delete account",
+    "description": "Deleting your account removes your Waves, your Duets and your messages. This cannot be undone.",
+    "keepAccount": "Keep my account",
+    "deleteMyAccount": "Delete my account",
+    "confirmLabel": "Type @{username} to confirm"
   },
   "WaveOwnerMenu": {
     "everyone": "Everyone",
@@ -448,6 +847,74 @@
     "notConnectedTitle": "Backend not configured",
     "notConnectedDescription": "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. Onboarding is unavailable until this environment is connected to a Supabase project."
   },
+  "Pro": {
+    "includes": {
+      "pitchSnap": "Pitch snap and self-harmony sounds",
+      "stems": "Stems for every Wave you publish",
+      "unlimitedSaves": "Unlimited saves",
+      "adFree": "Ad-free, always",
+      "featuredDuet": "One featured Duet slot a month",
+      "proMark": "The Pro mark next to your handle"
+    }
+  },
+  "ProMark": {
+    "title": "{brand} Pro",
+    "label": "Pro"
+  },
+  "CancelProSheet": {
+    "couldNotCancel": "We couldn't cancel your subscription. Try again.",
+    "title": "Cancel {brand} Pro",
+    "descriptionWithDate": "Pitch snap, self-harmony, stems and your other Pro options stay available until {date}.",
+    "descriptionDefault": "Your Pro options stay available until the end of the current billing period.",
+    "keepPro": "Keep {brand} Pro",
+    "cancelAtPeriodEnd": "Cancel at period end"
+  },
+  "ProGate": {
+    "title": "{brand} Pro",
+    "alreadyHave": "You already have {brand} Pro.",
+    "featureIsPart": "{feature} is part of {brand} Pro.",
+    "isPart": "This is part of {brand} Pro.",
+    "manage": "Manage {brand} Pro",
+    "see": "See {brand} Pro"
+  },
+  "ProScreen": {
+    "planMonthly": "{brand} Pro, monthly",
+    "planYearly": "{brand} Pro, yearly",
+    "defaultPlanName": "{brand} Pro",
+    "pastDuePayment": "Your last payment didn't go through.",
+    "pastDueDescription": "Fix your payment method to keep pitch snap, self-harmony, stems and your other Pro options.",
+    "endsOn": "Ends on {date}.",
+    "endsAtClose": "Ends at the close of the current billing period.",
+    "resume": "Resume",
+    "couldNotResume": "We couldn't resume your subscription. Try again.",
+    "orStartNew": "Or start a new subscription:",
+    "renewsOn": "Renews on {date}.",
+    "renewsAutomatically": "Renews automatically.",
+    "cancelAtPeriodEnd": "Cancel at period end"
+  },
+  "StartProControls": {
+    "completePayment": "Complete your payment below.",
+    "couldNotStartCheckout": "We couldn't start checkout. Try again.",
+    "couldNotOpenPaymentWindow": "We couldn't open the payment window. Try again.",
+    "billingIntervalLabel": "Billing interval",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "monthUnit": "month",
+    "yearUnit": "year",
+    "paymentsNotSetUp": "Payments are not set up yet. Check back soon.",
+    "startPro": "Start Pro",
+    "billingDetailsTitle": "Billing details",
+    "billingDetailsDescription": "iyzico needs these to process a Turkish Lira payment.",
+    "back": "Back",
+    "continueToPayment": "Continue to payment",
+    "identityNumberLabel": "Turkish identity number",
+    "phoneNumberLabel": "Phone number",
+    "addressLabel": "Address",
+    "cityLabel": "City",
+    "countryLabel": "Country",
+    "postalCodeLabel": "Postal code",
+    "optional": "Optional"
+  },
   "LoginPage": {
     "signInDescription": "Sign in with your email and password.",
     "callbackErrorMessage": "That link has expired or was already used. Try signing in directly.",
@@ -509,6 +976,38 @@
     "updating": "Updating",
     "updatePassword": "Update password"
   },
+  "ChallengesPage": {
+    "notConnectedTitle": "This isn't connected to a backend yet",
+    "notConnectedDescription": "Supabase environment variables aren't set, so challenges can't be loaded here.",
+    "loadError": "Couldn't load challenges. Try again in a moment.",
+    "emptyTitle": "No challenges yet",
+    "emptyDescription": "This week's theme will show up here once one is live.",
+    "startsSoon": "Starts soon",
+    "ended": "Ended",
+    "liveNow": "Live now"
+  },
+  "ChallengePage": {
+    "notConnectedTitle": "This isn't connected to a backend yet",
+    "notConnectedDescription": "Supabase environment variables aren't set, so this challenge can't be loaded here.",
+    "starts": "Starts",
+    "ended": "Ended",
+    "ends": "Ends",
+    "enterWithNewWave": "Enter with a new Wave",
+    "noPicksYet": "No picks yet.",
+    "entriesHeading": "Entries",
+    "noEntriesYet": "No entries yet.",
+    "olderEntries": "Older entries"
+  },
+  "ChallengeBackingTrack": {
+    "couldNotLoad": "This track's audio could not be loaded. Try again.",
+    "pauseTrack": "Pause {title}",
+    "playTrack": "Play {title}"
+  },
+  "EnterChallengeWavePicker": {
+    "couldNotEnter": "We couldn't enter this challenge. Try again.",
+    "couldntEnterTitle": "Couldn't enter this challenge",
+    "noPublishedWave": "You don't have a published Wave yet. Record one from <link>Create</link>, then come back to enter it."
+  },
   "CreateFlow": {
     "uploadIncompleteError": "The upload didn't complete. Try again.",
     "uploadIncompleteConnectionError": "The upload didn't complete. Check your connection and try again.",
@@ -519,6 +1018,44 @@
     "entering": "Entering {title}",
     "publish": "Publish",
     "back": "Back"
+  },
+  "AnalyticsPage": {
+    "metaTitle": "Analytics · {brand}",
+    "title": "Analytics",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Analytics are unavailable in this environment.",
+    "loadErrorDescription": "We could not load your analytics right now. Check your connection and try again.",
+    "emptyTitle": "No {waves} yet",
+    "emptyDescription": "Publish your first {wave} to start seeing Plays, listeners and more here.",
+    "recordFirst": "Record your first {wave}",
+    "uniqueListeners": "Unique listeners",
+    "avgListenTime": "avg. listen time",
+    "completionRate": "completion rate",
+    "wavePerformance": "{wave} performance"
+  },
+  "AnalyticsHealthPage": {
+    "metaTitle": "Product health · {brand}",
+    "title": "Product health",
+    "backendNotConfiguredTitle": "Backend not configured",
+    "backendNotConfiguredDescription": "Product health is unavailable in this environment.",
+    "loadErrorDescription": "We could not load product health right now. Check your connection and try again.",
+    "loadingSr": "Loading product health…"
+  },
+  "AnalyticsSkeleton": {
+    "loadingSr": "Loading analytics…"
+  },
+  "RangeSwitcher": {
+    "dateRangeLabel": "Date range"
+  },
+  "AnalyticsTimeseriesChart": {
+    "metricUniqueListeners": "Unique listeners",
+    "metricNewFollowers": "New followers",
+    "chartMetricLabel": "Chart metric",
+    "showChart": "Show chart",
+    "showTable": "Show table",
+    "dailyMetric": "Daily {metric}",
+    "dateColumn": "Date",
+    "barTitle": "{date}: {value} {metric}"
   },
   "Countdown": {
     "startingIn": "Starting in {remaining}",
@@ -634,6 +1171,21 @@
     "continueAction": "Continue",
     "reRecord": "Re-record"
   },
+  "HashtagPage": {
+    "fallbackTitle": "Hashtag",
+    "notConnectedTitle": "This isn't connected to a backend yet",
+    "notConnectedDescription": "Supabase environment variables aren't set, so this hashtag can't be loaded here.",
+    "emptyTitle": "Nothing tagged with this yet",
+    "emptyDescription": "No Wave visible to you carries #{tag} yet.",
+    "olderWaves": "Older Waves"
+  },
+  "TracksPage": {
+    "title": "Tracks",
+    "unreachable": "The track library isn't reachable from this build.",
+    "loadError": "Couldn't load the track library. Try again in a moment.",
+    "emptyTitle": "No tracks are open for vocals yet.",
+    "emptyDescription": "You can still {record} without one, or upload your own instrumental from {create}."
+  },
   "CreateWaveForm": {
     "everyone": "Everyone",
     "onlyMe": "Only me",
@@ -652,6 +1204,53 @@
     "removeUsername": "Remove {username}",
     "tags": "Tags",
     "publishing": "Publishing"
+  },
+  "ModerationQueueFilters": {
+    "stateLabel": "State",
+    "allStates": "All states",
+    "targetTypeLabel": "Target type",
+    "allTypes": "All types",
+    "reasonLabel": "Reason",
+    "allReasons": "All reasons"
+  },
+  "ReportQueueList": {
+    "emptyTitle": "Nothing in the queue",
+    "emptyDescription": "No reports match these filters right now.",
+    "filedAt": "Filed {time}"
+  },
+  "ReportDetailSheet": {
+    "title": "Report",
+    "filedAt": "Filed {time}",
+    "claim": "Claim",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "resolve": "Resolve",
+    "couldNotClaim": "Could not claim this report.",
+    "claimed": "Claimed.",
+    "couldNotResolve": "Could not resolve this report.",
+    "resolved": "Resolved.",
+    "couldNotDismiss": "Could not dismiss this report.",
+    "dismissed": "Dismissed.",
+    "reasonWithValue": "Reason: {reason}",
+    "reporterHeading": "Reporter",
+    "accountUnavailable": "Account no longer available.",
+    "targetHeading": "Target",
+    "takeActionHeading": "Take action",
+    "actionOnResolveLabel": "Action on resolve",
+    "noteLabel": "Note (optional)",
+    "notePlaceholder": "Recorded on the audit trail.",
+    "auditTrailHeading": "Audit trail",
+    "noActionsYet": "No actions recorded yet.",
+    "waveUnavailable": "Wave no longer available.",
+    "commentUnavailable": "Comment no longer available.",
+    "viewOnWave": "View on the Wave",
+    "messageUnavailable": "Message no longer available.",
+    "viewConversation": "View conversation",
+    "actionNone": "No action (reviewed only)",
+    "actionHideWave": "Hide Wave",
+    "actionHideComment": "Hide comment",
+    "actionWarnUser": "Warn account",
+    "actionSuspendUser": "Suspend account (7 days)"
   },
   "RecordStage": {
     "nothingRecordedYet": "Nothing recorded yet",
@@ -716,6 +1315,15 @@
     "announceRecordingLevel": "Recording, input level {levelPercent} percent.",
     "announcePaused": "Recording paused.",
     "announceFinished": "Recording finished. Ready to preview."
+  },
+  "InstallHint": {
+    "iosInstructions": "Add {brand} to your home screen: tap Share, then \"Add to Home Screen\".",
+    "installDescription": "Install {brand} for quicker access and Duet notifications.",
+    "install": "Install",
+    "dismiss": "Dismiss"
+  },
+  "Sheet": {
+    "close": "Close"
   },
   "CommentsSection": {
     "moreCommentsError": "More comments didn't load.",

@@ -105,6 +105,15 @@
     "waveform": "Ses dalgası",
     "duration": "Süre"
   },
+  "Layout": {
+    "skipToContent": "İçeriğe geç",
+    "primaryNav": "Ana gezinme",
+    "unreadNotifications": "okunmamış bildirimler",
+    "unreadItem": "okunmamış {item}",
+    "closePlayer": "Oynatıcıyı kapat",
+    "accountMenu": "Hesap",
+    "accountMenuLabel": "{name}, hesap menüsü"
+  },
   "FlowWaveView": {
     "singOverThis": "Bunun üzerine söyle",
     "tapToStart": "Dinlemeye başlamak için dokun"
@@ -130,6 +139,30 @@
     "emptyCompositions": "Burada henüz müzik yok.",
     "emptyOpenForDuet": "Şu anda Duet'e açık kimse yok.",
     "findPeopleToFollow": "Takip edilecek kişiler bul"
+  },
+  "ProfilePage": {
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "NEXT_PUBLIC_SUPABASE_URL ve NEXT_PUBLIC_SUPABASE_ANON_KEY tanımlı değil. Bu ortam bir Supabase projesine bağlanana kadar profiller kullanılamaz.",
+    "unavailableTitle": "Profil kullanılamıyor",
+    "unavailableDescription": "Bu profil yok, ya da sana açık değil."
+  },
+  "FollowersPage": {
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda takipçi listeleri kullanılamıyor.",
+    "unavailableTitle": "Profil kullanılamıyor",
+    "unavailableDescription": "Bu profil yok, ya da sana açık değil.",
+    "emptyTitle": "Henüz takipçi yok",
+    "emptySelf": "Seni takip edenler burada görünecek.",
+    "emptyOther": "@{username} kullanıcısının henüz takipçisi yok."
+  },
+  "FollowingPage": {
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda takip edilenler listesi kullanılamıyor.",
+    "unavailableTitle": "Profil kullanılamıyor",
+    "unavailableDescription": "Bu profil yok, ya da sana açık değil.",
+    "emptyTitle": "Henüz kimse takip edilmiyor",
+    "emptySelf": "Takip ettiğin hesaplar burada görünecek.",
+    "emptyOther": "@{username} henüz kimseyi takip etmiyor."
   },
   "BackingTracksLane": {
     "title": "Üzerine söylenecek parçalar",
@@ -176,6 +209,121 @@
   "WaveFeedList": {
     "tryAgain": "Yeniden dene",
     "loadMore": "Daha fazla yükle"
+  },
+  "Report": {
+    "reasonSpam": "Spam",
+    "reasonHarassment": "Taciz",
+    "reasonImpersonation": "Kimlik taklidi",
+    "reasonCopyright": "Telif hakkı sorunu",
+    "reasonInappropriate": "Uygunsuz içerik",
+    "reasonAbusive": "Kötüye kullanım",
+    "reasonOther": "Diğer",
+    "statusOpen": "Açık",
+    "statusReviewing": "İnceleniyor",
+    "statusActioned": "İşlem yapıldı",
+    "statusDismissed": "Reddedildi"
+  },
+  "AccountForm": {
+    "displayNameLabel": "Görünen ad",
+    "usernameLabel": "Kullanıcı adı",
+    "usernameHint": "Yalnızca küçük harf, rakam ve alt çizgi.",
+    "bioLabel": "Biyografi",
+    "saveChanges": "Değişiklikleri kaydet",
+    "saved": "Kaydedildi."
+  },
+  "AppearanceForm": {
+    "preview": "Önizleme",
+    "backgroundLabel": "Arka plan",
+    "gradientLabel": "Gradyan",
+    "patternLabel": "Desen",
+    "accentLabel": "Vurgu",
+    "saveAppearance": "Görünümü kaydet",
+    "saveErrorDefault": "Görünüm ayarların kaydedilemedi.",
+    "saved": "Kaydedildi."
+  },
+  "AvatarUploader": {
+    "backendNotConfigured": "Arka uç yapılandırılmadı. Bu ortamda avatar yükleme kullanılamıyor.",
+    "sessionExpired": "Oturumun sona erdi. Devam etmek için yeniden giriş yap.",
+    "invalidType": "PNG, JPEG, WebP ya da AVIF bir görsel kullan.",
+    "tooLarge": "Bu görsel {mb} MB sınırından büyük.",
+    "couldNotSaveNewPhoto": "Yeni fotoğrafın kaydedilemedi.",
+    "profilePhotoUpdated": "Profil fotoğrafı güncellendi.",
+    "couldNotUpload": "Bu görsel yüklenemedi. Farklı bir dosya dene.",
+    "uploadLabel": "Profil fotoğrafı yükle",
+    "changePhoto": "Fotoğrafı değiştir",
+    "hint": "PNG, JPEG, WebP ya da AVIF. Otomatik olarak {px}px'e küçültülür."
+  },
+  "BlockedList": {
+    "emptyTitle": "Engellenen hesap yok",
+    "emptyDescription": "Engellediğin hesaplar profilini göremez, sana mesaj atamaz ya da Duet isteği gönderemez.",
+    "couldNotUnblock": "Bu hesabın engeli kaldırılamadı.",
+    "unblocked": "Hesabın engeli kaldırıldı."
+  },
+  "FollowRequestsList": {
+    "emptyTitle": "Bekleyen takip isteği yok",
+    "emptyDescription": "Biri gizli hesabını takip etmek istediğinde burada görünecek.",
+    "couldNotUpdate": "Bu istek güncellenemedi.",
+    "decline": "Reddet",
+    "accept": "Kabul et"
+  },
+  "LockedContent": {
+    "title": "Bu profil gizli",
+    "pending": "@{username} kullanıcısına gönderdiğin takip isteği bekliyor. Kabul edildiğinde {waves} ve {duets} burada görünecek.",
+    "notFollowing": "Kabul ettiklerinde {waves} ve {duets} görebilmek için @{username} kullanıcısını takip et."
+  },
+  "PrivacyForm": {
+    "privateAccountLabel": "Gizli hesap",
+    "privateAccountDescription": "Wave'lerini ve takipçi listeni yalnızca kabul ettiğin takipçiler görebilir. Gizliye geçmek seni zaten takip edenleri etkilemez.",
+    "pendingFollowRequests": "Bekleyen takip istekleri",
+    "whoCanReachYou": "Sana kimler ulaşabilir",
+    "whoCanMessageLabel": "Bana kimler mesaj atabilir",
+    "whoCanDuetLabel": "Kimler Duet isteği gönderebilir",
+    "whoCanCommentLabel": "Wave'lerime varsayılan olarak kimler yorum yapabilir",
+    "commentHint": "Her Wave, yayınlarken bunu geçersiz kılabilir.",
+    "publishingHeading": "Yayınlama",
+    "defaultVisibilityLabel": "Varsayılan Wave görünürlüğü",
+    "defaultVisibilityHint": "Bu aslında kimin açabileceğini belirler. Yayınlarken Wave başına yine değiştirebilirsin.",
+    "saveErrorDefault": "Gizlilik ayarların kaydedilemedi.",
+    "saved": "Kaydedildi.",
+    "audienceEveryone": "Herkes",
+    "audienceFollowing": "Takip ettiklerim",
+    "audienceNobody": "Kimse",
+    "visibilityOnlyMe": "Yalnızca ben"
+  },
+  "ProfileHeader": {
+    "analytics": "Analitik",
+    "signatureWithWaves": "İmzan, son 12 Wave'inden oluşuyor.",
+    "signatureEmpty": "İmzan, ilk yayınından sonra görünecek."
+  },
+  "ProfileOverflowMenu": {
+    "somethingWrong": "Bir şeyler ters gitti.",
+    "done": "Tamamlandı.",
+    "moreActions": "Diğer işlemler"
+  },
+  "ProfileTabs": {
+    "tabsLabel": "Profil içeriği",
+    "noWavesSelf": "Henüz bir Wave yayınlamadın",
+    "noWavesOther": "Henüz Wave yok",
+    "recordCta": "Başlamak için ilk Wave'ini kaydet ya da yükle.",
+    "noDuets": "Henüz Duet yok",
+    "duetsDescriptionSelf": "Yayınladığın Duet'ler, orijinal Wave'e atıfla birlikte burada görünecek.",
+    "duetsDescriptionOther": "@{username} henüz bir Duet yayınlamadı."
+  },
+  "ReportSheet": {
+    "title": "@{username} kullanıcısını bildir",
+    "description": "Sorunu bize anlat. Raporlar ekibimiz tarafından incelenir, bu hesaba bildirim göndermez.",
+    "cancel": "Vazgeç",
+    "submitReport": "Raporu gönder",
+    "reasonLabel": "Sebep",
+    "detailsLabel": "Ayrıntılar (isteğe bağlı)",
+    "detailsPlaceholder": "Ekibimizin incelemesine yardımcı olacak bağlamı ekle.",
+    "couldNotSubmit": "Raporun gönderilemedi.",
+    "reportSubmitted": "Rapor gönderildi."
+  },
+  "ReportsList": {
+    "emptyTitle": "Bildirdiğin bir rapor yok",
+    "emptyDescription": "Gönderdiğin raporlar ekibimiz tarafından incelenir. Tek bir raporla hiçbir işlem otomatik yapılmaz.",
+    "filedAt": "{time} tarihinde bildirildi"
   },
   "WaveCard": {
     "unheard": "Dinlenmedi",
@@ -253,6 +401,21 @@
     "detailsOptional": "Ayrıntılar (opsiyonel)",
     "detailsPlaceholder": "İncelemeye yardımcı olacak her şey."
   },
+  "ConversationPage": {
+    "notFoundTitle": "Konuşma bulunamadı",
+    "notFoundDescription": "Bu konuşma yok, ya da buna dahil değilsin.",
+    "loadErrorDefault": "Bu konuşma şu anda yüklenemedi."
+  },
+  "NewConversationPage": {
+    "title": "Yeni mesaj",
+    "metaTitle": "Yeni mesaj · {messages}",
+    "backTo": "{messages} sayfasına dön",
+    "noOneTitle": "Mesaj atılacak kimse yok",
+    "noOneDescription": "Bir konuşma başlatmak için bir profil aç ve Mesaj'ı seç.",
+    "cantStartTitle": "Bu konuşma başlatılamıyor",
+    "cantStartDefault": "Bu hesaba şu anda mesaj gönderilemiyor.",
+    "viewProfile": "Profili görüntüle"
+  },
   "DuetModePicker": {
     "duetMode": "Duet modu",
     "descriptionLayer": "Orijinaliyle aynı anda söyle ya da çal.",
@@ -268,6 +431,74 @@
   "DuetsPage": {
     "notConnectedTitle": "Bu henüz bir arka uca bağlı değil",
     "notConnectedDescription": "Supabase ortam değişkenleri ayarlanmadığı için Duet istekleri burada yüklenemiyor."
+  },
+  "AudioMessageBubble": {
+    "loading": "Sesli mesaj yükleniyor",
+    "couldNotLoad": "Bu sesli mesaj yüklenemedi.",
+    "title": "Sesli mesaj"
+  },
+  "BlockedNotice": {
+    "cantReply": "Bu konuşmaya yanıt veremezsin."
+  },
+  "Composer": {
+    "couldNotSend": "Bu mesaj gönderilemedi. Yeniden dene.",
+    "defaultDisabled": "Bu konuşmada mesaj gönderemezsin.",
+    "recordAudioLabel": "Sesli mesaj kaydet",
+    "messageLabel": "Mesaj",
+    "messagePlaceholder": "Mesaj…",
+    "sendLabel": "Mesajı gönder",
+    "recordSheetTitle": "Sesli mesaj",
+    "recordSheetDescription": "Kaydedilen ses özeldir. Asla bir Wave olmaz ve akışta görünmez.",
+    "previewTitle": "Önizleme",
+    "retake": "Yeniden çek",
+    "send": "Gönder",
+    "couldNotStartUpload": "Bu yükleme başlatılamadı. Yeniden dene.",
+    "uploadIncomplete": "Yükleme tamamlanmadı. Yeniden dene.",
+    "uploadIncompleteConnection": "Yükleme tamamlanmadı. Bağlantını kontrol edip yeniden dene.",
+    "couldNotFinishPreparing": "Bu kaydın hazırlanması tamamlanamadı.",
+    "couldNotSendRecording": "Bu kayıt gönderilemedi. Yeniden dene.",
+    "audioMessageSent": "Sesli mesaj gönderildi."
+  },
+  "ConversationRow": {
+    "unknownMember": "Bilinmiyor",
+    "unreadSr": "{count} okunmadı"
+  },
+  "MessageBubble": {
+    "them": "onlar",
+    "readReceipt": "Okundu",
+    "reportMessage": "Mesajı bildir"
+  },
+  "MessagesView": {
+    "couldNotLoadMore": "Daha fazla konuşma yüklenemedi.",
+    "emptyTitle": "Henüz konuşma yok",
+    "emptyDescription": "Sesli mesajlar özeldir. Asla Wave olmazlar ve akışta ya da Keşfet'te hiç görünmezler.",
+    "searchLabel": "Konuşmalarda ara",
+    "searchPlaceholder": "İsme göre ara",
+    "noMatchesTitle": "Eşleşme yok",
+    "noMatchesDescription": "Bu isimle eşleşen bir konuşma yok.",
+    "loadMore": "Daha fazla yükle",
+    "reachedStart": "Gelen kutunun başına ulaştın."
+  },
+  "ReportMessageSheet": {
+    "title": "Mesajı bildir",
+    "description": "Sorunu bize anlat. Raporlar ekibimiz tarafından incelenir, gönderene bildirim gitmez.",
+    "cancel": "Vazgeç",
+    "submitReport": "Raporu gönder",
+    "reasonLabel": "Sebep",
+    "detailsLabel": "Ayrıntılar (isteğe bağlı)",
+    "detailsPlaceholder": "Ekibimizin incelemesine yardımcı olacak bağlamı ekle.",
+    "couldNotSubmit": "Raporun gönderilemedi.",
+    "reportSubmitted": "Rapor gönderildi."
+  },
+  "ThreadHeader": {
+    "fallbackName": "Konuşma",
+    "backToMessages": "{messages} sayfasına dön"
+  },
+  "ThreadView": {
+    "loadEarlier": "Önceki mesajları yükle",
+    "startOfConversation": "Konuşmanın başlangıcı",
+    "noMessagesYet": "Henüz mesaj yok. Merhaba de.",
+    "loadingConversation": "Konuşma yükleniyor"
   },
   "DuetRequestForm": {
     "sentRedirecting": "{duetRequest} gönderildi. İsteklerine yönlendiriliyorsun…",
@@ -350,6 +581,46 @@
     "originalUnavailableDescription": "Orijinal Wave artık kullanılamıyor.",
     "cantRecordTitle": "Bu Duet şu anda kaydedilemiyor"
   },
+  "NotificationItem": {
+    "somethingWrong": "Bir şeyler ters gitti.",
+    "nothingToRespond": "Yanıtlanacak bir şey yok.",
+    "accept": "Kabul et",
+    "decline": "Reddet",
+    "accepted": "Kabul edildi",
+    "declined": "Reddedildi"
+  },
+  "NotificationsView": {
+    "emptyTitle": "Henüz bildirim yok",
+    "emptyDescription": "Biri seni takip ettiğinde, yorum yaptığında, Wave'lerinden birini kaydettiğinde ya da paylaştığında, ya da senden bir Duet istediğinde burada haberin olur.",
+    "unreadCount": "{count} okunmadı",
+    "allCaughtUp": "Hepsi okundu",
+    "markAllAsRead": "Tümünü okundu işaretle",
+    "couldNotLoadMore": "Daha fazla bildirim yüklenemedi.",
+    "loadMore": "Daha fazla yükle",
+    "allCaughtUpFull": "Hepsini okudun."
+  },
+  "NotificationsSettingsPage": {
+    "metaTitle": "Bildirimler · {settings}",
+    "title": "Bildirimler",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda bildirim tercihleri kullanılamıyor."
+  },
+  "PushToggle": {
+    "couldNotTurnOff": "Push bildirimleri kapatılamadı.",
+    "turnedOff": "Push bildirimleri kapatıldı.",
+    "couldNotTurnOffRetry": "Push bildirimleri kapatılamadı. Yeniden dene.",
+    "notSetUp": "Bu ortamda push bildirimleri kurulu değil.",
+    "blockedRetry": "Bu site için bildirimler engellenmiş. Tarayıcının site ayarlarından etkinleştirip yeniden dene.",
+    "needsPermission": "Açmak için bildirim izni gerekiyor.",
+    "couldNotTurnOnRetry": "Push bildirimleri açılamadı. Yeniden dene.",
+    "couldNotTurnOn": "Push bildirimleri açılamadı.",
+    "turnedOn": "Push bildirimleri açıldı.",
+    "unsupported": "Push bildirimleri bu tarayıcıda kullanılamıyor.",
+    "iosNotInstalled": "Push bildirimlerini açmak için {brand} uygulamasını ana ekranına ekle (Paylaş, sonra \"Ana ekrana ekle\").",
+    "label": "Push bildirimleri",
+    "description": "{brand} kapalıyken bile Duet isteklerinden, yanıtlardan ve açık çağrı yanıtlarından haberdar ol.",
+    "blockedHint": "Bu site için bildirimler engellenmiş. Açmak için tarayıcının site ayarlarından etkinleştir."
+  },
   "WavePage": {
     "statusAccepted": "Kabul edildi",
     "statusInvited": "Davet edildi",
@@ -385,6 +656,134 @@
     "statusPlaying": "Çalıyor",
     "statusPaused": "Duraklatıldı",
     "statusFinished": "Bitti"
+  },
+  "AccountSettingsPage": {
+    "metaTitle": "Hesap · {settings}",
+    "title": "Hesap",
+    "profileHeading": "Profil",
+    "profileDescription": "Fotoğrafın, görünen adın, kullanıcı adın ve biyografin, @{username} üzerinde görünür.",
+    "emailHeading": "E-posta",
+    "passwordHeading": "Şifre",
+    "passwordDescription": "Hesabın için yeni bir şifre seç.",
+    "sessionHeading": "Oturum",
+    "signOutDescription": "Bu cihazda {brand} oturumunu kapat."
+  },
+  "ChangePasswordForm": {
+    "passwordsDontMatch": "Şifreler eşleşmiyor.",
+    "newPasswordLabel": "Yeni şifre",
+    "newPasswordHint": "En az 8 karakter.",
+    "confirmPasswordLabel": "Yeni şifreyi onayla",
+    "updating": "Güncelleniyor",
+    "updatePassword": "Şifreyi güncelle"
+  },
+  "AppearanceSettingsPage": {
+    "metaTitle": "Görünüm · {settings}",
+    "title": "Görünüm",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda görünüm ayarları kullanılamıyor.",
+    "couldNotLoadTitle": "Profilin yüklenemedi",
+    "couldNotLoadDescription": "Sayfayı yenilemeyi dene."
+  },
+  "AudioSettingsPage": {
+    "metaTitle": "Ses · {settings}",
+    "title": "Ses"
+  },
+  "AudioPreferencesForm": {
+    "qualityAuto": "Otomatik (en iyi kalite)",
+    "qualityDataSaver": "Veri tasarrufu",
+    "autoplayLabel": "Sıradaki Wave'i otomatik oynat",
+    "autoplayDescription": "Bir Wave bittiğinde, bir kuyruk varsa (örneğin bir akış), sıradakini otomatik olarak başlat.",
+    "qualityLabel": "Tercih edilen kalite",
+    "qualityHint": "Yalnızca bu cihazda kaydedilir. {brand} şu anda Wave başına tek bir işlenmiş dosya sunuyor, bu tercih uyarlanabilir kalite geldiğinde kullanılmak üzere saklanıyor ve şu an oynatmayı değiştirmiyor.",
+    "deviceOnlyNote": "Bu tercihler yalnızca bu cihazda geçerlidir, hesabında saklanmaz ve başka bir tarayıcıya ya da telefona taşınmaz."
+  },
+  "ContentSettingsPage": {
+    "metaTitle": "İçerik · {settings}",
+    "title": "İçerik",
+    "navLabel": "İçerik",
+    "savedLabel": "Kaydedilenler",
+    "savedDescription": "Sonra izlemek için kaydettiğin {waves}.",
+    "commentedLabel": "Yorum yapılanlar",
+    "commentedDescription": "{comment} bıraktığın {waves}.",
+    "wavesDescription": "Yayınladığın her {wave}.",
+    "duetsDescription": "Yayınladığın her {duet}."
+  },
+  "ContentWaveList": {
+    "couldNotLoadMore": "Daha fazla yüklenemedi. Yeniden dene.",
+    "loadMore": "Daha fazla yükle"
+  },
+  "CommentedContentPage": {
+    "metaTitle": "Yorum yapılanlar · {settings}",
+    "title": "Yorum yapılanlar",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda yorum yapılan Wave'ler kullanılamıyor.",
+    "emptyTitle": "Henüz yorum yok",
+    "emptyDescription": "Yorum yaptığın Wave'ler burada görünecek."
+  },
+  "MyDuetsContentPage": {
+    "metaTitle": "Duet'ler · {settings}",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda Duet'lerin kullanılamıyor.",
+    "emptyTitle": "Henüz Duet yok",
+    "emptyDescription": "Yayınladığın Duet'ler, orijinal Wave'e atıfla birlikte burada görünecek."
+  },
+  "SavedContentPage": {
+    "metaTitle": "Kaydedilenler · {settings}",
+    "title": "Kaydedilenler",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda kaydedilen Wave'ler kullanılamıyor.",
+    "emptyTitle": "Henüz bir şey kaydedilmedi",
+    "emptyDescription": "Herhangi bir {wave} üzerinde {save} demeye dokun, burada toplansın."
+  },
+  "MyWavesContentPage": {
+    "metaTitle": "Wave'ler · {settings}",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda Wave'lerin kullanılamıyor.",
+    "emptyTitle": "Henüz bir Wave yayınlamadın",
+    "emptyDescription": "Başlamak için ilk Wave'ini kaydet ya da yükle."
+  },
+  "FollowRequestsPage": {
+    "title": "Takip istekleri",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda takip istekleri kullanılamıyor."
+  },
+  "PrivacySettingsPage": {
+    "metaTitle": "Gizlilik · {settings}",
+    "title": "Gizlilik",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda gizlilik ayarları kullanılamıyor.",
+    "couldNotLoadTitle": "Profilin yüklenemedi",
+    "couldNotLoadDescription": "Sayfayı yenilemeyi dene."
+  },
+  "ProSettingsPage": {
+    "metaTitle": "{brand} Pro · {settings}",
+    "title": "{brand} Pro",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "NEXT_PUBLIC_SUPABASE_URL ve NEXT_PUBLIC_SUPABASE_ANON_KEY tanımlı değil. Bu ortam bir Supabase projesine bağlanana kadar {brand} Pro kullanılamaz.",
+    "statusErrorDefault": "{brand} Pro durumun yüklenemedi. Yeniden dene."
+  },
+  "SafetySettingsPage": {
+    "metaTitle": "Güvenlik · {settings}",
+    "title": "Güvenlik",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda güvenlik ayarları kullanılamıyor.",
+    "moderationQueue": "Moderasyon kuyruğu",
+    "blockedAccountsHeading": "Engellenen hesaplar",
+    "yourReportsHeading": "Raporların",
+    "yourDataHeading": "Verilerin"
+  },
+  "DownloadDataButton": {
+    "couldNotPrepare": "Veri dışa aktarman hazırlanamadı.",
+    "description": "Profilini, Wave'lerinin meta verilerini ve yorumlarını içeren bir JSON dosyası al.",
+    "downloadButton": "Verilerimi indir",
+    "exportDownloaded": "Veri dışa aktarman indirildi."
+  },
+  "DeleteAccountSheet": {
+    "deleteAccount": "Hesabı sil",
+    "description": "Hesabını silmek Wave'lerini, Duet'lerini ve mesajlarını kaldırır. Bu geri alınamaz.",
+    "keepAccount": "Hesabımı sakla",
+    "deleteMyAccount": "Hesabımı sil",
+    "confirmLabel": "Onaylamak için @{username} yaz"
   },
   "WaveOwnerMenu": {
     "everyone": "Herkes",
@@ -448,6 +847,74 @@
     "notConnectedTitle": "Arka uç yapılandırılmadı",
     "notConnectedDescription": "NEXT_PUBLIC_SUPABASE_URL ve NEXT_PUBLIC_SUPABASE_ANON_KEY ayarlanmadı. Bu ortam bir Supabase projesine bağlanana kadar katılım akışı kullanılamaz."
   },
+  "Pro": {
+    "includes": {
+      "pitchSnap": "Pitch snap ve self-harmony sesleri",
+      "stems": "Yayınladığın her Wave için stemler",
+      "unlimitedSaves": "Sınırsız kaydetme",
+      "adFree": "Her zaman reklamsız",
+      "featuredDuet": "Ayda bir öne çıkan Duet yeri",
+      "proMark": "Adının yanında Pro işareti"
+    }
+  },
+  "ProMark": {
+    "title": "{brand} Pro",
+    "label": "Pro"
+  },
+  "CancelProSheet": {
+    "couldNotCancel": "Aboneliğin iptal edilemedi. Yeniden dene.",
+    "title": "{brand} Pro'yu iptal et",
+    "descriptionWithDate": "Pitch snap, self-harmony, stemler ve diğer Pro seçeneklerin {date} tarihine kadar kullanılabilir kalır.",
+    "descriptionDefault": "Pro seçeneklerin mevcut faturalama döneminin sonuna kadar kullanılabilir kalır.",
+    "keepPro": "{brand} Pro'yu sakla",
+    "cancelAtPeriodEnd": "Dönem sonunda iptal et"
+  },
+  "ProGate": {
+    "title": "{brand} Pro",
+    "alreadyHave": "{brand} Pro'ya zaten sahipsin.",
+    "featureIsPart": "{feature}, {brand} Pro'nun bir parçası.",
+    "isPart": "Bu, {brand} Pro'nun bir parçası.",
+    "manage": "{brand} Pro'yu yönet",
+    "see": "{brand} Pro'yu gör"
+  },
+  "ProScreen": {
+    "planMonthly": "{brand} Pro, aylık",
+    "planYearly": "{brand} Pro, yıllık",
+    "defaultPlanName": "{brand} Pro",
+    "pastDuePayment": "Son ödemen gerçekleşmedi.",
+    "pastDueDescription": "Pitch snap, self-harmony, stemler ve diğer Pro seçeneklerini sürdürmek için ödeme yöntemini düzelt.",
+    "endsOn": "{date} tarihinde sona erer.",
+    "endsAtClose": "Mevcut faturalama döneminin sonunda sona erer.",
+    "resume": "Sürdür",
+    "couldNotResume": "Aboneliğin sürdürülemedi. Yeniden dene.",
+    "orStartNew": "Ya da yeni bir abonelik başlat:",
+    "renewsOn": "{date} tarihinde yenilenir.",
+    "renewsAutomatically": "Otomatik olarak yenilenir.",
+    "cancelAtPeriodEnd": "Dönem sonunda iptal et"
+  },
+  "StartProControls": {
+    "completePayment": "Ödemeni aşağıdan tamamla.",
+    "couldNotStartCheckout": "Ödeme başlatılamadı. Yeniden dene.",
+    "couldNotOpenPaymentWindow": "Ödeme penceresi açılamadı. Yeniden dene.",
+    "billingIntervalLabel": "Faturalama aralığı",
+    "monthly": "Aylık",
+    "yearly": "Yıllık",
+    "monthUnit": "ay",
+    "yearUnit": "yıl",
+    "paymentsNotSetUp": "Ödemeler henüz kurulmadı. Daha sonra tekrar kontrol et.",
+    "startPro": "Pro'yu başlat",
+    "billingDetailsTitle": "Fatura bilgileri",
+    "billingDetailsDescription": "iyzico, Türk Lirası ödemesi işleyebilmek için bunlara ihtiyaç duyuyor.",
+    "back": "Geri",
+    "continueToPayment": "Ödemeye devam et",
+    "identityNumberLabel": "T.C. kimlik numarası",
+    "phoneNumberLabel": "Telefon numarası",
+    "addressLabel": "Adres",
+    "cityLabel": "Şehir",
+    "countryLabel": "Ülke",
+    "postalCodeLabel": "Posta kodu",
+    "optional": "İsteğe bağlı"
+  },
   "LoginPage": {
     "signInDescription": "E-posta ve şifrenle giriş yap.",
     "callbackErrorMessage": "Bu bağlantının süresi doldu ya da zaten kullanıldı. Doğrudan giriş yapmayı dene.",
@@ -509,6 +976,38 @@
     "updating": "Güncelleniyor",
     "updatePassword": "Şifreyi güncelle"
   },
+  "ChallengesPage": {
+    "notConnectedTitle": "Bu henüz bir arka uca bağlanmadı",
+    "notConnectedDescription": "Supabase ortam değişkenleri tanımlı değil, bu yüzden meydan okumalar burada yüklenemiyor.",
+    "loadError": "Meydan okumalar yüklenemedi. Birazdan yeniden dene.",
+    "emptyTitle": "Henüz meydan okuma yok",
+    "emptyDescription": "Bu haftanın teması, canlıya alındığında burada görünecek.",
+    "startsSoon": "Yakında başlıyor",
+    "ended": "Sona erdi",
+    "liveNow": "Şu anda canlı"
+  },
+  "ChallengePage": {
+    "notConnectedTitle": "Bu henüz bir arka uca bağlanmadı",
+    "notConnectedDescription": "Supabase ortam değişkenleri tanımlı değil, bu yüzden bu meydan okuma burada yüklenemiyor.",
+    "starts": "Başlıyor",
+    "ended": "Sona erdi",
+    "ends": "Sona eriyor",
+    "enterWithNewWave": "Yeni bir Wave ile katıl",
+    "noPicksYet": "Henüz seçim yok.",
+    "entriesHeading": "Katılımlar",
+    "noEntriesYet": "Henüz katılım yok.",
+    "olderEntries": "Daha eski katılımlar"
+  },
+  "ChallengeBackingTrack": {
+    "couldNotLoad": "Bu parçanın sesi yüklenemedi. Yeniden dene.",
+    "pauseTrack": "{title} duraklat",
+    "playTrack": "{title} oynat"
+  },
+  "EnterChallengeWavePicker": {
+    "couldNotEnter": "Bu meydan okumaya katılınamadı. Yeniden dene.",
+    "couldntEnterTitle": "Bu meydan okumaya katılınamadı",
+    "noPublishedWave": "Henüz yayınlanmış bir Wave'in yok. <link>Oluştur</link> sayfasından bir tane kaydet, sonra buraya dönüp gir."
+  },
   "CreateFlow": {
     "uploadIncompleteError": "Yükleme tamamlanamadı. Tekrar dene.",
     "uploadIncompleteConnectionError": "Yükleme tamamlanamadı. Bağlantını kontrol edip tekrar dene.",
@@ -519,6 +1018,44 @@
     "entering": "{title} meydan okumasına giriliyor",
     "publish": "Yayınla",
     "back": "Geri"
+  },
+  "AnalyticsPage": {
+    "metaTitle": "Analitik · {brand}",
+    "title": "Analitik",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda analitik kullanılamıyor.",
+    "loadErrorDescription": "Analitiğin şu anda yüklenemedi. Bağlantını kontrol edip yeniden dene.",
+    "emptyTitle": "Henüz {waves} yok",
+    "emptyDescription": "Burada oynanma, dinleyici ve daha fazlasını görmeye başlamak için ilk {wave} yayınla.",
+    "recordFirst": "İlk {wave} kaydet",
+    "uniqueListeners": "Tekil dinleyici",
+    "avgListenTime": "ort. dinleme süresi",
+    "completionRate": "tamamlanma oranı",
+    "wavePerformance": "{wave} performansı"
+  },
+  "AnalyticsHealthPage": {
+    "metaTitle": "Ürün sağlığı · {brand}",
+    "title": "Ürün sağlığı",
+    "backendNotConfiguredTitle": "Arka uç yapılandırılmadı",
+    "backendNotConfiguredDescription": "Bu ortamda ürün sağlığı kullanılamıyor.",
+    "loadErrorDescription": "Ürün sağlığı şu anda yüklenemedi. Bağlantını kontrol edip yeniden dene.",
+    "loadingSr": "Ürün sağlığı yükleniyor"
+  },
+  "AnalyticsSkeleton": {
+    "loadingSr": "Analitik yükleniyor"
+  },
+  "RangeSwitcher": {
+    "dateRangeLabel": "Tarih aralığı"
+  },
+  "AnalyticsTimeseriesChart": {
+    "metricUniqueListeners": "Tekil dinleyici",
+    "metricNewFollowers": "Yeni takipçi",
+    "chartMetricLabel": "Grafik metriği",
+    "showChart": "Grafiği göster",
+    "showTable": "Tabloyu göster",
+    "dailyMetric": "Günlük {metric}",
+    "dateColumn": "Tarih",
+    "barTitle": "{date}: {value} {metric}"
   },
   "Countdown": {
     "startingIn": "{remaining} içinde başlıyor",
@@ -634,6 +1171,21 @@
     "continueAction": "Devam et",
     "reRecord": "Tekrar kaydet"
   },
+  "HashtagPage": {
+    "fallbackTitle": "Etiket",
+    "notConnectedTitle": "Bu henüz bir arka uca bağlanmadı",
+    "notConnectedDescription": "Supabase ortam değişkenleri tanımlı değil, bu yüzden bu etiket burada yüklenemiyor.",
+    "emptyTitle": "Bununla etiketlenen henüz bir şey yok",
+    "emptyDescription": "Görebileceğin hiçbir Wave henüz #{tag} taşımıyor.",
+    "olderWaves": "Daha eski Wave'ler"
+  },
+  "TracksPage": {
+    "title": "Parçalar",
+    "unreachable": "Parça kitaplığı bu derlemeden erişilebilir değil.",
+    "loadError": "Parça kitaplığı yüklenemedi. Birazdan yeniden dene.",
+    "emptyTitle": "Henüz vokale açık bir parça yok.",
+    "emptyDescription": "Yine de birini kullanmadan {record} yapabilir, ya da {create} üzerinden kendi enstrümantalini yükleyebilirsin."
+  },
   "CreateWaveForm": {
     "everyone": "Herkes",
     "onlyMe": "Sadece ben",
@@ -652,6 +1204,53 @@
     "removeUsername": "{username} kişisini kaldır",
     "tags": "Etiketler",
     "publishing": "Yayınlanıyor"
+  },
+  "ModerationQueueFilters": {
+    "stateLabel": "Durum",
+    "allStates": "Tüm durumlar",
+    "targetTypeLabel": "Hedef türü",
+    "allTypes": "Tüm türler",
+    "reasonLabel": "Sebep",
+    "allReasons": "Tüm sebepler"
+  },
+  "ReportQueueList": {
+    "emptyTitle": "Kuyrukta hiçbir şey yok",
+    "emptyDescription": "Bu filtrelerle eşleşen bir rapor yok.",
+    "filedAt": "{time} tarihinde bildirildi"
+  },
+  "ReportDetailSheet": {
+    "title": "Rapor",
+    "filedAt": "{time} tarihinde bildirildi",
+    "claim": "Üstlen",
+    "close": "Kapat",
+    "dismiss": "Reddet",
+    "resolve": "Çöz",
+    "couldNotClaim": "Bu rapor üstlenilemedi.",
+    "claimed": "Üstlenildi.",
+    "couldNotResolve": "Bu rapor çözülemedi.",
+    "resolved": "Çözüldü.",
+    "couldNotDismiss": "Bu rapor reddedilemedi.",
+    "dismissed": "Reddedildi.",
+    "reasonWithValue": "Sebep: {reason}",
+    "reporterHeading": "Bildiren",
+    "accountUnavailable": "Hesap artık kullanılamıyor.",
+    "targetHeading": "Hedef",
+    "takeActionHeading": "İşlem al",
+    "actionOnResolveLabel": "Çözerken uygulanacak işlem",
+    "noteLabel": "Not (isteğe bağlı)",
+    "notePlaceholder": "Denetim kaydına işlenir.",
+    "auditTrailHeading": "Denetim kaydı",
+    "noActionsYet": "Henüz kaydedilmiş bir işlem yok.",
+    "waveUnavailable": "Wave artık kullanılamıyor.",
+    "commentUnavailable": "Yorum artık kullanılamıyor.",
+    "viewOnWave": "Wave üzerinde görüntüle",
+    "messageUnavailable": "Mesaj artık kullanılamıyor.",
+    "viewConversation": "Konuşmayı görüntüle",
+    "actionNone": "İşlem yok (yalnızca incelendi)",
+    "actionHideWave": "Wave'i gizle",
+    "actionHideComment": "Yorumu gizle",
+    "actionWarnUser": "Hesabı uyar",
+    "actionSuspendUser": "Hesabı askıya al (7 gün)"
   },
   "RecordStage": {
     "nothingRecordedYet": "Henüz bir şey kaydedilmedi",
@@ -716,6 +1315,15 @@
     "announceRecordingLevel": "Kaydediliyor, giriş seviyesi yüzde {levelPercent}.",
     "announcePaused": "Kayıt duraklatıldı.",
     "announceFinished": "Kayıt tamamlandı. Önizlemeye hazır."
+  },
+  "InstallHint": {
+    "iosInstructions": "{brand} uygulamasını ana ekranına eklemek için Paylaş'a, sonra \"Ana ekrana ekle\"ye dokun.",
+    "installDescription": "Daha hızlı erişim ve Duet bildirimleri için {brand} uygulamasını yükle.",
+    "install": "Yükle",
+    "dismiss": "Kapat"
+  },
+  "Sheet": {
+    "close": "Kapat"
   },
   "CommentsSection": {
     "moreCommentsError": "Daha fazla yorum yüklenemedi.",
