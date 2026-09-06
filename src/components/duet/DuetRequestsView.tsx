@@ -69,8 +69,6 @@ export function DuetRequestsView({ received, sent }: DuetRequestsViewProps) {
   const [tab, setTab] = useState<Tab>("received");
   const isDesktop = useIsDesktopViewport();
 
-  const items = tab === "received" ? received : sent;
-
   return (
     <div className="flex flex-col gap-4">
       <Tabs
@@ -86,23 +84,34 @@ export function DuetRequestsView({ received, sent }: DuetRequestsViewProps) {
         className="self-start"
       />
 
-      {isDesktop ? (
-        <DuetRequestsTwoPane
-          items={items}
-          variant={tab}
-          emptyTitle={tab === "received" ? t("emptyReceivedTitle") : t("emptySentTitle")}
-          emptyDescription={tab === "received" ? t("emptyReceivedDescription") : t("emptySentDescription")}
-        />
-      ) : (
-        <>
-          <TabPanel id={tabPanelId(TAB_ID_PREFIX, "received")} labelledBy={tabId(TAB_ID_PREFIX, "received")} active={tab === "received"}>
-            <RequestList items={received} variant="received" emptyTitle={t("emptyReceivedTitle")} emptyDescription={t("emptyReceivedDescription")} />
-          </TabPanel>
-          <TabPanel id={tabPanelId(TAB_ID_PREFIX, "sent")} labelledBy={tabId(TAB_ID_PREFIX, "sent")} active={tab === "sent"}>
-            <RequestList items={sent} variant="sent" emptyTitle={t("emptySentTitle")} emptyDescription={t("emptySentDescription")} />
-          </TabPanel>
-        </>
-      )}
+      {/* Both `TabPanel`s always mount (only their `hidden` attribute and
+          content differ, per `TabPanel`'s own implementation) so each tab
+          button's `aria-controls` target always exists in the DOM — true on
+          mobile already; the desktop branch below must keep it true too. */}
+      <TabPanel id={tabPanelId(TAB_ID_PREFIX, "received")} labelledBy={tabId(TAB_ID_PREFIX, "received")} active={tab === "received"}>
+        {isDesktop ? (
+          <DuetRequestsTwoPane
+            items={received}
+            variant="received"
+            emptyTitle={t("emptyReceivedTitle")}
+            emptyDescription={t("emptyReceivedDescription")}
+          />
+        ) : (
+          <RequestList items={received} variant="received" emptyTitle={t("emptyReceivedTitle")} emptyDescription={t("emptyReceivedDescription")} />
+        )}
+      </TabPanel>
+      <TabPanel id={tabPanelId(TAB_ID_PREFIX, "sent")} labelledBy={tabId(TAB_ID_PREFIX, "sent")} active={tab === "sent"}>
+        {isDesktop ? (
+          <DuetRequestsTwoPane
+            items={sent}
+            variant="sent"
+            emptyTitle={t("emptySentTitle")}
+            emptyDescription={t("emptySentDescription")}
+          />
+        ) : (
+          <RequestList items={sent} variant="sent" emptyTitle={t("emptySentTitle")} emptyDescription={t("emptySentDescription")} />
+        )}
+      </TabPanel>
     </div>
   );
 }
