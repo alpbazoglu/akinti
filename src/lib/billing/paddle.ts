@@ -94,6 +94,8 @@ async function findOrCreateCustomer(email: string, name: string): Promise<string
 
 export class PaddleProvider implements BillingProviderClient {
   readonly provider = "paddle" as const;
+  /** `parseEvent` verifies via `unmarshal`; `handleWebhook` must not verify twice. */
+  readonly verifiesDuringParse = true;
 
   async createCheckout(args: CreateCheckoutArgs): Promise<CreateCheckoutResult> {
     const customerId = await findOrCreateCustomer(args.userEmail, args.userName);
@@ -146,7 +148,16 @@ export class PaddleProvider implements BillingProviderClient {
     if (!signature) {
       throw new BillingProviderError("paddle", "Missing paddle-signature header.");
     }
-    const event = await client().webhooks.unmarshal(rawBody, requireWebhookSecret(), signature);
+    let event: Awaited<ReturnType<Paddle["webhooks"]["unmarshal"]>>;
+    try {
+      event = await client().webhooks.unmarshal(rawBody, requireWebhookSecret(), signature);
+    } catch {
+      // The SDK throws a plain `Error` (not `BillingProviderError`) on an
+      // invalid signature — normalize it so `handleWebhook` (`index.ts`)
+      // can tell "bad signature" apart from a genuine failure and respond
+      // 401 rather than 500 (review3 finding 16).
+      throw new BillingProviderError("paddle", "Webhook signature verification failed.");
+    }
 
     switch (event.eventType) {
       case EventName.SubscriptionCreated:

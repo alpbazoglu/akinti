@@ -114,6 +114,13 @@ export interface BillingProviderClient {
   verifyWebhook(rawBody: string, headers: Headers): Promise<boolean>;
   /** `headers` is unused by iyzico (its signature is fully derivable from the body) but Paddle's own `unmarshal` needs the `paddle-signature` header again here. */
   parseEvent(rawBody: string, headers: Headers): Promise<ParsedBillingEvent>;
+  /**
+   * True when `parseEvent` itself re-verifies the signature (Paddle's
+   * `unmarshal`, which throws rather than returning `false`) — `handleWebhook`
+   * (`index.ts`) skips the separate `verifyWebhook` call for such a provider
+   * rather than checking the same HMAC twice per request (review3 finding 16).
+   */
+  readonly verifiesDuringParse?: boolean;
 }
 
 /** Thrown by a provider client for a condition the caller should show as a normal, non-crashing failure. */

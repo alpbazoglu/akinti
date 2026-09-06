@@ -161,11 +161,30 @@ export async function handleWebhook(
   rawBody: string,
   headers: Headers,
 ): Promise<{ ok: true } | { ok: false; reason: "invalid_signature" }> {
-  const valid = await provider.verifyWebhook(rawBody, headers);
-  if (!valid) {
-    return { ok: false, reason: "invalid_signature" };
+  if (!provider.verifiesDuringParse) {
+    const valid = await provider.verifyWebhook(rawBody, headers);
+    if (!valid) {
+      return { ok: false, reason: "invalid_signature" };
+    }
+    const event = await provider.parseEvent(rawBody, headers);
+    await repository.applyBillingEvent(admin, provider.provider, event);
+    return { ok: true };
   }
-  const event = await provider.parseEvent(rawBody, headers);
+
+  // Provider verifies the signature inside `parseEvent` itself (Paddle's
+  // `unmarshal`) — call it once rather than re-running the same HMAC check
+  // via `verifyWebhook` first (review3 finding 16: doubling the signature
+  // check doubles the window in which a slow cold start can pass the first
+  // check and fail the second, turning a legitimate webhook into a 500).
+  let event: Awaited<ReturnType<BillingProviderClient["parseEvent"]>>;
+  try {
+    event = await provider.parseEvent(rawBody, headers);
+  } catch (err) {
+    if (err instanceof BillingProviderError) {
+      return { ok: false, reason: "invalid_signature" };
+    }
+    throw err;
+  }
   await repository.applyBillingEvent(admin, provider.provider, event);
   return { ok: true };
 }
