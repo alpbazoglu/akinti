@@ -23,6 +23,11 @@ export interface OwnerInsightsProps {
   audioAssetId: string;
 }
 
+/** `cents_trace` (when present) is the one field `PitchReport.tsx`'s `traceAmplitudes` maps through a division with no guard of its own — a non-numeric entry becomes a `NaN` amplitude fed straight into `Waveform` (review3 finding 29). */
+function isFiniteNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "number" && Number.isFinite(entry));
+}
+
 function isPitchScore(value: unknown): value is PitchScore {
   if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
@@ -31,7 +36,8 @@ function isPitchScore(value: unknown): value is PitchScore {
     typeof record.in_tune_ratio === "number" &&
     typeof record.median_cents_off === "number" &&
     typeof record.key_guess === "string" &&
-    typeof record.notes_detected === "number"
+    typeof record.notes_detected === "number" &&
+    (record.cents_trace === undefined || isFiniteNumberArray(record.cents_trace))
   );
 }
 

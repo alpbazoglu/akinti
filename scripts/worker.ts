@@ -659,11 +659,17 @@ async function runPitchScoreSideEffect(
     }
     const body = await callSidecar(sidecarConfig, "/pitch-score", filePath, {}, fetch);
     const perSecond = Array.isArray(body.per_second_cents_deviation)
-      ? (body.per_second_cents_deviation as number[])
+      ? (body.per_second_cents_deviation as unknown[]).filter(
+          (value): value is number => typeof value === "number" && Number.isFinite(value),
+        )
       : [];
     const centsTrace = downsampleCentsTrace(perSecond);
     const pitchScore = {
-      score_0_100: Number(body.score) || 0,
+      // Clamped 0..100 (review3 finding 29): the sidecar is trusted today,
+      // but this is the only jsonb column rendered without full validation,
+      // and an out-of-range value (e.g. a sidecar returning 150) would
+      // otherwise render as "150" on a score meant to read out of 100.
+      score_0_100: Math.min(100, Math.max(0, Number(body.score) || 0)),
       in_tune_ratio: Number(body.in_tune_ratio) || 0,
       median_cents_off: Number(body.median_cents_off) || 0,
       key_guess: String(body.detected_key ?? ""),
