@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { reportComment } from "@/app/(app)/w/[id]/interactions";
@@ -12,20 +13,15 @@ export interface ReportCommentSheetProps {
   commentId: string | null;
 }
 
-const REASON_LABELS: Record<ReportReason, string> = {
-  spam: "Spam",
-  harassment: "Harassment",
-  impersonation: "Impersonation",
-  copyright: "Copyright concern",
-  inappropriate: "Inappropriate content",
-  abusive: "Abusive behaviour",
-  other: "Other",
-};
-
-const REASON_OPTIONS: SelectOption[] = REPORT_REASONS.map((value) => ({
-  value,
-  label: REASON_LABELS[value],
-}));
+const REASON_LABEL_KEY = {
+  spam: "reasonSpam",
+  harassment: "reasonHarassment",
+  impersonation: "reasonImpersonation",
+  copyright: "reasonCopyright",
+  inappropriate: "reasonInappropriate",
+  abusive: "reasonAbusive",
+  other: "reasonOther",
+} as const satisfies Record<ReportReason, string>;
 
 const DETAILS_MAX_LENGTH = 1000;
 
@@ -34,11 +30,17 @@ const DETAILS_MAX_LENGTH = 1000;
  * moderation queue and a person reads it.
  */
 export function ReportCommentSheet({ open, onClose, commentId }: ReportCommentSheetProps) {
+  const t = useTranslations("ReportCommentSheet");
   const [reason, setReason] = useState<ReportReason>("spam");
   const [details, setDetails] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+
+  const reasonOptions: SelectOption[] = REPORT_REASONS.map((value) => ({
+    value,
+    label: t(REASON_LABEL_KEY[value]),
+  }));
 
   function handleSubmit() {
     if (!commentId) return;
@@ -50,10 +52,10 @@ export function ReportCommentSheet({ open, onClose, commentId }: ReportCommentSh
         details.trim().length > 0 ? details.trim() : null,
       );
       if (!result.ok) {
-        setError(result.error ?? "That report didn't send. Try again.");
+        setError(result.error ?? t("sendError"));
         return;
       }
-      toast({ title: result.message ?? "Report submitted.", tone: "success" });
+      toast({ title: result.message ?? t("submitted"), tone: "success" });
       setDetails("");
       setReason("spam");
       onClose();
@@ -64,15 +66,15 @@ export function ReportCommentSheet({ open, onClose, commentId }: ReportCommentSh
     <Sheet
       open={open}
       onClose={onClose}
-      title="Report comment"
-      description="Say what is wrong. A person reviews every report, and the author is not told."
+      title={t("title")}
+      description={t("description")}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={isPending}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button variant="danger" onClick={handleSubmit} loading={isPending}>
-            Submit report
+            {t("submitReport")}
           </Button>
         </div>
       }
@@ -80,15 +82,15 @@ export function ReportCommentSheet({ open, onClose, commentId }: ReportCommentSh
       <div className="flex flex-col gap-4">
         <Select
           id="report-comment-reason"
-          label="Reason"
+          label={t("reason")}
           value={reason}
           onChange={(event) => setReason(event.target.value as ReportReason)}
-          options={REASON_OPTIONS}
+          options={reasonOptions}
         />
         <Textarea
           id="report-comment-details"
-          label="Details (optional)"
-          placeholder="Anything that helps the review."
+          label={t("detailsOptional")}
+          placeholder={t("detailsPlaceholder")}
           value={details}
           onChange={(event) => setDetails(event.target.value)}
           maxLength={DETAILS_MAX_LENGTH}

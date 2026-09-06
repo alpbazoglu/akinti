@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { CLIPPING_DB, formatDb, formatPitch, type PitchReading } from "@/lib/audio";
 import { cn } from "@/lib/ui";
 
@@ -31,6 +33,7 @@ export interface LevelReadoutProps {
 const TICK_THRESHOLDS = [0.18, 0.45, 0.78];
 
 export function LevelReadout({ db, rms, className }: LevelReadoutProps) {
+  const t = useTranslations("Readouts");
   const hot = db >= CLIPPING_DB;
 
   return (
@@ -49,11 +52,11 @@ export function LevelReadout({ db, rms, className }: LevelReadoutProps) {
       </span>
       <span
         className={cn("type-mono-sm", hot ? "text-signal" : "text-ink-subtle")}
-        aria-label={`Input level ${formatDb(db)}`}
+        aria-label={t("inputLevel", { level: formatDb(db) })}
       >
         {formatDb(db)}
       </span>
-      {hot ? <span className="type-caption text-signal-deep">Too loud</span> : null}
+      {hot ? <span className="type-caption text-signal-deep">{t("tooLoud")}</span> : null}
     </div>
   );
 }

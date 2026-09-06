@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
@@ -12,7 +13,10 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { OnboardingFlow } from "./OnboardingFlow";
 import type { HearItWave } from "./OnboardingFlow";
 
-export const metadata = { title: "Get started" };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  return { title: t("onboarding") };
+}
 
 interface OnboardingPageProps {
   searchParams: Promise<{ next?: string }>;
@@ -28,13 +32,10 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   const { next } = await searchParams;
 
   if (!isSupabaseConfigured()) {
+    const t = await getTranslations("OnboardingPage");
     return (
       <div className="akinti-page flex min-h-dvh flex-col justify-center">
-        <EmptyState
-          size="sm"
-          title="Backend not configured"
-          description="NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. Onboarding is unavailable until this environment is connected to a Supabase project."
-        />
+        <EmptyState size="sm" title={t("notConnectedTitle")} description={t("notConnectedDescription")} />
       </div>
     );
   }

@@ -16,6 +16,7 @@
  * same action for every mode; only `mode`/`segments`/`offsetMs` differ.
  */
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -97,6 +98,8 @@ export function DuetRecorder({
   originalDurationMs,
   className,
 }: DuetRecorderProps) {
+  const t = useTranslations("DuetRecorder");
+  const tTerms = useTranslations("Terms");
   const router = useRouter();
 
   const [stage, setStage] = useState<Stage>("mode");
@@ -111,7 +114,9 @@ export function DuetRecorder({
 
   const [preset, setPreset] = useState<EnhancementPresetId>("studio");
   const [advancedEq, setAdvancedEq] = useState<AdvancedEqSettings | null>(null);
-  const [title, setTitle] = useState(`Duet with @${originalCreatorUsername}`);
+  const [title, setTitle] = useState(
+    t("defaultTitle", { duet: tTerms("duet"), username: originalCreatorUsername }),
+  );
 
   const [publishStage, setPublishStage] = useState<PublishStage | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
@@ -209,11 +214,11 @@ export function DuetRecorder({
         .from(AUDIO_BUCKET)
         .uploadToSignedUrl(ticket.path, ticket.uploadToken, take.blob, { contentType: take.mimeType });
       if (uploadError) {
-        setPublishError("The upload didn't complete. Try again.");
+        setPublishError(t("uploadIncompleteError"));
         return;
       }
     } catch {
-      setPublishError("The upload didn't complete. Check your connection and try again.");
+      setPublishError(t("uploadIncompleteConnectionError"));
       return;
     }
 
@@ -232,7 +237,9 @@ export function DuetRecorder({
       requestId,
       contributionAssetId: ticket.assetId,
       offsetMs,
-      title: title.trim() || `Duet with @${originalCreatorUsername}`,
+      title:
+        title.trim() ||
+        t("defaultTitle", { duet: tTerms("duet"), username: originalCreatorUsername }),
       visibility: "everyone",
       preset,
       advancedEq,
@@ -258,7 +265,7 @@ export function DuetRecorder({
     <div className={className}>
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-2">
-          <p className="type-caption-strong text-ink-muted">The original: &ldquo;{originalTitle}&rdquo;</p>
+          <p className="type-caption-strong text-ink-muted">{t("theOriginal", { title: originalTitle })}</p>
           <div className="-mx-page">
             <Waveform
               peaks={originalPeaks}
@@ -266,7 +273,7 @@ export function DuetRecorder({
               duration={originalDurationMs / 1000}
               readOnly
               fullBleed
-              label="The original Wave"
+              label={t("theOriginalWave")}
             />
           </div>
         </section>
@@ -275,7 +282,7 @@ export function DuetRecorder({
           <section className="flex flex-col gap-6">
             <DuetModePicker value={mode} onChange={setMode} />
             <Button size="lg" onClick={handleModeContinue}>
-              Continue
+              {t("continue")}
             </Button>
           </section>
         ) : null}
@@ -283,7 +290,7 @@ export function DuetRecorder({
         {stage === "capture" ? (
           <section className="flex flex-col gap-4">
             <Button variant="ghost" size="sm" onClick={() => setStage("mode")} className="self-start">
-              Change Duet mode
+              {t("changeDuetMode")}
             </Button>
 
             {mode === "layer" ? (
@@ -298,9 +305,7 @@ export function DuetRecorder({
               />
             ) : mode === "cypher" ? (
               <>
-                <p className="type-body-sm measure text-ink-muted">
-                  Listen to the Wave above first, then record your verse. It plays after everyone else&apos;s.
-                </p>
+                <p className="type-body-sm measure text-ink-muted">{t("cypherInstructions")}</p>
                 <RecordStage
                   onCaptured={(captured) => handleLayerOrCypherCaptured(captured, 0)}
                   onUpload={() => {}}
@@ -364,17 +369,17 @@ export function DuetRecorder({
               <form onSubmit={handlePublish} className="flex flex-col gap-5" noValidate>
                 <Input
                   id="duet-title"
-                  label="Title"
+                  label={t("titleLabel")}
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   maxLength={120}
                   required
                 />
                 {publishError ? (
-                  <ErrorState size="sm" title="Publishing failed" description={publishError} />
+                  <ErrorState size="sm" title={t("publishingFailed")} description={publishError} />
                 ) : null}
                 <Button type="submit" size="lg" fullWidth>
-                  Publish Duet
+                  {t("publishDuet", { duet: tTerms("duet") })}
                 </Button>
               </form>
             )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { COUNTDOWN_SECONDS } from "@/lib/audio";
@@ -29,6 +30,7 @@ export interface CountdownProps {
  * (§7.3: the state stays, the movement goes).
  */
 export function Countdown({ onComplete, seconds = COUNTDOWN_SECONDS, className }: CountdownProps) {
+  const t = useTranslations("Countdown");
   const [remaining, setRemaining] = useState(seconds);
 
   useEffect(() => {
@@ -57,9 +59,9 @@ export function Countdown({ onComplete, seconds = COUNTDOWN_SECONDS, className }
         })}
       </span>
       <span role="status" aria-live="assertive" className="sr-only">
-        {remaining > 0 ? `Starting in ${remaining}` : "Recording"}
+        {remaining > 0 ? t("startingIn", { remaining }) : t("recording")}
       </span>
-      <p className="type-caption text-ink-subtle">Get ready.</p>
+      <p className="type-caption text-ink-subtle">{t("getReady")}</p>
     </div>
   );
 }

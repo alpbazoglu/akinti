@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
@@ -110,6 +111,7 @@ export function RecordStage({
   hideChooseTrack = false,
   className,
 }: RecordStageProps) {
+  const t = useTranslations("RecordStage");
   const store = usePlaybackStore();
   const preferences = useSyncExternalStore(
     subscribeRecordPreferences,
@@ -373,7 +375,7 @@ export function RecordStage({
         {live || counting ? (
           <LiveWaterline monitor={monitor} active={recording} height={96} onSample={setSample} />
         ) : (
-          <Waveform peaks={NO_PEAKS} state="dormant" height={96} readOnly label="Nothing recorded yet" />
+          <Waveform peaks={NO_PEAKS} state="dormant" height={96} readOnly label={t("nothingRecordedYet")} />
         )}
       </div>
 
@@ -388,7 +390,7 @@ export function RecordStage({
       {live ? <PitchMeter pitch={sample.pitch} /> : null}
 
       <div aria-live="polite" role="status" className="sr-only">
-        {announce(state.status, state.autoStopped, state.interrupted)}
+        {announce(state.status, state.autoStopped, state.interrupted, t)}
       </div>
 
       {counting ? (
@@ -398,7 +400,7 @@ export function RecordStage({
           {live ? (
             <>
               <IconButton
-                label={paused ? "Resume recording" : "Pause recording"}
+                label={paused ? t("resumeRecording") : t("pauseRecording")}
                 icon={
                   paused ? (
                     <Play className="size-5 translate-x-px" weight="fill" />
@@ -412,7 +414,7 @@ export function RecordStage({
                 onClick={paused ? resume : pause}
               />
               <RecordKey
-                label="Stop recording"
+                label={t("stopRecording")}
                 size={72}
                 state={paused ? "paused" : "recording"}
                 onClick={stop}
@@ -420,7 +422,7 @@ export function RecordStage({
             </>
           ) : (
             <RecordKey
-              label={armed ? "Start recording" : "Arm the microphone"}
+              label={armed ? t("startRecording") : t("armTheMicrophone")}
               size={88}
               state={
                 state.status === "requesting" ? "armed" : armed ? "armed" : "idle"
@@ -442,7 +444,7 @@ export function RecordStage({
       {!live && !counting ? (
         <div className="flex flex-col gap-3">
           <p className="type-caption text-ink-subtle">
-            {armed ? "Press again to start." : "Hold to record · Tap to arm."}
+            {armed ? t("pressAgainToStart") : t("holdToRecordTapToArm")}
           </p>
           <MicPrimer />
         </div>
@@ -450,14 +452,13 @@ export function RecordStage({
 
       {live ? (
         <p className="type-caption text-ink-subtle">
-          {paused ? "Paused. Nothing is saved yet." : "Recording. Nothing is saved yet."}
+          {paused ? t("pausedNothingSaved") : t("recordingNothingSaved")}
         </p>
       ) : null}
 
       {state.autoStopped ? (
         <p className="type-body-sm measure text-ink-muted">
-          That is the longest a single take can be, so it stopped at{" "}
-          {formatDuration(MAX_RECORDING_MS / 1000)}. Your recording is here.
+          {t("autoStoppedDescription", { duration: formatDuration(MAX_RECORDING_MS / 1000) })}
         </p>
       ) : null}
 
@@ -478,32 +479,30 @@ export function RecordStage({
               disabled={live || counting}
               className="type-body-sm w-full text-left text-ink disabled:opacity-55"
             >
-              Sing over a track
+              {t("singOverATrack")}
             </button>
           </RailRow>
         )}
 
         <RailRow>
           <Switch
-            label="I'm in a noisy room"
-            description="Cleans up what you hear while you record. Your recording keeps the original sound."
+            label={t("inNoisyRoom")}
+            description={t("noisyRoomDescription")}
             checked={preferences.noisyRoom}
             onCheckedChange={toggleNoisyRoom}
           />
         </RailRow>
         {suppressorFailed ? (
-          <p className="type-caption py-2 text-ink-subtle">
-            This browser could not run the noise filter, so you are hearing the raw input.
-          </p>
+          <p className="type-caption py-2 text-ink-subtle">{t("noiseFilterFailed")}</p>
         ) : null}
 
         <RailRow>
           <Switch
-            label="Hear yourself"
+            label={t("hearYourself")}
             description={
               latencyMs !== null
-                ? `Use headphones. What you hear is about ${latencyMs}ms behind you.`
-                : "Use headphones, or the speakers will feed back into the take."
+                ? t("hearYourselfDescriptionWithLatency", { latencyMs })
+                : t("hearYourselfDescription")
             }
             checked={preferences.monitoring}
             onCheckedChange={toggleMonitoring}
@@ -512,8 +511,8 @@ export function RecordStage({
 
         <RailRow>
           <Switch
-            label="Count me in"
-            description="Three beats before recording starts."
+            label={t("countMeIn")}
+            description={t("countMeInDescription")}
             checked={preferences.countdown}
             onCheckedChange={(on) => setRecordPreferences({ countdown: on })}
           />
@@ -522,15 +521,13 @@ export function RecordStage({
         {!preferences.headphonesHintSeen && !live ? (
           <RailRow>
             <div className="flex items-center justify-between gap-4">
-              <p className="type-body-sm measure text-ink-muted">
-                Best with headphones. Speakers leak into the microphone.
-              </p>
+              <p className="type-body-sm measure text-ink-muted">{t("bestWithHeadphones")}</p>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setRecordPreferences({ headphonesHintSeen: true })}
               >
-                Got it
+                {t("gotIt")}
               </Button>
             </div>
           </RailRow>
@@ -545,7 +542,7 @@ export function RecordStage({
               className="type-body-sm flex w-full items-center gap-3 text-left text-ink disabled:opacity-55"
             >
               <Upload className="size-4 shrink-0 text-ink-subtle" aria-hidden="true" />
-              Upload a file instead
+              {t("uploadInstead")}
             </button>
           </RailRow>
         )}
@@ -575,6 +572,7 @@ function TrackRow({
   onClear: () => void;
   disabled: boolean;
 }) {
+  const t = useTranslations("RecordStage");
   return (
     <div className="border-t border-hairline py-3">
       <div className="flex items-start justify-between gap-4">
@@ -583,7 +581,7 @@ function TrackRow({
           <p className="type-caption truncate text-ink-subtle">{track.artistCredit}</p>
         </div>
         <IconButton
-          label="Remove this track"
+          label={t("removeThisTrack")}
           icon={<X className="size-4" />}
           variant="ghost"
           size="sm"
@@ -595,7 +593,7 @@ function TrackRow({
         <div className="mt-2 flex items-center gap-4">
           <p className="type-caption text-signal-deep">{error}</p>
           <Button variant="ghost" size="xs" onClick={onRetry}>
-            Try again
+            {t("tryAgain")}
           </Button>
         </div>
       ) : null}
@@ -603,19 +601,24 @@ function TrackRow({
   );
 }
 
-function announce(status: string, autoStopped: boolean, interrupted: boolean): string {
+function announce(
+  status: string,
+  autoStopped: boolean,
+  interrupted: boolean,
+  t: ReturnType<typeof useTranslations<"RecordStage">>,
+): string {
   switch (status) {
     case "requesting":
-      return "Asking for the microphone.";
+      return t("announceRequesting");
     case "recording":
-      return "Recording.";
+      return t("announceRecording");
     case "paused":
-      return "Paused.";
+      return t("announcePaused");
     case "stopped":
-      if (interrupted) return "Recording stopped because the page was hidden. Your take is kept.";
-      return autoStopped ? "Recording stopped at the maximum length." : "Recording finished.";
+      if (interrupted) return t("announceInterrupted");
+      return autoStopped ? t("announceAutoStopped") : t("announceFinished");
     case "error":
-      return "Recording failed.";
+      return t("announceFailed");
     default:
       return "";
   }

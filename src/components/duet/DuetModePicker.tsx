@@ -11,9 +11,22 @@
  * touch target and the choice reads correctly to a screen reader.
  */
 
-import { DUET_MODE_DESCRIPTION, DUET_MODE_LABEL } from "@/config/terminology";
+import { useTranslations } from "next-intl";
+
+import { DUET_MODE_LABEL } from "@/config/terminology";
 import { cn } from "@/lib/ui";
 import type { DuetMode } from "@/types/domain";
+
+/**
+ * Translated one-sentence explanations for each mode. Deliberately not
+ * `DUET_MODE_DESCRIPTION` (`@/config/terminology`, English-only, §4 of
+ * `docs/I18N.md`) — this is the display-only translated parallel.
+ */
+const MODE_DESCRIPTION_KEY = {
+  layer: "descriptionLayer",
+  atisma: "descriptionAtisma",
+  cypher: "descriptionCypher",
+} as const satisfies Record<DuetMode, string>;
 
 export interface DuetModePickerProps {
   value: DuetMode;
@@ -26,8 +39,9 @@ export interface DuetModePickerProps {
 const ALL_MODES: readonly DuetMode[] = ["layer", "atisma", "cypher"];
 
 export function DuetModePicker({ value, onChange, modes = ALL_MODES, className }: DuetModePickerProps) {
+  const t = useTranslations("DuetModePicker");
   return (
-    <div className={cn("flex flex-col", className)} role="radiogroup" aria-label="Duet mode">
+    <div className={cn("flex flex-col", className)} role="radiogroup" aria-label={t("duetMode")}>
       {modes.map((mode) => {
         const selected = value === mode;
         return (
@@ -51,7 +65,7 @@ export function DuetModePicker({ value, onChange, modes = ALL_MODES, className }
             />
             <span className="flex flex-col gap-0.5">
               <span className="type-subhead text-ink">{DUET_MODE_LABEL[mode]}</span>
-              <span className="type-body-sm text-ink-muted">{DUET_MODE_DESCRIPTION[mode]}</span>
+              <span className="type-body-sm text-ink-muted">{t(MODE_DESCRIPTION_KEY[mode])}</span>
             </span>
           </button>
         );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Button } from "@/components/ui";
@@ -31,10 +32,9 @@ export interface MicPrimerProps {
 }
 
 export function MicPrimer({ className }: MicPrimerProps) {
+  const t = useTranslations("MicPermission");
   return (
-    <p className={cn("type-caption measure text-ink-subtle", className)}>
-      We need your mic to record. Nothing is uploaded until you publish.
-    </p>
+    <p className={cn("type-caption measure text-ink-subtle", className)}>{t("micPrimer")}</p>
   );
 }
 
@@ -77,73 +77,55 @@ function detect(): { platform: Platform; engine: Engine } {
   return { platform, engine };
 }
 
+type MicPermissionTranslator = ReturnType<typeof useTranslations<"MicPermission">>;
+
 /**
- * The recovery steps, per browser and OS. Pure, so the mapping is readable
- * and so nothing here depends on rendering.
+ * The recovery steps, per browser and OS. Pure aside from `t`, so the
+ * mapping is readable and so nothing here depends on rendering.
  */
-export function recoveryFor(platform: Platform, engine: Engine): Recovery {
+export function recoveryFor(platform: Platform, engine: Engine, t: MicPermissionTranslator): Recovery {
   if (platform === "ios") {
     if (engine === "safari" || engine === "other") {
       return {
-        title: "In Safari on iPhone or iPad",
+        title: t("iosSafariTitle"),
         steps: [
-          "Tap the page settings button in the address bar.",
-          "Choose Website Settings, then set Microphone to Allow.",
-          "Open Settings, then Safari, then Microphone, and allow it there too.",
-          "Come back and press record again.",
+          t("iosSafariStep1"),
+          t("iosSafariStep2"),
+          t("iosSafariStep3"),
+          t("iosSafariStep4"),
         ],
       };
     }
     return {
-      title: "On iPhone or iPad",
-      steps: [
-        "Open Settings, then Privacy and Security, then Microphone.",
-        "Turn the microphone on for this browser.",
-        "Come back and press record again.",
-      ],
+      title: t("iosOtherTitle"),
+      steps: [t("iosOtherStep1"), t("iosOtherStep2"), t("iosOtherStep3")],
     };
   }
 
   if (platform === "android") {
     return {
-      title: "On Android",
-      steps: [
-        "Tap the lock or tune icon in the address bar.",
-        "Open Permissions and allow the microphone.",
-        "Reload the page and press record again.",
-      ],
+      title: t("androidTitle"),
+      steps: [t("androidStep1"), t("androidStep2"), t("androidStep3")],
     };
   }
 
   if (engine === "safari") {
     return {
-      title: "In Safari on Mac",
-      steps: [
-        "Open Safari, then Settings, then Websites, then Microphone.",
-        "Set this site to Allow.",
-        "Reload the page and press record again.",
-      ],
+      title: t("macSafariTitle"),
+      steps: [t("macSafariStep1"), t("macSafariStep2"), t("macSafariStep3")],
     };
   }
 
   if (engine === "firefox") {
     return {
-      title: "In Firefox",
-      steps: [
-        "Click the microphone icon in the address bar.",
-        "Remove the block, then reload the page.",
-        "Press record and choose Allow.",
-      ],
+      title: t("firefoxTitle"),
+      steps: [t("firefoxStep1"), t("firefoxStep2"), t("firefoxStep3")],
     };
   }
 
   return {
-    title: engine === "edge" ? "In Edge" : "In Chrome",
-    steps: [
-      "Click the lock or tune icon at the left of the address bar.",
-      "Set Microphone to Allow.",
-      "Reload the page and press record again.",
-    ],
+    title: engine === "edge" ? t("edgeTitle") : t("chromeTitle"),
+    steps: [t("chromiumStep1"), t("chromiumStep2"), t("chromiumStep3")],
   };
 }
 
@@ -156,6 +138,7 @@ export interface MicDeniedProps {
 }
 
 export function MicDenied({ onRetry, onUpload, className }: MicDeniedProps) {
+  const t = useTranslations("MicPermission");
   // `MicDenied` only ever mounts client-side, after `getUserMedia` has
   // already resolved to "denied" — it is never present in server-rendered
   // markup, so reading `navigator` in the lazy initializer (rather than in
@@ -163,18 +146,14 @@ export function MicDenied({ onRetry, onUpload, className }: MicDeniedProps) {
   // `setState` inside an effect body.
   const [recovery] = useState<Recovery>(() => {
     const { platform, engine } = detect();
-    return recoveryFor(platform, engine);
+    return recoveryFor(platform, engine, t);
   });
 
   return (
     <section className={cn("flex flex-col gap-6", className)}>
       <div className="flex flex-col gap-2">
-        <h2 className="type-heading text-ink">
-          AKINTI needs the microphone to record.
-        </h2>
-        <p className="type-body-sm measure text-ink-muted">
-          You can still upload audio you already have.
-        </p>
+        <h2 className="type-heading text-ink">{t("micNeeded")}</h2>
+        <p className="type-body-sm measure text-ink-muted">{t("canStillUpload")}</p>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -191,10 +170,10 @@ export function MicDenied({ onRetry, onUpload, className }: MicDeniedProps) {
 
       <div className="flex flex-wrap items-center gap-6">
         <Button onClick={onRetry} size="lg">
-          Try the microphone again
+          {t("tryMicAgain")}
         </Button>
         <Button variant="ghost" onClick={onUpload}>
-          Upload a file instead
+          {t("uploadInstead")}
         </Button>
       </div>
     </section>
@@ -209,17 +188,17 @@ export interface MicUnsupportedProps {
 }
 
 export function MicUnsupported({ onUpload, reason, className }: MicUnsupportedProps) {
+  const t = useTranslations("MicPermission");
   return (
     <section className={cn("flex flex-col gap-6", className)}>
       <div className="flex flex-col gap-2">
-        <h2 className="type-heading text-ink">This browser cannot record audio.</h2>
+        <h2 className="type-heading text-ink">{t("browserCannotRecord")}</h2>
         <p className="type-body-sm measure text-ink-muted">
-          {reason ?? "Recording needs a microphone and a browser that supports it."} Safari on
-          iPhone, Chrome on Android and any recent desktop browser all work.
+          {reason ?? t("recordingNeedsMic")} {t("supportedBrowsers")}
         </p>
       </div>
       <Button onClick={onUpload} size="lg">
-        Upload a file instead
+        {t("uploadInstead")}
       </Button>
     </section>
   );

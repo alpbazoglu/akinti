@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { loadMoreFlow, sendFlowEvent } from "@/app/(app)/flow/actions";
@@ -57,6 +58,8 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
   const router = useRouter();
   const { toast } = useToast();
   const store = usePlaybackStore();
+  const tTerms = useTranslations("Terms");
+  const tFlow = useTranslations("Flow");
 
   const [items, setItems] = useState<FlowWave[]>(() => [...initialItems]);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
@@ -221,7 +224,7 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
       setHasStarted(true);
       void ensureSignedUrl(activeWave.audioAssetId).then((url) => {
         if (!url) {
-          toast({ title: "This Wave's audio didn't load.", tone: "error" });
+          toast({ title: tFlow("audioLoadError"), tone: "error" });
           return;
         }
         store.play(activeWave.id, url, {
@@ -235,7 +238,7 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
       return;
     }
     controls.toggle();
-  }, [activeWave, hasStarted, ensureSignedUrl, store, toast, controls]);
+  }, [activeWave, hasStarted, ensureSignedUrl, store, tFlow, toast, controls]);
 
   const handleReplay = useCallback(() => {
     if (!activeWave || !hasStarted) return;
@@ -252,7 +255,7 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
     void action.then((result) => {
       if (!result.ok) {
         setSavedById((current) => ({ ...current, [activeWave.id]: !willSave }));
-        toast({ title: result.error ?? "That save didn't stick. Try again.", tone: "error" });
+        toast({ title: result.error ?? tFlow("saveError"), tone: "error" });
         return;
       }
       emitAnalyticsEvent({
@@ -262,7 +265,7 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
         at: Date.now(),
       });
     });
-  }, [activeWave, savedById, toast]);
+  }, [activeWave, savedById, tFlow, toast]);
 
   const handleDuet = useCallback(() => {
     if (!activeWave || !activeWave.canRequestDuet) return;
@@ -406,7 +409,7 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
       tabIndex={0}
       role="region"
       aria-roledescription="carousel"
-      aria-label="Flow"
+      aria-label={tTerms("flow")}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

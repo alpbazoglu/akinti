@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Handshake } from "@/components/ui/icons";
 
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 
 /**
  * "Duet of @creator" / "Original: …" attribution (spec §15 duet data
@@ -38,26 +38,29 @@ export interface DuetLineageProps {
   className?: string;
 }
 
-export function DuetLineage({ parent, original, className }: DuetLineageProps) {
+export async function DuetLineage({ parent, original, className }: DuetLineageProps) {
   if (!parent && !original) {
     return null;
   }
+
+  const t = await getTranslations("DuetLineage");
+  const tTerms = await getTranslations("Terms");
 
   return (
     <section className={className}>
       <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-fg">
         <Handshake className="size-4" aria-hidden="true" />
-        {TERMS.duet} lineage
+        {t("lineage", { duet: tTerms("duet") })}
       </h2>
       <div className="flex flex-col gap-1 text-sm">
-        {parent ? <LineageLine label={`${TERMS.duet} of`} entry={parent} /> : null}
-        {original ? <LineageLine label="Original" entry={original} /> : null}
+        {parent ? <LineageLine label={t("duetOf", { duet: tTerms("duet") })} entry={parent} by={t("by")} /> : null}
+        {original ? <LineageLine label={t("original")} entry={original} by={t("by")} /> : null}
       </div>
     </section>
   );
 }
 
-function LineageLine({ label, entry }: { label: string; entry: DuetLineageEntry }) {
+function LineageLine({ label, entry, by }: { label: string; entry: DuetLineageEntry; by: string }) {
   return (
     <p className="text-fg-muted">
       {label}{" "}
@@ -67,7 +70,7 @@ function LineageLine({ label, entry }: { label: string; entry: DuetLineageEntry 
       {entry.creator ? (
         <>
           {" "}
-          by{" "}
+          {by}{" "}
           <Link href={routes.profile(entry.creator.username)} className="text-fg hover:underline">
             @{entry.creator.username}
           </Link>

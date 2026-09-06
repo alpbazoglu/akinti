@@ -18,6 +18,8 @@
  * block at all, not a placeholder or a fake "processing" state.
  */
 
+import { useTranslations } from "next-intl";
+
 import { Waveform } from "@/components/audio";
 
 /** Matches the jsonb shape `set_audio_asset_pitch_score()` writes onto `audio_assets.pitch_score` — see the migration's column comment. */
@@ -67,35 +69,40 @@ function driftedHalf(trace: readonly number[]): "first" | "second" | null {
   return secondAvg > firstAvg ? "second" : "first";
 }
 
-function describeSentence(pitch: PitchScore): string {
+type PitchReportTranslator = ReturnType<typeof useTranslations<"PitchReport">>;
+
+function describeSentence(pitch: PitchScore, t: PitchReportTranslator): string {
   if (pitch.notes_detected === 0) {
-    return "We couldn't get a clear pitch reading for this one.";
+    return t("noClearReading");
   }
   const key = formatKeyGuess(pitch.key_guess);
   const half = pitch.cents_trace ? driftedHalf(pitch.cents_trace) : null;
-  if (half) {
-    return `Pitch drifted in the ${half} half, key of ${key}.`;
+  if (half === "first") {
+    return t("driftedFirstHalf", { key });
+  }
+  if (half === "second") {
+    return t("driftedSecondHalf", { key });
   }
   if (pitch.in_tune_ratio >= IN_TUNE_RATIO_HIGH) {
-    return `Mostly in tune, key of ${key}.`;
+    return t("mostlyInTune", { key });
   }
   if (pitch.in_tune_ratio >= IN_TUNE_RATIO_MID) {
-    return `Close to the key of ${key}, with some drift.`;
+    return t("closeToKey", { key });
   }
-  return `Pitch drifted through this one, key of ${key}.`;
+  return t("driftedThroughout", { key });
 }
 
-function pickTip(pitch: PitchScore): string {
+function pickTip(pitch: PitchScore, t: PitchReportTranslator): string {
   if (pitch.notes_detected === 0) {
-    return "Try recording somewhere quieter so the pitch comes through clearly.";
+    return t("tipQuieterRoom");
   }
   if (pitch.in_tune_ratio >= IN_TUNE_RATIO_HIGH) {
-    return "Warm up on the same key before your next take to keep this going.";
+    return t("tipWarmUp");
   }
   if (pitch.median_cents_off > 50) {
-    return "Try holding each note a beat longer before moving to the next.";
+    return t("tipHoldNotes");
   }
-  return "Hum the melody once before you record to lock the key in your ear.";
+  return t("tipHumMelody");
 }
 
 /** Cents-off values, 0..~150+, mapped to the `0..1` amplitude a trace draws. */
@@ -109,10 +116,11 @@ export interface PitchReportProps {
 }
 
 export function PitchReport({ pitchScore, className }: PitchReportProps) {
+  const t = useTranslations("PitchReport");
   if (!pitchScore) return null;
 
-  const sentence = describeSentence(pitchScore);
-  const tip = pickTip(pitchScore);
+  const sentence = describeSentence(pitchScore, t);
+  const tip = pickTip(pitchScore, t);
   const showScore = pitchScore.score_0_100 >= 1;
   const trace = pitchScore.notes_detected > 0 ? pitchScore.cents_trace : undefined;
 
@@ -123,7 +131,7 @@ export function PitchReport({ pitchScore, className }: PitchReportProps) {
           <span className="size-2 rounded-full bg-tide" />
         </span>
         <div className="flex flex-col gap-3">
-          <p className="type-caption-strong text-ink-subtle">How it sounded</p>
+          <p className="type-caption-strong text-ink-subtle">{t("howItSounded")}</p>
           <div className="flex items-baseline gap-3">
             <p className="type-body-sm measure text-ink">{sentence}</p>
             {showScore ? (
@@ -139,7 +147,7 @@ export function PitchReport({ pitchScore, className }: PitchReportProps) {
               state="unplayed"
               readOnly
               hue="current"
-              label="How your pitch tracked over this take"
+              label={t("howPitchTracked")}
             />
           ) : null}
           <p className="type-caption text-ink-subtle">{tip}</p>

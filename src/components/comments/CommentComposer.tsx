@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { createComment } from "@/app/(app)/w/[id]/interactions";
@@ -8,7 +9,25 @@ import { emitAnalyticsEvent } from "@/lib/metrics";
 import { COMMENT_MAX_LENGTH } from "@/lib/validation/waves";
 import type { CommentWithAuthor } from "@/types/domain";
 
-import { FEEDBACK_FIELDS, composeFeedback, type FeedbackFields } from "./feedback";
+import { FEEDBACK_FIELDS, composeFeedback, type FeedbackFields, type FeedbackKey } from "./feedback";
+
+/**
+ * Translated labels/placeholders shown for the three structured-feedback
+ * prompts. Deliberately separate from `FEEDBACK_FIELDS`' own English
+ * `label` (`./feedback.ts`), which is stored verbatim inside the comment
+ * body and matched back by `parseFeedback` — changing what is displayed
+ * here must never change what gets written to or read from the database.
+ */
+const FEEDBACK_LABEL_KEY = {
+  worked: "fieldWorkedLabel",
+  note: "fieldNoteLabel",
+  try: "fieldTryLabel",
+} as const satisfies Record<FeedbackKey, string>;
+const FEEDBACK_PLACEHOLDER_KEY = {
+  worked: "fieldWorkedPlaceholder",
+  note: "fieldNotePlaceholder",
+  try: "fieldTryPlaceholder",
+} as const satisfies Record<FeedbackKey, string>;
 
 export interface CommentComposerProps {
   waveId: string;
@@ -44,6 +63,7 @@ export function CommentComposer({
   onPosted,
   onCancel,
 }: CommentComposerProps) {
+  const t = useTranslations("CommentComposer");
   const [body, setBody] = useState("");
   const [structured, setStructured] = useState(false);
   const [fields, setFields] = useState<FeedbackFields>({});
@@ -64,7 +84,7 @@ export function CommentComposer({
     startTransition(async () => {
       const result = await createComment({ waveId, body: composed, parentCommentId });
       if (!result.ok || !result.data) {
-        setError(result.error ?? "That comment didn't post. Try again.");
+        setError(result.error ?? t("postError"));
         return;
       }
       emitAnalyticsEvent({
@@ -90,8 +110,8 @@ export function CommentComposer({
             <Input
               key={field.key}
               id={`${idBase}-${field.key}`}
-              label={field.label}
-              placeholder={field.placeholder}
+              label={t(FEEDBACK_LABEL_KEY[field.key])}
+              placeholder={t(FEEDBACK_PLACEHOLDER_KEY[field.key])}
               value={fields[field.key] ?? ""}
               onChange={(event) =>
                 setFields((current) => ({ ...current, [field.key]: event.target.value }))
@@ -102,9 +122,9 @@ export function CommentComposer({
       ) : (
         <Textarea
           id={`${idBase}-body`}
-          label={parentCommentId ? "Write a reply" : "Add a comment"}
+          label={parentCommentId ? t("writeAReply") : t("addAComment")}
           hideLabel
-          placeholder={placeholder ?? (parentCommentId ? "Write a reply" : "Add a comment")}
+          placeholder={placeholder ?? (parentCommentId ? t("writeAReply") : t("addAComment"))}
           rows={2}
           value={body}
           maxLength={COMMENT_MAX_LENGTH}
@@ -127,8 +147,10 @@ export function CommentComposer({
       ) : null}
       {tooLong ? (
         <p role="alert" className="type-caption text-signal-deep">
-          That is longer than a comment can be. Trim it by{" "}
-          <span className="type-mono-sm">{composed.length - COMMENT_MAX_LENGTH}</span> characters.
+          {t.rich("tooLong", {
+            count: composed.length - COMMENT_MAX_LENGTH,
+            mono: (chunks) => <span className="type-mono-sm">{chunks}</span>,
+          })}
         </p>
       ) : null}
 
@@ -139,7 +161,7 @@ export function CommentComposer({
             onClick={() => setStructured((current) => !current)}
             className="type-caption text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            {structured ? "Write it as prose" : "Give notes instead"}
+            {structured ? t("writeAsProse") : t("giveNotesInstead")}
           </button>
         ) : (
           <span />
@@ -148,7 +170,7 @@ export function CommentComposer({
         <div className="flex items-center gap-2">
           {onCancel ? (
             <Button variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>
-              Cancel
+              {t("cancel")}
             </Button>
           ) : null}
           <Button
@@ -158,7 +180,7 @@ export function CommentComposer({
             loading={isPending}
             disabled={!canSubmit}
           >
-            {parentCommentId ? "Reply" : "Post"}
+            {parentCommentId ? t("reply") : t("post")}
           </Button>
         </div>
       </div>

@@ -16,6 +16,7 @@
  * not from a flex gap between boxes (§5.1).
  */
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 
 import { WaveCardContainer, WaveCardSkeleton, type WaveCardContainerWave } from "@/components/wave";
@@ -46,6 +47,7 @@ export function WaveFeedList({
   endLabel = null,
   className,
 }: WaveFeedListProps) {
+  const t = useTranslations("WaveFeedList");
   const sentinelRef = useRef<HTMLDivElement>(null);
   const onLoadMoreRef = useRef(onLoadMore);
 
@@ -103,7 +105,7 @@ export function WaveFeedList({
             onClick={onLoadMore}
             className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
           >
-            Try again
+            {t("tryAgain")}
           </button>
         </div>
       ) : hasMore && status !== "loading" ? (
@@ -113,7 +115,7 @@ export function WaveFeedList({
             onClick={onLoadMore}
             className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
           >
-            Load more
+            {t("loadMore")}
           </button>
         </div>
       ) : !hasMore && items.length > 0 && endLabel ? (

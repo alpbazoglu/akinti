@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useMemo } from "react";
 
 import { Waveform } from "@/components/audio";
@@ -54,6 +55,7 @@ export function ReviewStage({
   interrupted = false,
   className,
 }: ReviewStageProps) {
+  const t = useTranslations("ReviewStage");
   const generatedId = useId();
   const waveId = `take-${generatedId}`;
   const url = useMemo(() => URL.createObjectURL(blob), [blob]);
@@ -66,7 +68,7 @@ export function ReviewStage({
 
   const playback = useWavePlayback(waveId, durationMs / 1000);
   const { toggle, seekToRatio, seek } = useWaveControls(waveId, url, {
-    title: "Your take",
+    title: t("yourTake"),
     duration: durationMs / 1000,
     peaks,
   });
@@ -98,15 +100,12 @@ export function ReviewStage({
             height={96}
             readOnly
             fullBleed
-            label="Trace not available"
+            label={t("traceNotAvailable")}
           />
         )}
       </div>
       {!tracePrepared ? (
-        <p className="type-body-sm measure text-ink-muted">
-          We couldn&apos;t prepare a trace for this take, so trimming is off for now. Continue
-          with the whole recording, or record it again.
-        </p>
+        <p className="type-body-sm measure text-ink-muted">{t("couldNotPrepareTraceTrim")}</p>
       ) : null}
 
       <div className="type-mono-sm flex items-center justify-between text-ink-subtle">
@@ -116,7 +115,7 @@ export function ReviewStage({
 
       <div className="flex items-center gap-6">
         <IconButton
-          label="Back 15 seconds"
+          label={t("back15Seconds")}
           icon={<SkipBack className="size-5" />}
           variant="secondary"
           shape="round"
@@ -124,7 +123,7 @@ export function ReviewStage({
           onClick={() => seek(Math.max(0, playback.currentTime - 15))}
         />
         <IconButton
-          label={playback.isPlaying ? "Pause your take" : "Play your take"}
+          label={playback.isPlaying ? t("pauseYourTake") : t("playYourTake")}
           icon={
             playback.isPlaying ? (
               <Pause className="size-6" weight="fill" />
@@ -138,7 +137,7 @@ export function ReviewStage({
           onClick={toggle}
         />
         <IconButton
-          label="Forward 15 seconds"
+          label={t("forward15Seconds")}
           icon={<SkipForward className="size-5" />}
           variant="secondary"
           shape="round"
@@ -150,10 +149,10 @@ export function ReviewStage({
       {tracePrepared ? (
         <div className="flex flex-col gap-2 border-t border-hairline pt-4">
           <div className="flex items-baseline justify-between gap-4">
-            <p className="type-caption-strong text-ink-muted">Trim</p>
+            <p className="type-caption-strong text-ink-muted">{t("trim")}</p>
             {trimmed ? (
               <Button variant="ghost" size="xs" onClick={() => onRangeChange(fullRange(durationMs))}>
-                Use the whole take
+                {t("useWholeTake")}
               </Button>
             ) : null}
           </div>
@@ -166,17 +165,15 @@ export function ReviewStage({
       ) : null}
 
       {interrupted ? (
-        <p className="type-body-sm measure text-ink-muted">
-          Recording stopped when you left the page. Everything up to that point is here.
-        </p>
+        <p className="type-body-sm measure text-ink-muted">{t("interruptedDescription")}</p>
       ) : null}
 
       <div className="flex items-center justify-between gap-4">
         <Button size="lg" onClick={onContinue}>
-          Continue
+          {t("continueAction")}
         </Button>
         <Button variant="ghost" onClick={onRetake}>
-          Re-record
+          {t("reRecord")}
         </Button>
       </div>
     </section>

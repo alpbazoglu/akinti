@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useActionState, useState, type FormEvent } from "react";
 
 import { updatePassword } from "../actions";
@@ -9,6 +10,7 @@ import { AUTH_ACTION_INITIAL_STATE } from "@/lib/auth/types";
 import { Button, EmptyState, Input } from "@/components/ui";
 
 export function ResetPasswordForm() {
+  const t = useTranslations("ResetPasswordForm");
   const [state, formAction, isPending] = useActionState(updatePassword, AUTH_ACTION_INITIAL_STATE);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
@@ -17,11 +19,11 @@ export function ResetPasswordForm() {
       <div>
         <EmptyState
           size="sm"
-          title="Password updated"
+          title={t("passwordUpdated")}
           description={state.message}
           action={
             <Link href={routes.home()} className="text-sm font-medium text-accent underline underline-offset-2">
-              Continue
+              {t("continueAction")}
             </Link>
           }
         />
@@ -35,7 +37,7 @@ export function ResetPasswordForm() {
     const confirmPassword = formData.get("confirmPassword");
     if (password !== confirmPassword) {
       event.preventDefault();
-      setConfirmError("Passwords do not match.");
+      setConfirmError(t("passwordsDoNotMatch"));
       return;
     }
     setConfirmError(null);
@@ -43,14 +45,14 @@ export function ResetPasswordForm() {
 
   return (
     <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-6" noValidate>
-      <p className="text-sm text-fg-muted">Choose a new password for your account.</p>
+      <p className="text-sm text-fg-muted">{t("chooseNewPassword")}</p>
       <Input
         id="password"
         name="password"
         type="password"
-        label="New password"
+        label={t("newPassword")}
         autoComplete="new-password"
-        hint="At least 8 characters."
+        hint={t("passwordHint")}
         required
         error={state.fieldErrors?.password}
       />
@@ -58,7 +60,7 @@ export function ResetPasswordForm() {
         id="confirmPassword"
         name="confirmPassword"
         type="password"
-        label="Confirm new password"
+        label={t("confirmNewPassword")}
         autoComplete="new-password"
         required
         error={confirmError}
@@ -70,8 +72,8 @@ export function ResetPasswordForm() {
         </p>
       ) : null}
 
-      <Button type="submit" loading={isPending} loadingLabel="Updating" fullWidth>
-        Update password
+      <Button type="submit" loading={isPending} loadingLabel={t("updating")} fullWidth>
+        {t("updatePassword")}
       </Button>
     </form>
   );

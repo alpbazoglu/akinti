@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useReducer, useState, type MouseEvent, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useMemo, useReducer, useState, type MouseEvent, type ReactNode } from "react";
 
 import { saveWave, unsaveWave } from "@/app/(app)/w/[id]/interactions";
 import { WavePlayer } from "@/components/audio";
@@ -10,10 +11,19 @@ import { ShareSheet } from "@/components/share";
 import { Avatar, Badge, IconButton, useToast } from "@/components/ui";
 import { Bookmark, MessageSquare, Share2 } from "@/components/ui/icons";
 import { routes } from "@/config/routes";
-import { CREATION_TYPES, METRICS, TERMS, type CreationType, type MetricKey } from "@/config/terminology";
+import { CREATION_TYPES, METRICS, type CreationType, type MetricKey } from "@/config/terminology";
 import { saveReducer } from "@/lib/interactions";
 import { emitAnalyticsEvent, usePlayTracker } from "@/lib/metrics";
 import { cn, formatAbsoluteTime, formatCount } from "@/lib/ui";
+
+const METRIC_LABEL_KEY = {
+  plays: "metricPlays",
+  replays: "metricReplays",
+  comments: "metricComments",
+  saves: "metricSaves",
+  shares: "metricShares",
+  duets: "metricDuets",
+} as const satisfies Record<MetricKey, string>;
 
 export interface WaveDetailPerson {
   readonly username: string;
@@ -43,9 +53,6 @@ export interface WaveDetailProps {
   children?: ReactNode;
 }
 
-/** Matches `WavePlayer`'s accessible name for its transport control exactly. */
-const TRANSPORT_LABEL_RE = /^(Play|Pause|Retry playback)\b/;
-
 /**
  * The Wave detail (SCREENS.md §5).
  *
@@ -60,6 +67,9 @@ const TRANSPORT_LABEL_RE = /^(Play|Pause|Retry playback)\b/;
  * mint, not audio bytes.
  */
 export function WaveDetail({ wave, children }: WaveDetailProps) {
+  const t = useTranslations("WaveDetail");
+  const tTerms = useTranslations("Terms");
+  const tWavePlayer = useTranslations("WavePlayer");
   const { toast } = useToast();
   usePlayTracker();
 
@@ -70,6 +80,16 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
     saveCount: wave.metrics.saves,
     status: "idle" as const,
   });
+
+  // Matches `WavePlayer`'s accessible name for its transport control exactly
+  // (`${playAction|pauseAction} ...` or `retryPlayback`) — built from the
+  // same translated words `WavePlayer` renders, not a hardcoded English regex.
+  const transportLabelRe = useMemo(() => {
+    const words = [tTerms("playAction"), tTerms("pauseAction"), tWavePlayer("retryPlayback")].map(
+      (word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    );
+    return new RegExp(`^(${words.join("|")})\\b`);
+  }, [tTerms, tWavePlayer]);
 
   const { resolve } = audio;
   useEffect(() => {
@@ -84,12 +104,12 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
       if (audio.url) return;
       const control = (event.target as HTMLElement).closest("button");
       const label = control?.textContent?.trim() ?? "";
-      if (!TRANSPORT_LABEL_RE.test(label)) return;
+      if (!transportLabelRe.test(label)) return;
       event.preventDefault();
       event.stopPropagation();
       void audio.resolve();
     },
-    [audio],
+    [audio, transportLabelRe],
   );
 
   const handleSave = useCallback(() => {
@@ -99,7 +119,7 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
     void action.then((result) => {
       if (!result.ok) {
         dispatchSave({ type: "rollback" });
-        toast({ title: result.error ?? "That Save didn't stick. Try again.", tone: "error" });
+        toast({ title: result.error ?? t("saveError"), tone: "error" });
         return;
       }
       dispatchSave({ type: "confirm" });
@@ -110,7 +130,7 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
         at: Date.now(),
       });
     });
-  }, [saveState.isSaved, toast, wave.id]);
+  }, [saveState.isSaved, t, toast, wave.id]);
 
   const creatorName = wave.creator.displayName ?? wave.creator.username;
   const creationType = CREATION_TYPES[wave.creationType];
@@ -174,7 +194,7 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
 
       {wave.collaborators.length > 0 ? (
         <p className="akinti-page type-caption flex flex-wrap items-center gap-2 pt-5 text-ink-subtle">
-          <span className="text-ink-muted">With</span>
+          <span className="text-ink-muted">{t("with")}</span>
           {wave.collaborators.map((person) => (
             <Link
               key={person.username}
@@ -193,9 +213,9 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
             const value = metrics[metric.key] ?? 0;
             return (
               <span key={metric.key}>
-                {index > 0 ? <span aria-hidden="true"> &middot; </span> : null}
+                {index > 0 ? <span aria-hidden="true"> · </span> : null}
                 <span className="type-mono-sm text-ink-muted">{formatCount(value)}</span>{" "}
-                {value === 1 ? metric.singular.toLowerCase() : metric.label.toLowerCase()}
+                {t(METRIC_LABEL_KEY[metric.key], { count: value })}
               </span>
             );
           })}
@@ -204,7 +224,7 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
 
       <div className="akinti-page flex items-center gap-2 pt-6">
         <IconButton
-          label={TERMS.comment}
+          label={tTerms("comment")}
           icon={<MessageSquare className="size-5" />}
           size="sm"
           showLabel
@@ -213,7 +233,7 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
           }}
         />
         <IconButton
-          label={saveState.isSaved ? TERMS.saved : TERMS.save}
+          label={saveState.isSaved ? tTerms("saved") : tTerms("save")}
           icon={<Bookmark className="size-5" weight={saveState.isSaved ? "fill" : "regular"} />}
           size="sm"
           showLabel
@@ -222,7 +242,7 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
           onClick={handleSave}
         />
         <IconButton
-          label={TERMS.share}
+          label={tTerms("share")}
           icon={<Share2 className="size-5" />}
           size="sm"
           showLabel
@@ -236,7 +256,7 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
             href={routes.waveDuet(wave.id)}
             className="akinti-press flex h-13 w-full items-center justify-center rounded-key bg-ink px-6 type-subhead text-on-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            {TERMS.requestDuet}
+            {tTerms("requestDuet")}
           </Link>
         </div>
       ) : null}

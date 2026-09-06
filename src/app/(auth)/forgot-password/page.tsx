@@ -1,22 +1,24 @@
+import { getTranslations } from "next-intl/server";
+
 import { EmptyState } from "@/components/ui";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
 
-export const metadata = { title: "Reset your password" };
+export async function generateMetadata() {
+  const t = await getTranslations("ForgotPasswordPage");
+  return { title: t("title") };
+}
 
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage() {
+  const t = await getTranslations("ForgotPasswordPage");
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="type-display text-ink">Reset your password</h1>
+      <h1 className="type-display text-ink">{t("title")}</h1>
       {isSupabaseConfigured() ? (
         <ForgotPasswordForm />
       ) : (
-        <EmptyState
-          size="sm"
-          title="Backend not configured"
-          description="NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. Password reset is unavailable until this environment is connected to a Supabase project."
-        />
+        <EmptyState size="sm" title={t("notConnectedTitle")} description={t("notConnectedDescription")} />
       )}
     </div>
   );

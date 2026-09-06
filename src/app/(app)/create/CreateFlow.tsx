@@ -18,6 +18,7 @@
  * failure (spec §38, §44: no fake success, no silent failure).
  */
 
+import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -51,7 +52,6 @@ import { markFirstPublish } from "@/lib/pwa/installPrompt";
 import { AUDIO_BUCKET } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/client";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 
 import { createUploadTicket, finalizeUpload, publishWave } from "./actions";
 
@@ -97,6 +97,8 @@ export interface CreateFlowProps {
 }
 
 export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlowProps) {
+  const t = useTranslations("CreateFlow");
+  const tTerms = useTranslations("Terms");
   const router = useRouter();
   const { toast } = useToast();
   const [step, setStep] = useState<Step>("capture");
@@ -234,11 +236,11 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
             contentType: draft.audio.mimeType,
           });
         if (uploadError) {
-          setPublishError("The upload didn't complete. Try again.");
+          setPublishError(t("uploadIncompleteError"));
           return;
         }
       } catch {
-        setPublishError("The upload didn't complete. Check your connection and try again.");
+        setPublishError(t("uploadIncompleteConnectionError"));
         return;
       }
 
@@ -290,8 +292,8 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
         }).catch(() => null);
         if (!entered?.ok) {
           toast({
-            title: `Published, but couldn't enter ${initialChallenge.title}`,
-            description: entered?.formError ?? "Try entering it again from the challenge page.",
+            title: t("publishedButCouldNotEnter", { title: initialChallenge.title }),
+            description: entered?.formError ?? t("tryEnteringAgain"),
             tone: "error",
           });
         }
@@ -301,7 +303,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
       markFirstPublish();
       router.push(routes.wave(published.waveId));
     },
-    [backingTrack, initialChallenge, router, toast],
+    [backingTrack, initialChallenge, router, t, toast],
   );
 
   const handlePublish = (draft: CreateWaveDraft) => {
@@ -314,7 +316,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
 
   return (
     <>
-      <PageHeader title={`${TERMS.create} ${TERMS.aWave}`} />
+      <PageHeader title={t("createAWave", { aWave: tTerms("aWave") })} />
 
       <div className="akinti-page flex w-full max-w-xl flex-col gap-6 pb-24">
         {step === "capture" ? (
@@ -362,7 +364,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
               onContinue={handleEnhanceContinue}
             />
             <Button variant="ghost" onClick={startOver}>
-              Start over
+              {t("startOver")}
             </Button>
           </div>
         ) : null}
@@ -375,7 +377,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
               <>
                 {initialChallenge ? (
                   <p className="type-caption-strong text-ink-muted">
-                    Entering {initialChallenge.title}
+                    {t("entering", { title: initialChallenge.title })}
                   </p>
                 ) : null}
                 <CreateWaveForm
@@ -390,11 +392,11 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
                     sourceFileName: captured.sourceFileName,
                   }}
                   onSubmit={handlePublish}
-                  submitLabel="Publish"
+                  submitLabel={t("publish")}
                   backingTrackTitle={backingTrack?.title ?? null}
                 />
                 <Button variant="ghost" onClick={() => setStep("enhance")}>
-                  Back
+                  {t("back")}
                 </Button>
               </>
             )}

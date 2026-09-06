@@ -1,11 +1,11 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { CommentsSection } from "@/components/comments";
 import { PageHeader } from "@/components/layout";
 import { InstallHint } from "@/components/pwa/InstallHint";
 import { Avatar, Badge } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { resolveWavePeaks } from "@/lib/audio/peaks";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
@@ -52,14 +52,15 @@ export async function generateMetadata({ params }: WavePageProps) {
   const { id } = await params;
   const db = isSupabaseConfigured() ? await createServerSupabaseClient() : null;
   const wave = db ? await getWaveById(db, id) : null;
-  return { title: wave?.title ?? TERMS.wave };
+  const t = await getTranslations("Terms");
+  return { title: wave?.title ?? t("wave") };
 }
 
-const COLLABORATOR_STATUS_LABEL: Record<CollaboratorStatus, string> = {
-  accepted: "Accepted",
-  pending: "Invited",
-  declined: "Declined",
-};
+const COLLABORATOR_STATUS_LABEL_KEY = {
+  accepted: "statusAccepted",
+  pending: "statusInvited",
+  declined: "statusDeclined",
+} as const satisfies Record<CollaboratorStatus, string>;
 
 /**
  * The Wave detail (SCREENS.md §5).
@@ -225,34 +226,7 @@ export default async function WavePage({ params }: WavePageProps) {
         ) : null}
 
         {allCollaborators.length > 0 ? (
-          <section aria-labelledby="collaborators" className="flex flex-col pt-8">
-            <h2 id="collaborators" className="akinti-page type-caption-strong pb-2 text-ink-muted">
-              {TERMS.collaborators}
-            </h2>
-            <ul className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
-              {allCollaborators.map((collaborator) => {
-                const profile = profileById.get(collaborator.profileId);
-                return (
-                  <li
-                    key={collaborator.id}
-                    className="flex items-center justify-between gap-3 py-3"
-                  >
-                    {profile ? (
-                      <Link
-                        href={routes.profile(profile.username)}
-                        className="type-subhead truncate text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                      >
-                        @{profile.username}
-                      </Link>
-                    ) : (
-                      <span className="type-body-sm text-ink-subtle">Not available</span>
-                    )}
-                    <Badge>{COLLABORATOR_STATUS_LABEL[collaborator.status]}</Badge>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+          <CollaboratorsSection allCollaborators={allCollaborators} profileById={profileById} />
         ) : null}
       </WaveDetail>
 
@@ -271,20 +245,60 @@ export default async function WavePage({ params }: WavePageProps) {
   );
 }
 
+interface CollaboratorsSectionProps {
+  allCollaborators: readonly { id: string; profileId: string; status: CollaboratorStatus }[];
+  profileById: Map<string, Profile>;
+}
+
+async function CollaboratorsSection({ allCollaborators, profileById }: CollaboratorsSectionProps) {
+  const t = await getTranslations("WavePage");
+  const tTerms = await getTranslations("Terms");
+  return (
+    <section aria-labelledby="collaborators" className="flex flex-col pt-8">
+      <h2 id="collaborators" className="akinti-page type-caption-strong pb-2 text-ink-muted">
+        {tTerms("collaborators")}
+      </h2>
+      <ul className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
+        {allCollaborators.map((collaborator) => {
+          const profile = profileById.get(collaborator.profileId);
+          return (
+            <li
+              key={collaborator.id}
+              className="flex items-center justify-between gap-3 py-3"
+            >
+              {profile ? (
+                <Link
+                  href={routes.profile(profile.username)}
+                  className="type-subhead truncate text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                >
+                  @{profile.username}
+                </Link>
+              ) : (
+                <span className="type-body-sm text-ink-subtle">{t("notAvailable")}</span>
+              )}
+              <Badge>{t(COLLABORATOR_STATUS_LABEL_KEY[collaborator.status])}</Badge>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /** A Wave that is gone, private, or from someone the reader has blocked. */
-function UnavailableState() {
+async function UnavailableState() {
+  const t = await getTranslations("WavePage");
+  const tTerms = await getTranslations("Terms");
   return (
     <>
-      <PageHeader title={TERMS.wave} />
+      <PageHeader title={tTerms("wave")} />
       <div className="akinti-page flex flex-col items-start gap-4">
-        <p className="type-body measure text-ink">
-          This {TERMS.wave} was removed by its creator, or it is not open to you.
-        </p>
+        <p className="type-body measure text-ink">{t("removedDescription", { wave: tTerms("wave") })}</p>
         <Link
           href={routes.home()}
           className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
-          Back to {TERMS.home}
+          {t("backToHome", { home: tTerms("home") })}
         </Link>
       </div>
     </>
@@ -298,23 +312,25 @@ interface LineageProps {
 }
 
 /** Where this Duet came from: the Wave it answers, and the one it started from. */
-function Lineage({ parentWave, originalWave, profileById }: LineageProps) {
+async function Lineage({ parentWave, originalWave, profileById }: LineageProps) {
+  const t = await getTranslations("WavePage");
+  const tTerms = await getTranslations("Terms");
   return (
     <section aria-labelledby="lineage" className="flex flex-col pt-8">
       <h2 id="lineage" className="akinti-page type-caption-strong pb-2 text-ink-muted">
-        Recorded with
+        {t("recordedWith")}
       </h2>
       <div className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
         {parentWave ? (
           <LineageRow
-            label={`${TERMS.duet} of`}
+            label={t("duetOf", { duet: tTerms("duet") })}
             wave={parentWave}
             profile={profileById.get(parentWave.creatorId)}
           />
         ) : null}
         {originalWave ? (
           <LineageRow
-            label="Started from"
+            label={t("startedFrom")}
             wave={originalWave}
             profile={profileById.get(originalWave.creatorId)}
           />
@@ -358,12 +374,14 @@ function LineageRow({
  * The Duet chain: every Wave that grew from this one, in the order it grew.
  * Depth is drawn by indentation on the rail, not by a nested box.
  */
-function DuetChain({ nodes, currentWaveId }: { nodes: readonly DuetTreeNode[]; currentWaveId: string }) {
+async function DuetChain({ nodes, currentWaveId }: { nodes: readonly DuetTreeNode[]; currentWaveId: string }) {
+  const t = await getTranslations("WavePage");
+  const tTerms = await getTranslations("Terms");
   const flat = flattenChain(nodes, 0);
   return (
     <section aria-labelledby="duet-chain" className="flex flex-col pt-8">
       <h2 id="duet-chain" className="akinti-page type-caption-strong pb-2 text-ink-muted">
-        {TERMS.duet} chain
+        {t("duetChain", { duet: tTerms("duet") })}
       </h2>
       <ul className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
         {flat.map(({ node, depth }) => {
@@ -381,12 +399,12 @@ function DuetChain({ nodes, currentWaveId }: { nodes: readonly DuetTreeNode[]; c
                   <span className="type-subhead truncate text-ink">
                     {node.wave.title}
                     {isCurrent ? (
-                      <span className="type-caption text-ink-subtle"> &middot; you are here</span>
+                      <span className="type-caption text-ink-subtle"> · {t("youAreHere")}</span>
                     ) : null}
                   </span>
                   <span className="type-caption truncate text-ink-subtle">
                     @{node.creator.username}
-                    <span aria-hidden="true"> &middot; </span>
+                    <span aria-hidden="true"> · </span>
                     {timeAgo(node.wave.publishedAt)}
                   </span>
                 </span>
@@ -410,17 +428,19 @@ function flattenChain(
 }
 
 /** The chain view's fallback: the Duets recorded directly against this Wave. */
-function DirectDuets({
+async function DirectDuets({
   waves,
   profileById,
 }: {
   waves: readonly Wave[];
   profileById: Map<string, Profile>;
 }) {
+  const t = await getTranslations("WavePage");
+  const tTerms = await getTranslations("Terms");
   return (
     <section aria-labelledby="direct-duets" className="flex flex-col pt-8">
       <h2 id="direct-duets" className="akinti-page type-caption-strong pb-2 text-ink-muted">
-        {TERMS.duets} of this {TERMS.wave}
+        {t("duetsOfThisWave", { duets: tTerms("duets"), wave: tTerms("wave") })}
       </h2>
       <ul className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
         {waves.map((duetWave) => {
@@ -436,8 +456,8 @@ function DirectDuets({
                 <span className="flex min-w-0 flex-col">
                   <span className="type-subhead truncate text-ink">{duetWave.title}</span>
                   <span className="type-caption truncate text-ink-subtle">
-                    {profile ? `@${profile.username}` : "Not available"}
-                    <span aria-hidden="true"> &middot; </span>
+                    {profile ? `@${profile.username}` : t("notAvailable")}
+                    <span aria-hidden="true"> · </span>
                     {timeAgo(duetWave.publishedAt)}
                   </span>
                 </span>

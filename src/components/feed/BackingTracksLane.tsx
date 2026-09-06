@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import { Waveform } from "@/components/audio";
@@ -54,6 +55,7 @@ function genresOf(tracks: readonly BackingTrackCard[]): string[] {
  * genres that are actually on this screen.
  */
 export function BackingTracksLane({ tracks }: BackingTracksLaneProps) {
+  const t = useTranslations("BackingTracksLane");
   const [genre, setGenre] = useState<string | null>(null);
   const genres = useMemo(() => genresOf(tracks), [tracks]);
   const shown = useMemo(
@@ -68,17 +70,17 @@ export function BackingTracksLane({ tracks }: BackingTracksLaneProps) {
   return (
     <section aria-labelledby="backing-tracks" className="flex flex-col gap-4 pt-8">
       <h2 id="backing-tracks" className="akinti-page type-caption-strong text-ink-muted">
-        Tracks to sing over
+        {t("title")}
       </h2>
 
       {genres.length > 1 ? (
         <div
           role="group"
-          aria-label="Filter tracks by genre"
+          aria-label={t("filterByGenre")}
           className="akinti-page flex gap-2 overflow-x-auto pb-1"
         >
           <Chip selected={genre === null} onClick={() => setGenre(null)}>
-            All
+            {t("all")}
           </Chip>
           {genres.map((tag) => (
             <Chip key={tag} selected={genre === tag} onClick={() => setGenre(tag)}>
@@ -98,6 +100,7 @@ export function BackingTracksLane({ tracks }: BackingTracksLaneProps) {
 }
 
 function TrackRow({ track }: { track: BackingTrackCard }) {
+  const t = useTranslations("BackingTracksLane");
   const store = usePlaybackStore();
   const playbackId = `track:${track.id}`;
   const playback = useWavePlayback(playbackId, track.durationSeconds ?? 0);
@@ -146,10 +149,10 @@ function TrackRow({ track }: { track: BackingTrackCard }) {
         <IconButton
           label={
             failed
-              ? `Retry ${track.title}`
+              ? t("retry", { title: track.title })
               : playback.isPlaying
-                ? `Pause ${track.title}`
-                : `Play ${track.title}`
+                ? t("pause", { title: track.title })
+                : t("play", { title: track.title })
           }
           icon={
             failed ? (
@@ -183,7 +186,7 @@ function TrackRow({ track }: { track: BackingTrackCard }) {
           loaded={playback.buffered}
           duration={duration}
           height={28}
-          label={`Seek within ${track.title}`}
+          label={t("seekWithin", { title: track.title })}
           disabled={failed}
           onSeek={(next) => {
             if (playback.isActive && audio.url) {
@@ -213,7 +216,7 @@ function TrackRow({ track }: { track: BackingTrackCard }) {
             href={`${routes.create()}?track=${encodeURIComponent(track.id)}`}
             className="type-caption text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
           >
-            Sing over this
+            {t("singOverThis")}
           </Link>
         </div>
 

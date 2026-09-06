@@ -1,11 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { getCommentPermissionState, loadComments, type CommentPermissionState } from "@/app/(app)/w/[id]/interactions";
 import { CommentsSection } from "@/components/comments";
 import { Sheet, Spinner } from "@/components/ui";
-import { TERMS } from "@/config/terminology";
 import type { CommentWithAuthor, Page } from "@/types/domain";
 
 export interface FlowCommentSheetProps {
@@ -25,6 +25,7 @@ export interface FlowCommentSheetProps {
  * page) never has that server-rendered up front.
  */
 export function FlowCommentSheet({ open, onClose, waveId, waveCreatorId, commentCount }: FlowCommentSheetProps) {
+  const tTerms = useTranslations("Terms");
   const [state, setState] = useState<{
     comments: Page<CommentWithAuthor>;
     permission: CommentPermissionState;
@@ -55,7 +56,7 @@ export function FlowCommentSheet({ open, onClose, waveId, waveCreatorId, comment
   };
 
   return (
-    <Sheet open={open} onClose={handleClose} title={TERMS.comments}>
+    <Sheet open={open} onClose={handleClose} title={tTerms("comments")}>
       {state ? (
         <CommentsSection
           waveId={waveId}

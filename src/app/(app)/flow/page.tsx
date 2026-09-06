@@ -28,10 +28,11 @@ export default async function FlowPage() {
   const user = await requireUser(routes.flow());
 
   if (!isSupabaseConfigured()) {
+    const t = await getTranslations("Flow");
     return (
       <div className="flex h-dvh items-center justify-center bg-paper px-6">
         <p className="akinti-page type-body measure text-ink-muted">
-          {TERMS.brand} isn&apos;t reachable from this build.
+          {t("unreachable", { brand: TERMS.brand })}
         </p>
       </div>
     );

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { genreHueForTag } from "@/components/feed";
@@ -55,6 +56,7 @@ export function FlowWaveView({
   onShare,
   onDuet,
 }: FlowWaveViewProps) {
+  const t = useTranslations("FlowWaveView");
   const hue = useMemo(() => flowTraceHue(wave, genreHueForTag), [wave]);
   const creatorName = wave.creator.displayName ?? wave.creator.username;
   const modeLabel = wave.creationType === "duet" ? CREATION_TYPES.duet.label : wave.genre ?? CREATION_TYPES[wave.creationType].label;
@@ -78,12 +80,12 @@ export function FlowWaveView({
         <h1 className="type-title text-ink">{wave.title}</h1>
         <p className="type-caption flex items-center gap-2 text-ink-subtle">
           <span>{modeLabel}</span>
-          <span aria-hidden="true">&middot;</span>
+          <span aria-hidden="true">·</span>
           <span className="type-mono-sm">{formatDuration(wave.duration ?? 0)}</span>
           {wave.isInvitation ? (
             <>
-              <span aria-hidden="true">&middot;</span>
-              <span>Sing over this</span>
+              <span aria-hidden="true">·</span>
+              <span>{t("singOverThis")}</span>
             </>
           ) : null}
         </p>
@@ -100,7 +102,7 @@ export function FlowWaveView({
             onScrub={isActive ? onScrub : undefined}
           />
           {!hasStarted && isActive ? (
-            <p className="type-caption pt-4 text-ink-subtle">Tap to start listening</p>
+            <p className="type-caption pt-4 text-ink-subtle">{t("tapToStart")}</p>
           ) : null}
         </div>
 

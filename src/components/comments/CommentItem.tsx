@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { deleteComment, loadReplies } from "@/app/(app)/w/[id]/interactions";
@@ -42,6 +43,7 @@ export function CommentItem({
   onReportRequested,
   onReplyPosted,
 }: CommentItemProps) {
+  const t = useTranslations("CommentItem");
   const { toast } = useToast();
   const [isDeleting, startDeleting] = useTransition();
   const [replyOpen, setReplyOpen] = useState(false);
@@ -59,7 +61,7 @@ export function CommentItem({
     startDeleting(async () => {
       const result = await deleteComment(comment.id);
       if (!result.ok) {
-        toast({ title: result.error ?? "That comment didn't delete.", tone: "error" });
+        toast({ title: result.error ?? t("deleteError"), tone: "error" });
         return;
       }
       emitAnalyticsEvent({ name: "comment_deleted", waveId, sessionId: "n/a", at: Date.now() });
@@ -71,7 +73,7 @@ export function CommentItem({
     startLoadingReplies(async () => {
       const result = await loadReplies(comment.id, cursor);
       if (!result.ok || !result.data) {
-        toast({ title: result.error ?? "Replies didn't load.", tone: "error" });
+        toast({ title: result.error ?? t("repliesLoadError"), tone: "error" });
         return;
       }
       setReplies((current) => mergeCommentPage(current, result.data!.items));
@@ -92,7 +94,7 @@ export function CommentItem({
     canDelete
       ? {
           id: "delete",
-          label: "Delete",
+          label: t("delete"),
           icon: <Trash2 className="size-4" />,
           destructive: true,
           onSelect: handleDelete,
@@ -101,7 +103,7 @@ export function CommentItem({
     currentUserId && currentUserId !== comment.authorId
       ? {
           id: "report",
-          label: "Report",
+          label: t("report"),
           icon: <Flag className="size-4" />,
           onSelect: () => onReportRequested(comment.id),
         }
@@ -135,13 +137,13 @@ export function CommentItem({
           {menuItems.length > 0 ? (
             <div className="ml-auto shrink-0">
               <Menu
-                label={`Options for ${authorName}'s comment`}
+                label={t("optionsForComment", { name: authorName })}
                 align="end"
                 items={menuItems}
                 trigger={(triggerProps) => (
                   <IconButton
                     {...triggerProps}
-                    label="Comment options"
+                    label={t("commentOptions")}
                     icon={<MoreHorizontal className="size-5" />}
                     size="sm"
                     loading={isDeleting}
@@ -179,7 +181,7 @@ export function CommentItem({
               onClick={() => setReplyOpen((current) => !current)}
               className="type-caption text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              {replyOpen ? "Cancel reply" : "Reply"}
+              {replyOpen ? t("cancelReply") : t("reply")}
             </button>
           ) : null}
           {!isReply && comment.replyCount > 0 ? (
@@ -188,7 +190,7 @@ export function CommentItem({
               onClick={handleToggleReplies}
               className="type-caption text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              {repliesOpen ? "Hide replies" : `Show replies (${comment.replyCount})`}
+              {repliesOpen ? t("hideReplies") : t("showReplies", { count: comment.replyCount })}
             </button>
           ) : null}
         </div>
@@ -232,7 +234,7 @@ export function CommentItem({
                 disabled={isLoadingReplies}
                 className="type-caption self-start py-2 text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-55"
               >
-                {isLoadingReplies ? "Loading replies" : "Show more replies"}
+                {isLoadingReplies ? t("loadingReplies") : t("showMoreReplies")}
               </button>
             ) : null}
           </div>

@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useReducer, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useCallback, useMemo, useReducer, useState } from "react";
 
 import { loadExploreCategory } from "@/app/(app)/explore/actions";
 import { Tabs, tabId, tabPanelId } from "@/components/ui";
 import type { WaveCardContainerWave } from "@/components/wave";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import {
   EXPLORE_CATEGORIES,
   EXPLORE_CATEGORY_META,
@@ -24,48 +24,6 @@ export interface ExploreViewProps {
   initialCursor: string | null;
 }
 
-const TAB_ITEMS = EXPLORE_CATEGORIES.map((key) => ({
-  value: key,
-  label: EXPLORE_CATEGORY_META[key].label,
-}));
-
-/**
- * What each lane says when it has nothing, and the one action that repairs
- * it. Never "No data" and never a shrug (§8.14, `mobile-guidelines.md` 6-7).
- */
-const EMPTY_COPY: Readonly<
-  Record<ExploreCategory, { line: string; action: { label: string; href: string } }>
-> = {
-  trending: {
-    line: "Nothing is trending yet. Trending needs a few hours of listening behind it.",
-    action: { label: "Hear what is new", href: routes.explore() },
-  },
-  new: {
-    line: "No new Waves in the last while.",
-    action: { label: `Record ${TERMS.aWave}`, href: routes.create() },
-  },
-  rising: {
-    line: "Nothing is rising this hour. Rising resets every 60 minutes.",
-    action: { label: "Show Trending instead", href: routes.explore() },
-  },
-  original: {
-    line: "No original compositions here yet.",
-    action: { label: `Record ${TERMS.aWave}`, href: routes.create() },
-  },
-  voices: {
-    line: "No spoken Waves here yet.",
-    action: { label: `Record ${TERMS.aWave}`, href: routes.create() },
-  },
-  compositions: {
-    line: "No music here yet.",
-    action: { label: `Record ${TERMS.aWave}`, href: routes.create() },
-  },
-  open_for_duet: {
-    line: "Nobody is open for a Duet right now.",
-    action: { label: "Find people to follow", href: routes.explore() },
-  },
-};
-
 /**
  * Explore's filter row and stream (SCREENS.md §3).
  *
@@ -75,6 +33,8 @@ const EMPTY_COPY: Readonly<
  * refetches what the reader already has.
  */
 export function ExploreView({ initialCategory, initialItems, initialCursor }: ExploreViewProps) {
+  const t = useTranslations("ExploreView");
+  const tTerms = useTranslations("Terms");
   const [active, setActive] = useState<ExploreCategory>(initialCategory);
   const [statesByCategory, dispatch] = useReducer(
     categoriesReducer,
@@ -83,6 +43,55 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
 
   const state =
     statesByCategory.get(active) ?? createInitialFeedState<WaveCardContainerWave>([], null);
+
+  const tabItems = useMemo(
+    () =>
+      EXPLORE_CATEGORIES.map((key) => ({
+        value: key,
+        label: EXPLORE_CATEGORY_META[key].label,
+      })),
+    [],
+  );
+
+  /**
+   * What each lane says when it has nothing, and the one action that repairs
+   * it. Never "No data" and never a shrug (§8.14, `mobile-guidelines.md` 6-7).
+   */
+  const emptyCopy = useMemo<
+    Record<ExploreCategory, { line: string; action: { label: string; href: string } }>
+  >(
+    () => ({
+      trending: {
+        line: t("emptyTrending"),
+        action: { label: t("hearWhatIsNew"), href: routes.explore() },
+      },
+      new: {
+        line: t("emptyNew"),
+        action: { label: t("recordAWave", { aWave: tTerms("aWave") }), href: routes.create() },
+      },
+      rising: {
+        line: t("emptyRising"),
+        action: { label: t("showTrendingInstead"), href: routes.explore() },
+      },
+      original: {
+        line: t("emptyOriginal"),
+        action: { label: t("recordAWave", { aWave: tTerms("aWave") }), href: routes.create() },
+      },
+      voices: {
+        line: t("emptyVoices"),
+        action: { label: t("recordAWave", { aWave: tTerms("aWave") }), href: routes.create() },
+      },
+      compositions: {
+        line: t("emptyCompositions"),
+        action: { label: t("recordAWave", { aWave: tTerms("aWave") }), href: routes.create() },
+      },
+      open_for_duet: {
+        line: t("emptyOpenForDuet"),
+        action: { label: t("findPeopleToFollow"), href: routes.explore() },
+      },
+    }),
+    [t, tTerms],
+  );
 
   const loadCategory = useCallback((category: ExploreCategory, cursor: string | null) => {
     dispatch({ type: "start", category });
@@ -99,7 +108,7 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
           dispatch({
             type: "error",
             category,
-            error: result.error ?? "Couldn't reach the stream.",
+            error: result.error ?? t("streamError"),
           });
         }
       },
@@ -108,10 +117,10 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
       // contract. Without this, a lane that hits one of those never leaves
       // "loading": nothing else moves its status away from the skeleton.
       () => {
-        dispatch({ type: "error", category, error: "Couldn't reach the stream." });
+        dispatch({ type: "error", category, error: t("streamError") });
       },
     );
-  }, []);
+  }, [t]);
 
   const handleTabChange = useCallback(
     (value: string) => {
@@ -132,17 +141,17 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
   }, [active, loadCategory, state.cursor, state.status]);
 
   const baseId = "explore-lanes";
-  const empty = EMPTY_COPY[active];
+  const empty = emptyCopy[active];
   const isEmpty = state.items.length === 0 && state.status !== "loading";
 
   return (
     <div className="flex flex-col pt-8">
       <div className="akinti-page sticky top-top-bar z-10 bg-paper md:top-0">
         <Tabs
-          items={TAB_ITEMS}
+          items={tabItems}
           value={active}
           onValueChange={handleTabChange}
-          label="Explore lanes"
+          label={t("exploreLanes")}
           idPrefix={baseId}
         />
       </div>
@@ -156,7 +165,7 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
         {isEmpty ? (
           <div className="akinti-page flex flex-col items-start gap-4 py-8">
             <p className="type-body measure text-ink">
-              {state.status === "error" ? (state.error ?? "Couldn't reach the stream.") : empty.line}
+              {state.status === "error" ? (state.error ?? t("streamError")) : empty.line}
             </p>
             {state.status === "error" ? (
               <button
@@ -164,7 +173,7 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
                 onClick={() => loadCategory(active, null)}
                 className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
               >
-                Try again
+                {t("tryAgain")}
               </button>
             ) : (
               <Link
@@ -182,7 +191,7 @@ export function ExploreView({ initialCategory, initialItems, initialCursor }: Ex
             error={state.error}
             hasMore={state.cursor !== null}
             onLoadMore={handleLoadMore}
-            endLabel="That is the end of this lane."
+            endLabel={t("endOfLane")}
           />
         )}
       </div>

@@ -1,4 +1,6 @@
 
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
 import { DuetRequestForm } from "@/components/duet";
@@ -11,7 +13,6 @@ import { isWaveSaved } from "@/lib/db/saves";
 import { getWaveById } from "@/lib/db/waves";
 import { requireUser } from "@/lib/auth/server";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -21,7 +22,8 @@ interface DuetRequestPageProps {
 
 export async function generateMetadata({ params }: DuetRequestPageProps) {
   const { id } = await params;
-  return { title: `${TERMS.requestDuet} · ${TERMS.wave} ${id}` };
+  const t = await getTranslations("Terms");
+  return { title: `${t("requestDuet")} · ${t("wave")} ${id}` };
 }
 
 /**
@@ -39,15 +41,14 @@ export async function generateMetadata({ params }: DuetRequestPageProps) {
 export default async function DuetRequestPage({ params }: DuetRequestPageProps) {
   const { id } = await params;
   const user = await requireUser(routes.waveDuet(id));
+  const tTerms = await getTranslations("Terms");
+  const t = await getTranslations("DuetRequestPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title={TERMS.requestDuet} />
-        <EmptyState
-          title="This isn't connected to a backend yet"
-          description="Supabase environment variables aren't set, so Duet Requests can't be sent here."
-        />
+        <PageHeader title={tTerms("requestDuet")} />
+        <EmptyState title={t("notConnectedTitle")} description={t("notConnectedDescription")} />
       </>
     );
   }
@@ -61,11 +62,8 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
   if (wave.creatorId === user.id) {
     return (
       <>
-        <PageHeader title={TERMS.requestDuet} />
-        <EmptyState
-          title="This is your own Wave"
-          description="You don't request a Duet on your own Wave — record one directly from it instead."
-        />
+        <PageHeader title={tTerms("requestDuet")} />
+        <EmptyState title={t("ownWaveTitle")} description={t("ownWaveDescription")} />
       </>
     );
   }
@@ -87,11 +85,8 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
   if (!allowed) {
     return (
       <>
-        <PageHeader title={TERMS.requestDuet} />
-        <EmptyState
-          title="You can't request a Duet on this Wave"
-          description="The creator may have Duets turned off for you, you may be blocked, the Wave may be private, or you already have a pending request for it."
-        />
+        <PageHeader title={tTerms("requestDuet")} />
+        <EmptyState title={t("notAllowedTitle")} description={t("notAllowedDescription")} />
       </>
     );
   }
@@ -127,7 +122,7 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
   return (
     <>
       <PageHeader
-        title={TERMS.requestDuet}
+        title={tTerms("requestDuet")}
       />
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-16 sm:px-5">
@@ -138,14 +133,13 @@ export default async function DuetRequestPage({ params }: DuetRequestPageProps) 
   );
 }
 
-function UnavailableState() {
+async function UnavailableState() {
+  const tTerms = await getTranslations("Terms");
+  const t = await getTranslations("DuetRequestPage");
   return (
     <>
-      <PageHeader title={TERMS.requestDuet} />
-      <EmptyState
-        title={`This ${TERMS.wave.toLowerCase()} isn't available`}
-        description="It may have been deleted, made private, or the link is wrong."
-      />
+      <PageHeader title={tTerms("requestDuet")} />
+      <EmptyState title={t("unavailableTitle", { wave: tTerms("wave") })} description={t("unavailableDescription")} />
     </>
   );
 }

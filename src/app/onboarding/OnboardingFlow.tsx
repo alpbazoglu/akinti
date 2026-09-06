@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import { Waveform } from "@/components/audio";
@@ -42,9 +43,10 @@ const STEP_COUNT = 3;
  * eyebrow, and dots would be the generic alternative).
  */
 function OnboardingProgress({ step }: { step: number }) {
+  const t = useTranslations("OnboardingFlow");
   const bars = [3, 6, 4, 8, 5, 4];
   return (
-    <div role="img" aria-label={`Step ${step + 1} of ${STEP_COUNT}`} className="flex items-end gap-1.5">
+    <div role="img" aria-label={t("stepOf", { step: step + 1, total: STEP_COUNT })} className="flex items-end gap-1.5">
       {Array.from({ length: STEP_COUNT }, (_, index) => {
         const done = index <= step;
         return (
@@ -98,6 +100,7 @@ export function OnboardingFlow({
 /* -------------------------------------------------------------------- */
 
 function StepHearIt({ wave, onNext }: { wave: HearItWave | null; onNext: () => void }) {
+  const t = useTranslations("OnboardingFlow");
   const store = usePlaybackStore();
   const playback = useWavePlayback(wave?.id ?? "onboarding-sample", wave?.duration ?? 0);
   const audio = useSignedAudio(wave?.audioAssetId ?? "");
@@ -126,21 +129,9 @@ function StepHearIt({ wave, onNext }: { wave: HearItWave | null; onNext: () => v
     <div className="flex flex-1 flex-col">
       <div className="flex flex-1 flex-col justify-center gap-8">
         <h1 className="type-display-xl max-w-[13ch] text-ink">
-          {wave ? (
-            <>
-              Someone is
-              <br />
-              talking right
-              <br />
-              now.
-            </>
-          ) : (
-            <>
-              AKINTI is just
-              <br />
-              getting started.
-            </>
-          )}
+          {wave
+            ? t.rich("someoneIsTalking", { br: () => <br /> })
+            : t.rich("akintiJustStarted", { br: () => <br /> })}
         </h1>
 
         <div className="flex flex-col gap-3">
@@ -154,16 +145,16 @@ function StepHearIt({ wave, onNext }: { wave: HearItWave | null; onNext: () => v
                 height={96}
                 readOnly
                 fullBleed
-                label={`Play ${wave.title}`}
+                label={t("playWave", { title: wave.title })}
                 state={started ? undefined : "dormant"}
               />
             ) : (
-              <Waveform peaks={[]} height={96} readOnly fullBleed label="No sample available" />
+              <Waveform peaks={[]} height={96} readOnly fullBleed label={t("noSampleAvailable")} />
             )}
             {!started ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <IconButton
-                  label={wave ? "Tap to hear someone" : "Nothing to play yet"}
+                  label={wave ? t("tapToHearSomeone") : t("nothingToPlayYet")}
                   icon={
                     playback.isBusy ? <Spinner size="md" label={null} /> : <Play className="size-6" weight="fill" />
                   }
@@ -180,25 +171,25 @@ function StepHearIt({ wave, onNext }: { wave: HearItWave | null; onNext: () => v
           {wave && creatorName ? (
             <p className="type-body-sm text-ink-muted">
               {creatorName}
-              <span aria-hidden="true"> &middot; </span>
+              <span aria-hidden="true"> · </span>
               {timeAgo(wave.createdAt)}
             </p>
           ) : !wave ? (
-            <p className="type-body-sm text-ink-muted">You could be the first voice.</p>
+            <p className="type-body-sm text-ink-muted">{t("couldBeFirstVoice")}</p>
           ) : null}
         </div>
       </div>
 
       <div className="flex flex-col items-center gap-4 pt-6">
         <Button size="lg" fullWidth onClick={onNext}>
-          {started ? "Keep listening" : wave ? "Keep listening" : "Continue"}
+          {started || wave ? t("keepListening") : t("continueAction")}
         </Button>
         <button
           type="button"
           onClick={onNext}
           className="type-body-sm text-ink-muted underline decoration-hairline-strong decoration-1 underline-offset-[3px] hover:decoration-ink"
         >
-          I&apos;ll look around
+          {t("illLookAround")}
         </button>
       </div>
     </div>
@@ -216,6 +207,7 @@ type MicState = "unrequested" | "granted" | "recording" | "denied";
 const TRIAL_DURATION_MS = 3000;
 
 function StepSayIt({ onNext }: { onNext: () => void }) {
+  const t = useTranslations("OnboardingFlow");
   const [mic, setMic] = useState<MicState>("unrequested");
   const [tried, setTried] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
@@ -267,17 +259,13 @@ function StepSayIt({ onNext }: { onNext: () => void }) {
     <div className="flex flex-1 flex-col">
       <div className="flex flex-1 flex-col justify-center gap-8">
         <h1 className="type-display-xl max-w-[13ch] text-ink">
-          Your turn.
-          <br />
-          Nothing is
-          <br />
-          posted yet.
+          {t.rich("yourTurn", { br: () => <br /> })}
         </h1>
 
         <div className="flex flex-col items-start gap-4 py-4">
           <button
             type="button"
-            aria-label={mic === "recording" ? "Recording a 3 second trial" : "Hold to try recording"}
+            aria-label={mic === "recording" ? t("recordingTrial") : t("holdToTryRecording")}
             aria-pressed={mic === "recording"}
             disabled={mic === "denied"}
             onPointerDown={() => void startTrial()}
@@ -304,37 +292,30 @@ function StepSayIt({ onNext }: { onNext: () => void }) {
 
           {mic === "denied" ? (
             <div className="flex flex-col items-start gap-2 text-left">
-              <p className="type-body-sm max-w-[34ch] text-ink-muted">
-                AKINTI needs the microphone to record. You can still upload audio you already have.
-              </p>
+              <p className="type-body-sm max-w-[34ch] text-ink-muted">{t("micNeededDescription")}</p>
               <details className="type-caption text-ink-subtle">
                 <summary className="cursor-pointer underline decoration-hairline-strong underline-offset-[3px]">
-                  How to allow it
+                  {t("howToAllowIt")}
                 </summary>
-                <p className="mt-1 max-w-[34ch]">
-                  Open your browser&apos;s site settings for this page and allow microphone access, then
-                  come back and try again.
-                </p>
+                <p className="mt-1 max-w-[34ch]">{t("howToAllowItDescription")}</p>
               </details>
             </div>
           ) : (
-            <p className="type-body-sm max-w-[30ch] text-left text-ink-muted">
-              Hold to try it. We keep nothing until you choose to publish.
-            </p>
+            <p className="type-body-sm max-w-[30ch] text-left text-ink-muted">{t("holdToTryItDescription")}</p>
           )}
         </div>
       </div>
 
       <div className="flex flex-col items-center gap-4 pt-6">
         <Button size="lg" fullWidth onClick={onNext}>
-          {tried && mic !== "denied" ? "That sounded good. Continue." : "Continue"}
+          {tried && mic !== "denied" ? t("soundedGoodContinue") : t("continueAction")}
         </Button>
         <button
           type="button"
           onClick={onNext}
           className="type-body-sm text-ink-muted underline decoration-hairline-strong decoration-1 underline-offset-[3px] hover:decoration-ink"
         >
-          Set up my mic later
+          {t("setUpMicLater")}
         </button>
       </div>
     </div>
@@ -354,6 +335,7 @@ function StepBeFound({
   initialDisplayName: string | null;
   next?: string;
 }) {
+  const t = useTranslations("OnboardingFlow");
   const { refreshProfile } = useCurrentUser();
   const [username, setUsername] = useState(initialUsername);
   const [displayName, setDisplayName] = useState(initialDisplayName ?? "");
@@ -410,25 +392,25 @@ function StepBeFound({
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex flex-1 flex-col justify-center gap-6">
-        <h1 className="type-display-xl text-ink">Pick a handle.</h1>
+        <h1 className="type-display-xl text-ink">{t("pickAHandle")}</h1>
 
         <div className="flex flex-col gap-1.5">
           <Input
             id="onboarding-username"
-            label="Handle"
+            label={t("handle")}
             value={username}
             onChange={(event) => setUsername(event.target.value.toLowerCase())}
             leadingIcon={<span aria-hidden="true">@</span>}
             confirmed={available === true}
-            error={fieldErrors.username ?? (available === false ? "That handle is taken." : undefined)}
+            error={fieldErrors.username ?? (available === false ? t("handleTaken") : undefined)}
             required
           />
-          <p className="type-caption pl-1 text-ink-subtle">akinti.app/u/{username || "handle"}</p>
+          <p className="type-caption pl-1 text-ink-subtle">akinti.app/u/{username || t("handlePlaceholder")}</p>
         </div>
 
         <Input
           id="onboarding-display-name"
-          label="Name (optional)"
+          label={t("nameOptional")}
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
         />
@@ -448,7 +430,7 @@ function StepBeFound({
           loading={isPending}
           disabled={username.trim().length < 3 || available === false}
         >
-          Start listening
+          {t("startListening")}
         </Button>
       </div>
     </div>

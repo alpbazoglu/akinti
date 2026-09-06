@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Switch } from "@/components/ui";
@@ -55,6 +56,7 @@ export function EnhancementPicker({
   onModeChange,
   className,
 }: EnhancementPickerProps) {
+  const t = useTranslations("EnhancementPicker");
   const store = usePlaybackStore();
   const reactId = useId();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -155,10 +157,10 @@ export function EnhancementPicker({
   const advancedEqId = `${reactId}-advanced-eq`;
   const noiseReductionDescription =
     noiseStatus === "loading"
-      ? "Cleaning up background noise…"
+      ? t("cleaningUpNoise")
       : noiseStatus === "unavailable"
-        ? "Not available in this browser. Your Wave is still cleaned up after you publish."
-        : "Runs an on-device filter while you compare. Your recording keeps the original sound.";
+        ? t("noiseReductionUnavailable")
+        : t("noiseReductionDescription");
 
   return (
     <div className={cn("flex flex-col gap-6", className)}>
@@ -176,29 +178,27 @@ export function EnhancementPicker({
       {/* A/B. Active is an ink key, inactive a line key (§8.7) — never a
           segmented pill (§12.4). */}
       <div className="flex flex-col gap-2">
-        <div role="group" aria-label="Compare the original with the polished take" className="flex gap-3">
+        <div role="group" aria-label={t("compareOriginalWithPolished")} className="flex gap-3">
           <AbKey
             active={mode === "original"}
             playing={playing && mode === "original"}
-            label="Original"
+            label={t("original")}
             onClick={() => handleAb("original")}
           />
           <AbKey
             active={mode === "polished"}
             playing={playing && mode === "polished"}
-            label="Polished"
+            label={t("polished")}
             onClick={() => handleAb("polished")}
             disabled={unavailable}
           />
         </div>
         {unavailable ? (
-          <p className="type-caption text-ink-subtle">
-            This browser cannot preview the polish. Your Wave is still polished after you publish.
-          </p>
+          <p className="type-caption text-ink-subtle">{t("browserCannotPreviewPolish")}</p>
         ) : null}
       </div>
 
-      <div role="radiogroup" aria-label="Sounds like" className="flex flex-col">
+      <div role="radiogroup" aria-label={t("soundsLike")} className="flex flex-col">
         {ENHANCEMENT_PRESETS.map((item) => {
           const selected = preset === item.id;
           return (
@@ -231,7 +231,7 @@ export function EnhancementPicker({
 
       <div className="border-t border-hairline pt-4">
         <Switch
-          label="Reduce background noise"
+          label={t("reduceBackgroundNoise")}
           description={noiseReductionDescription}
           checked={noiseReduction}
           onCheckedChange={handleNoiseReductionChange}
@@ -260,7 +260,7 @@ export function EnhancementPicker({
               advancedOpen && "rotate-180",
             )}
           />
-          Advanced, five bands
+          {t("advancedFiveBands")}
         </button>
 
         {advancedOpen ? (
@@ -286,7 +286,7 @@ export function EnhancementPicker({
                         [band]: clampEqGain(Number(event.target.value)),
                       });
                     }}
-                    aria-valuetext={`${value} decibels`}
+                    aria-valuetext={t("decibels", { value })}
                     className="h-24 w-6 accent-ink [writing-mode:vertical-lr]"
                     style={{ direction: "rtl" }}
                   />

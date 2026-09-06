@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useActionState } from "react";
 
 import { signUp } from "../actions";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { AUTH_ACTION_INITIAL_STATE } from "@/lib/auth/types";
 import { Button, EmptyState, Input } from "@/components/ui";
 
 export function SignUpForm() {
+  const t = useTranslations("SignUpForm");
+  const tTerms = useTranslations("Terms");
   const [state, formAction, isPending] = useActionState(signUp, AUTH_ACTION_INITIAL_STATE);
 
   if (state.ok && state.message) {
@@ -17,11 +19,11 @@ export function SignUpForm() {
       <div>
         <EmptyState
           size="sm"
-          title="Check your email"
+          title={t("checkYourEmail")}
           description={state.message}
           action={
             <Link href={routes.login()} className="text-sm font-medium text-accent underline underline-offset-2">
-              Go to log in
+              {t("goToLogIn")}
             </Link>
           }
         />
@@ -35,9 +37,9 @@ export function SignUpForm() {
         id="username"
         name="username"
         type="text"
-        label="Username"
+        label={t("username")}
         autoComplete="username"
-        hint="Lowercase letters, numbers and underscores. 3–30 characters."
+        hint={t("usernameHint")}
         required
         error={state.fieldErrors?.username}
       />
@@ -45,7 +47,7 @@ export function SignUpForm() {
         id="email"
         name="email"
         type="email"
-        label="Email"
+        label={t("email")}
         autoComplete="email"
         required
         error={state.fieldErrors?.email}
@@ -54,9 +56,9 @@ export function SignUpForm() {
         id="password"
         name="password"
         type="password"
-        label="Password"
+        label={t("password")}
         autoComplete="new-password"
-        hint="At least 8 characters."
+        hint={t("passwordHint")}
         required
         error={state.fieldErrors?.password}
       />
@@ -67,17 +69,17 @@ export function SignUpForm() {
         </p>
       ) : null}
 
-      <Button type="submit" loading={isPending} loadingLabel="Creating account" fullWidth>
-        {TERMS.signUp}
+      <Button type="submit" loading={isPending} loadingLabel={t("creatingAccount")} fullWidth>
+        {tTerms("signUp")}
       </Button>
 
       <p className="text-center text-sm text-fg-muted">
-        Already have an account?{" "}
+        {t("alreadyHaveAnAccount")}{" "}
         <Link
           href={routes.login()}
           className="text-accent underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          {TERMS.logIn}
+          {tTerms("logIn")}
         </Link>
       </p>
     </form>

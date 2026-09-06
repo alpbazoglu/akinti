@@ -26,6 +26,7 @@
  * routing through the one media element everything else shares.
  */
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
 import { Waveform } from "@/components/audio";
@@ -61,6 +62,7 @@ export function AtismaTurnRecorder({
   onComplete,
   className,
 }: AtismaTurnRecorderProps) {
+  const t = useTranslations("AtismaTurnRecorder");
   const store = usePlaybackStore();
   const waveId = useMemo(() => `atisma-original:${originalAssetId}`, [originalAssetId]);
 
@@ -89,12 +91,12 @@ export function AtismaTurnRecorder({
         if (!cancelled) setOriginalUrl(data.url);
       })
       .catch(() => {
-        if (!cancelled) setOriginalLoadError("The original Wave's audio could not be loaded.");
+        if (!cancelled) setOriginalLoadError(t("originalLoadError"));
       });
     return () => {
       cancelled = true;
     };
-  }, [originalAssetId]);
+  }, [originalAssetId, t]);
 
   // Leave the original paused when this recorder unmounts (a turn change,
   // navigating away) rather than letting it keep playing out of the store.
@@ -181,7 +183,7 @@ export function AtismaTurnRecorder({
         onComplete({ blob: concatenated.blob, durationMs: concatenated.durationMs, segments });
       })
       .catch(() => {
-        setAssembleError("Your replies couldn't be put together. Try recording this atışma again.");
+        setAssembleError(t("assembleError"));
         setPhase("error");
       });
   };
@@ -192,7 +194,7 @@ export function AtismaTurnRecorder({
   };
 
   if (originalLoadError) {
-    return <ErrorState title="The original couldn't be loaded" description={originalLoadError} className={className} />;
+    return <ErrorState title={t("originalCouldNotBeLoaded")} description={originalLoadError} className={className} />;
   }
 
   if (phase === "setup") {
@@ -200,9 +202,9 @@ export function AtismaTurnRecorder({
       <section className={className}>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-1">
-            <p className="type-subhead text-ink">How many exchanges?</p>
+            <p className="type-subhead text-ink">{t("howManyExchanges")}</p>
             <p className="type-body-sm measure text-ink-muted">
-              &ldquo;{originalTitle}&rdquo; will be split into this many turns. You reply after each one.
+              {t("turnsSplitDescription", { title: originalTitle })}
             </p>
           </div>
           <div className="flex items-center gap-5">
@@ -211,7 +213,7 @@ export function AtismaTurnRecorder({
               size="sm"
               onClick={() => setTurnCount((n) => Math.max(MIN_TURNS, n - 1))}
               disabled={turnCount <= MIN_TURNS}
-              aria-label="Fewer turns"
+              aria-label={t("fewerTurns")}
             >
               −
             </Button>
@@ -221,13 +223,13 @@ export function AtismaTurnRecorder({
               size="sm"
               onClick={() => setTurnCount((n) => Math.min(MAX_TURNS, n + 1))}
               disabled={turnCount >= MAX_TURNS}
-              aria-label="More turns"
+              aria-label={t("moreTurns")}
             >
               +
             </Button>
           </div>
           <Button size="lg" onClick={beginTurns} disabled={!originalUrl}>
-            {originalUrl ? "Start the first turn" : "Loading the original…"}
+            {originalUrl ? t("startFirstTurn") : t("loadingOriginal")}
           </Button>
         </div>
       </section>
@@ -237,8 +239,8 @@ export function AtismaTurnRecorder({
   if (phase === "error") {
     return (
       <ErrorState
-        title="Couldn't finish this atışma"
-        description={assembleError ?? "Something went wrong."}
+        title={t("couldNotFinish")}
+        description={assembleError ?? t("somethingWentWrong")}
         onRetry={beginTurns}
         className={className}
       />
@@ -248,7 +250,7 @@ export function AtismaTurnRecorder({
   if (phase === "assembling") {
     return (
       <section className={className}>
-        <p className="type-body-sm text-ink-muted">Putting your replies together…</p>
+        <p className="type-body-sm text-ink-muted">{t("puttingTogether")}</p>
       </section>
     );
   }
@@ -258,7 +260,7 @@ export function AtismaTurnRecorder({
       <div className="flex flex-col gap-6">
         <div className="flex items-baseline justify-between">
           <p className="type-caption-strong text-ink-muted">
-            Turn {turnIndex + 1} of {turnCount}
+            {t("turnOf", { current: turnIndex + 1, total: turnCount })}
           </p>
           <p className="type-mono-sm text-ink-subtle">
             {formatDuration(turnStartMs / 1000)}–{formatDuration(turnEndMs / 1000)}
@@ -277,10 +279,10 @@ export function AtismaTurnRecorder({
               leadingIcon={playback.isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
               onClick={toggle}
             >
-              {playback.isPlaying ? "Playing their turn" : "Play their turn"}
+              {playback.isPlaying ? t("playingTheirTurn") : t("playTheirTurn")}
             </Button>
             <Button variant="ghost" onClick={skipToRecording}>
-              Skip ahead and record my reply
+              {t("skipAheadAndRecord")}
             </Button>
           </div>
         ) : (

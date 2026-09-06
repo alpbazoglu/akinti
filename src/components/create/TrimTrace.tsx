@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useRef, type KeyboardEvent, type PointerEvent } from "react";
 
 import { Waveform } from "@/components/audio";
@@ -56,6 +57,7 @@ export function TrimTrace({
   height = 96,
   className,
 }: TrimTraceProps) {
+  const t = useTranslations("TrimTrace");
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef<TrimHandle | null>(null);
 
@@ -137,7 +139,7 @@ export function TrimTrace({
     return {
       role: "slider" as const,
       tabIndex: 0,
-      "aria-label": handle === "start" ? "Trim from the start" : "Trim to the end",
+      "aria-label": handle === "start" ? t("trimFromStart") : t("trimToEnd"),
       "aria-valuemin": 0,
       "aria-valuemax": Math.round(durationMs / 1000),
       "aria-valuenow": Math.round(ms / 1000),
@@ -166,7 +168,7 @@ export function TrimTrace({
         onSeek={onSeek}
         height={height}
         state={progress > 0 ? "playing" : "unplayed"}
-        label="Seek within your take"
+        label={t("seekWithinYourTake")}
         trim={{ start: startRatio, end: endRatio }}
         fullBleed
       />

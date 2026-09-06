@@ -1,12 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, Mic, X } from "@/components/ui/icons";
 import { Avatar, Badge, Button, EmptyState, TabPanel, Tabs, tabId, tabPanelId } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { cn, timeAgo } from "@/lib/ui";
 import type { DuetRequestStatus } from "@/types/domain";
 
@@ -38,13 +38,13 @@ type Tab = "received" | "sent";
 
 const TAB_ID_PREFIX = "duets";
 
-const STATUS_LABEL: Record<DuetRequestStatus, string> = {
-  pending: "Pending",
-  accepted: "Accepted",
-  declined: "Declined",
-  cancelled: "Cancelled",
-  expired: "Expired",
-};
+const STATUS_LABEL_KEY = {
+  pending: "statusPending",
+  accepted: "statusAccepted",
+  declined: "statusDeclined",
+  cancelled: "statusCancelled",
+  expired: "statusExpired",
+} as const satisfies Record<DuetRequestStatus, string>;
 
 /** A Link styled as a secondary key (`akinti-press`/`rounded-key`, DESIGN.md §8.7) — the same treatment `w/[id]/page.tsx` uses for its "View lineage" link, since `Button` itself only renders a `<button>`. */
 const LINK_KEY =
@@ -56,28 +56,29 @@ const LINK_KEY_PRIMARY =
 
 /** Tabs + list for `/duets` (spec §15 deliverable 2). Data-fetching stays in the Server Component; this only renders and calls the Server Actions. */
 export function DuetRequestsView({ received, sent }: DuetRequestsViewProps) {
+  const t = useTranslations("DuetRequestsView");
   const [tab, setTab] = useState<Tab>("received");
 
   return (
     <div className="flex flex-col gap-4">
       <Tabs
         items={[
-          { value: "received", label: "Received", },
-          { value: "sent", label: "Sent" },
+          { value: "received", label: t("received"), },
+          { value: "sent", label: t("sent") },
         ]}
         value={tab}
         onValueChange={(value) => setTab(value as Tab)}
-        label={`${TERMS.duetRequests} tabs`}
+        label={t("tabsLabel")}
         variant="segmented"
         idPrefix={TAB_ID_PREFIX}
         className="self-start"
       />
 
       <TabPanel id={tabPanelId(TAB_ID_PREFIX, "received")} labelledBy={tabId(TAB_ID_PREFIX, "received")} active={tab === "received"}>
-        <RequestList items={received} variant="received" emptyDescription={`When someone asks to Duet on one of your Waves, it shows up here.`} />
+        <RequestList items={received} variant="received" emptyTitle={t("emptyReceivedTitle")} emptyDescription={t("emptyReceivedDescription")} />
       </TabPanel>
       <TabPanel id={tabPanelId(TAB_ID_PREFIX, "sent")} labelledBy={tabId(TAB_ID_PREFIX, "sent")} active={tab === "sent"}>
-        <RequestList items={sent} variant="sent" emptyDescription={`Requests you send to Duet on someone else's Wave show up here.`} />
+        <RequestList items={sent} variant="sent" emptyTitle={t("emptySentTitle")} emptyDescription={t("emptySentDescription")} />
       </TabPanel>
     </div>
   );
@@ -86,20 +87,16 @@ export function DuetRequestsView({ received, sent }: DuetRequestsViewProps) {
 function RequestList({
   items,
   variant,
+  emptyTitle,
   emptyDescription,
 }: {
   items: readonly DuetRequestListItem[];
   variant: "received" | "sent";
+  emptyTitle: string;
   emptyDescription: string;
 }) {
   if (items.length === 0) {
-    return (
-      <EmptyState
-        title={`No ${variant === "received" ? "received" : "sent"} ${TERMS.duetRequests.toLowerCase()}`}
-        description={emptyDescription}
-        size="sm"
-      />
-    );
+    return <EmptyState title={emptyTitle} description={emptyDescription} size="sm" />;
   }
 
   return (
@@ -114,6 +111,7 @@ function RequestList({
 }
 
 function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "received" | "sent" }) {
+  const t = useTranslations("DuetRequestsView");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -124,7 +122,7 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
     startTransition(async () => {
       const result = await task();
       if (!result.ok) {
-        setError(result.error ?? "Something went wrong. Try again.");
+        setError(result.error ?? t("genericError"));
         return;
       }
       router.refresh();
@@ -147,7 +145,7 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
               {name}
             </Link>{" "}
             <span className="text-ink-muted">
-              {variant === "received" ? "wants to duet on" : "was asked to duet on"}
+              {variant === "received" ? t("wantsToDuetOn") : t("wasAskedToDuetOn")}
             </span>{" "}
             <Link
               href={routes.wave(item.waveId)}
@@ -160,9 +158,9 @@ function RequestRow({ item, variant }: { item: DuetRequestListItem; variant: "re
             <time dateTime={item.createdAt} className="type-mono-sm text-ink-subtle">
               {timeAgo(item.createdAt)}
             </time>
-            <Badge>{STATUS_LABEL[item.status]}</Badge>
+            <Badge>{t(STATUS_LABEL_KEY[item.status])}</Badge>
           </div>
-          {item.message ? <p className="type-body-sm measure mt-1 text-ink-muted">&ldquo;{item.message}&rdquo;</p> : null}
+          {item.message ? <p className="type-body-sm measure mt-1 text-ink-muted">“{item.message}”</p> : null}
         </div>
 
         {error ? (
@@ -188,6 +186,8 @@ function RequestActions({
   isPending: boolean;
   runAction: (task: () => Promise<{ ok: boolean; error?: string }>) => void;
 }) {
+  const t = useTranslations("DuetRequestsView");
+
   if (variant === "received" && item.status === "pending") {
     return (
       <div className={cn("flex items-center gap-2")}>
@@ -197,7 +197,7 @@ function RequestActions({
           leadingIcon={<Check className="size-4" />}
           onClick={() => runAction(() => respondToDuetRequest(item.id, "accepted"))}
         >
-          Accept
+          {t("accept")}
         </Button>
         <Button
           size="sm"
@@ -206,7 +206,7 @@ function RequestActions({
           leadingIcon={<X className="size-4" />}
           onClick={() => runAction(() => respondToDuetRequest(item.id, "declined"))}
         >
-          Decline
+          {t("decline")}
         </Button>
       </div>
     );
@@ -216,7 +216,7 @@ function RequestActions({
     return (
       <div className="flex items-center gap-2">
         <Button size="sm" variant="secondary" loading={isPending} onClick={() => runAction(() => cancelDuetRequest(item.id))}>
-          Cancel request
+          {t("cancelRequest")}
         </Button>
       </div>
     );
@@ -226,14 +226,14 @@ function RequestActions({
     if (item.resultingWaveId) {
       return (
         <Link href={routes.wave(item.resultingWaveId)} className={LINK_KEY}>
-          View your Duet
+          {t("viewYourDuet")}
         </Link>
       );
     }
     return (
       <Link href={routes.duetRecord(item.waveId, item.id)} className={LINK_KEY_PRIMARY}>
         <Mic className="size-4" aria-hidden="true" />
-        Record your Duet
+        {t("recordYourDuet")}
       </Link>
     );
   }

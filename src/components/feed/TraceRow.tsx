@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Waveform } from "@/components/audio";
 import { IconButton, Spinner } from "@/components/ui";
@@ -38,6 +39,7 @@ export interface TraceRowProps {
  * else, and the trace is the largest thing in the row.
  */
 export function TraceRow({ wave, className }: TraceRowProps) {
+  const t = useTranslations("TraceRow");
   const store = usePlaybackStore();
   const playback = useWavePlayback(wave.id, wave.duration ?? 0);
   const audio = useSignedAudio(wave.audioAssetId);
@@ -80,10 +82,10 @@ export function TraceRow({ wave, className }: TraceRowProps) {
         <IconButton
           label={
             failed
-              ? `Retry ${wave.title}`
+              ? t("retry", { title: wave.title })
               : playback.isPlaying
-                ? `Pause ${wave.title}`
-                : `Play ${wave.title}`
+                ? t("pause", { title: wave.title })
+                : t("play", { title: wave.title })
           }
           icon={
             failed ? (
@@ -111,7 +113,7 @@ export function TraceRow({ wave, className }: TraceRowProps) {
           >
             {wave.title}
           </Link>
-          <span aria-hidden="true"> &middot; </span>
+          <span aria-hidden="true"> · </span>
           {creatorName}
         </p>
 
@@ -122,7 +124,7 @@ export function TraceRow({ wave, className }: TraceRowProps) {
             loaded={playback.buffered}
             duration={duration}
             height={28}
-            label={`Seek within ${wave.title}`}
+            label={t("seekWithin", { title: wave.title })}
             disabled={failed}
             onSeek={(next) => {
               if (playback.isActive && audio.url) {

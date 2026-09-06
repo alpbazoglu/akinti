@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { WavePlayer } from "@/components/audio";
@@ -10,7 +11,6 @@ import { Bookmark, MessageSquare, Share2 } from "@/components/ui/icons";
 import {
   CREATION_TYPES,
   METRICS,
-  TERMS,
   type CreationType,
   type MetricKey,
 } from "@/config/terminology";
@@ -111,6 +111,8 @@ export function WaveCard({
   variant = "stream",
   className,
 }: WaveCardProps) {
+  const tTerms = useTranslations("Terms");
+  const tCard = useTranslations("WaveCard");
   const creationType = CREATION_TYPES[wave.creationType];
   const creatorName = wave.creator.displayName ?? wave.creator.username;
   const collaborators = wave.collaborators ?? [];
@@ -140,7 +142,7 @@ export function WaveCard({
                 aria-hidden="true"
                 className="absolute -top-0.5 -right-0.5 size-2 rounded-label bg-signal"
               />
-              <span className="sr-only">Unheard</span>
+              <span className="sr-only">{tCard("unheard")}</span>
             </>
           ) : null}
         </Link>
@@ -212,7 +214,7 @@ export function WaveCard({
 
           {collaborators.length > 0 ? (
             <p className="type-caption flex flex-wrap items-center gap-2 text-ink-subtle">
-              <span className="text-ink-muted">{TERMS.collaborators}</span>
+              <span className="text-ink-muted">{tTerms("collaborators")}</span>
               {collaborators.map((person) => (
                 <Link
                   key={person.username}
@@ -227,13 +229,13 @@ export function WaveCard({
 
           <div className="flex items-center gap-2">
             <IconButton
-              label={TERMS.comment}
+              label={tTerms("comment")}
               icon={<MessageSquare className="size-5" />}
               size="sm"
               onClick={() => onComment?.(wave.id)}
             />
             <IconButton
-              label={wave.isSaved ? TERMS.unsave : TERMS.save}
+              label={wave.isSaved ? tTerms("unsave") : tTerms("save")}
               icon={
                 <Bookmark className="size-5" weight={wave.isSaved ? "fill" : "regular"} />
               }
@@ -243,7 +245,7 @@ export function WaveCard({
               onClick={() => onSave?.(wave.id)}
             />
             <IconButton
-              label={TERMS.share}
+              label={tTerms("share")}
               icon={<Share2 className="size-5" />}
               size="sm"
               onClick={() => onShare?.(wave.id)}
@@ -255,7 +257,7 @@ export function WaveCard({
           {showDuetKey ? (
             <div className="flex">
               <Button variant="secondary" size="sm" onClick={() => onRequestDuet?.(wave.id)}>
-                {TERMS.requestDuet}
+                {tTerms("requestDuet")}
               </Button>
             </div>
           ) : null}
@@ -271,11 +273,21 @@ interface MetricsRowProps {
   metrics: WaveCardMetrics;
 }
 
+const METRIC_LABEL_KEY = {
+  plays: "metricPlays",
+  replays: "metricReplays",
+  comments: "metricComments",
+  saves: "metricSaves",
+  shares: "metricShares",
+  duets: "metricDuets",
+} as const satisfies Record<MetricKey, string>;
+
 /**
  * Counts print only non-zero metrics, on one line, separated by a single
  * middle dot. Six zeroes is a debug dump (§8.3, §12.6, §12.23).
  */
 function MetricsRow({ metrics }: MetricsRowProps) {
+  const t = useTranslations("WaveCard");
   const shown = METRICS.filter((metric) => (metrics[metric.key] ?? 0) > 0);
   if (shown.length === 0) return null;
 
@@ -285,9 +297,9 @@ function MetricsRow({ metrics }: MetricsRowProps) {
         const value = metrics[metric.key] ?? 0;
         return (
           <span key={metric.key}>
-            {index > 0 ? <span aria-hidden="true"> &middot; </span> : null}
+            {index > 0 ? <span aria-hidden="true"> · </span> : null}
             <span className="type-mono-sm text-ink-muted">{formatCount(value)}</span>{" "}
-            {value === 1 ? metric.singular.toLowerCase() : metric.label.toLowerCase()}
+            {t(METRIC_LABEL_KEY[metric.key], { count: value })}
           </span>
         );
       })}
@@ -306,10 +318,12 @@ export interface WaveCardSkeletonProps {
  * pulse, no fake waveform (§8.15, §12.32).
  */
 export function WaveCardSkeleton({ variant = "stream", className }: WaveCardSkeletonProps) {
+  const tTerms = useTranslations("Terms");
+  const tCard = useTranslations("WaveCard");
   return (
     <div
       role="status"
-      aria-label={`Loading ${TERMS.aWave}`}
+      aria-label={tCard("loadingAWave", { aWave: tTerms("aWave") })}
       className={cn("flex flex-col", className)}
     >
       <div className="akinti-rail akinti-page pt-5 pb-6">

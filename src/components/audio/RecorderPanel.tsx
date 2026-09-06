@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { Mic, MicOff, Pause, Play, RotateCcw, Square, TriangleAlert } from "@/components/ui/icons";
 
@@ -22,6 +23,7 @@ export interface RecorderPanelProps {
  * a silent failure (spec §38).
  */
 export function RecorderPanel({ onComplete, maxDurationMs, className }: RecorderPanelProps) {
+  const t = useTranslations("RecorderPanel");
   const { state, start, pause, resume, stop, retake } = useRecorder(
     maxDurationMs !== undefined ? { maxDurationMs } : undefined,
   );
@@ -55,7 +57,7 @@ export function RecorderPanel({ onComplete, maxDurationMs, className }: Recorder
       <LevelMeter level={state.level} active={state.status === "recording"} />
 
       <div aria-live="polite" role="status" className="sr-only">
-        {statusAnnouncement(state.status, state.error, state.autoStopped, levelPercent)}
+        {statusAnnouncement(state.status, state.error, state.autoStopped, levelPercent, t)}
       </div>
 
       {state.status === "denied" || state.status === "unsupported" || state.status === "error" ? (
@@ -67,16 +69,18 @@ export function RecorderPanel({ onComplete, maxDurationMs, className }: Recorder
 
       {state.autoStopped ? (
         <p className="max-w-xs text-center text-xs text-fg-subtle">
-          Stopped automatically at the {formatDuration(maxSeconds)} limit.
+          {t("stoppedAutomatically", { limit: formatDuration(maxSeconds) })}
         </p>
       ) : null}
 
       <div className="flex items-center gap-3">
-        {renderControls({ status: state.status, start, pause, resume, stop, retake })}
+        {renderControls({ status: state.status, start, pause, resume, stop, retake, t })}
       </div>
     </div>
   );
 }
+
+type RecorderPanelTranslator = ReturnType<typeof useTranslations<"RecorderPanel">>;
 
 interface Controls {
   status: RecorderStatus;
@@ -85,9 +89,10 @@ interface Controls {
   resume: () => void;
   stop: () => void;
   retake: () => void;
+  t: RecorderPanelTranslator;
 }
 
-function renderControls({ status, start, pause, resume, stop, retake }: Controls) {
+function renderControls({ status, start, pause, resume, stop, retake, t }: Controls) {
   switch (status) {
     case "idle":
     case "denied":
@@ -95,7 +100,7 @@ function renderControls({ status, start, pause, resume, stop, retake }: Controls
     case "error":
       return (
         <IconButton
-          label="Start recording"
+          label={t("startRecording")}
           icon={
             status === "unsupported" || status === "denied" ? (
               <MicOff className="size-6" />
@@ -113,7 +118,7 @@ function renderControls({ status, start, pause, resume, stop, retake }: Controls
     case "requesting":
       return (
         <IconButton
-          label="Waiting for microphone permission"
+          label={t("waitingForMicPermission")}
           icon={<Mic className="size-6 animate-pulse" />}
           variant="primary"
           size="lg"
@@ -125,14 +130,14 @@ function renderControls({ status, start, pause, resume, stop, retake }: Controls
       return (
         <>
           <IconButton
-            label="Pause recording"
+            label={t("pauseRecording")}
             icon={<Pause className="size-5" />}
             variant="secondary"
             size="lg"
             onClick={pause}
           />
           <IconButton
-            label="Stop recording"
+            label={t("stopRecording")}
             icon={<Square className="size-5 fill-current" />}
             variant="danger"
             size="lg"
@@ -145,14 +150,14 @@ function renderControls({ status, start, pause, resume, stop, retake }: Controls
       return (
         <>
           <IconButton
-            label="Resume recording"
+            label={t("resumeRecording")}
             icon={<Play className="size-5 translate-x-px" />}
             variant="secondary"
             size="lg"
             onClick={resume}
           />
           <IconButton
-            label="Stop recording"
+            label={t("stopRecording")}
             icon={<Square className="size-5 fill-current" />}
             variant="danger"
             size="lg"
@@ -164,7 +169,7 @@ function renderControls({ status, start, pause, resume, stop, retake }: Controls
     case "stopped":
       return (
         <Button variant="secondary" leadingIcon={<RotateCcw className="size-4" />} onClick={retake}>
-          Retake
+          {t("retake")}
         </Button>
       );
     default:
@@ -177,24 +182,23 @@ function statusAnnouncement(
   error: string | null,
   autoStopped: boolean,
   levelPercent: number,
+  t: RecorderPanelTranslator,
 ): string {
   switch (status) {
     case "requesting":
-      return "Requesting microphone access.";
+      return t("announceRequesting");
     case "denied":
-      return error ?? "Microphone access was denied.";
+      return error ?? t("announceDenied");
     case "unsupported":
-      return error ?? "Recording is not supported in this browser.";
+      return error ?? t("announceUnsupported");
     case "error":
-      return error ?? "Recording failed.";
+      return error ?? t("announceFailed");
     case "recording":
-      return autoStopped
-        ? "Recording stopped automatically at the maximum length."
-        : `Recording, input level ${levelPercent} percent.`;
+      return autoStopped ? t("announceAutoStopped") : t("announceRecordingLevel", { levelPercent });
     case "paused":
-      return "Recording paused.";
+      return t("announcePaused");
     case "stopped":
-      return "Recording finished. Ready to preview.";
+      return t("announceFinished");
     default:
       return "";
   }

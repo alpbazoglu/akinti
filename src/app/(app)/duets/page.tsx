@@ -1,4 +1,6 @@
 
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
 import { DuetRequestsView, type DuetRequestListItem } from "@/components/duet";
@@ -6,12 +8,14 @@ import { listIncomingDuetRequests, listOutgoingDuetRequests } from "@/lib/db/due
 import { getProfilesByIds } from "@/lib/db/profiles";
 import { getWavesByIds } from "@/lib/db/waves";
 import { requireUser } from "@/lib/auth/server";
-import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { DuetRequest, Profile, Wave } from "@/types/domain";
 
-export const metadata = { title: TERMS.duetRequests };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  return { title: t("duetRequests") };
+}
 
 /**
  * `/duets` (spec §15 deliverable 2): Received / Sent Duet Requests with
@@ -23,15 +27,14 @@ export const metadata = { title: TERMS.duetRequests };
  */
 export default async function DuetsPage() {
   const user = await requireUser("/duets");
+  const tTerms = await getTranslations("Terms");
+  const t = await getTranslations("DuetsPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title={TERMS.duetRequests} />
-        <EmptyState
-          title="This isn't connected to a backend yet"
-          description="Supabase environment variables aren't set, so Duet Requests can't be loaded here."
-        />
+        <PageHeader title={tTerms("duetRequests")} />
+        <EmptyState title={t("notConnectedTitle")} description={t("notConnectedDescription")} />
       </>
     );
   }
@@ -62,7 +65,7 @@ export default async function DuetsPage() {
 
   return (
     <>
-      <PageHeader title={TERMS.duetRequests} />
+      <PageHeader title={tTerms("duetRequests")} />
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-16 sm:px-5">
         <DuetRequestsView
           received={toListItems(received.items, waveById, profileById, "requesterId")}

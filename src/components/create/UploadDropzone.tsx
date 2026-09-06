@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useId, useRef, useState, type DragEvent } from "react";
 
 import { Waveform } from "@/components/audio";
@@ -40,6 +41,7 @@ const NO_PEAKS: readonly number[] = [];
  * accepting anything (`docs/AUDIO_ARCHITECTURE.md`).
  */
 export function UploadDropzone({ onFileAccepted, onRecord, className }: UploadDropzoneProps) {
+  const t = useTranslations("UploadDropzone");
   const inputRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [dragOver, setDragOver] = useState(false);
@@ -55,17 +57,17 @@ export function UploadDropzone({ onFileAccepted, onRecord, className }: UploadDr
         const result = await validateFile(file, { durationMs: durationMs ?? undefined });
         if (!result.ok) {
           setPhase("error");
-          setError(result.reason ?? "This file can't be used.");
+          setError(result.reason ?? t("fileCannotBeUsed"));
           return;
         }
         setPhase("idle");
         onFileAccepted(file, durationMs ?? 0);
       } catch {
         setPhase("error");
-        setError("This file could not be read. Try a different one.");
+        setError(t("fileCouldNotBeRead"));
       }
     },
-    [onFileAccepted],
+    [onFileAccepted, t],
   );
 
   const handleFiles = (files: FileList | null) => {
@@ -82,7 +84,7 @@ export function UploadDropzone({ onFileAccepted, onRecord, className }: UploadDr
   return (
     <section className={cn("flex flex-col gap-6", className)}>
       <div className="-mx-page akinti-edge-fade">
-        <Waveform peaks={NO_PEAKS} state="dormant" height={96} readOnly label="No file chosen yet" />
+        <Waveform peaks={NO_PEAKS} state="dormant" height={96} readOnly label={t("noFileChosenYet")} />
       </div>
 
       <div
@@ -98,24 +100,24 @@ export function UploadDropzone({ onFileAccepted, onRecord, className }: UploadDr
         )}
       >
         <p className="type-body measure text-ink">
-          {dragOver ? "Drop it here." : "Choose an audio file, or drop one on this page."}
+          {dragOver ? t("dropItHere") : t("chooseOrDrop")}
         </p>
         <p className="type-caption text-ink-subtle">
-          MP3, WAV, OGG, FLAC, M4A or WebM · up to {MAX_MEGABYTES} MB and {MAX_MINUTES} minutes
+          {t("fileTypesAndLimits", { maxMb: MAX_MEGABYTES, maxMinutes: MAX_MINUTES })}
         </p>
 
         <div className="flex flex-wrap items-center gap-6 pt-1">
           <Button
             size="lg"
             loading={phase === "reading"}
-            loadingLabel="Checking the file"
+            loadingLabel={t("checkingFile")}
             onClick={() => inputRef.current?.click()}
           >
-            Choose a file
+            {t("chooseAFile")}
           </Button>
           {onRecord ? (
             <Button variant="ghost" onClick={onRecord}>
-              Record instead
+              {t("recordInstead")}
             </Button>
           ) : null}
         </div>
@@ -125,7 +127,7 @@ export function UploadDropzone({ onFileAccepted, onRecord, className }: UploadDr
           id={inputId}
           type="file"
           accept="audio/*"
-          aria-label="Choose an audio file to upload"
+          aria-label={t("chooseAudioFileToUpload")}
           className="sr-only"
           onChange={(event) => {
             handleFiles(event.target.files);

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import {
@@ -12,7 +13,6 @@ import {
 } from "@/components/feed";
 import { Search } from "@/components/ui/icons";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { resolveWavePeaks } from "@/lib/audio/peaks";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
@@ -26,7 +26,10 @@ import { createServerSupabaseClient, type SupabaseServerClient } from "@/lib/sup
 
 import { loadCreatorSignatures } from "./signatures";
 
-export const metadata = { title: TERMS.explore };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  return { title: t("explore") };
+}
 
 const INITIAL_CATEGORY = "trending" as const;
 const INITIAL_PAGE_SIZE = 10;
@@ -47,13 +50,14 @@ const BACKING_TRACKS = 6;
  * they can sing over, then the stream itself.
  */
 export default async function ExplorePage() {
+  const tTerms = await getTranslations("Terms");
+  const tExplore = await getTranslations("ExplorePage");
+
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title={TERMS.explore} />
-        <p className="akinti-page type-body measure text-ink-muted">
-          Discovery isn&apos;t reachable from this build.
-        </p>
+        <PageHeader title={tTerms("explore")} />
+        <p className="akinti-page type-body measure text-ink-muted">{tExplore("unreachable")}</p>
       </>
     );
   }
@@ -118,11 +122,11 @@ export default async function ExplorePage() {
   return (
     <>
       <PageHeader
-        title={TERMS.explore}
+        title={tTerms("explore")}
         actions={
           <Link
             href={routes.search()}
-            aria-label={TERMS.search}
+            aria-label={tTerms("search")}
             className="akinti-press inline-flex size-11 items-center justify-center rounded-[13px] text-ink-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
             <Search className="size-6" aria-hidden="true" />
@@ -133,13 +137,13 @@ export default async function ExplorePage() {
       {loadError ? (
         <div className="akinti-page flex flex-col items-start gap-3 pb-8">
           <p role="alert" className="type-body measure text-ink">
-            Couldn&apos;t reach the stream.
+            {tExplore("streamError")}
           </p>
           <Link
             href={routes.explore()}
             className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            Try again
+            {tExplore("tryAgain")}
           </Link>
         </div>
       ) : (

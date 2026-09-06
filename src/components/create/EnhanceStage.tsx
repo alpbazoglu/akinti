@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { EnhancementPicker, Waveform } from "@/components/audio";
@@ -60,6 +61,7 @@ export function EnhanceStage({
   onContinue,
   className,
 }: EnhanceStageProps) {
+  const t = useTranslations("EnhanceStage");
   const reducedMotion = useReducedMotion();
   const decodedRef = useRef<AudioBuffer | null>(null);
   const morphTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -149,17 +151,14 @@ export function EnhanceStage({
           state={tracePrepared ? "unplayed" : "dormant"}
           readOnly
           fullBleed
-          label={mode === "polished" ? "Your take, polished" : "Your take, as recorded"}
+          label={mode === "polished" ? t("yourTakePolished") : t("yourTakeAsRecorded")}
         />
       </div>
       {!tracePrepared ? (
-        <p className="type-body-sm measure text-ink-muted">
-          We couldn&apos;t prepare a trace for this take. The sound underneath this screen is real,
-          only the picture of it is missing.
-        </p>
+        <p className="type-body-sm measure text-ink-muted">{t("couldNotPrepareTrace")}</p>
       ) : null}
       {tracePrepared && proPresetSelected ? (
-        <p className="type-body-sm measure text-ink-muted">Preview after processing.</p>
+        <p className="type-body-sm measure text-ink-muted">{t("previewAfterProcessing")}</p>
       ) : null}
 
       <EnhancementPicker
@@ -180,7 +179,7 @@ export function EnhanceStage({
           sounds above — there is real DSP behind both now (the sidecar's
           /pitch-snap and /harmony), just no honest local preview for it yet
           (see "Preview after processing" above). */}
-      <div role="group" aria-label="AKINTI Pro sounds" className="flex flex-col">
+      <div role="group" aria-label={t("akintiProSounds")} className="flex flex-col">
         {PRO_ENHANCEMENT_PRESETS.map((item) => {
           const selected = preset === item.id;
           return (
@@ -207,7 +206,7 @@ export function EnhanceStage({
               />
               <span className="type-subhead min-w-28 text-ink">{item.label}</span>
               <span className="type-caption truncate text-ink-subtle">{item.description}</span>
-              <span className="type-caption ml-auto shrink-0 text-ink-subtle">Pro</span>
+              <span className="type-caption ml-auto shrink-0 text-ink-subtle">{t("pro")}</span>
             </button>
           );
         })}
@@ -220,7 +219,7 @@ export function EnhanceStage({
       />
 
       <Button size="lg" fullWidth onClick={onContinue}>
-        Continue
+        {t("continueAction")}
       </Button>
     </section>
   );

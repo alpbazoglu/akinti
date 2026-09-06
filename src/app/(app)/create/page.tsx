@@ -1,4 +1,5 @@
-import { TERMS } from "@/config/terminology";
+import { getTranslations } from "next-intl/server";
+
 import { requireOnboarded } from "@/lib/auth/server";
 import { routes } from "@/config/routes";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
@@ -14,7 +15,11 @@ import type { CreateFlowChallenge } from "./CreateFlow";
 
 import { CreateFlow } from "./CreateFlow";
 
-export const metadata = { title: `${TERMS.create} ${TERMS.aWave}` };
+export async function generateMetadata() {
+  const t = await getTranslations("CreateFlow");
+  const tTerms = await getTranslations("Terms");
+  return { title: t("createAWave", { aWave: tTerms("aWave") }) };
+}
 
 interface CreatePageProps {
   searchParams: Promise<{ track?: string; challenge?: string }>;

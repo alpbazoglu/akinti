@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { WaveformCanvas } from "@/components/audio";
 import { FollowButton } from "@/components/profile";
@@ -49,6 +50,7 @@ export interface RisingCreatorsStripProps {
  * and the trace draws in the plain current, as it always has.
  */
 export function RisingCreatorsStrip({ creators, isSignedIn }: RisingCreatorsStripProps) {
+  const t = useTranslations("RisingCreatorsStrip");
   if (creators.length === 0) {
     return null;
   }
@@ -56,7 +58,7 @@ export function RisingCreatorsStrip({ creators, isSignedIn }: RisingCreatorsStri
   return (
     <section aria-labelledby="rising-creators" className="flex flex-col gap-4 pt-6">
       <h2 id="rising-creators" className="akinti-page type-caption-strong text-ink-muted">
-        Voices worth following
+        {t("title")}
       </h2>
 
       <ul className="akinti-page flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">

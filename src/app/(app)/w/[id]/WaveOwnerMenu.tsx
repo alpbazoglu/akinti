@@ -7,6 +7,7 @@
  * asking "are you sure" (§4.4).
  */
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -22,7 +23,6 @@ import {
   type SelectOption,
 } from "@/components/ui";
 import { Handshake, MoreVertical, Pencil, Trash2 } from "@/components/ui/icons";
-import { TERMS } from "@/config/terminology";
 import { PERMISSION_AUDIENCES, WAVE_VISIBILITIES } from "@/types/domain";
 import type { PermissionAudience, Wave, WaveVisibility } from "@/types/domain";
 
@@ -38,40 +38,43 @@ export interface WaveOwnerMenuProps {
   openCallPrompt?: string | null;
 }
 
-const VISIBILITY_OPTIONS: SelectOption[] = WAVE_VISIBILITIES.map((value) => ({
-  value,
-  label: value === "everyone" ? "Everyone" : value === "followers" ? "Followers" : "Only me",
-}));
-
-const COMMENT_PERMISSION_OPTIONS: SelectOption[] = [
-  { value: "", label: "Use my profile setting" },
-  { value: "everyone", label: "Everyone" },
-  { value: "followers", label: "Followers" },
-  { value: "nobody", label: "Nobody" },
-];
-
-const DUET_PERMISSION_OPTIONS: SelectOption[] = [
-  { value: "", label: "Use my profile setting" },
-  ...PERMISSION_AUDIENCES.map((value) => ({
-    value,
-    label:
-      value === "everyone"
-        ? "Everyone"
-        : value === "followers"
-          ? "Followers"
-          : value === "following"
-            ? "People I follow"
-            : "Nobody",
-  })),
-];
-
 export function WaveOwnerMenu({
   wave,
   redirectAfterDeleteHref,
   openCallIsOpen = false,
   openCallPrompt = null,
 }: WaveOwnerMenuProps) {
+  const t = useTranslations("WaveOwnerMenu");
+  const tTerms = useTranslations("Terms");
   const router = useRouter();
+
+  const visibilityOptions: SelectOption[] = WAVE_VISIBILITIES.map((value) => ({
+    value,
+    label: value === "everyone" ? t("everyone") : value === "followers" ? t("followers") : t("onlyMe"),
+  }));
+
+  const commentPermissionOptions: SelectOption[] = [
+    { value: "", label: t("useMyProfileSetting") },
+    { value: "everyone", label: t("everyone") },
+    { value: "followers", label: t("followers") },
+    { value: "nobody", label: t("nobody") },
+  ];
+
+  const duetPermissionOptions: SelectOption[] = [
+    { value: "", label: t("useMyProfileSetting") },
+    ...PERMISSION_AUDIENCES.map((value) => ({
+      value,
+      label:
+        value === "everyone"
+          ? t("everyone")
+          : value === "followers"
+            ? t("followers")
+            : value === "following"
+              ? t("peopleIFollow")
+              : t("nobody"),
+    })),
+  ];
+
   const [editOpen, setEditOpen] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -158,11 +161,11 @@ export function WaveOwnerMenu({
   return (
     <>
       <Menu
-        label={`Options for ${wave.title}`}
+        label={t("optionsForWave", { title: wave.title })}
         trigger={(triggerProps) => (
           <IconButton
             {...triggerProps}
-            label={`${TERMS.wave} options`}
+            label={t("waveOptions", { wave: tTerms("wave") })}
             icon={<MoreVertical className="size-6" />}
             variant="ghost"
           />
@@ -170,19 +173,19 @@ export function WaveOwnerMenu({
         items={[
           {
             id: "edit",
-            label: "Edit details",
+            label: t("editDetails"),
             icon: <Pencil className="size-4" />,
             onSelect: () => setEditOpen(true),
           },
           {
             id: "open-call",
-            label: openCallIsOpen ? "Close the open call" : "Open for anyone to Duet",
+            label: openCallIsOpen ? t("closeTheOpenCall") : t("openForAnyoneToDuet"),
             icon: <Handshake className="size-4" />,
             onSelect: () => setCallOpen(true),
           },
           {
             id: "delete",
-            label: "Delete",
+            label: t("delete"),
             icon: <Trash2 className="size-4" />,
             destructive: true,
             onSelect: () => setConfirmingDelete(true),
@@ -193,14 +196,14 @@ export function WaveOwnerMenu({
       <Sheet
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title="Edit details"
+        title={t("editDetails")}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={saving}>
-              Cancel
+              {t("cancel")}
             </Button>
             <Button onClick={() => void handleSave()} loading={saving}>
-              Save
+              {tTerms("save")}
             </Button>
           </div>
         }
@@ -208,37 +211,37 @@ export function WaveOwnerMenu({
         <div className="flex flex-col gap-4">
           <Input
             id="edit-wave-title"
-            label="Title"
+            label={t("titleLabel")}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             required
           />
           <Textarea
             id="edit-wave-description"
-            label="What is this?"
+            label={t("whatIsThis")}
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
           <Select
             id="edit-wave-visibility"
-            label="Who can hear it"
+            label={t("whoCanHearIt")}
             value={visibility}
             onChange={(event) => setVisibility(event.target.value as WaveVisibility)}
-            options={VISIBILITY_OPTIONS}
+            options={visibilityOptions}
           />
           <Select
             id="edit-wave-comment-permission"
-            label="Who can comment"
+            label={t("whoCanComment")}
             value={commentPermission}
             onChange={(event) => setCommentPermission(event.target.value)}
-            options={COMMENT_PERMISSION_OPTIONS}
+            options={commentPermissionOptions}
           />
           <Select
             id="edit-wave-duet-permission"
-            label={`Who can ask for a ${TERMS.duet}`}
+            label={t("whoCanAskForADuet", { duet: tTerms("duet") })}
             value={duetPermission}
             onChange={(event) => setDuetPermission(event.target.value as PermissionAudience | "")}
-            options={DUET_PERMISSION_OPTIONS}
+            options={duetPermissionOptions}
           />
           {saveError ? (
             <p role="alert" className="type-body-sm text-signal-deep">
@@ -251,24 +254,20 @@ export function WaveOwnerMenu({
       <Sheet
         open={callOpen}
         onClose={() => setCallOpen(false)}
-        title={openCallIsOpen ? "Close the open call" : "Open for anyone to Duet"}
-        description={
-          openCallIsOpen
-            ? "Nobody new will be able to record against this Wave. Duets already recorded stay where they are."
-            : "Anyone who can hear this Wave can record with it straight away, without asking first."
-        }
+        title={openCallIsOpen ? t("closeTheOpenCall") : t("openForAnyoneToDuet")}
+        description={openCallIsOpen ? t("closeCallDescription") : t("openCallDescription")}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setCallOpen(false)} disabled={callSaving}>
-              Cancel
+              {t("cancel")}
             </Button>
             {openCallIsOpen ? (
               <Button variant="danger" onClick={() => void handleCloseCall()} loading={callSaving}>
-                Close the call
+                {t("closeTheCall")}
               </Button>
             ) : (
               <Button onClick={() => void handleOpenCall()} loading={callSaving}>
-                Open the call
+                {t("openTheCall")}
               </Button>
             )}
           </div>
@@ -278,8 +277,8 @@ export function WaveOwnerMenu({
           {openCallIsOpen ? null : (
             <Textarea
               id="open-call-prompt"
-              label="What do you want back? (optional)"
-              placeholder="A bass line under the second verse."
+              label={t("openCallPromptLabel")}
+              placeholder={t("openCallPromptPlaceholder")}
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
             />
@@ -295,15 +294,15 @@ export function WaveOwnerMenu({
       <Sheet
         open={confirmingDelete}
         onClose={() => setConfirmingDelete(false)}
-        title={`Delete ${wave.title}?`}
-        description="This removes the recording, its comments and every Duet request against it. This cannot be undone."
+        title={t("deleteWaveTitle", { title: wave.title })}
+        description={t("deleteWaveDescription")}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
-              Keep it
+              {t("keepIt")}
             </Button>
             <Button variant="danger" onClick={() => void handleDelete()} loading={deleting}>
-              Delete it
+              {t("deleteIt")}
             </Button>
           </div>
         }

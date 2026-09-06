@@ -1,12 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Handshake } from "@/components/ui/icons";
 
 import { Button, ErrorState, Textarea } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 
 import { requestDuet } from "@/app/(app)/w/[id]/duet/actions";
 
@@ -23,6 +23,8 @@ export interface DuetRequestFormProps {
  * (`src/app/(app)/w/[id]/duet/actions.ts`) owns every real check.
  */
 export function DuetRequestForm({ waveId, className }: DuetRequestFormProps) {
+  const t = useTranslations("DuetRequestForm");
+  const tTerms = useTranslations("Terms");
   const router = useRouter();
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function DuetRequestForm({ waveId, className }: DuetRequestFormProps) {
   if (sent) {
     return (
       <p role="status" className="text-sm text-fg-muted">
-        {TERMS.duetRequest} sent. Redirecting to your requests…
+        {t("sentRedirecting", { duetRequest: tTerms("duetRequest") })}
       </p>
     );
   }
@@ -56,8 +58,8 @@ export function DuetRequestForm({ waveId, className }: DuetRequestFormProps) {
       <div className="flex flex-col gap-4">
         <Textarea
           id="duet-request-message"
-          label="Add a message (optional)"
-          placeholder="Say why you'd love to Duet on this…"
+          label={t("addMessage")}
+          placeholder={t("messagePlaceholder")}
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           maxLength={MESSAGE_MAX_LENGTH}
@@ -65,10 +67,10 @@ export function DuetRequestForm({ waveId, className }: DuetRequestFormProps) {
           disabled={isPending}
         />
 
-        {error ? <ErrorState size="sm" title="Couldn't send this request" description={error} /> : null}
+        {error ? <ErrorState size="sm" title={t("sendError")} description={error} /> : null}
 
         <Button type="submit" size="lg" loading={isPending} leadingIcon={<Handshake className="size-4" />} fullWidth>
-          {TERMS.requestDuet}
+          {tTerms("requestDuet")}
         </Button>
       </div>
     </form>

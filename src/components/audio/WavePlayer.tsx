@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 
 import {
@@ -80,6 +81,8 @@ export function WavePlayer({
   hue,
   className,
 }: WavePlayerProps) {
+  const t = useTranslations("WavePlayer");
+  const tTerms = useTranslations("Terms");
   const store = usePlaybackStore();
   const playback = useWavePlayback(waveId, initialDuration);
   const { toggle, seekToRatio, seek, play } = useWaveControls(waveId, src, {
@@ -114,15 +117,12 @@ export function WavePlayer({
   // placeholder the moment the audio itself can tell us the shape.
   const trace = playback.peaks ?? peaks;
 
-  const accessibleName = title
-    ? `${playback.isPlaying ? "Pause" : "Play"} ${title}`
-    : playback.isPlaying
-      ? "Pause"
-      : "Play";
+  const playPauseWord = playback.isPlaying ? tTerms("pauseAction") : tTerms("playAction");
+  const accessibleName = title ? `${playPauseWord} ${title}` : playPauseWord;
 
   const transport = hasError ? (
     <IconButton
-      label="Retry playback"
+      label={t("retryPlayback")}
       icon={<RotateCcw className={compact ? "size-4" : "size-6"} />}
       variant="secondary"
       shape="round"
@@ -156,7 +156,7 @@ export function WavePlayer({
       duration={duration}
       onSeek={seekToRatio}
       height={TRACE_HEIGHT[size]}
-      label={title ? `Seek within ${title}` : "Seek"}
+      label={title ? t("seekWithin", { title }) : t("seek")}
       disabled={hasError}
       fullBleed={fullBleed}
       hue={hue}
@@ -171,7 +171,7 @@ export function WavePlayer({
         aria-live="polite"
         className={cn("px-2 text-center", hasError ? "text-signal-deep" : "sr-only")}
       >
-        {hasError ? playback.error : statusText(playback.status)}
+        {hasError ? playback.error : statusText(playback.status, t)}
       </span>
       <span>{formatDuration(duration)}</span>
     </div>
@@ -184,7 +184,7 @@ export function WavePlayer({
         {timecodes}
         <div className="flex items-center justify-center gap-6">
           <IconButton
-            label="Back 15 seconds"
+            label={t("back15Seconds")}
             icon={<SkipBack className="size-5" />}
             variant="secondary"
             shape="round"
@@ -193,7 +193,7 @@ export function WavePlayer({
           />
           {transport}
           <IconButton
-            label="Forward 15 seconds"
+            label={t("forward15Seconds")}
             icon={<SkipForward className="size-5" />}
             variant="secondary"
             shape="round"
@@ -233,18 +233,18 @@ export function WavePlayer({
   );
 }
 
-function statusText(status: string): string {
+function statusText(status: string, t: ReturnType<typeof useTranslations>): string {
   switch (status) {
     case "loading":
-      return "Loading audio";
+      return t("statusLoading");
     case "buffering":
-      return "Buffering";
+      return t("statusBuffering");
     case "playing":
-      return "Playing";
+      return t("statusPlaying");
     case "paused":
-      return "Paused";
+      return t("statusPaused");
     case "ended":
-      return "Finished";
+      return t("statusFinished");
     default:
       return "";
   }

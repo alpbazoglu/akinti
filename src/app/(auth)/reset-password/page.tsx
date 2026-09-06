@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
@@ -7,34 +8,34 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 import { ResetPasswordForm } from "./ResetPasswordForm";
 
-export const metadata = { title: "Set a new password" };
+export async function generateMetadata() {
+  const t = await getTranslations("ResetPasswordPage");
+  return { title: t("title") };
+}
 
 export default async function ResetPasswordPage() {
   const configured = isSupabaseConfigured();
   const user = configured ? await getCurrentUser() : null;
+  const t = await getTranslations("ResetPasswordPage");
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="type-display text-ink">Set a new password</h1>
+      <h1 className="type-display text-ink">{t("title")}</h1>
       {!configured ? (
-        <EmptyState
-          size="sm"
-          title="Backend not configured"
-          description="NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. Password reset is unavailable until this environment is connected to a Supabase project."
-        />
+        <EmptyState size="sm" title={t("notConnectedTitle")} description={t("notConnectedDescription")} />
       ) : user ? (
         <ResetPasswordForm />
       ) : (
         <EmptyState
           size="sm"
-          title="This link has expired"
-          description="Password reset links only work once and expire after a while. Request a new one and try again."
+          title={t("linkExpiredTitle")}
+          description={t("linkExpiredDescription")}
           action={
             <Link
               href={routes.forgotPassword()}
               className="text-sm font-medium text-accent underline underline-offset-2"
             >
-              Request a new link
+              {t("requestNewLink")}
             </Link>
           }
         />

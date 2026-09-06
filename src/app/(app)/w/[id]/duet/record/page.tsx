@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -10,7 +11,6 @@ import { getProfileById } from "@/lib/db/profiles";
 import { getWaveById } from "@/lib/db/waves";
 import { requireUser } from "@/lib/auth/server";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -21,7 +21,9 @@ interface DuetRecordPageProps {
 
 export async function generateMetadata({ params }: DuetRecordPageProps) {
   const { id } = await params;
-  return { title: `Record your ${TERMS.duet} · ${TERMS.wave} ${id}` };
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("DuetRecordPage");
+  return { title: `${tPage("recordYour", { duet: t("duet") })} · ${t("wave")} ${id}` };
 }
 
 /**
@@ -37,31 +39,31 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
   const { id } = await params;
   const { request: requestId } = await searchParams;
   const user = await requireUser(requestId ? routes.duetRecord(id, requestId) : routes.waveDuet(id));
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("DuetRecordPage");
+  const recordYourDuetTitle = tPage("recordYour", { duet: t("duet") });
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title={`Record your ${TERMS.duet}`} />
-        <EmptyState
-          title="This isn't connected to a backend yet"
-          description="Supabase environment variables aren't set, so Duets can't be recorded here."
-        />
+        <PageHeader title={recordYourDuetTitle} />
+        <EmptyState title={tPage("notConnectedTitle")} description={tPage("notConnectedDescription")} />
       </>
     );
   }
 
   if (!requestId) {
-    return <UnavailableState description="This link is missing its Duet Request. Start from your Duet Requests inbox." />;
+    return <UnavailableState description={tPage("missingRequestDescription")} />;
   }
 
   const db = await createServerSupabaseClient();
   const request = await getDuetRequestById(db, requestId);
 
   if (!request || request.waveId !== id) {
-    return <UnavailableState description="That Duet Request could not be found for this Wave." />;
+    return <UnavailableState description={tPage("requestNotFoundDescription")} />;
   }
   if (request.requesterId !== user.id) {
-    return <UnavailableState description="Only the person who requested this Duet can record it." />;
+    return <UnavailableState description={tPage("notRequesterDescription")} />;
   }
   if (request.resultingWaveId) {
     redirect(routes.wave(request.resultingWaveId));
@@ -71,8 +73,8 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
       <UnavailableState
         description={
           request.status === "pending"
-            ? "This Duet Request hasn't been accepted yet."
-            : "This Duet Request is no longer active."
+            ? tPage("notAcceptedYetDescription")
+            : tPage("noLongerActiveDescription")
         }
       />
     );
@@ -82,7 +84,7 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
   const original = originalWave ? await getAudioAssetById(db, originalWave.audioAssetId) : null;
 
   if (!originalWave || !original) {
-    return <UnavailableState description="The original Wave is no longer available." />;
+    return <UnavailableState description={tPage("originalUnavailableDescription")} />;
   }
 
   const creator = await getProfileById(db, originalWave.creatorId);
@@ -90,7 +92,7 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
   return (
     <>
       <PageHeader
-        title={`Record your ${TERMS.duet}`}
+        title={recordYourDuetTitle}
       />
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-24 sm:px-5">
         <DuetRecorder
@@ -106,11 +108,13 @@ export default async function DuetRecordPage({ params, searchParams }: DuetRecor
   );
 }
 
-function UnavailableState({ description }: { description: string }) {
+async function UnavailableState({ description }: { description: string }) {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("DuetRecordPage");
   return (
     <>
-      <PageHeader title={`Record your ${TERMS.duet}`} />
-      <EmptyState title="Can't record this Duet right now" description={description} />
+      <PageHeader title={tPage("recordYour", { duet: t("duet") })} />
+      <EmptyState title={tPage("cantRecordTitle")} description={description} />
     </>
   );
 }

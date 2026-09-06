@@ -1,8 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { TERMS } from "@/config/terminology";
 import { Bookmark, Handshake, MessageSquare, RotateCcw, Share2 } from "@/components/ui/icons";
 import { cn, formatCount } from "@/lib/ui";
 
@@ -81,25 +81,26 @@ export function FlowRail({
   onShare,
   onDuet,
 }: FlowRailProps) {
+  const tTerms = useTranslations("Terms");
   return (
     <div className="flex flex-col items-center gap-4">
-      <RailKey label={TERMS.replay} icon={<RotateCcw className="size-6" />} onClick={onReplay} />
+      <RailKey label={tTerms("replay")} icon={<RotateCcw className="size-6" />} onClick={onReplay} />
       <RailKey
-        label={isSaved ? TERMS.saved : TERMS.save}
+        label={isSaved ? tTerms("saved") : tTerms("save")}
         icon={<Bookmark className="size-6" weight={isSaved ? "fill" : "regular"} />}
         count={saveCount}
         pressed={isSaved}
         onClick={onSave}
       />
       <RailKey
-        label={TERMS.comment}
+        label={tTerms("comment")}
         icon={<MessageSquare className="size-6" />}
         count={commentCount}
         onClick={onComment}
       />
-      <RailKey label={TERMS.share} icon={<Share2 className="size-6" />} count={shareCount} onClick={onShare} />
+      <RailKey label={tTerms("share")} icon={<Share2 className="size-6" />} count={shareCount} onClick={onShare} />
       <RailKey
-        label={TERMS.requestDuet}
+        label={tTerms("requestDuet")}
         icon={<Handshake className="size-7" weight={openForDuet ? "fill" : "regular"} />}
         count={duetCount}
         onClick={onDuet}

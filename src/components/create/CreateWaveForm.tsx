@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useId, useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { X } from "@/components/ui/icons";
@@ -15,7 +16,7 @@ import {
   type WaveVisibility,
 } from "@/types/domain";
 import { Badge, Button, Chip, Input, Select, Switch, Textarea, type SelectOption } from "@/components/ui";
-import { CREATION_TYPES, TERMS } from "@/config/terminology";
+import { CREATION_TYPES } from "@/config/terminology";
 import { cn } from "@/lib/ui";
 
 import { TakeStrip } from "./TakeStrip";
@@ -36,29 +37,6 @@ export interface CreateWaveFormProps {
   onOpenCallChange?: (open: boolean) => void;
   className?: string;
 }
-
-const VISIBILITY_LABELS: Record<WaveVisibility, string> = {
-  everyone: "Everyone",
-  followers: TERMS.followers,
-  only_me: "Only me",
-};
-
-const PERMISSION_LABELS: Record<PermissionAudience, string> = {
-  everyone: "Everyone",
-  followers: TERMS.followers,
-  following: TERMS.following,
-  nobody: "Nobody",
-};
-
-const VISIBILITY_OPTIONS: SelectOption[] = WAVE_VISIBILITIES.map((value) => ({
-  value,
-  label: VISIBILITY_LABELS[value],
-}));
-
-const PERMISSION_OPTIONS_WITH_DEFAULT: SelectOption[] = [
-  { value: "", label: "Use my profile default" },
-  ...PERMISSION_AUDIENCES.map((value) => ({ value, label: PERMISSION_LABELS[value] })),
-];
 
 const TITLE_MAX_LENGTH = 140;
 const DESCRIPTION_MAX_LENGTH = 280;
@@ -90,7 +68,30 @@ export function CreateWaveForm({
   onOpenCallChange,
   className,
 }: CreateWaveFormProps) {
+  const t = useTranslations("CreateWaveForm");
+  const tTerms = useTranslations("Terms");
   const idPrefix = useId();
+
+  const visibilityOptions: SelectOption[] = WAVE_VISIBILITIES.map((value) => ({
+    value,
+    label: value === "everyone" ? t("everyone") : value === "followers" ? tTerms("followers") : t("onlyMe"),
+  }));
+
+  const permissionOptionsWithDefault: SelectOption[] = [
+    { value: "", label: t("useMyProfileDefault") },
+    ...PERMISSION_AUDIENCES.map((value) => ({
+      value,
+      label:
+        value === "everyone"
+          ? t("everyone")
+          : value === "followers"
+            ? tTerms("followers")
+            : value === "following"
+              ? tTerms("following")
+              : t("nobody"),
+    })),
+  ];
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<WaveVisibility>("everyone");
@@ -135,7 +136,7 @@ export function CreateWaveForm({
     event.preventDefault();
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      setTitleError("Give this Wave a title.");
+      setTitleError(t("giveThisWaveATitle", { wave: tTerms("wave") }));
       return;
     }
     setTitleError(null);
@@ -158,13 +159,13 @@ export function CreateWaveForm({
         <TakeStrip blob={audio.blob} peaks={audio.previewPeaks} durationMs={audio.durationMs} />
         <div className="flex flex-wrap items-center gap-2">
           <Badge>{creationMeta.label}</Badge>
-          {backingTrackTitle ? <Badge>Over {backingTrackTitle}</Badge> : null}
+          {backingTrackTitle ? <Badge>{t("over", { title: backingTrackTitle })}</Badge> : null}
         </div>
       </div>
 
       <Input
         id={`${idPrefix}-title`}
-        label="Title"
+        label={t("titleLabel")}
         value={title}
         onChange={(event) => {
           setTitle(event.target.value);
@@ -177,7 +178,7 @@ export function CreateWaveForm({
 
       <Textarea
         id={`${idPrefix}-description`}
-        label="What is this?"
+        label={t("whatIsThis")}
         value={description}
         onChange={(event) => setDescription(event.target.value)}
         maxLength={DESCRIPTION_MAX_LENGTH}
@@ -187,8 +188,8 @@ export function CreateWaveForm({
       {showOpenCall ? (
         <div className="border-t border-hairline pt-4">
           <Switch
-            label={TERMS.openForDuet}
-            description="Anyone can ask to record with this."
+            label={tTerms("openForDuet")}
+            description={t("openForDuetDescription")}
             checked={openCall === true}
             onCheckedChange={(next) => onOpenCallChange?.(next)}
           />
@@ -197,42 +198,42 @@ export function CreateWaveForm({
 
       <Select
         id={`${idPrefix}-visibility`}
-        label="Who can hear it"
+        label={t("whoCanHearIt")}
         value={visibility}
         onChange={(event) => setVisibility(event.target.value as WaveVisibility)}
-        options={VISIBILITY_OPTIONS}
-        hint="This controls who can open it, not just what is shown."
+        options={visibilityOptions}
+        hint={t("visibilityHint")}
       />
 
       <Select
         id={`${idPrefix}-comment-permission`}
-        label="Who can comment"
+        label={t("whoCanComment")}
         value={commentPermission ?? ""}
         onChange={(event) =>
           setCommentPermission((event.target.value || null) as PermissionAudience | null)
         }
-        options={PERMISSION_OPTIONS_WITH_DEFAULT}
+        options={permissionOptionsWithDefault}
       />
 
       <Select
         id={`${idPrefix}-duet-permission`}
-        label={`Who can ${TERMS.requestDuet.toLowerCase()}`}
+        label={t("whoCanRequestDuet", { duet: tTerms("duet") })}
         value={duetPermission ?? ""}
         onChange={(event) =>
           setDuetPermission((event.target.value || null) as PermissionAudience | null)
         }
-        options={PERMISSION_OPTIONS_WITH_DEFAULT}
+        options={permissionOptionsWithDefault}
       />
 
       <div className="flex flex-col gap-2">
         <Input
           id={`${idPrefix}-collaborators`}
-          label={TERMS.collaborators}
+          label={tTerms("collaborators")}
           value={collaboratorInput}
           onChange={(event) => setCollaboratorInput(event.target.value)}
           onKeyDown={handleCollaboratorKeyDown}
           onBlur={addCollaborator}
-          hint="A username at a time. They accept before they are credited."
+          hint={t("collaboratorsHint")}
           disabled={collaborators.length >= MAX_COLLABORATORS}
         />
         {collaborators.length > 0 ? (
@@ -243,7 +244,7 @@ export function CreateWaveForm({
                 selected
                 icon={<X className="size-3.5" />}
                 onClick={() => removeCollaborator(username)}
-                aria-label={`Remove ${username}`}
+                aria-label={t("removeUsername", { username })}
               >
                 @{username}
               </Chip>
@@ -253,8 +254,8 @@ export function CreateWaveForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className="type-caption-strong text-ink-muted">Tags</span>
-        <div role="group" aria-label="Tags" className="flex flex-wrap gap-2">
+        <span className="type-caption-strong text-ink-muted">{t("tags")}</span>
+        <div role="group" aria-label={t("tags")} className="flex flex-wrap gap-2">
           {WAVE_CATEGORY_OPTIONS.map((category) => (
             <Chip
               key={category}
@@ -267,7 +268,7 @@ export function CreateWaveForm({
         </div>
       </div>
 
-      <Button type="submit" size="lg" loading={submitting} loadingLabel="Publishing" fullWidth>
+      <Button type="submit" size="lg" loading={submitting} loadingLabel={t("publishing")} fullWidth>
         {submitLabel}
       </Button>
     </form>

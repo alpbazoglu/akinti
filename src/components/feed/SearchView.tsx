@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { runSearch } from "@/app/(app)/search/actions";
@@ -9,7 +10,6 @@ import { Avatar, IconButton, Input, Spinner } from "@/components/ui";
 import { Search, X } from "@/components/ui/icons";
 import { WaveCardContainer, WaveCardSkeleton, type WaveCardContainerWave } from "@/components/wave";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { formatCount } from "@/lib/ui";
 import type { Profile } from "@/types/domain";
 
@@ -45,6 +45,8 @@ export function SearchView({
   initialError,
 }: SearchViewProps) {
   const router = useRouter();
+  const t = useTranslations("SearchView");
+  const tTerms = useTranslations("Terms");
   const [query, setQuery] = useState(initialQuery);
   const [profiles, setProfiles] = useState(initialProfiles);
   const [waves, setWaves] = useState(initialWaves);
@@ -78,17 +80,17 @@ export function SearchView({
             recent.remember(trimmed);
           } else {
             setStatus("error");
-            setError(result.error ?? "Search didn't run. Try again.");
+            setError(result.error ?? t("searchFailed"));
           }
         },
         () => {
           if (requestIdRef.current !== requestId) return;
           setStatus("error");
-          setError("Search didn't run. Try again.");
+          setError(t("searchFailed"));
         },
       );
     },
-    [recent, router],
+    [recent, router, t],
   );
 
   // Debouncing is driven from the input's own change handler, not a `query`
@@ -135,10 +137,10 @@ export function SearchView({
       <div className="akinti-page">
         <Input
           id="search-query"
-          label={TERMS.search}
+          label={tTerms("search")}
           hideLabel
           type="search"
-          placeholder="Names, handles, titles"
+          placeholder={t("placeholder")}
           value={query}
           onChange={(event) => handleQueryChange(event.target.value)}
           leadingIcon={<Search className="size-5" />}
@@ -151,7 +153,7 @@ export function SearchView({
         recent.items.length > 0 ? (
           <section aria-labelledby="recent-searches" className="flex flex-col gap-1 pt-8">
             <h2 id="recent-searches" className="akinti-page type-caption-strong pb-2 text-ink-muted">
-              Recent
+              {t("recent")}
             </h2>
             <ul className="flex flex-col">
               {recent.items.map((item) => (
@@ -167,7 +169,7 @@ export function SearchView({
                     {item}
                   </button>
                   <IconButton
-                    label={`Remove ${item} from recent searches`}
+                    label={t("removeFromRecent", { item })}
                     icon={<X className="size-4" />}
                     size="sm"
                     onClick={() => recent.forget(item)}
@@ -178,20 +180,20 @@ export function SearchView({
           </section>
         ) : (
           <p className="akinti-page type-body measure pt-8 text-ink-muted">
-            Look for a person by name or handle, or for {TERMS.aWave} by its title.
+            {t("emptyPrompt", { aWave: tTerms("aWave") })}
           </p>
         )
       ) : status === "error" ? (
         <div className="akinti-page flex flex-col items-start gap-4 pt-8">
           <p role="alert" className="type-body measure text-ink">
-            {error ?? "Search didn't run. Try again."}
+            {error ?? t("searchFailed")}
           </p>
           <button
             type="button"
             onClick={() => search(trimmedQuery)}
             className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
           >
-            Try again
+            {t("tryAgain")}
           </button>
         </div>
       ) : status === "loading" && !hasResults ? (
@@ -200,14 +202,12 @@ export function SearchView({
         </div>
       ) : !hasResults ? (
         <div className="akinti-page flex flex-col items-start gap-4 pt-8">
-          <p className="type-body measure text-ink">
-            Nothing matched &ldquo;{trimmedQuery}&rdquo;.
-          </p>
+          <p className="type-body measure text-ink">{t("noMatch", { query: trimmedQuery })}</p>
           <Link
             href={routes.explore()}
             className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
           >
-            Browse {TERMS.explore}
+            {t("browseExplore", { explore: tTerms("explore") })}
           </Link>
         </div>
       ) : (
@@ -215,7 +215,7 @@ export function SearchView({
           {profiles.length > 0 ? (
             <section aria-labelledby="search-people" className="flex flex-col pt-8">
               <h2 id="search-people" className="akinti-page type-caption-strong pb-2 text-ink-muted">
-                People
+                {t("people")}
               </h2>
               <ul className="flex flex-col">
                 {profiles.map((profile) => {
@@ -233,11 +233,11 @@ export function SearchView({
                             @{profile.username}
                             {profile.counts.followers > 0 ? (
                               <>
-                                <span aria-hidden="true"> &middot; </span>
+                                <span aria-hidden="true"> · </span>
                                 <span className="type-mono-sm">
                                   {formatCount(profile.counts.followers)}
                                 </span>{" "}
-                                {TERMS.followers.toLowerCase()}
+                                {t("followers")}
                               </>
                             ) : null}
                           </span>
@@ -253,7 +253,7 @@ export function SearchView({
           {waves.length > 0 ? (
             <section aria-labelledby="search-waves" className="flex flex-col pt-8">
               <h2 id="search-waves" className="akinti-page type-caption-strong text-ink-muted">
-                {TERMS.waves}
+                {tTerms("waves")}
               </h2>
               <div className="flex flex-col">
                 {waves.map((wave) => (

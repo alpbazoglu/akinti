@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 
 import { TraceRow, type TraceRowWave } from "./TraceRow";
 
@@ -31,6 +31,9 @@ export interface OpenCallsLaneProps {
  * appear, because it denotes audio availability (§4.1, SCREENS.md §3).
  */
 export function OpenCallsLane({ calls }: OpenCallsLaneProps) {
+  const t = useTranslations("OpenCallsLane");
+  const tTerms = useTranslations("Terms");
+
   if (calls.length === 0) {
     return null;
   }
@@ -39,7 +42,7 @@ export function OpenCallsLane({ calls }: OpenCallsLaneProps) {
     <section aria-labelledby="open-calls" className="flex flex-col gap-4 pt-8">
       <h2 id="open-calls" className="akinti-page type-caption-strong flex items-center gap-2 text-ink-muted">
         <span aria-hidden="true" className="size-2 rounded-label bg-signal" />
-        Open calls
+        {t("openCalls")}
       </h2>
 
       <div className="flex flex-col">
@@ -50,15 +53,13 @@ export function OpenCallsLane({ calls }: OpenCallsLaneProps) {
               <div />
               <div className="flex min-w-0 flex-col items-start gap-3">
                 {call.prompt ? (
-                  <p className="type-body-sm measure text-ink-muted">
-                    &ldquo;{call.prompt}&rdquo;
-                  </p>
+                  <p className="type-body-sm measure text-ink-muted">“{call.prompt}”</p>
                 ) : null}
                 <Link
                   href={routes.waveDuet(call.waveId)}
                   className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
                 >
-                  Answer this call
+                  {t("answerThisCall")}
                 </Link>
               </div>
             </div>
@@ -67,7 +68,7 @@ export function OpenCallsLane({ calls }: OpenCallsLaneProps) {
       </div>
 
       <p className="akinti-page type-caption text-ink-subtle">
-        Answering an open call records a {TERMS.duet} straight away. No request, no waiting.
+        {t("answeringDescription", { duet: tTerms("duet") })}
       </p>
     </section>
   );

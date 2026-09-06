@@ -1,10 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { loadComments, type CommentPermissionState } from "@/app/(app)/w/[id]/interactions";
 import { useToast } from "@/components/ui";
-import { TERMS } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
 import { mergeCommentPage, prependComment, removeComment } from "@/lib/interactions";
 import type { CommentWithAuthor, Page } from "@/types/domain";
@@ -35,6 +35,8 @@ export function CommentsSection({
   initialPermission,
   initialCommentCount,
 }: CommentsSectionProps) {
+  const t = useTranslations("CommentsSection");
+  const tTerms = useTranslations("Terms");
   const { user } = useCurrentUser();
   const { toast } = useToast();
 
@@ -54,7 +56,7 @@ export function CommentsSection({
     startLoadingMore(async () => {
       const result = await loadComments(waveId, cursor);
       if (!result.ok || !result.data) {
-        toast({ title: result.error ?? "More comments didn't load.", tone: "error" });
+        toast({ title: result.error ?? t("moreCommentsError"), tone: "error" });
         return;
       }
       setComments((current) => mergeCommentPage(current, result.data!.items));
@@ -65,7 +67,7 @@ export function CommentsSection({
   return (
     <section id="comments" className="scroll-mt-20 flex flex-col pt-8">
       <h2 className="akinti-page type-caption-strong pb-4 text-ink-muted">
-        {TERMS.comments}
+        {tTerms("comments")}
         {count > 0 ? (
           <>
             {" ("}
@@ -114,7 +116,7 @@ export function CommentsSection({
             disabled={isLoadingMore}
             className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-55"
           >
-            {isLoadingMore ? "Loading comments" : "Show more comments"}
+            {isLoadingMore ? t("loadingComments") : t("showMoreComments")}
           </button>
         </div>
       ) : null}

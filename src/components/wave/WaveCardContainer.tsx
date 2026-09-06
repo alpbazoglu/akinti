@@ -29,7 +29,8 @@
  * its accessible name exactly like the transport-button interception above.
  */
 
-import { useCallback, useEffect, useReducer, useRef, useState, type MouseEvent } from "react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { saveWave, unsaveWave } from "@/app/(app)/w/[id]/interactions";
@@ -37,7 +38,6 @@ import { usePlaybackStore } from "@/lib/audio";
 import { saveReducer } from "@/lib/interactions";
 import { emitAnalyticsEvent, usePlayTracker } from "@/lib/metrics";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { ShareSheet } from "@/components/share";
 import { useToast } from "@/components/ui";
 
@@ -54,11 +54,6 @@ export interface WaveCardContainerProps extends Omit<WaveCardProps, "wave"> {
   unheard?: boolean;
 }
 
-/** Matches `WavePlayer`'s `accessibleName` for the transport button exactly. */
-const TRANSPORT_LABEL_RE = /^(Play|Pause|Retry playback)\b/;
-
-const DUET_DISABLED_TITLE = "This creator isn't accepting Duet Requests right now.";
-
 export function WaveCardContainer({
   wave,
   unheard = false,
@@ -68,6 +63,9 @@ export function WaveCardContainer({
   onRequestDuet,
   ...rest
 }: WaveCardContainerProps) {
+  const t = useTranslations("WaveCardContainer");
+  const tTerms = useTranslations("Terms");
+  const tWavePlayer = useTranslations("WavePlayer");
   const store = usePlaybackStore();
   const router = useRouter();
   const { toast } = useToast();
@@ -77,6 +75,17 @@ export function WaveCardContainer({
   const [loadError, setLoadError] = useState<string | null>(null);
   const fetchingRef = useRef<Promise<string | null> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // Matches `WavePlayer`'s translated accessible name for the transport
+  // button exactly — built from the same translated words `WavePlayer`
+  // renders, not a hardcoded English regex (see `WaveDetail.tsx`'s
+  // `transportLabelRe` for the same pattern).
+  const transportLabelRe = useMemo(() => {
+    const words = [tTerms("playAction"), tTerms("pauseAction"), tWavePlayer("retryPlayback")].map(
+      (word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    );
+    return new RegExp(`^(${words.join("|")})\\b`);
+  }, [tTerms, tWavePlayer]);
 
   const [saveState, dispatchSave] = useReducer(saveReducer, {
     isSaved: wave.isSaved ?? false,
@@ -92,14 +101,14 @@ export function WaveCardContainer({
   useEffect(() => {
     const button = Array.from(
       cardRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? [],
-    ).find((el) => el.textContent?.trim().startsWith(TERMS.requestDuet));
+    ).find((el) => el.textContent?.trim().startsWith(tTerms("requestDuet")));
     if (!button) return;
     if (canRequestDuet) {
       button.removeAttribute("title");
     } else {
-      button.title = DUET_DISABLED_TITLE;
+      button.title = t("duetDisabledTitle");
     }
-  }, [canRequestDuet]);
+  }, [canRequestDuet, t, tTerms]);
 
   const ensureAudioUrl = useCallback((): Promise<string | null> => {
     if (audioUrl) {
@@ -123,7 +132,7 @@ export function WaveCardContainer({
         return data.url;
       })
       .catch(() => {
-        setLoadError("This Wave's audio could not be loaded. Try again.");
+        setLoadError(t("audioLoadError"));
         return null;
       })
       .finally(() => {
@@ -132,7 +141,7 @@ export function WaveCardContainer({
 
     fetchingRef.current = request;
     return request;
-  }, [audioUrl, wave.audioAssetId]);
+  }, [audioUrl, t, wave.audioAssetId]);
 
   const handleClickCapture = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
@@ -155,7 +164,7 @@ export function WaveCardContainer({
       // `button` is still safe.
       const control = target.closest("button");
       const label = control?.textContent?.trim() ?? "";
-      if (!TRANSPORT_LABEL_RE.test(label)) {
+      if (!transportLabelRe.test(label)) {
         return;
       }
 
@@ -171,7 +180,7 @@ export function WaveCardContainer({
         });
       });
     },
-    [audioUrl, ensureAudioUrl, store, wave.id, wave.title, wave.creator.username, wave.duration],
+    [audioUrl, ensureAudioUrl, store, transportLabelRe, wave.id, wave.title, wave.creator.username, wave.duration],
   );
 
   /** Comment opens the comments Sheet on cards that render one; the default here navigates to the Wave's comments section (spec §14 — either is acceptable). */
@@ -194,7 +203,7 @@ export function WaveCardContainer({
       void action.then((result) => {
         if (!result.ok) {
           dispatchSave({ type: "rollback" });
-          toast({ title: result.error ?? "Could not update this Save. Try again.", tone: "error" });
+          toast({ title: result.error ?? t("saveUpdateError"), tone: "error" });
           return;
         }
         dispatchSave({ type: "confirm" });
@@ -206,7 +215,7 @@ export function WaveCardContainer({
         });
       });
     },
-    [onSave, saveState.isSaved, toast],
+    [onSave, saveState.isSaved, t, toast],
   );
 
   const handleShare = useCallback(

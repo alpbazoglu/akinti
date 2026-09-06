@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/ui";
 
@@ -17,11 +19,11 @@ export const PUBLISH_STAGES: readonly Exclude<PublishStage, "done">[] = [
   "queued",
 ];
 
-const STAGE_LABEL: Record<Exclude<PublishStage, "done">, string> = {
-  uploading: "Sending your recording",
-  checking: "Checking it arrived",
-  queued: "Queued for polishing",
-};
+const STAGE_LABEL_KEY = {
+  uploading: "stageUploading",
+  checking: "stageChecking",
+  queued: "stageQueued",
+} as const satisfies Record<Exclude<PublishStage, "done">, string>;
 
 export interface PublishProgressProps {
   stage: PublishStage;
@@ -63,6 +65,7 @@ export function PublishProgress({
   pitchScore = null,
   className,
 }: PublishProgressProps) {
+  const t = useTranslations("PublishProgress");
   const currentIndex = stage === "done" ? PUBLISH_STAGES.length : PUBLISH_STAGES.indexOf(stage);
 
   return (
@@ -85,7 +88,7 @@ export function PublishProgress({
                   failed && "text-signal-deep",
                 )}
               >
-                {STAGE_LABEL[item]}
+                {t(STAGE_LABEL_KEY[item])}
               </span>
             </li>
           );
@@ -95,22 +98,20 @@ export function PublishProgress({
       {error ? (
         <div className="flex flex-col gap-3 border-t border-hairline pt-4">
           <p className="type-body-sm measure text-ink">{error}</p>
-          <p className="type-caption measure text-ink-subtle">Your recording is still here.</p>
+          <p className="type-caption measure text-ink-subtle">{t("recordingStillHere")}</p>
           {onRetry ? (
             <div>
-              <Button onClick={onRetry}>Try again</Button>
+              <Button onClick={onRetry}>{t("tryAgain")}</Button>
             </div>
           ) : null}
         </div>
       ) : stage === "done" ? (
         <>
-          <p className="type-caption measure text-ink-subtle">Published.</p>
+          <p className="type-caption measure text-ink-subtle">{t("published")}</p>
           <PitchReport pitchScore={pitchScore} />
         </>
       ) : (
-        <p className="type-caption measure text-ink-subtle">
-          Polishing happens after this, on our side. You can watch it on the Wave.
-        </p>
+        <p className="type-caption measure text-ink-subtle">{t("polishingDescription")}</p>
       )}
     </section>
   );

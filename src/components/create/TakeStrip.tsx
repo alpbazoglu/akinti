@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useMemo } from "react";
 
 import { Waveform } from "@/components/audio";
@@ -25,6 +26,7 @@ export interface TakeStripProps {
  * like everything else that makes a sound in this product (spec §12).
  */
 export function TakeStrip({ blob, peaks, durationMs, className }: TakeStripProps) {
+  const t = useTranslations("TakeStrip");
   const generatedId = useId();
   const waveId = `take-strip-${generatedId}`;
   const url = useMemo(() => URL.createObjectURL(blob), [blob]);
@@ -37,7 +39,7 @@ export function TakeStrip({ blob, peaks, durationMs, className }: TakeStripProps
 
   const playback = useWavePlayback(waveId, durationMs / 1000);
   const { toggle, seekToRatio } = useWaveControls(waveId, url, {
-    title: "Your take",
+    title: t("yourTake"),
     duration: durationMs / 1000,
     peaks,
   });
@@ -48,7 +50,7 @@ export function TakeStrip({ blob, peaks, durationMs, className }: TakeStripProps
   return (
     <div className={cn("flex items-center gap-4", className)}>
       <IconButton
-        label={playback.isPlaying ? "Pause your take" : "Play your take"}
+        label={playback.isPlaying ? t("pauseYourTake") : t("playYourTake")}
         icon={
           playback.isPlaying ? (
             <Pause className="size-4" weight="fill" />
@@ -67,7 +69,7 @@ export function TakeStrip({ blob, peaks, durationMs, className }: TakeStripProps
         duration={duration}
         onSeek={seekToRatio}
         height={32}
-        label="Seek within your take"
+        label={t("seekWithinYourTake")}
         className="flex-1"
       />
       <span className="type-mono-sm shrink-0 text-ink-subtle">{formatDuration(duration)}</span>

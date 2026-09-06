@@ -14,6 +14,7 @@
  * conversation/messaging logic.
  */
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { ArrowLeft, Check, Link as LinkIcon, MessageCircle, Send, Share2 } from "@/components/ui/icons";
 
@@ -23,7 +24,6 @@ import { useCurrentUser } from "@/lib/auth";
 import { buildWaveShareUrl } from "@/lib/interactions";
 import { emitAnalyticsEvent } from "@/lib/metrics";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { Avatar, Sheet, Spinner, useToast } from "@/components/ui";
 import type { ConversationSummary } from "@/types/domain";
 
@@ -41,6 +41,8 @@ export interface ShareSheetProps {
 type View = "main" | "conversations";
 
 export function ShareSheet({ open, onClose, wave }: ShareSheetProps) {
+  const t = useTranslations("ShareSheet");
+  const tTerms = useTranslations("Terms");
   const { toast } = useToast();
   const [view, setView] = useState<View>("main");
   const [copied, setCopied] = useState(false);
@@ -65,11 +67,11 @@ export function ShareSheet({ open, onClose, wave }: ShareSheetProps) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast({ title: "Link copied.", tone: "success" });
+      toast({ title: t("linkCopied"), tone: "success" });
       const result = await recordShare(wave.id, "link");
       if (result.ok) fireShared("link");
     } catch {
-      toast({ title: "The link didn't copy.", description: url, tone: "error" });
+      toast({ title: t("linkCopyFailed"), description: url, tone: "error" });
     }
   };
 
@@ -91,26 +93,26 @@ export function ShareSheet({ open, onClose, wave }: ShareSheetProps) {
     <Sheet
       open={open}
       onClose={handleClose}
-      title={view === "main" ? `${TERMS.share} this ${TERMS.wave}` : "Send in a message"}
+      title={view === "main" ? t("shareThisWave", { share: tTerms("share"), wave: tTerms("wave") }) : t("sendInMessage")}
       description={view === "main" ? wave.title : undefined}
     >
       {view === "main" ? (
         <div className="flex flex-col">
           <ShareOption
             icon={copied ? <Check className="size-5" /> : <LinkIcon className="size-5" />}
-            label={copied ? "Link copied" : "Copy link"}
+            label={copied ? t("linkCopiedLabel") : t("copyLink")}
             onClick={handleCopyLink}
           />
           {canNativeShare ? (
             <ShareOption
               icon={<Share2 className="size-5" />}
-              label="Share elsewhere"
+              label={t("shareElsewhere")}
               onClick={handleNativeShare}
             />
           ) : null}
           <ShareOption
             icon={<MessageCircle className="size-5" />}
-            label="Send in a message"
+            label={t("sendInMessage")}
             onClick={() => setView("conversations")}
           />
         </div>
@@ -160,6 +162,8 @@ interface ConversationPickerProps {
 }
 
 function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
+  const t = useTranslations("ShareSheet");
+  const tTerms = useTranslations("Terms");
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
@@ -173,7 +177,7 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
       const result = await loadMoreConversations(null);
       if (cancelled) return;
       if (!result.ok || !result.data) {
-        setLoadError(result.error ?? "Your conversations didn't load.");
+        setLoadError(result.error ?? t("conversationsLoadError"));
         return;
       }
       setConversations(result.data.items);
@@ -181,17 +185,17 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const handleSend = async (conversationId: string) => {
     setSendingId(conversationId);
     const result = await shareWaveToConversation(wave.id, conversationId);
     setSendingId(null);
     if (!result.ok) {
-      toast({ title: result.error ?? "That didn't send. Try again.", tone: "error" });
+      toast({ title: result.error ?? t("sendError"), tone: "error" });
       return;
     }
-    toast({ title: "Sent.", tone: "success" });
+    toast({ title: t("sent"), tone: "success" });
     onSent();
   };
 
@@ -203,12 +207,12 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
         className="type-caption inline-flex items-center gap-1.5 self-start text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Back
+        {t("back")}
       </button>
 
       {isPending && conversations === null ? (
         <div className="flex justify-center py-8">
-          <Spinner label="Loading conversations" />
+          <Spinner label={t("loadingConversations")} />
         </div>
       ) : loadError ? (
         <div className="flex flex-col items-start gap-3 py-4">
@@ -219,19 +223,19 @@ function ConversationPicker({ wave, onBack, onSent }: ConversationPickerProps) {
             href={routes.messages()}
             className="type-caption text-ink underline decoration-hairline-strong underline-offset-[3px] hover:decoration-ink"
           >
-            Open {TERMS.messages}
+            {t("openMessages", { messages: tTerms("messages") })}
           </a>
         </div>
       ) : conversations && conversations.length === 0 ? (
         <p className="type-body-sm measure py-4 text-ink-muted">
-          You have no conversations yet. Start one, then you can send {TERMS.waves} into it.
+          {t("noConversations", { waves: tTerms("waves") })}
         </p>
       ) : (
         <ul className="flex flex-col">
           {conversations?.map((summary) => {
             const other =
               summary.members.find((m) => m.id !== user?.id) ?? summary.members[0] ?? null;
-            const name = other?.displayName ?? (other ? `@${other.username}` : "Conversation");
+            const name = other?.displayName ?? (other ? `@${other.username}` : t("conversation"));
             return (
               <li key={summary.conversation.id}>
                 <button
