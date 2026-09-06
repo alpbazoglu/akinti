@@ -166,6 +166,14 @@ const MEDIA_EVENTS = [
 
 function defaultCreateAudio(): PlaybackAudioElement {
   const element = document.createElement("audio");
+  // Every playback `src` is a Supabase Storage signed URL — a cross-origin
+  // resource. Without `crossOrigin` set BEFORE any `src` is ever assigned,
+  // `analyser.ts`'s `createMediaElementSource` builds a
+  // `MediaElementAudioSourceNode` the Web Audio spec defines as permanently
+  // silent for a cross-origin element loaded without CORS (review3 finding
+  // 5) — setting it after the fact would need a reload to take effect, so
+  // this has to happen here, at element creation, not at `play()` time.
+  element.crossOrigin = "anonymous";
   element.preload = "metadata";
   return element as unknown as PlaybackAudioElement;
 }

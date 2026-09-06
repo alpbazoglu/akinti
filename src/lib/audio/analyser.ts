@@ -88,3 +88,42 @@ export function readFlowAmplitude(analyser: AnalyserNode, buffer: Uint8Array<Arr
   }
   return Math.min(1, Math.sqrt(sumSquares / buffer.length) * 1.6);
 }
+
+/** Amplitude at or below this reads as "silent" for fallback purposes — real audio never sits this flat. */
+const FLOW_SILENCE_LEVEL = 0.015;
+/** How long amplitude must stay silent while playing before `FlowTrace` gives up on the live pulse. */
+const FLOW_SILENCE_FALLBACK_MS = 1000;
+
+let silenceStartedAt: number | null = null;
+
+/**
+ * Defence in depth for review3 finding 5: setting `crossOrigin` before `src`
+ * (`playbackStore.ts`'s `defaultCreateAudio`) is the actual fix for Web
+ * Audio reading silence on a cross-origin element, but this module has no
+ * way to prove that held for every browser/storage configuration this app
+ * will ever run under. If the analyser genuinely reads near-zero for a full
+ * second while the element is playing, that is either a real silent
+ * passage or a CORS/permission failure the fix above did not catch — either
+ * way, continuing to scale the trace on noise-floor jitter would be
+ * `docs/design/DESIGN.md`'s banned fake motion. `FlowTrace` calls this once
+ * per frame with the level `readFlowAmplitude` just measured; once it
+ * returns `true`, `FlowTrace` stops applying the live pulse and the trace
+ * simply shows its static peaks (already drawn underneath — no separate
+ * "fallback rendering" path needed).
+ */
+export function trackFlowSilence(level: number, now: number): boolean {
+  if (level > FLOW_SILENCE_LEVEL) {
+    silenceStartedAt = null;
+    return false;
+  }
+  if (silenceStartedAt === null) {
+    silenceStartedAt = now;
+    return false;
+  }
+  return now - silenceStartedAt >= FLOW_SILENCE_FALLBACK_MS;
+}
+
+/** Call when playback stops/changes so a paused Wave doesn't start "silent" the instant it resumes. */
+export function resetFlowSilenceTracking(): void {
+  silenceStartedAt = null;
+}

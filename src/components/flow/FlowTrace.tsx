@@ -5,7 +5,13 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 
 import { WaveformCanvas, type TraceHue, type WaterlineState } from "@/components/audio";
 import { usePlaybackStore } from "@/lib/audio";
-import { FLOW_ANALYSER_FFT_SIZE, getFlowAnalyser, readFlowAmplitude } from "@/lib/audio/analyser";
+import {
+  FLOW_ANALYSER_FFT_SIZE,
+  getFlowAnalyser,
+  readFlowAmplitude,
+  resetFlowSilenceTracking,
+  trackFlowSilence,
+} from "@/lib/audio/analyser";
 import { useReducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/ui";
 
@@ -65,7 +71,12 @@ export function FlowTrace({ peaks, progress, loaded = 1, state, hue, height = 20
       const analyser = getFlowAnalyser(store);
       if (analyser) {
         const level = readFlowAmplitude(analyser, bufferRef.current);
-        wrapper.style.transform = `scaleY(${1 + level * 0.06})`;
+        // A full second of near-zero amplitude while playing means the live
+        // pulse is not real signal (review3 finding 5) — stop scaling on
+        // noise-floor jitter and just show the static peaks underneath
+        // rather than fake motion.
+        const silent = trackFlowSilence(level, performance.now());
+        wrapper.style.transform = silent ? "" : `scaleY(${1 + level * 0.06})`;
       }
       frame = requestAnimationFrame(tick);
     };
@@ -74,6 +85,7 @@ export function FlowTrace({ peaks, progress, loaded = 1, state, hue, height = 20
     return () => {
       stopped = true;
       cancelAnimationFrame(frame);
+      resetFlowSilenceTracking();
       wrapper.style.transform = "";
     };
   }, [store, state, reducedMotion]);
