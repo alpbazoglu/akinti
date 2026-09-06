@@ -1,8 +1,9 @@
 
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { hydrateContentWavePage } from "@/lib/interactions";
 import { listProfileDuets } from "@/lib/db/waves";
@@ -12,17 +13,23 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loadMyDuets } from "../actions";
 import { ContentWaveList } from "../ContentWaveList";
 
-export const metadata = { title: `Duets · ${TERMS.settings}` };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("MyDuetsContentPage");
+  return { title: tPage("metaTitle", { settings: t("settings") }) };
+}
 
 /** Settings → Content → Duets (spec §25): every Duet the viewer has published, newest first. */
 export default async function MyDuetsContentPage() {
   const user = await requireUser(routes.settingsContentDuets());
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("MyDuetsContentPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title={TERMS.duets} />
-        <EmptyState title="Backend not configured" description="Your Duets are unavailable in this environment." />
+        <PageHeader title={t("duets")} />
+        <EmptyState title={tPage("backendNotConfiguredTitle")} description={tPage("backendNotConfiguredDescription")} />
       </>
     );
   }
@@ -32,14 +39,14 @@ export default async function MyDuetsContentPage() {
 
   return (
     <>
-      <PageHeader title={TERMS.duets} />
+      <PageHeader title={t("duets")} />
       <div className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
         <ContentWaveList
           initialItems={page.items}
           initialCursor={page.nextCursor}
           loadMore={loadMyDuets}
-          emptyTitle={`No ${TERMS.duets.toLowerCase()} yet`}
-          emptyDescription={`Duets you publish will show up here, credited back to the original ${TERMS.wave.toLowerCase()}.`}
+          emptyTitle={tPage("emptyTitle")}
+          emptyDescription={tPage("emptyDescription")}
         />
       </div>
     </>

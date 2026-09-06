@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ChevronRight, LogOut } from "@/components/ui/icons";
 
 import { signOut } from "@/app/(auth)/actions";
@@ -7,13 +8,16 @@ import { PageHeader } from "@/components/layout";
 import { DeleteAccountSheet, LanguageSwitchRow } from "@/components/settings";
 import { Avatar } from "@/components/ui";
 import { SETTINGS_SECTIONS, routes, type SettingsSection } from "@/config/routes";
-import { BRAND, TERMS } from "@/config/terminology";
+import { BRAND } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { getProfileById } from "@/lib/db/profiles";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
-export const metadata = { title: TERMS.settings };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  return { title: t("settings") };
+}
 
 /**
  * SCREENS.md §11 groups the destinations into three hairline-separated
@@ -46,6 +50,7 @@ async function handleSignOut(): Promise<void> {
  *  list of destinations, no icon column, no chevron in a circle. */
 export default async function SettingsPage() {
   const user = await requireUser(routes.settings());
+  const t = await getTranslations("Terms");
 
   const profile = isSupabaseConfigured()
     ? await getProfileById(await createServerSupabaseClient(), user.id)
@@ -57,7 +62,7 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader title={TERMS.settings} />
+      <PageHeader title={t("settings")} />
       <div className="px-4 pb-6 sm:px-5">
         {profile ? (
           <Link
@@ -73,7 +78,7 @@ export default async function SettingsPage() {
           </Link>
         ) : null}
 
-        <nav aria-label={TERMS.settings} className="flex flex-col gap-7 pt-2">
+        <nav aria-label={t("settings")} className="flex flex-col gap-7 pt-2">
           {[...grouped, ungrouped].map((sections, groupIndex) =>
             sections.length === 0 ? null : (
               <ul key={groupIndex} className="flex flex-col">
@@ -104,7 +109,7 @@ export default async function SettingsPage() {
               className="akinti-press type-body inline-flex items-center gap-2 text-ink underline decoration-hairline-strong decoration-1 underline-offset-[3px] hover:decoration-ink"
             >
               <LogOut className="size-4" aria-hidden="true" />
-              {TERMS.logOut}
+              {t("logOut")}
             </button>
           </form>
           {profile ? <DeleteAccountSheet username={profile.username} /> : null}

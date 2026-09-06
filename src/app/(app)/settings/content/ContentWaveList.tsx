@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { WaveCardContainer } from "@/components/wave";
@@ -29,6 +30,7 @@ export function ContentWaveList({
   emptyTitle,
   emptyDescription,
 }: ContentWaveListProps) {
+  const t = useTranslations("ContentWaveList");
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function ContentWaveList({
     startTransition(async () => {
       const result = await loadMore(cursor);
       if (!result.ok || !result.data) {
-        setError(result.error ?? "Could not load more. Try again.");
+        setError(result.error ?? t("couldNotLoadMore"));
         return;
       }
       setItems((current) => mergePageById(current, result.data!.items));
@@ -66,7 +68,7 @@ export function ContentWaveList({
 
       {cursor ? (
         <Button variant="secondary" size="sm" loading={isPending} onClick={handleLoadMore} className="self-center">
-          Load more
+          {t("loadMore")}
         </Button>
       ) : null}
     </div>

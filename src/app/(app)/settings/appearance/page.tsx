@@ -1,24 +1,30 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { AppearanceForm } from "@/components/profile";
 import { EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { getProfileById } from "@/lib/db/profiles";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export const metadata = { title: `Appearance · ${TERMS.settings}` };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("AppearanceSettingsPage");
+  return { title: tPage("metaTitle", { settings: t("settings") }) };
+}
 
 /** Settings → Appearance (spec §21/§25): curated profile theme presets. */
 export default async function AppearanceSettingsPage() {
   const user = await requireUser(routes.settingsAppearance());
+  const t = await getTranslations("AppearanceSettingsPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="Appearance" />
-        <EmptyState title="Backend not configured" description="Appearance settings are unavailable in this environment." />
+        <PageHeader title={t("title")} />
+        <EmptyState title={t("backendNotConfiguredTitle")} description={t("backendNotConfiguredDescription")} />
       </>
     );
   }
@@ -29,8 +35,8 @@ export default async function AppearanceSettingsPage() {
   if (!profile) {
     return (
       <>
-        <PageHeader title="Appearance" />
-        <EmptyState title="Could not load your profile" description="Try refreshing the page." />
+        <PageHeader title={t("title")} />
+        <EmptyState title={t("couldNotLoadTitle")} description={t("couldNotLoadDescription")} />
       </>
     );
   }
@@ -38,7 +44,7 @@ export default async function AppearanceSettingsPage() {
   return (
     <>
       <PageHeader
-        title="Appearance"
+        title={t("title")}
       />
       <div className="px-4 pb-8 sm:px-5">
         <AppearanceForm

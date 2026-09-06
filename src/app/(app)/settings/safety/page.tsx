@@ -1,11 +1,11 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ShieldCheck } from "@/components/ui/icons";
 
 import { PageHeader } from "@/components/layout";
 import { BlockedList, ReportsList } from "@/components/profile";
 import { EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { listBlockedProfilesWithIdentity } from "@/lib/db/blocks";
 import { isModerator } from "@/lib/db/moderation";
@@ -16,17 +16,22 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { DownloadDataButton } from "./DownloadDataButton";
 
-export const metadata = { title: `Safety · ${TERMS.settings}` };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("SafetySettingsPage");
+  return { title: tPage("metaTitle", { settings: t("settings") }) };
+}
 
 /** Settings → Safety (spec §25/§26): blocked users (with unblock) and your own filed reports, read-only. */
 export default async function SafetySettingsPage() {
   const user = await requireUser(routes.settingsSafety());
+  const t = await getTranslations("SafetySettingsPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="Safety" />
-        <EmptyState title="Backend not configured" description="Safety settings are unavailable in this environment." />
+        <PageHeader title={t("title")} />
+        <EmptyState title={t("backendNotConfiguredTitle")} description={t("backendNotConfiguredDescription")} />
       </>
     );
   }
@@ -41,7 +46,7 @@ export default async function SafetySettingsPage() {
 
   return (
     <>
-      <PageHeader title="Safety" />
+      <PageHeader title={t("title")} />
       <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
         {isMod ? (
           <Link
@@ -49,19 +54,19 @@ export default async function SafetySettingsPage() {
             className="flex items-center gap-2 rounded-xl border border-border bg-surface p-4 text-sm font-medium text-fg hover:bg-surface-muted"
           >
             <ShieldCheck className="size-4 text-accent" aria-hidden="true" />
-            Moderation queue
+            {t("moderationQueue")}
           </Link>
         ) : null}
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-fg">Blocked accounts</h2>
+          <h2 className="mb-3 text-sm font-semibold text-fg">{t("blockedAccountsHeading")}</h2>
           <BlockedList blocked={blockedProfiles} />
         </section>
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-fg">Your reports</h2>
+          <h2 className="mb-3 text-sm font-semibold text-fg">{t("yourReportsHeading")}</h2>
           <ReportsList reports={reportsPage.items} />
         </section>
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-fg">Your data</h2>
+          <h2 className="mb-3 text-sm font-semibold text-fg">{t("yourDataHeading")}</h2>
           <DownloadDataButton />
         </section>
       </div>

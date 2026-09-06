@@ -1,7 +1,9 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { ProScreen } from "@/components/pro/ProScreen";
 import type { ProPlanSummary } from "@/components/pro/pricing";
-import { TERMS } from "@/config/terminology";
+import { BRAND } from "@/config/terminology";
 import { routes } from "@/config/routes";
 import { requireUser } from "@/lib/auth/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -10,7 +12,11 @@ import { EmptyState } from "@/components/ui";
 
 import { getProStatus } from "./actions";
 
-export const metadata = { title: `AKINTI Pro · ${TERMS.settings}` };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("ProSettingsPage");
+  return { title: tPage("metaTitle", { brand: BRAND, settings: t("settings") }) };
+}
 
 /**
  * Settings -> AKINTI Pro (Wave F, PRODUCT_V2 §4/§5, `docs/BILLING.md`). The
@@ -19,13 +25,15 @@ export const metadata = { title: `AKINTI Pro · ${TERMS.settings}` };
  * top of it.
  */
 export default async function ProSettingsPage() {
+  const t = await getTranslations("ProSettingsPage");
+
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="AKINTI Pro" />
+        <PageHeader title={t("title", { brand: BRAND })} />
         <EmptyState
-          title="Backend not configured"
-          description="NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. AKINTI Pro is unavailable until this environment is connected to a Supabase project."
+          title={t("backendNotConfiguredTitle")}
+          description={t("backendNotConfiguredDescription", { brand: BRAND })}
         />
       </>
     );
@@ -44,9 +52,9 @@ export default async function ProSettingsPage() {
   if (!statusResult.ok || !statusResult.data) {
     return (
       <>
-        <PageHeader title="AKINTI Pro" />
+        <PageHeader title={t("title", { brand: BRAND })} />
         <div className="akinti-page pb-8">
-          <p className="type-body text-ink">{statusResult.formError ?? "We couldn't load your AKINTI Pro status. Try again."}</p>
+          <p className="type-body text-ink">{statusResult.formError ?? t("statusErrorDefault", { brand: BRAND })}</p>
         </div>
       </>
     );
@@ -64,7 +72,7 @@ export default async function ProSettingsPage() {
 
   return (
     <>
-      <PageHeader title="AKINTI Pro" />
+      <PageHeader title={t("title", { brand: BRAND })} />
       <div className="akinti-page pb-12">
         <ProScreen
           initialStatus={statusResult.data}

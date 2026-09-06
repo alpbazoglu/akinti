@@ -7,6 +7,7 @@
  * never a plain "are you sure" dialog.
  */
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { deleteAccount } from "@/app/(app)/settings/actions";
@@ -19,6 +20,7 @@ export interface DeleteAccountSheetProps {
 }
 
 export function DeleteAccountSheet({ username }: DeleteAccountSheetProps) {
+  const t = useTranslations("DeleteAccountSheet");
   const [open, setOpen] = useState(false);
   const [confirmHandle, setConfirmHandle] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -58,18 +60,18 @@ export function DeleteAccountSheet({ username }: DeleteAccountSheetProps) {
         onClick={() => setOpen(true)}
         className="akinti-press type-body inline-flex items-center text-ink underline decoration-hairline-strong decoration-1 underline-offset-[3px] hover:decoration-ink"
       >
-        Delete account
+        {t("deleteAccount")}
       </button>
 
       <Sheet
         open={open}
         onClose={close}
-        title="Delete account"
-        description="Deleting your account removes your Waves, your Duets and your messages. This cannot be undone."
+        title={t("deleteAccount")}
+        description={t("description")}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={close} disabled={deleting}>
-              Keep my account
+              {t("keepAccount")}
             </Button>
             <Button
               variant="ghost"
@@ -77,7 +79,7 @@ export function DeleteAccountSheet({ username }: DeleteAccountSheetProps) {
               loading={deleting}
               disabled={confirmHandle.trim().toLowerCase() !== username.toLowerCase()}
             >
-              Delete my account
+              {t("deleteMyAccount")}
             </Button>
           </div>
         }
@@ -85,7 +87,7 @@ export function DeleteAccountSheet({ username }: DeleteAccountSheetProps) {
         <div className="flex flex-col gap-4">
           <Input
             id="delete-account-confirm-handle"
-            label={`Type @${username} to confirm`}
+            label={t("confirmLabel", { username })}
             value={confirmHandle}
             onChange={(event) => setConfirmHandle(event.target.value)}
             leadingIcon={<span aria-hidden="true">@</span>}

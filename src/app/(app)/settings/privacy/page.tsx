@@ -1,25 +1,31 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { PrivacyForm } from "@/components/profile";
 import { EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { listPendingFollowRequests } from "@/lib/db/follows";
 import { getProfileById } from "@/lib/db/profiles";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export const metadata = { title: `Privacy · ${TERMS.settings}` };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("PrivacySettingsPage");
+  return { title: tPage("metaTitle", { settings: t("settings") }) };
+}
 
 /** Settings → Privacy (spec §25): public/private, who can message/Duet-request/comment, default Wave visibility. */
 export default async function PrivacySettingsPage() {
   const user = await requireUser(routes.settingsPrivacy());
+  const t = await getTranslations("PrivacySettingsPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="Privacy" />
-        <EmptyState title="Backend not configured" description="Privacy settings are unavailable in this environment." />
+        <PageHeader title={t("title")} />
+        <EmptyState title={t("backendNotConfiguredTitle")} description={t("backendNotConfiguredDescription")} />
       </>
     );
   }
@@ -30,8 +36,8 @@ export default async function PrivacySettingsPage() {
   if (!profile) {
     return (
       <>
-        <PageHeader title="Privacy" />
-        <EmptyState title="Could not load your profile" description="Try refreshing the page." />
+        <PageHeader title={t("title")} />
+        <EmptyState title={t("couldNotLoadTitle")} description={t("couldNotLoadDescription")} />
       </>
     );
   }
@@ -41,7 +47,7 @@ export default async function PrivacySettingsPage() {
   return (
     <>
       <PageHeader
-        title="Privacy"
+        title={t("title")}
       />
       <div className="px-4 pb-8 sm:px-5">
         <PrivacyForm

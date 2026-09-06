@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { FollowRequestsList } from "@/components/profile";
 import { EmptyState } from "@/components/ui";
@@ -7,17 +9,21 @@ import { listPendingFollowRequests } from "@/lib/db/follows";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Follow requests" };
+export async function generateMetadata() {
+  const t = await getTranslations("FollowRequestsPage");
+  return { title: t("title") };
+}
 
 /** Pending follow requests inbox for a private account (spec §21). */
 export default async function FollowRequestsPage() {
   const user = await requireUser(routes.settingsFollowRequests());
+  const t = await getTranslations("FollowRequestsPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="Follow requests" />
-        <EmptyState title="Backend not configured" description="Follow requests are unavailable in this environment." />
+        <PageHeader title={t("title")} />
+        <EmptyState title={t("backendNotConfiguredTitle")} description={t("backendNotConfiguredDescription")} />
       </>
     );
   }
@@ -27,7 +33,7 @@ export default async function FollowRequestsPage() {
 
   return (
     <>
-      <PageHeader title="Follow requests" />
+      <PageHeader title={t("title")} />
       <div className="px-4 pb-8 sm:px-5">
         <FollowRequestsList requests={requests.items} />
       </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useActionState, useEffect, useState, type FormEvent } from "react";
 
 import { updatePassword } from "@/app/(auth)/actions";
@@ -11,12 +12,13 @@ export function ChangePasswordForm() {
   const [state, formAction, isPending] = useActionState(updatePassword, AUTH_ACTION_INITIAL_STATE);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const { toast } = useToast();
+  const t = useTranslations("ChangePasswordForm");
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     const formData = new FormData(event.currentTarget);
     if (formData.get("password") !== formData.get("confirmPassword")) {
       event.preventDefault();
-      setConfirmError("Passwords do not match.");
+      setConfirmError(t("passwordsDontMatch"));
       return;
     }
     setConfirmError(null);
@@ -36,9 +38,9 @@ export function ChangePasswordForm() {
         id="account-password"
         name="password"
         type="password"
-        label="New password"
+        label={t("newPasswordLabel")}
         autoComplete="new-password"
-        hint="At least 8 characters."
+        hint={t("newPasswordHint")}
         required
         error={state.fieldErrors?.password}
       />
@@ -46,7 +48,7 @@ export function ChangePasswordForm() {
         id="account-confirm-password"
         name="confirmPassword"
         type="password"
-        label="Confirm new password"
+        label={t("confirmPasswordLabel")}
         autoComplete="new-password"
         required
         error={confirmError}
@@ -56,8 +58,8 @@ export function ChangePasswordForm() {
           {state.formError}
         </p>
       ) : null}
-      <Button type="submit" loading={isPending} loadingLabel="Updating" className="self-start">
-        Update password
+      <Button type="submit" loading={isPending} loadingLabel={t("updating")} className="self-start">
+        {t("updatePassword")}
       </Button>
     </form>
   );

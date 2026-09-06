@@ -1,12 +1,16 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ChevronRight } from "@/components/ui/icons";
 
 import { PageHeader } from "@/components/layout";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 
-export const metadata = { title: `Content · ${TERMS.settings}` };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("ContentSettingsPage");
+  return { title: tPage("metaTitle", { settings: t("settings") }) };
+}
 
 interface ContentLink {
   readonly href: string;
@@ -14,39 +18,41 @@ interface ContentLink {
   readonly description: string;
 }
 
-const LINKS: readonly ContentLink[] = [
-  {
-    href: routes.settingsContentSaved(),
-    label: "Saved",
-    description: `${TERMS.waves} you've saved for later.`,
-  },
-  {
-    href: routes.settingsContentCommented(),
-    label: "Commented",
-    description: `${TERMS.waves} you've left a ${TERMS.comment.toLowerCase()} on.`,
-  },
-  {
-    href: routes.settingsContentWaves(),
-    label: TERMS.waves,
-    description: `Every ${TERMS.wave.toLowerCase()} you've published.`,
-  },
-  {
-    href: routes.settingsContentDuets(),
-    label: TERMS.duets,
-    description: `Every ${TERMS.duet.toLowerCase()} you've published.`,
-  },
-];
-
 /** Settings → Content (spec §25): Saved, Commented, Waves and Duets. */
 export default async function ContentSettingsPage() {
   await requireUser(routes.settingsContent());
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("ContentSettingsPage");
+
+  const links: readonly ContentLink[] = [
+    {
+      href: routes.settingsContentSaved(),
+      label: tPage("savedLabel"),
+      description: tPage("savedDescription", { waves: t("waves") }),
+    },
+    {
+      href: routes.settingsContentCommented(),
+      label: tPage("commentedLabel"),
+      description: tPage("commentedDescription", { waves: t("waves"), comment: t("comment") }),
+    },
+    {
+      href: routes.settingsContentWaves(),
+      label: t("waves"),
+      description: tPage("wavesDescription", { wave: t("wave") }),
+    },
+    {
+      href: routes.settingsContentDuets(),
+      label: t("duets"),
+      description: tPage("duetsDescription", { duet: t("duet") }),
+    },
+  ];
 
   return (
     <>
-      <PageHeader title="Content" />
-      <nav aria-label="Content" className="px-4 pb-6 sm:px-5">
+      <PageHeader title={tPage("title")} />
+      <nav aria-label={tPage("navLabel")} className="px-4 pb-6 sm:px-5">
         <ul className="divide-y divide-hairline border-y border-hairline">
-          {LINKS.map((link) => (
+          {links.map((link) => (
             <li key={link.href}>
               <Link
                 href={link.href}

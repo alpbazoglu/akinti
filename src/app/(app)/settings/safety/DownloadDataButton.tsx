@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { Download } from "@/components/ui/icons";
 
@@ -18,13 +19,14 @@ export function DownloadDataButton() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const t = useTranslations("DownloadDataButton");
 
   function handleDownload() {
     setError(null);
     startTransition(async () => {
       const result = await exportAccountData();
       if (!result.ok || !result.data) {
-        setError(result.formError ?? "Could not prepare your data export.");
+        setError(result.formError ?? t("couldNotPrepare"));
         return;
       }
 
@@ -38,15 +40,15 @@ export function DownloadDataButton() {
       link.remove();
       URL.revokeObjectURL(url);
 
-      toast({ title: "Your data export has downloaded.", tone: "success" });
+      toast({ title: t("exportDownloaded"), tone: "success" });
     });
   }
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-5">
-      <h2 className="text-sm font-semibold text-fg">Download my data</h2>
+      <h2 className="text-sm font-semibold text-fg">{t("downloadButton")}</h2>
       <p className="text-sm text-fg-muted">
-        Get a JSON file with your profile, your Waves&apos; metadata, and your comments.
+        {t("description")}
       </p>
       <div>
         <Button
@@ -55,7 +57,7 @@ export function DownloadDataButton() {
           onClick={handleDownload}
           loading={isPending}
         >
-          Download my data
+          {t("downloadButton")}
         </Button>
       </div>
       {error ? (
