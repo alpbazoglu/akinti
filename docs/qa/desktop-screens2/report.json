@@ -1,0 +1,59 @@
+{
+  "base": "http://localhost:3788",
+  "consoleErrors": [],
+  "failedRequests": [],
+  "axeResults": [
+    {
+      "label": "messages-1440-dark",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "messages-390-dark",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "notifications-1440-dark",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "notifications-390-dark",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "settings-hub-1440-dark",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "settings-appearance-1440-dark",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "settings-pro-1440-dark",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "settings-hub-390-dark",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "create-record-1440-dark",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "create-record-390-dark",
+      "total": 0,
+      "serious": []
+    }
+  ],
+  "notReached": [],
+  "softErrors": []
+}
