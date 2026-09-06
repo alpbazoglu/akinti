@@ -42,6 +42,34 @@ const TITLE_MAX_LENGTH = 140;
 const DESCRIPTION_MAX_LENGTH = 280;
 const MAX_COLLABORATORS = 8;
 
+/**
+ * Translated labels for `WAVE_CATEGORY_OPTIONS` (`@/lib/audio/createDraft`,
+ * QA `full2` defect #7/L4: these chips were plain English on an otherwise
+ * Turkish form). The stored value is always the English option itself
+ * (`tagsSchema` lower-cases it on write, `src/lib/feed/categories.ts`'s own
+ * mapping keys off that) — only the on-screen label changes per locale.
+ */
+type CategoryLabelKey =
+  | "categoryMusic"
+  | "categoryTalk"
+  | "categoryStorytelling"
+  | "categoryComedy"
+  | "categoryNews"
+  | "categoryEducation"
+  | "categoryAsmr"
+  | "categoryOther";
+
+const CATEGORY_LABEL_KEY: Record<string, CategoryLabelKey | undefined> = {
+  Music: "categoryMusic",
+  Talk: "categoryTalk",
+  Storytelling: "categoryStorytelling",
+  Comedy: "categoryComedy",
+  News: "categoryNews",
+  Education: "categoryEducation",
+  ASMR: "categoryAsmr",
+  Other: "categoryOther",
+};
+
 function normaliseUsername(raw: string): string {
   return raw.trim().replace(/^@/, "").toLowerCase();
 }
@@ -262,7 +290,7 @@ export function CreateWaveForm({
               selected={categories.includes(category)}
               onClick={() => toggleCategory(category)}
             >
-              {category}
+              {CATEGORY_LABEL_KEY[category] ? t(CATEGORY_LABEL_KEY[category]) : category}
             </Chip>
           ))}
         </div>
