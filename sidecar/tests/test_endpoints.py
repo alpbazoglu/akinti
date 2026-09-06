@@ -92,6 +92,10 @@ def test_pitch_score_against_detected_key(sine_wav: Path) -> None:
     assert 0.0 <= body["score"] <= 100.0
     assert isinstance(body["detected_key"], str) and body["detected_key"]
     assert isinstance(body["per_second_cents_deviation"], list)
+    assert 0.0 <= body["in_tune_ratio"] <= 1.0
+    assert body["median_cents_off"] >= 0.0
+    assert body["notes_detected"] >= 0
+    assert body["notes_detected"] == len(body["per_second_cents_deviation"])
 
 
 def test_pitch_score_against_explicit_reference_key(sine_wav: Path) -> None:
@@ -102,6 +106,34 @@ def test_pitch_score_against_explicit_reference_key(sine_wav: Path) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["reference_key"] == "A minor"
+
+
+def test_pitch_snap_produces_a_real_shifted_file(sine_wav: Path) -> None:
+    caps = client.get("/health").json()["endpoints"]
+    if not caps["pitch_score"]:  # /pitch-snap shares librosa's availability gate
+        pytest.skip("librosa is not installed on this machine")
+    response = client.post(
+        "/pitch-snap", data={"path": str(sine_wav), "strength": "1.0", "reference_key": "A minor"}
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["method"] == "librosa_pitch_shift_segments"
+    assert body["key_guess"] == "A minor"
+    assert body["strength"] == 1.0
+    assert Path(body["output_path"]).is_file()
+
+
+def test_harmony_produces_a_real_mixed_file(sine_wav: Path) -> None:
+    caps = client.get("/health").json()["endpoints"]
+    if not caps["pitch_score"]:  # /harmony shares librosa's availability gate
+        pytest.skip("librosa is not installed on this machine")
+    response = client.post("/harmony", data={"path": str(sine_wav), "reference_key": "A minor"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["method"] == "librosa_self_harmony"
+    assert body["key_guess"] == "A minor"
+    assert body["interval_semitones"] == 3  # A minor -> minor third
+    assert Path(body["output_path"]).is_file()
 
 
 def test_peaks_shape_matches_worker_schema(sine_wav: Path) -> None:

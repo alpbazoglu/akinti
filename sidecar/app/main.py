@@ -27,7 +27,14 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from .capabilities import detect_capabilities
-from .dsp import clean_audio, extract_peaks, master_audio, score_pitch
+from .dsp import (
+    build_self_harmony,
+    clean_audio,
+    extract_peaks,
+    master_audio,
+    score_pitch,
+    snap_pitch,
+)
 
 app = FastAPI(title="AKINTI Audio Sidecar", version="1.0.0")
 
@@ -139,6 +146,61 @@ def pitch_score(
             "detected_key": result.detected_key,
             "reference_key": result.reference_key,
             "per_second_cents_deviation": result.per_second_cents_deviation,
+            "in_tune_ratio": result.in_tune_ratio,
+            "median_cents_off": result.median_cents_off,
+            "notes_detected": result.notes_detected,
+        }
+    )
+
+
+@app.post("/pitch-snap")
+def pitch_snap(
+    path: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    strength: float = Form(0.8),
+    reference_key: Optional[str] = Form(None),
+) -> JSONResponse:
+    scratch_dir = _new_scratch_dir()
+    input_path = _resolve_input(path, file, scratch_dir)
+    caps = detect_capabilities()
+    if not caps.librosa:
+        raise HTTPException(503, "librosa is not installed on this sidecar")
+    try:
+        result = snap_pitch(input_path, scratch_dir, strength=strength, reference_key=reference_key)
+    except RuntimeError as err:
+        raise HTTPException(500, str(err)) from err
+    return JSONResponse(
+        {
+            "output_path": str(result.output_path),
+            "method": result.method,
+            "key_guess": result.key_guess,
+            "strength": result.strength,
+        }
+    )
+
+
+@app.post("/harmony")
+def harmony(
+    path: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    wet: float = Form(0.35),
+    reference_key: Optional[str] = Form(None),
+) -> JSONResponse:
+    scratch_dir = _new_scratch_dir()
+    input_path = _resolve_input(path, file, scratch_dir)
+    caps = detect_capabilities()
+    if not caps.librosa:
+        raise HTTPException(503, "librosa is not installed on this sidecar")
+    try:
+        result = build_self_harmony(input_path, scratch_dir, wet=wet, reference_key=reference_key)
+    except RuntimeError as err:
+        raise HTTPException(500, str(err)) from err
+    return JSONResponse(
+        {
+            "output_path": str(result.output_path),
+            "method": result.method,
+            "key_guess": result.key_guess,
+            "interval_semitones": result.interval_semitones,
         }
     )
 

@@ -42,6 +42,8 @@ export interface EnhancementReport {
   clean?: EnhancementStageReport;
   master?: EnhancementStageReport;
   peaks?: EnhancementStageReport;
+  /** AKINTI Pro only — which sidecar endpoint (`/pitch-snap` or `/harmony`) ran for a `pitch_snap`/`self_harmony` preset job. Absent for every other preset. */
+  proSound?: EnhancementStageReport;
 }
 
 type FetchLike = typeof fetch;

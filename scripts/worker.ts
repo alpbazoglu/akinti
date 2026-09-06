@@ -46,6 +46,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
+  callSidecar,
   sidecarConfigFromEnv,
   selectCleanStage,
   selectMasterStage,
@@ -590,6 +591,72 @@ function isDegeneratePeaks(peaks: PeaksPayload, durationMs: number): boolean {
 }
 
 /* ------------------------------------------------------------------------ */
+/* Pitch score (best-effort, PRODUCT_V2 §4/§5)                              */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A backing-track instrumental has no vocal to score — detected by looking
+ * the asset up in `backing_tracks.audio_asset_id` rather than by any job
+ * payload flag, since both a plain vocal upload and a curated/uploaded
+ * instrumental go through the exact same `process_audio` job type (see
+ * docs/AUDIO_ARCHITECTURE.md "Pitch score").
+ */
+async function isBackingTrackAudioAsset(admin: SupabaseAdminClient, assetId: string): Promise<boolean> {
+  const { data, error } = await admin
+    .from("backing_tracks")
+    .select("id")
+    .eq("audio_asset_id", assetId)
+    .maybeSingle();
+  if (error) {
+    // A lookup failure should not silently skip scoring a real vocal Wave —
+    // treat it as "not a backing track" and let the pitch-score call proceed.
+    console.warn(`[worker] could not check backing_tracks for asset ${assetId}: ${error.message}`);
+    return false;
+  }
+  return Boolean(data);
+}
+
+/**
+ * Best-effort follow-up call made AFTER `complete_audio_job` has already
+ * marked the job/asset done — never allowed to fail or retry the job it
+ * follows (docs/AUDIO_ARCHITECTURE.md "Pitch score"). On any failure
+ * (sidecar down, timeout, malformed response) this only logs and returns;
+ * `audio_assets.pitch_score` is left `null`, an honest "never computed",
+ * not a fake score.
+ */
+async function runPitchScoreSideEffect(
+  admin: SupabaseAdminClient,
+  assetId: string,
+  filePath: string,
+): Promise<void> {
+  try {
+    if (await isBackingTrackAudioAsset(admin, assetId)) {
+      return;
+    }
+    const body = await callSidecar(sidecarConfig, "/pitch-score", filePath, {}, fetch);
+    const pitchScore = {
+      score_0_100: Number(body.score) || 0,
+      in_tune_ratio: Number(body.in_tune_ratio) || 0,
+      median_cents_off: Number(body.median_cents_off) || 0,
+      key_guess: String(body.detected_key ?? ""),
+      notes_detected: Number(body.notes_detected) || 0,
+    };
+    const { error } = await admin.rpc("set_audio_asset_pitch_score", {
+      p_asset_id: assetId,
+      p_pitch_score: pitchScore as unknown as Json,
+    });
+    if (error) {
+      console.warn(`[worker] set_audio_asset_pitch_score failed for asset ${assetId}: ${error.message}`);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[worker] pitch-score sidecar call failed for asset ${assetId}, leaving pitch_score null: ${message}`,
+    );
+  }
+}
+
+/* ------------------------------------------------------------------------ */
 /* Storage I/O                                                              */
 /* ------------------------------------------------------------------------ */
 
@@ -683,11 +750,36 @@ async function runProcessAudioJob(
   const cleanResult = await runCleanStage(inputPath, tmpDir);
   const cleanedPath = cleanResult?.outputPath ?? inputPath;
 
+  // 1b. AKINTI Pro pitch DSP (PRODUCT_V2 §4/§5) — `pitch_snap`/`self_harmony`
+  //     route through the sidecar's dedicated endpoint BEFORE the ordinary
+  //     preset filter chain below (which still runs afterward, applying that
+  //     preset's own EQ/compression — see `PRESET_FILTERS`). Unlike
+  //     clean/master, there is no local fallback for either: the sidecar
+  //     being unreachable throws here, which fails and retries the job like
+  //     any other sidecar-dependent stage with no ffmpeg equivalent would —
+  //     silently skipping a Pro user's specifically-chosen sound would be a
+  //     fake success (spec §44).
+  let proStageReport: EnhancementStageReport | undefined;
+  let presetInputPath = cleanedPath;
+  if (preset === "pitch_snap" || preset === "self_harmony") {
+    const startedAt = Date.now();
+    const endpoint = preset === "pitch_snap" ? "/pitch-snap" : "/harmony";
+    const extraFields: Record<string, string> =
+      preset === "pitch_snap" ? { strength: "0.8" } : { wet: "0.35" };
+    const body = await callSidecar(sidecarConfig, endpoint, cleanedPath, extraFields, fetch);
+    presetInputPath = String(body.output_path);
+    proStageReport = {
+      method: `sidecar:${String(body.method)}`,
+      durationMs: Date.now() - startedAt,
+    };
+  }
+
   // 2. Preset filter chain (existing behavior, spec §19) — always runs, on
-  //    whichever input the clean stage produced.
+  //    whichever input the clean (and, for the two Pro sounds, pitch DSP)
+  //    stage produced.
   await runFfmpeg([
     "-hide_banner", "-loglevel", "error", "-y",
-    "-i", cleanedPath,
+    "-i", presetInputPath,
     "-af", filterChain,
     "-ar", "48000",
     presetOutPath,
@@ -726,6 +818,7 @@ async function runProcessAudioJob(
 
   const enhancementReport: EnhancementReport = {
     ...(cleanResult ? { clean: cleanResult.report } : {}),
+    ...(proStageReport ? { proSound: proStageReport } : {}),
     master: masterResult.report,
     peaks: peaksResult.report,
   };
@@ -748,6 +841,12 @@ async function runProcessAudioJob(
   if (completeError) {
     throw new Error(`complete_audio_job failed: ${completeError.message}`);
   }
+
+  // Pitch score (PRODUCT_V2 §4/§5, "encouragement, not judgment") — a
+  // best-effort side call AFTER the job above is already done; see
+  // docs/AUDIO_ARCHITECTURE.md "Pitch score" for why this never fails or
+  // retries the job. Read from the same pre-encode mastered WAV as peaks.
+  await runPitchScoreSideEffect(admin, asset.id, masterResult.outputPath);
 }
 
 /**
@@ -954,6 +1053,13 @@ async function runMixDuetJob(
   if (completeError) {
     throw new Error(`complete_audio_job failed: ${completeError.message}`);
   }
+
+  // Pitch score for the new take's own asset (the vocal contribution just
+  // mixed in) — same best-effort, never-fails-the-job call as
+  // runProcessAudioJob. A Duet contribution is always a vocal take, never a
+  // backing-track instrumental, but `runPitchScoreSideEffect` still checks —
+  // cheap, and correct if that ever changes.
+  await runPitchScoreSideEffect(admin, newTake.id, masterResult.outputPath);
 }
 
 /* ------------------------------------------------------------------------ */

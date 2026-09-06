@@ -10,8 +10,11 @@
 # cleanly and /health flips `capabilities.deepfilternet` to true automatically
 # with no code change. Torch/torchcrepe/pyworld/Demucs from the exploratory
 # docs/research/libraries.md proposal are intentionally NOT included — none
-# of the four required endpoints (/clean, /master, /pitch-score, /peaks) uses
-# them; pYIN alone (librosa) implements /pitch-score.
+# of the six endpoints (/clean, /master, /pitch-score, /pitch-snap, /harmony,
+# /peaks) uses them; pYIN + `librosa.effects.pitch_shift` (both already
+# below) implement /pitch-score, /pitch-snap and /harmony — see
+# sidecar/app/dsp.py's "Pitch snap & self-harmony" section for why pyworld
+# specifically was left out despite being the brief's other option.
 
 fastapi>=0.115
 uvicorn[standard]>=0.32
