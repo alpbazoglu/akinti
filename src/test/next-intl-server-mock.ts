@@ -1,10 +1,16 @@
 // Vitest stand-in for `next-intl/server` (aliased in `vitest.config.ts`). See
 // `next-intl-mock.ts`'s header comment for why this resolves directly from
 // `src/messages/en.json` rather than requiring a request context in tests.
-import { resolveTranslator, type MockTranslator } from "./next-intl-mock";
+import {
+  __getMockLocale,
+  __setMockLocale,
+  resolveTranslator,
+  type GetTranslationsOptions,
+  type MockTranslator,
+} from "./next-intl-mock";
 
-export async function getTranslations(namespace?: string): Promise<MockTranslator> {
-  return resolveTranslator(namespace);
+export async function getTranslations(arg?: string | GetTranslationsOptions): Promise<MockTranslator> {
+  return resolveTranslator(arg);
 }
 
 export async function getFormatter() {
@@ -15,5 +21,11 @@ export async function getFormatter() {
 }
 
 export async function getLocale(): Promise<string> {
-  return "en";
+  return __getMockLocale();
 }
+
+// Re-exported so a Server Action test can do
+// `import { __setMockLocale } from "@/test/next-intl-mock"` (or via this
+// server alias, same module under the hood) to assert Turkish copy under a
+// "tr request" without needing a real request context.
+export { __getMockLocale, __setMockLocale };

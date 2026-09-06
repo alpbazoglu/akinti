@@ -38,14 +38,28 @@ describe("isRateLimitError", () => {
   });
 });
 
+/** Minimal stand-in translator — `Common.rateLimited` mirrors the real message key. */
+function fakeTranslator(message: string): (key: string) => string {
+  return (key) => (key === "Common.rateLimited" ? message : key);
+}
+
 describe("mapModerationError", () => {
-  it("maps a rate-limit error to the shared English copy", () => {
-    expect(mapModerationError(rateLimitError(), "fallback")).toBe(RATE_LIMIT_MESSAGE);
+  it("maps a rate-limit error to the translated copy", () => {
+    const t = fakeTranslator(RATE_LIMIT_MESSAGE);
+    expect(mapModerationError(rateLimitError(), "fallback", t)).toBe(RATE_LIMIT_MESSAGE);
+  });
+
+  it("maps a rate-limit error to Turkish under a tr translator", () => {
+    const t = fakeTranslator("Bunu çok sık yapıyorsunuz. Birkaç dakika sonra tekrar deneyin.");
+    expect(mapModerationError(rateLimitError(), "fallback", t)).toBe(
+      "Bunu çok sık yapıyorsunuz. Birkaç dakika sonra tekrar deneyin.",
+    );
   });
 
   it("falls back for every other error", () => {
-    expect(mapModerationError(otherDatabaseError("23505"), "fallback")).toBe("fallback");
-    expect(mapModerationError(new Error("boom"), "fallback")).toBe("fallback");
-    expect(mapModerationError(null, "fallback")).toBe("fallback");
+    const t = fakeTranslator(RATE_LIMIT_MESSAGE);
+    expect(mapModerationError(otherDatabaseError("23505"), "fallback", t)).toBe("fallback");
+    expect(mapModerationError(new Error("boom"), "fallback", t)).toBe("fallback");
+    expect(mapModerationError(null, "fallback", t)).toBe("fallback");
   });
 });

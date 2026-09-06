@@ -40,15 +40,15 @@ export const duetSegmentSchema = z.object({
  */
 export const duetSegmentsSchema = z
   .array(duetSegmentSchema)
-  .min(1, "Add at least one turn.")
-  .max(MAX_DUET_SEGMENTS, `An atışma Duet may have at most ${MAX_DUET_SEGMENTS} turns.`)
+  .min(1, "validation.duetTurnRequired")
+  .max(MAX_DUET_SEGMENTS, `validation.duetTooManyTurns:${MAX_DUET_SEGMENTS}`)
   .superRefine((segments, ctx) => {
     try {
       validateDuetSegments(segments);
     } catch (err) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: err instanceof Error ? err.message : "These segments aren't valid.",
+        message: err instanceof Error ? err.message : "validation.duetSegmentsInvalid",
       });
     }
   });
@@ -73,7 +73,7 @@ export const publishDuetWaveSchema = z
     requestId: uuidSchema,
     contributionAssetId: uuidSchema,
     offsetMs: z.number().int().min(-MAX_AUDIO_DURATION_MS).max(MAX_AUDIO_DURATION_MS),
-    title: z.string().trim().min(1, "Give this Duet a title").max(120),
+    title: z.string().trim().min(1, "validation.duetTitleRequired").max(120),
     description: z.string().trim().max(2000).nullable().optional(),
     visibility: z.enum(WAVE_VISIBILITIES).default("everyone"),
     preset: z.enum(AUDIO_ENHANCEMENT_PRESETS).default("studio"),
@@ -92,7 +92,7 @@ export const publishDuetWaveSchema = z
     } else if (value.segments && value.segments.length > 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Segments are only used for an atışma Duet.",
+        message: "validation.duetSegmentsOnlyForAtisma",
         path: ["segments"],
       });
     }
@@ -112,7 +112,7 @@ export const setOpenCallSchema = z.object({
     .nullable()
     .optional()
     .refine((value) => !value || new Date(value).getTime() > Date.now(), {
-      message: "The deadline must be in the future.",
+      message: "validation.duetDeadlineFuture",
     }),
 });
 

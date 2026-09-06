@@ -8,6 +8,8 @@
  * public/viewable profiles), never a special-cased query.
  */
 
+import { getTranslations } from "next-intl/server";
+
 import type { WaveCardContainerWave } from "@/components/wave";
 import { getCurrentUser } from "@/lib/auth/server";
 import { searchAll } from "@/lib/db/search";
@@ -41,6 +43,10 @@ export async function runSearch(query: string): Promise<SearchActionResult> {
     const waveCards = await hydrateWaveCards(supabase, waves, user?.id ?? null);
     return { ok: true, data: { profiles, waves: waveCards } };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Something went wrong." };
+    if (error instanceof Error) {
+      return { ok: false, error: error.message };
+    }
+    const t = await getTranslations("Common");
+    return { ok: false, error: t("somethingWentWrong") };
   }
 }

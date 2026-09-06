@@ -15,6 +15,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 
 import { getCurrentUser } from "@/lib/auth/server";
 import type { AuthActionResult } from "@/lib/auth/types";
@@ -25,33 +26,34 @@ import { routes } from "@/config/routes";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { claimReportSchema, dismissReportSchema, resolveReportSchema } from "@/lib/validation/moderation";
-
-const NOT_CONFIGURED_ERROR =
-  "This isn't connected to a backend yet — Supabase environment variables are not set.";
-const NOT_MODERATOR_ERROR = "You don't have access to the moderation queue.";
+import { translateFieldErrors, type MessageTranslator } from "@/lib/validation/translate";
 
 async function requireModerator() {
   if (!isSupabaseConfigured()) {
-    return { db: null, result: { ok: false, formError: NOT_CONFIGURED_ERROR } satisfies AuthActionResult };
+    const t = await getTranslations("Common");
+    return { db: null, result: { ok: false, formError: t("notConnected") } satisfies AuthActionResult };
   }
   const user = await getCurrentUser();
   if (!user) {
+    const t = await getTranslations("Common");
     return {
       db: null,
-      result: { ok: false, formError: "Your session has expired. Sign in again to continue." } satisfies AuthActionResult,
+      result: { ok: false, formError: t("sessionExpired") } satisfies AuthActionResult,
     };
   }
   const db = await createServerSupabaseClient();
   if (!(await isModerator(db))) {
-    return { db: null, result: { ok: false, formError: NOT_MODERATOR_ERROR } satisfies AuthActionResult };
+    const t = await getTranslations("ModerationActions");
+    return { db: null, result: { ok: false, formError: t("notModerator") } satisfies AuthActionResult };
   }
   return { db, result: null };
 }
 
 export async function claimReportAction(reportId: string): Promise<AuthActionResult> {
   const parsed = claimReportSchema.safeParse({ reportId });
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const { db, result } = await requireModerator();
@@ -60,11 +62,11 @@ export async function claimReportAction(reportId: string): Promise<AuthActionRes
   try {
     await claimReport(db, parsed.data.reportId);
   } catch (error) {
-    return { ok: false, formError: mapModerationError(error, "Could not claim this report. Try again.") };
+    return { ok: false, formError: mapModerationError(error, t("ModerationActions.claimFailed"), t) };
   }
 
   revalidatePath(routes.moderation());
-  return { ok: true, message: "Report claimed — status is now Reviewing." };
+  return { ok: true, message: t("ModerationActions.claimed") };
 }
 
 export async function resolveReportAction(input: {
@@ -73,8 +75,9 @@ export async function resolveReportAction(input: {
   note?: string | null;
 }): Promise<AuthActionResult> {
   const parsed = resolveReportSchema.safeParse(input);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const { db, result } = await requireModerator();
@@ -87,11 +90,11 @@ export async function resolveReportAction(input: {
       note: parsed.data.note,
     });
   } catch (error) {
-    return { ok: false, formError: mapModerationError(error, "Could not resolve this report. Try again.") };
+    return { ok: false, formError: mapModerationError(error, t("ModerationActions.resolveFailed"), t) };
   }
 
   revalidatePath(routes.moderation());
-  return { ok: true, message: "Report resolved." };
+  return { ok: true, message: t("ModerationActions.resolved") };
 }
 
 export async function dismissReportAction(input: {
@@ -99,8 +102,9 @@ export async function dismissReportAction(input: {
   note?: string | null;
 }): Promise<AuthActionResult> {
   const parsed = dismissReportSchema.safeParse(input);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const { db, result } = await requireModerator();
@@ -109,9 +113,9 @@ export async function dismissReportAction(input: {
   try {
     await dismissReport(db, parsed.data.reportId, parsed.data.note);
   } catch (error) {
-    return { ok: false, formError: mapModerationError(error, "Could not dismiss this report. Try again.") };
+    return { ok: false, formError: mapModerationError(error, t("ModerationActions.dismissFailed"), t) };
   }
 
   revalidatePath(routes.moderation());
-  return { ok: true, message: "Report dismissed." };
+  return { ok: true, message: t("ModerationActions.dismissed") };
 }

@@ -10,6 +10,8 @@
  * of what this file does or doesn't filter for.
  */
 
+import { getTranslations } from "next-intl/server";
+
 import type { WaveCardContainerWave } from "@/components/wave";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getFollowEdgesForViewer, getRisingCreators, type FollowEdge } from "@/lib/db/discovery";
@@ -38,8 +40,10 @@ export interface FeedActionResult<T> {
   error?: string;
 }
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : "Something went wrong.";
+async function messageOf(error: unknown): Promise<string> {
+  if (error instanceof Error) return error.message;
+  const t = await getTranslations("Common");
+  return t("somethingWentWrong");
 }
 
 const CATEGORY_PAGE_SIZE = 10;
@@ -100,7 +104,7 @@ export async function loadExploreCategory(
     const items = await hydrateWaveCards(supabase, page.items, user?.id ?? null);
     return { ok: true, data: { items, nextCursor: page.nextCursor } };
   } catch (error) {
-    return { ok: false, error: messageOf(error) };
+    return { ok: false, error: await messageOf(error) };
   }
 }
 
@@ -130,6 +134,6 @@ export async function loadRisingCreators(): Promise<FeedActionResult<RisingCreat
     }));
     return { ok: true, data };
   } catch (error) {
-    return { ok: false, error: messageOf(error) };
+    return { ok: false, error: await messageOf(error) };
   }
 }

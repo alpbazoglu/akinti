@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ForbiddenError } from "@/lib/db/types";
+import { __setMockLocale } from "@/test/next-intl-mock";
 
 /**
  * The AKINTI Pro gate on `createUploadTicket` (`./actions.ts`,
@@ -145,5 +146,30 @@ describe("createUploadTicket — AKINTI Pro gate", () => {
 
     expect(result.ok).toBe(true);
     expect(requireProMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("createUploadTicket — locale (docs/I18N.md)", () => {
+  afterEach(() => {
+    __setMockLocale("en");
+  });
+
+  it("rejects a Pro-only sound for a signed-in, non-Pro caller in Turkish under a tr request", async () => {
+    __setMockLocale("tr");
+    getCurrentUserMock.mockResolvedValue(SIGNED_IN_USER);
+    requireProMock.mockRejectedValue(new ForbiddenError("This option needs AKINTI Pro."));
+
+    const result = await createUploadTicket(baseArgs("pitch_snap"));
+
+    expect(result).toEqual({ ok: false, error: "Bu ses için AKINTI Pro gerekir." });
+  });
+
+  it("asks a signed-out caller to sign in, in Turkish, under a tr request", async () => {
+    __setMockLocale("tr");
+    getCurrentUserMock.mockResolvedValue(null);
+
+    const result = await createUploadTicket(baseArgs("pitch_snap"));
+
+    expect(result).toEqual({ ok: false, error: "Bunu yapmak için giriş yapın." });
   });
 });

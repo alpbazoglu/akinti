@@ -7,6 +7,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 
 import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { deleteWave, getWaveById, updateWave } from "@/lib/db/waves";
@@ -15,11 +16,7 @@ import { AUDIO_BUCKET, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { updateWaveSchema } from "@/lib/validation/waves";
-
-const NOT_CONFIGURED_ERROR =
-  "This isn't connected to a backend yet — Supabase environment variables are not set.";
-const SIGN_IN_ERROR = "Sign in to do that.";
-const NOT_FOUND_ERROR = "That Wave could not be found.";
+import { translateValidationMessage, type MessageTranslator } from "@/lib/validation/translate";
 
 export interface ActionSuccess {
   readonly ok: true;
@@ -42,18 +39,25 @@ export async function updateWaveDetails(
   waveId: string,
   args: UpdateWaveDetailsArgs,
 ): Promise<ActionResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("WaveActions.notConnected") };
   }
 
   const parsed = updateWaveSchema.safeParse(args);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Nothing to update." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message
+        ? translateValidationMessage(t, parsed.error.issues[0].message)
+        : t("WaveActions.nothingToUpdate"),
+    };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("WaveActions.signInError") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -62,13 +66,13 @@ export async function updateWaveDetails(
   const db = await createServerSupabaseClient();
   const wave = await getWaveById(db, waveId);
   if (!wave || wave.creatorId !== user.id) {
-    return { ok: false, error: NOT_FOUND_ERROR };
+    return { ok: false, error: t("WaveActions.notFound") };
   }
 
   try {
     await updateWave(db, waveId, parsed.data);
   } catch {
-    return { ok: false, error: "We couldn't save these changes. Try again." };
+    return { ok: false, error: t("WaveActions.updateFailed") };
   }
 
   revalidatePath(routes.wave(waveId));
@@ -84,13 +88,15 @@ export async function updateWaveDetails(
  * itself, which is the part that actually matters for visibility.
  */
 export async function deleteWaveDetails(waveId: string): Promise<ActionResult> {
+  const t = await getTranslations("WaveActions");
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("notConnected") };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("signInError") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -99,13 +105,13 @@ export async function deleteWaveDetails(waveId: string): Promise<ActionResult> {
   const db = await createServerSupabaseClient();
   const wave = await getWaveById(db, waveId);
   if (!wave || wave.creatorId !== user.id) {
-    return { ok: false, error: NOT_FOUND_ERROR };
+    return { ok: false, error: t("notFound") };
   }
 
   try {
     await deleteWave(db, waveId);
   } catch {
-    return { ok: false, error: "We couldn't delete this Wave. Try again." };
+    return { ok: false, error: t("deleteFailed") };
   }
 
   try {

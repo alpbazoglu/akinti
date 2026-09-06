@@ -10,7 +10,7 @@ import {
 
 import { uuidSchema } from "./common";
 
-const titleSchema = z.string().trim().min(1, "A Wave needs a title").max(120);
+const titleSchema = z.string().trim().min(1, "validation.waveTitleRequired").max(120);
 const descriptionSchema = z.string().trim().max(2000).nullable();
 const tagsSchema = z.array(z.string().trim().toLowerCase().min(1).max(24)).max(8);
 
@@ -92,14 +92,14 @@ export const updateWaveSchema = z
     content_origin: z.enum(CONTENT_ORIGINS).optional(),
     tags: tagsSchema.optional(),
   })
-  .refine((value) => Object.keys(value).length > 0, { message: "Nothing to update" });
+  .refine((value) => Object.keys(value).length > 0, { message: "validation.nothingToUpdate" });
 
 /** Mirrors the `comments_body_len` CHECK constraint (migration 05) exactly. */
 export const COMMENT_MAX_LENGTH = 1000;
 
 export const createCommentSchema = z.object({
   wave_id: uuidSchema,
-  body: z.string().trim().min(1, "Say something").max(COMMENT_MAX_LENGTH),
+  body: z.string().trim().min(1, "validation.commentBodyRequired").max(COMMENT_MAX_LENGTH),
   parent_comment_id: uuidSchema.nullable().default(null),
 });
 

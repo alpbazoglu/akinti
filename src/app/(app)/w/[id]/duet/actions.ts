@@ -22,6 +22,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 
 import { openDirectConversation, sendMessage } from "@/lib/db/conversations";
 import { canRequestDuet, createDuetRequest } from "@/lib/db/duetRequests";
@@ -29,24 +30,19 @@ import { answerOpenCall as answerOpenCallRow, closeOpenCall as closeOpenCallRow,
 import { DatabaseError } from "@/lib/db/types";
 import { getWaveById } from "@/lib/db/waves";
 import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
-import { isRateLimitError, RATE_LIMIT_MESSAGE } from "@/lib/moderation/errors";
+import { isRateLimitError } from "@/lib/moderation/errors";
 import { notifyDuetPush } from "@/lib/push/send";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { translateValidationMessage, type MessageTranslator } from "@/lib/validation/translate";
 import {
   answerOpenCallSchema,
   closeOpenCallSchema,
   createDuetRequestSchema,
   setOpenCallSchema,
 } from "@/lib/validation/duets";
-
-const NOT_CONFIGURED_ERROR =
-  "This isn't connected to a backend yet — Supabase environment variables are not set.";
-const SIGN_IN_ERROR = "Sign in to request a Duet.";
-const DENIED_ERROR = "You can't request a Duet on this Wave right now.";
-const DUPLICATE_ERROR = "You already have a pending Duet Request for this Wave.";
 
 export interface ActionFailure {
   readonly ok: false;
@@ -63,13 +59,13 @@ const UNIQUE_VIOLATION = "23505";
 /** Postgres insufficient_privilege — RLS/`can_request_duet` rejected the insert. */
 const INSUFFICIENT_PRIVILEGE = "42501";
 
-function describeError(err: unknown): string {
-  if (isRateLimitError(err)) return RATE_LIMIT_MESSAGE;
+function describeError(err: unknown, t: MessageTranslator): string {
+  if (isRateLimitError(err)) return t("Common.rateLimited");
   if (err instanceof DatabaseError) {
-    if (err.code === UNIQUE_VIOLATION) return DUPLICATE_ERROR;
-    if (err.code === INSUFFICIENT_PRIVILEGE) return DENIED_ERROR;
+    if (err.code === UNIQUE_VIOLATION) return t("DuetRecordActions.duplicate");
+    if (err.code === INSUFFICIENT_PRIVILEGE) return t("DuetRecordActions.denied");
   }
-  return "We couldn't send this Duet Request. Try again.";
+  return t("DuetRecordActions.sendFailed");
 }
 
 /**
@@ -81,18 +77,25 @@ function describeError(err: unknown): string {
  * trigger, migration 11) has already reached the recipient regardless.
  */
 export async function requestDuet(waveId: string, message: string | null): Promise<RequestDuetResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("Common.notConnected") };
   }
 
   const parsed = createDuetRequestSchema.safeParse({ waveId, message });
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "This Duet Request isn't valid." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message
+        ? translateValidationMessage(t, parsed.error.issues[0].message)
+        : t("DuetRecordActions.requestInvalid"),
+    };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("DuetRecordActions.signInError") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -102,15 +105,15 @@ export async function requestDuet(waveId: string, message: string | null): Promi
 
   const wave = await getWaveById(db, parsed.data.waveId);
   if (!wave) {
-    return { ok: false, error: "This Wave isn't available." };
+    return { ok: false, error: t("Common.waveNotAvailable") };
   }
   if (wave.creatorId === user.id) {
-    return { ok: false, error: "You can't request a Duet on your own Wave — record one directly instead." };
+    return { ok: false, error: t("DuetRecordActions.cannotDuetOwnWave") };
   }
 
   const allowed = await canRequestDuet(db, parsed.data.waveId).catch(() => false);
   if (!allowed) {
-    return { ok: false, error: DENIED_ERROR };
+    return { ok: false, error: t("DuetRecordActions.denied") };
   }
 
   let requestId: string;
@@ -118,13 +121,13 @@ export async function requestDuet(waveId: string, message: string | null): Promi
     const request = await createDuetRequest(db, user.id, parsed.data);
     requestId = request.id;
   } catch (err) {
-    return { ok: false, error: describeError(err) };
+    return { ok: false, error: describeError(err, t) };
   }
 
   void notifyDuetPush(db, {
     recipientId: wave.creatorId,
-    title: "New duet request",
-    body: `Wants to create a ${TERMS.duet.toLowerCase()} using your ${TERMS.wave.toLowerCase()}.`,
+    title: t("DuetRecordActions.newDuetRequestTitle"),
+    body: t("DuetRecordActions.newDuetRequestBody", { duet: TERMS.duet, wave: TERMS.wave }),
     url: routes.duets(),
     tag: `duet-request:${requestId}`,
   });
@@ -174,18 +177,25 @@ export async function setOpenCall(
   prompt: string | null,
   deadlineAt: string | null,
 ): Promise<OpenCallActionResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("Common.notConnected") };
   }
 
   const parsed = setOpenCallSchema.safeParse({ waveId, prompt, deadlineAt });
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "This open call isn't valid." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message
+        ? translateValidationMessage(t, parsed.error.issues[0].message)
+        : t("DuetRecordActions.openCallInvalid"),
+    };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("DuetRecordActions.signInError") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -194,10 +204,10 @@ export async function setOpenCall(
   const db = await createServerSupabaseClient();
   const wave = await getWaveById(db, parsed.data.waveId);
   if (!wave) {
-    return { ok: false, error: "This Wave isn't available." };
+    return { ok: false, error: t("Common.waveNotAvailable") };
   }
   if (wave.creatorId !== user.id) {
-    return { ok: false, error: "Only the creator can open this Wave for Duets." };
+    return { ok: false, error: t("DuetRecordActions.onlyCreatorCanOpen") };
   }
 
   try {
@@ -205,7 +215,9 @@ export async function setOpenCall(
   } catch (err) {
     return {
       ok: false,
-      error: err instanceof DatabaseError ? "We couldn't open this Wave for Duets. Try again." : "We couldn't do that. Try again.",
+      error: err instanceof DatabaseError
+        ? t("DuetRecordActions.openCallFailed")
+        : t("Common.couldNotDoThat"),
     };
   }
 
@@ -216,18 +228,20 @@ export async function setOpenCall(
 
 /** Close a previously-opened call. Creator-only, same enforcement path as `setOpenCall`. */
 export async function closeOpenCall(waveId: string): Promise<OpenCallActionResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("Common.notConnected") };
   }
 
   const parsed = closeOpenCallSchema.safeParse({ waveId });
   if (!parsed.success) {
-    return { ok: false, error: "That Wave isn't valid." };
+    return { ok: false, error: t("DuetRecordActions.waveInvalid") };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("DuetRecordActions.signInError") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -236,16 +250,16 @@ export async function closeOpenCall(waveId: string): Promise<OpenCallActionResul
   const db = await createServerSupabaseClient();
   const call = await getOpenCallByWaveId(db, parsed.data.waveId);
   if (!call) {
-    return { ok: false, error: "This Wave has no open call to close." };
+    return { ok: false, error: t("DuetRecordActions.noOpenCall") };
   }
   if (call.creatorId !== user.id) {
-    return { ok: false, error: "Only the creator can close this open call." };
+    return { ok: false, error: t("DuetRecordActions.onlyCreatorCanClose") };
   }
 
   try {
     await closeOpenCallRow(db, parsed.data);
   } catch {
-    return { ok: false, error: "We couldn't close this open call. Try again." };
+    return { ok: false, error: t("DuetRecordActions.closeFailed") };
   }
 
   revalidatePath(routes.wave(parsed.data.waveId));
@@ -263,18 +277,20 @@ export async function closeOpenCall(waveId: string): Promise<OpenCallActionResul
  * wait on.
  */
 export async function answerOpenCall(waveId: string): Promise<AnswerOpenCallResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("Common.notConnected") };
   }
 
   const parsed = answerOpenCallSchema.safeParse({ waveId });
   if (!parsed.success) {
-    return { ok: false, error: "That Wave isn't valid." };
+    return { ok: false, error: t("DuetRecordActions.waveInvalid") };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("DuetRecordActions.signInError") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -287,20 +303,20 @@ export async function answerOpenCall(waveId: string): Promise<AnswerOpenCallResu
     requestId = await answerOpenCallRow(db, parsed.data);
   } catch (err) {
     if (isRateLimitError(err)) {
-      return { ok: false, error: RATE_LIMIT_MESSAGE };
+      return { ok: false, error: t("Common.rateLimited") };
     }
     if (err instanceof DatabaseError && err.code === INSUFFICIENT_PRIVILEGE) {
-      return { ok: false, error: "You can't answer this open call right now." };
+      return { ok: false, error: t("DuetRecordActions.answerDenied") };
     }
-    return { ok: false, error: "We couldn't answer this open call. Try again." };
+    return { ok: false, error: t("DuetRecordActions.answerFailed") };
   }
 
   const openCallWave = await getWaveById(db, parsed.data.waveId);
   if (openCallWave) {
     void notifyDuetPush(db, {
       recipientId: openCallWave.creatorId,
-      title: "Your open call was answered",
-      body: `Someone recorded against your open ${TERMS.duet.toLowerCase()} call.`,
+      title: t("DuetRecordActions.openCallAnsweredTitle"),
+      body: t("DuetRecordActions.openCallAnsweredBody", { duet: TERMS.duet }),
       url: routes.duets(),
       tag: `duet-answer:${requestId}`,
     });

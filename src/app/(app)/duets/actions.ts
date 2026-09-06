@@ -15,6 +15,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 
 import {
   cancelDuetRequest as cancelDuetRequestRow,
@@ -28,15 +29,11 @@ import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { translateValidationMessage, type MessageTranslator } from "@/lib/validation/translate";
 import {
   cancelDuetRequestSchema,
   respondToDuetRequestSchema,
 } from "@/lib/validation/duets";
-
-const NOT_CONFIGURED_ERROR =
-  "This isn't connected to a backend yet — Supabase environment variables are not set.";
-const SIGN_IN_ERROR = "Sign in to do that.";
-const NOT_FOUND_ERROR = "That Duet Request could not be found.";
 
 export interface ActionFailure {
   readonly ok: false;
@@ -52,16 +49,16 @@ const CHECK_VIOLATION = "23514";
 /** Postgres insufficient_privilege — the guard's "only the recipient/requester may..." raise, or RLS. */
 const INSUFFICIENT_PRIVILEGE = "42501";
 
-function describeError(err: unknown, notAllowedMessage: string): string {
+function describeError(err: unknown, notAllowedMessage: string, t: MessageTranslator): string {
   if (err instanceof DatabaseError) {
     if (err.code === CHECK_VIOLATION) {
-      return "This Duet Request has already been responded to.";
+      return t("DuetsActions.alreadyResponded");
     }
     if (err.code === INSUFFICIENT_PRIVILEGE) {
       return notAllowedMessage;
     }
   }
-  return "We couldn't do that. Try again.";
+  return t("Common.couldNotDoThat");
 }
 
 /** Only the recipient may accept/decline (spec §15 lifecycle). */
@@ -69,18 +66,25 @@ export async function respondToDuetRequest(
   requestId: string,
   decision: "accepted" | "declined",
 ): Promise<ActionResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("Common.notConnected") };
   }
 
   const parsed = respondToDuetRequestSchema.safeParse({ requestId, decision });
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "That request isn't valid." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message
+        ? translateValidationMessage(t, parsed.error.issues[0].message)
+        : t("DuetsActions.requestInvalid"),
+    };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("Common.signInToDoThat") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -89,28 +93,31 @@ export async function respondToDuetRequest(
   const db = await createServerSupabaseClient();
   const request = await getDuetRequestById(db, parsed.data.requestId);
   if (!request) {
-    return { ok: false, error: NOT_FOUND_ERROR };
+    return { ok: false, error: t("DuetsActions.requestNotFound") };
   }
   if (request.recipientId !== user.id) {
-    return { ok: false, error: "Only the recipient can respond to this Duet Request." };
+    return { ok: false, error: t("DuetsActions.onlyRecipientCanRespond") };
   }
   if (request.status !== "pending") {
-    return { ok: false, error: "This Duet Request has already been responded to." };
+    return { ok: false, error: t("DuetsActions.alreadyResponded") };
   }
 
   try {
     await respondToDuetRequestRow(db, parsed.data);
   } catch (err) {
-    return { ok: false, error: describeError(err, "Only the recipient can respond to this Duet Request.") };
+    return { ok: false, error: describeError(err, t("DuetsActions.onlyRecipientCanRespond"), t) };
   }
 
   void notifyDuetPush(db, {
     recipientId: request.requesterId,
-    title: decision === "accepted" ? "Duet request accepted" : "Duet request declined",
+    title:
+      decision === "accepted"
+        ? t("DuetsActions.duetRequestAcceptedTitle")
+        : t("DuetsActions.duetRequestDeclinedTitle"),
     body:
       decision === "accepted"
-        ? `Your ${TERMS.duetRequest.toLowerCase()} was accepted.`
-        : `Your ${TERMS.duetRequest.toLowerCase()} was declined.`,
+        ? t("DuetsActions.duetRequestAcceptedBody", { duetRequest: TERMS.duetRequest })
+        : t("DuetsActions.duetRequestDeclinedBody", { duetRequest: TERMS.duetRequest }),
     url: routes.duets(),
     tag: `duet-answer:${parsed.data.requestId}`,
   });
@@ -121,18 +128,25 @@ export async function respondToDuetRequest(
 
 /** Only the requester may cancel, and only while still pending. */
 export async function cancelDuetRequest(requestId: string): Promise<ActionResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("Common.notConnected") };
   }
 
   const parsed = cancelDuetRequestSchema.safeParse({ requestId });
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "That request isn't valid." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message
+        ? translateValidationMessage(t, parsed.error.issues[0].message)
+        : t("DuetsActions.requestInvalid"),
+    };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("Common.signInToDoThat") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -141,19 +155,19 @@ export async function cancelDuetRequest(requestId: string): Promise<ActionResult
   const db = await createServerSupabaseClient();
   const request = await getDuetRequestById(db, parsed.data.requestId);
   if (!request) {
-    return { ok: false, error: NOT_FOUND_ERROR };
+    return { ok: false, error: t("DuetsActions.requestNotFound") };
   }
   if (request.requesterId !== user.id) {
-    return { ok: false, error: "Only the requester can cancel this Duet Request." };
+    return { ok: false, error: t("DuetsActions.onlyRequesterCanCancel") };
   }
   if (request.status !== "pending") {
-    return { ok: false, error: "This Duet Request can no longer be cancelled." };
+    return { ok: false, error: t("DuetsActions.noLongerCancellable") };
   }
 
   try {
     await cancelDuetRequestRow(db, parsed.data.requestId);
   } catch (err) {
-    return { ok: false, error: describeError(err, "Only the requester can cancel this Duet Request.") };
+    return { ok: false, error: describeError(err, t("DuetsActions.onlyRequesterCanCancel"), t) };
   }
 
   revalidatePath(routes.duets());

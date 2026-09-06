@@ -7,12 +7,12 @@ import { usernameSchema } from "./common";
  * `minimum_password_length = 8` — keep both in sync if that value changes.
  */
 
-export const emailSchema = z.string().trim().toLowerCase().email("Enter a valid email address").max(254);
+export const emailSchema = z.string().trim().toLowerCase().email("validation.emailInvalid").max(254);
 
 export const passwordSchema = z
   .string()
-  .min(8, "Password must be at least 8 characters")
-  .max(72, "Password must be at most 72 characters");
+  .min(8, "validation.passwordMin")
+  .max(72, "validation.passwordMax");
 
 export const signUpSchema = z.object({
   email: emailSchema,
@@ -22,7 +22,7 @@ export const signUpSchema = z.object({
 
 export const signInSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, "Enter your password"),
+  password: z.string().min(1, "validation.passwordRequired"),
 });
 
 export const requestPasswordResetSchema = z.object({

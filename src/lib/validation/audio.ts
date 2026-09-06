@@ -72,7 +72,7 @@ export const createAudioAssetSchema = z.object({
   enhancement_preset: z.enum(ALL_AUDIO_ENHANCEMENT_PRESET_IDS).default("natural"),
   checksum_sha256: z
     .string()
-    .regex(/^[0-9a-f]{64}$/, "Expected a lowercase hex SHA-256 digest")
+    .regex(/^[0-9a-f]{64}$/, "validation.audioDigestFormat")
     .nullish(),
 });
 

@@ -19,6 +19,7 @@
  * does for its own admin-client calls.
  */
 
+import { getTranslations } from "next-intl/server";
 import { z } from "zod";
 
 import { assertNotSuspended, getCurrentProfile, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
@@ -27,14 +28,13 @@ import { cancelSubscriptionForUser, isPro, resumeSubscriptionForUser, startCheck
 import { BillingProviderError } from "@/lib/billing/types";
 import type { IyzicoBuyerDetails } from "@/lib/billing/types";
 import { DatabaseError } from "@/lib/db/types";
-import { isRateLimitError, RATE_LIMIT_MESSAGE } from "@/lib/moderation/errors";
+import { isRateLimitError } from "@/lib/moderation/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { translateFieldErrors, type MessageTranslator } from "@/lib/validation/translate";
 import type { PlanCode, SubscriptionStatus } from "@/types/database";
 
-const NOT_CONFIGURED_ERROR = "This can't be completed right now. Try again later.";
-const SIGN_IN_ERROR = "Sign in to continue.";
 /** Postgres unique_violation — a second checkout beat this one to recording its `subscriptions` row. */
 const UNIQUE_VIOLATION = "23505";
 
@@ -57,11 +57,13 @@ async function requireSignedIn(): Promise<
   | { userId: null; email: null; name: null; error: ProActionFailure }
 > {
   if (!isSupabaseConfigured()) {
-    return { userId: null, email: null, name: null, error: { ok: false, formError: NOT_CONFIGURED_ERROR } };
+    const t = await getTranslations("Common");
+    return { userId: null, email: null, name: null, error: { ok: false, formError: t("notConfigured") } };
   }
   const user = await getCurrentUser();
   if (!user || !user.email) {
-    return { userId: null, email: null, name: null, error: { ok: false, formError: SIGN_IN_ERROR } };
+    const t = await getTranslations("Common");
+    return { userId: null, email: null, name: null, error: { ok: false, formError: t("signInToContinue") } };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { userId: null, email: null, name: null, error: { ok: false, formError: SUSPENDED_ACTION_MESSAGE } };
@@ -70,15 +72,15 @@ async function requireSignedIn(): Promise<
   return { userId: user.id, email: user.email, name: profile?.displayName || user.email, error: null };
 }
 
-function describeError(err: unknown, fallback: string): string {
+function describeError(err: unknown, fallback: string, t: MessageTranslator): string {
   if (isRateLimitError(err)) {
-    return RATE_LIMIT_MESSAGE;
+    return t("Common.rateLimited");
   }
   if (err instanceof BillingProviderError) {
     return err.message;
   }
   if (err instanceof DatabaseError && err.code === UNIQUE_VIOLATION) {
-    return "A checkout is already in progress. Try again in a moment.";
+    return t("SettingsProActions.checkoutInProgress");
   }
   return fallback;
 }
@@ -132,11 +134,12 @@ export async function startProCheckout(
   }>
 > {
   const parsed = startProCheckoutSchema.safeParse(input);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
   if (parsed.data.planCode.endsWith("_try") && !parsed.data.buyer) {
-    return { ok: false, fieldErrors: { buyer: "Billing details are required for a Turkish Lira plan." } };
+    return { ok: false, fieldErrors: { buyer: t("SettingsProActions.buyerRequired") } };
   }
 
   const signedIn = await requireSignedIn();
@@ -155,7 +158,7 @@ export async function startProCheckout(
 
     return {
       ok: true,
-      message: "Checkout started.",
+      message: t("SettingsProActions.checkoutStarted"),
       data: {
         redirectUrl: result.redirectUrl,
         checkoutFormToken: result.redirectUrl ? null : result.providerRef,
@@ -164,7 +167,7 @@ export async function startProCheckout(
       },
     };
   } catch (err) {
-    return { ok: false, formError: describeError(err, "We couldn't start checkout. Try again.") };
+    return { ok: false, formError: describeError(err, t("SettingsProActions.checkoutStartFailed"), t) };
   }
 }
 
@@ -174,13 +177,14 @@ export async function cancelPro(): Promise<ProActionResult> {
   if (signedIn.error) return signedIn.error;
 
   const admin = createAdminClient();
+  const t = (await getTranslations()) as MessageTranslator;
   try {
     await cancelSubscriptionForUser(admin, signedIn.userId);
   } catch (err) {
-    return { ok: false, formError: describeError(err, "We couldn't cancel your subscription. Try again.") };
+    return { ok: false, formError: describeError(err, t("SettingsProActions.cancelFailed"), t) };
   }
 
-  return { ok: true, message: "Your subscription will end at the close of the current billing period." };
+  return { ok: true, message: t("SettingsProActions.cancelScheduled") };
 }
 
 /**
@@ -195,13 +199,14 @@ export async function resumePro(): Promise<ProActionResult> {
   if (signedIn.error) return signedIn.error;
 
   const admin = createAdminClient();
+  const t = (await getTranslations()) as MessageTranslator;
   try {
     await resumeSubscriptionForUser(admin, signedIn.userId);
   } catch (err) {
-    return { ok: false, formError: describeError(err, "We couldn't resume your subscription. Try again.") };
+    return { ok: false, formError: describeError(err, t("SettingsProActions.resumeFailed"), t) };
   }
 
-  return { ok: true, message: "Your subscription will keep renewing." };
+  return { ok: true, message: t("SettingsProActions.resumeSucceeded") };
 }
 
 export interface ProStatus {
@@ -215,11 +220,13 @@ export interface ProStatus {
 /** Read-only: the caller's own Pro status, via their own (RLS-scoped) client — no admin client needed, since `subscriptions_select_own` already lets a user read their own row. */
 export async function getProStatus(): Promise<ProActionResult<ProStatus>> {
   if (!isSupabaseConfigured()) {
-    return { ok: false, formError: NOT_CONFIGURED_ERROR };
+    const t = await getTranslations("Common");
+    return { ok: false, formError: t("notConfigured") };
   }
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, formError: SIGN_IN_ERROR };
+    const t = await getTranslations("Common");
+    return { ok: false, formError: t("signInToContinue") };
   }
 
   const db = await createServerSupabaseClient();
@@ -236,7 +243,8 @@ export async function getProStatus(): Promise<ProActionResult<ProStatus>> {
   ]);
 
   if (subscriptionResult.error) {
-    return { ok: false, formError: "We couldn't load your subscription. Try again." };
+    const t = await getTranslations("SettingsProActions");
+    return { ok: false, formError: t("loadFailed") };
   }
 
   const subscription = subscriptionResult.data;

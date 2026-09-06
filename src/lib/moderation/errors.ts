@@ -22,11 +22,18 @@
  */
 
 import { DatabaseError } from "@/lib/db/types";
+import type { MessageTranslator } from "@/lib/validation/translate";
 
 /** Custom SQLSTATE raised by `public.check_rate_limit()` (migration 21). */
 export const RATE_LIMIT_SQLSTATE = "AKRTL";
 
-/** The one piece of copy every rate-limited action should show. */
+/**
+ * English fallback only (`docs/I18N.md`) — kept for call sites this stage
+ * does not own (`src/app/(app)/w/[id]/interactions.ts`) that read this
+ * constant directly rather than through `mapModerationError` below. Every
+ * call site this stage does own translates via the `Common.rateLimited`
+ * message key instead, resolved for the current request locale.
+ */
 export const RATE_LIMIT_MESSAGE = "You're doing that too often. Try again in a few minutes.";
 
 /** True when `error` is the rate-limit guard, specifically — never a generic Postgres failure. */
@@ -35,14 +42,15 @@ export function isRateLimitError(error: unknown): boolean {
 }
 
 /**
- * Map a caught error to English copy: the rate-limit message when that's
- * what happened, otherwise `fallback` (the caller's own honest default for
- * every other failure — this function never invents a message for an error
- * it doesn't recognise).
+ * Map a caught error to translated copy: the rate-limit message (via `t`,
+ * `Common.rateLimited` — `getTranslations()` at the caller's Server Action
+ * boundary) when that's what happened, otherwise `fallback` (the caller's
+ * own already-translated default for every other failure — this function
+ * never invents a message for an error it doesn't recognise).
  */
-export function mapModerationError(error: unknown, fallback: string): string {
+export function mapModerationError(error: unknown, fallback: string, t: MessageTranslator): string {
   if (isRateLimitError(error)) {
-    return RATE_LIMIT_MESSAGE;
+    return t("Common.rateLimited");
   }
   return fallback;
 }

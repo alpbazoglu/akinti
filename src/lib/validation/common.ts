@@ -8,9 +8,9 @@ export const usernameSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .min(3, "Username must be at least 3 characters")
-  .max(30, "Username must be at most 30 characters")
-  .regex(/^[a-z0-9_]+$/, "Username may only contain lowercase letters, numbers and underscores");
+  .min(3, "validation.usernameMin")
+  .max(30, "validation.usernameMax")
+  .regex(/^[a-z0-9_]+$/, "validation.usernameFormat");
 
 export const paginationSchema = z.object({
   limit: z.number().int().min(1).max(50).default(20),

@@ -34,8 +34,8 @@ export const listBackingTracksSchema = z.object({
  */
 export const uploadBackingTrackSchema = z
   .object({
-    title: z.string().trim().min(1, "Give this track a title").max(120),
-    artistCredit: z.string().trim().min(1, "Credit an artist").max(120),
+    title: z.string().trim().min(1, "validation.trackTitleRequired").max(120),
+    artistCredit: z.string().trim().min(1, "validation.trackArtistRequired").max(120),
     // owner_upload is the expected value for a self-uploaded track; cc0/cc_by
     // remain selectable for someone re-uploading a track they have the right
     // to share under one of those licenses.
@@ -50,7 +50,7 @@ export const uploadBackingTrackSchema = z
   .refine((value) => value.license !== "cc_by" || Boolean(value.sourceUrl), {
     // backing_tracks_cc_by_requires_source (migration 20260905110000):
     // attribution is not optional under CC-BY.
-    message: "A CC-BY track needs a source URL for attribution",
+    message: "validation.trackAttributionRequired",
     path: ["sourceUrl"],
   });
 

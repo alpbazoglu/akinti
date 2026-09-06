@@ -41,7 +41,7 @@ export const updateProfileSchema = z
     interests: z.array(z.string().trim().min(1).max(30)).max(10).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
-    message: "Nothing to update",
+    message: "validation.nothingToUpdate",
   });
 
 export const completeOnboardingSchema = z.object({

@@ -1,5 +1,7 @@
 "use server";
 
+import { getTranslations } from "next-intl/server";
+
 import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import type { AuthActionResult } from "@/lib/auth/types";
 import { fieldErrorsFromZod } from "@/lib/auth/types";
@@ -11,6 +13,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { uuidSchema } from "@/lib/validation/common";
 import { blockSchema, followSchema, respondToFollowRequestSchema } from "@/lib/validation/profiles";
 import { createReportSchema } from "@/lib/validation/moderation";
+import { translateFieldErrors, type MessageTranslator } from "@/lib/validation/translate";
 import type { FollowStatus } from "@/types/domain";
 
 /** `follow`/`unfollow`/`cancelFollowRequest` also report the resulting edge
@@ -33,11 +36,12 @@ export interface FollowActionResult extends AuthActionResult {
 async function requireSignedInUser() {
   const user = await getCurrentUser();
   if (!user) {
+    const t = await getTranslations("ProfileActions");
     return {
       user: null,
       result: {
         ok: false,
-        formError: "You need to be signed in to do that.",
+        formError: t("signInRequired"),
       } satisfies AuthActionResult,
     };
   }
@@ -60,11 +64,12 @@ export async function follow(followeeId: string): Promise<FollowActionResult> {
   if (!user) return result!;
 
   const parsed = followSchema.safeParse({ followeeId });
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, formError: "That profile could not be found." };
+    return { ok: false, formError: t("ProfileActions.profileNotFound") };
   }
   if (parsed.data.followeeId === user.id) {
-    return { ok: false, formError: "You cannot follow yourself." };
+    return { ok: false, formError: t("ProfileActions.cannotFollowSelf") };
   }
 
   const supabase = await createServerSupabaseClient();
@@ -72,7 +77,7 @@ export async function follow(followeeId: string): Promise<FollowActionResult> {
     const status = await followProfile(supabase, user.id, parsed.data.followeeId);
     return { ok: true, status };
   } catch (err) {
-    return { ok: false, formError: mapModerationError(err, "Could not follow this account. Try again.") };
+    return { ok: false, formError: mapModerationError(err, t("ProfileActions.followFailed"), t) };
   }
 }
 
@@ -81,15 +86,16 @@ export async function unfollow(followeeId: string): Promise<FollowActionResult> 
   if (!user) return result!;
 
   const parsed = followSchema.safeParse({ followeeId });
+  const t = await getTranslations("ProfileActions");
   if (!parsed.success) {
-    return { ok: false, formError: "That profile could not be found." };
+    return { ok: false, formError: t("profileNotFound") };
   }
 
   const supabase = await createServerSupabaseClient();
   try {
     await unfollowProfile(supabase, user.id, parsed.data.followeeId);
   } catch {
-    return { ok: false, formError: "Could not unfollow this account. Try again." };
+    return { ok: false, formError: t("unfollowFailed") };
   }
   return { ok: true, status: null };
 }
@@ -105,15 +111,16 @@ export async function acceptFollowRequest(followerId: string): Promise<AuthActio
   if (!user) return result!;
 
   const parsed = respondToFollowRequestSchema.safeParse({ followerId, accept: true });
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
   try {
     await respondToFollowRequest(supabase, user.id, parsed.data.followerId, true);
   } catch {
-    return { ok: false, formError: "Could not accept that request. Try again." };
+    return { ok: false, formError: t("ProfileActions.acceptRequestFailed") };
   }
   return { ok: true };
 }
@@ -123,15 +130,16 @@ export async function declineFollowRequest(followerId: string): Promise<AuthActi
   if (!user) return result!;
 
   const parsed = respondToFollowRequestSchema.safeParse({ followerId, accept: false });
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
   try {
     await respondToFollowRequest(supabase, user.id, parsed.data.followerId, false);
   } catch {
-    return { ok: false, formError: "Could not decline that request. Try again." };
+    return { ok: false, formError: t("ProfileActions.declineRequestFailed") };
   }
   return { ok: true };
 }
@@ -142,20 +150,21 @@ export async function block(blockedId: string): Promise<AuthActionResult> {
   if (!user) return result!;
 
   const parsed = blockSchema.safeParse({ blockedId });
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, formError: "That profile could not be found." };
+    return { ok: false, formError: t("ProfileActions.profileNotFound") };
   }
   if (parsed.data.blockedId === user.id) {
-    return { ok: false, formError: "You cannot block yourself." };
+    return { ok: false, formError: t("ProfileActions.cannotBlockSelf") };
   }
 
   const supabase = await createServerSupabaseClient();
   try {
     await blockProfile(supabase, user.id, parsed.data.blockedId);
   } catch {
-    return { ok: false, formError: "Could not block this account. Try again." };
+    return { ok: false, formError: t("ProfileActions.blockFailed") };
   }
-  return { ok: true, message: "Account blocked." };
+  return { ok: true, message: t("ProfileActions.blocked") };
 }
 
 export async function unblock(blockedId: string): Promise<AuthActionResult> {
@@ -163,17 +172,18 @@ export async function unblock(blockedId: string): Promise<AuthActionResult> {
   if (!user) return result!;
 
   const parsed = uuidSchema.safeParse(blockedId);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, formError: "That profile could not be found." };
+    return { ok: false, formError: t("ProfileActions.profileNotFound") };
   }
 
   const supabase = await createServerSupabaseClient();
   try {
     await unblockProfile(supabase, user.id, parsed.data);
   } catch {
-    return { ok: false, formError: "Could not unblock this account. Try again." };
+    return { ok: false, formError: t("Common.unblockFailed") };
   }
-  return { ok: true, message: "Account unblocked." };
+  return { ok: true, message: t("Common.accountUnblocked") };
 }
 
 export interface SubmitProfileReportInput {
@@ -193,15 +203,16 @@ export async function submitProfileReport(input: SubmitProfileReportInput): Prom
     reason: input.reason,
     details: input.details,
   });
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
   try {
     await createReport(supabase, user.id, parsed.data);
   } catch (err) {
-    return { ok: false, formError: mapModerationError(err, "Could not submit your report. Try again.") };
+    return { ok: false, formError: mapModerationError(err, t("ProfileActions.reportFailed"), t) };
   }
-  return { ok: true, message: "Report submitted. Our team will review it." };
+  return { ok: true, message: t("ProfileActions.reportSubmitted") };
 }

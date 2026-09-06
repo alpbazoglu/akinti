@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 
 import { routes } from "@/config/routes";
 import { requireUser } from "@/lib/auth/server";
@@ -21,14 +22,17 @@ export interface NotificationActionResult<T = undefined> {
   data?: T;
 }
 
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : "Something went wrong.";
+async function messageOf(error: unknown): Promise<string> {
+  if (error instanceof Error) return error.message;
+  const t = await getTranslations("Common");
+  return t("somethingWentWrong");
 }
 
 export async function markNotificationRead(id: string): Promise<NotificationActionResult> {
   const parsed = uuidSchema.safeParse(id);
   if (!parsed.success) {
-    return { ok: false, error: "That notification could not be found." };
+    const t = await getTranslations("NotificationsActions");
+    return { ok: false, error: t("notificationNotFound") };
   }
 
   await requireUser(routes.notifications());
@@ -39,7 +43,7 @@ export async function markNotificationRead(id: string): Promise<NotificationActi
     revalidatePath(routes.notifications());
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: messageOf(error) };
+    return { ok: false, error: await messageOf(error) };
   }
 }
 
@@ -52,7 +56,7 @@ export async function markAllNotificationsRead(): Promise<NotificationActionResu
     revalidatePath(routes.notifications());
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: messageOf(error) };
+    return { ok: false, error: await messageOf(error) };
   }
 }
 
@@ -66,7 +70,7 @@ export async function loadMoreNotifications(
     const page = await listNotifications(supabase, { cursor });
     return { ok: true, data: page };
   } catch (error) {
-    return { ok: false, error: messageOf(error) };
+    return { ok: false, error: await messageOf(error) };
   }
 }
 
@@ -95,7 +99,8 @@ export async function respondToCollaboratorInvite(
 ): Promise<NotificationActionResult> {
   const parsed = uuidSchema.safeParse(waveId);
   if (!parsed.success) {
-    return { ok: false, error: "That Wave could not be found." };
+    const t = await getTranslations("NotificationsActions");
+    return { ok: false, error: t("waveNotFound") };
   }
 
   const user = await requireUser(routes.notifications());
@@ -114,12 +119,13 @@ export async function respondToCollaboratorInvite(
       return { ok: false, error: error.message };
     }
     if (!data || data.length === 0) {
-      return { ok: false, error: "This invitation was already resolved." };
+      const t = await getTranslations("NotificationsActions");
+      return { ok: false, error: t("invitationResolved") };
     }
 
     revalidatePath(routes.notifications());
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: messageOf(error) };
+    return { ok: false, error: await messageOf(error) };
   }
 }

@@ -1,5 +1,7 @@
 "use server";
 
+import { getTranslations } from "next-intl/server";
+
 import { completeOnboardingSchema } from "@/lib/validation/profiles";
 import { usernameSchema } from "@/lib/validation/common";
 import type { AuthActionResult } from "@/lib/auth/types";
@@ -8,6 +10,7 @@ import { getCurrentUser } from "@/lib/auth/server";
 import { completeOnboarding as completeOnboardingRow, isUsernameAvailable } from "@/lib/db/profiles";
 import { DatabaseError } from "@/lib/db/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { translateFieldErrors, type MessageTranslator } from "@/lib/validation/translate";
 
 /**
  * Server Actions for `/onboarding` (SCREENS.md §1). Called directly from
@@ -24,8 +27,9 @@ export interface CompleteOnboardingInput {
 
 export async function completeOnboarding(input: CompleteOnboardingInput): Promise<AuthActionResult> {
   const user = await getCurrentUser();
+  const t = (await getTranslations()) as MessageTranslator;
   if (!user) {
-    return { ok: false, formError: "Your session has expired. Sign in again to continue." };
+    return { ok: false, formError: t("Common.sessionExpired") };
   }
 
   const parsed = completeOnboardingSchema.safeParse({
@@ -35,7 +39,7 @@ export async function completeOnboarding(input: CompleteOnboardingInput): Promis
   });
 
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
@@ -44,9 +48,9 @@ export async function completeOnboarding(input: CompleteOnboardingInput): Promis
     await completeOnboardingRow(supabase, user.id, parsed.data);
   } catch (error) {
     if (error instanceof DatabaseError && error.code === "23505") {
-      return { ok: false, fieldErrors: { username: "That username is taken." } };
+      return { ok: false, fieldErrors: { username: t("Common.usernameTaken") } };
     }
-    return { ok: false, formError: "Could not save your details. Try again." };
+    return { ok: false, formError: t("OnboardingActions.saveFailed") };
   }
 
   return { ok: true };

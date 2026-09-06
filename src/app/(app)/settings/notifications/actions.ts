@@ -9,21 +9,25 @@
  * auth.uid()`, so these actions never need to check ownership themselves.
  */
 
+import { getTranslations } from "next-intl/server";
+
 import { getCurrentUser } from "@/lib/auth/server";
 import type { AuthActionResult } from "@/lib/auth/types";
 import { fieldErrorsFromZod } from "@/lib/auth/types";
 import { deletePushSubscription, upsertPushSubscription } from "@/lib/push/subscriptions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { subscribePushSchema, unsubscribePushSchema } from "@/lib/validation/push";
+import { translateFieldErrors, type MessageTranslator } from "@/lib/validation/translate";
 
 async function requireSignedInUser() {
   const user = await getCurrentUser();
   if (!user) {
+    const t = await getTranslations("Common");
     return {
       user: null,
       result: {
         ok: false,
-        formError: "Your session has expired. Sign in again to continue.",
+        formError: t("sessionExpired"),
       } satisfies AuthActionResult,
     };
   }
@@ -43,8 +47,9 @@ export async function subscribePush(input: SubscribePushFormInput): Promise<Auth
   if (!user) return result!;
 
   const parsed = subscribePushSchema.safeParse({ endpoint: input.endpoint, keys: input.keys });
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
@@ -56,10 +61,10 @@ export async function subscribePush(input: SubscribePushFormInput): Promise<Auth
       userAgent: input.userAgent?.slice(0, 512) ?? null,
     });
   } catch {
-    return { ok: false, formError: "Could not turn on push notifications. Try again." };
+    return { ok: false, formError: t("SettingsNotificationsActions.subscribeFailed") };
   }
 
-  return { ok: true, message: "Push notifications turned on." };
+  return { ok: true, message: t("SettingsNotificationsActions.subscribed") };
 }
 
 export interface UnsubscribePushFormInput {
@@ -72,16 +77,17 @@ export async function unsubscribePush(input: UnsubscribePushFormInput): Promise<
   if (!user) return result!;
 
   const parsed = unsubscribePushSchema.safeParse({ endpoint: input.endpoint });
+  const t = await getTranslations("SettingsNotificationsActions");
   if (!parsed.success) {
-    return { ok: false, formError: "That subscription isn't valid." };
+    return { ok: false, formError: t("subscriptionInvalid") };
   }
 
   const supabase = await createServerSupabaseClient();
   try {
     await deletePushSubscription(supabase, user.id, parsed.data.endpoint);
   } catch {
-    return { ok: false, formError: "Could not turn off push notifications. Try again." };
+    return { ok: false, formError: t("unsubscribeFailed") };
   }
 
-  return { ok: true, message: "Push notifications turned off." };
+  return { ok: true, message: t("unsubscribed") };
 }

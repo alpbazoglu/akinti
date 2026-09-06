@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { routes } from "@/config/routes";
 import { mapAuthError } from "@/lib/auth/errors";
@@ -14,6 +15,7 @@ import {
   signUpSchema,
   updatePasswordSchema,
 } from "@/lib/validation/auth";
+import { translateFieldErrors, type MessageTranslator } from "@/lib/validation/translate";
 
 /**
  * Server Actions backing every `(auth)` form. Every action here follows the
@@ -54,15 +56,16 @@ export async function signUp(
     username: formData.get("username"),
   });
 
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const { email, password, username } = parsed.data;
   const supabase = await createServerSupabaseClient();
 
   if (!(await isUsernameAvailable(supabase, username))) {
-    return { ok: false, fieldErrors: { username: "That username is taken." } };
+    return { ok: false, fieldErrors: { username: t("Common.usernameTaken") } };
   }
 
   const origin = await resolveOrigin();
@@ -84,7 +87,7 @@ export async function signUp(
     // for a hosted project — see `supabase/config.toml`'s local override).
     return {
       ok: true,
-      message: "Check your inbox to confirm your email, then sign in to finish setting up your account.",
+      message: t("AuthActions.confirmEmail"),
     };
   }
 
@@ -101,7 +104,8 @@ export async function signIn(
   });
 
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    const t = (await getTranslations()) as MessageTranslator;
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
@@ -169,8 +173,9 @@ export async function requestPasswordReset(
 ): Promise<AuthActionResult> {
   const parsed = requestPasswordResetSchema.safeParse({ email: formData.get("email") });
 
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
@@ -188,7 +193,7 @@ export async function requestPasswordReset(
 
   return {
     ok: true,
-    message: "If an account exists for that email, a reset link is on its way.",
+    message: t("AuthActions.resetLinkSent"),
   };
 }
 
@@ -198,14 +203,15 @@ export async function updatePassword(
 ): Promise<AuthActionResult> {
   const parsed = updatePasswordSchema.safeParse({ password: formData.get("password") });
 
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const supabase = await createServerSupabaseClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) {
-    return { ok: false, formError: "Your session has expired. Request a new reset link and try again." };
+    return { ok: false, formError: t("AuthActions.resetSessionExpired") };
   }
 
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
@@ -214,5 +220,5 @@ export async function updatePassword(
     return { ok: false, formError: mapAuthError(error) };
   }
 
-  return { ok: true, message: "Password updated." };
+  return { ok: true, message: t("AuthActions.passwordUpdated") };
 }

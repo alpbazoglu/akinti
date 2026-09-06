@@ -14,6 +14,8 @@
 
 import { randomUUID } from "node:crypto";
 
+import { getTranslations } from "next-intl/server";
+
 import {
   createAudioAsset,
   enqueueAudioProcessing,
@@ -25,7 +27,7 @@ import { createWave, inviteCollaborator } from "@/lib/db/waves";
 import { getProfileByUsername } from "@/lib/db/profiles";
 import { DatabaseError, ForbiddenError, NotFoundError } from "@/lib/db/types";
 import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
-import { isRateLimitError, RATE_LIMIT_MESSAGE } from "@/lib/moderation/errors";
+import { isRateLimitError } from "@/lib/moderation/errors";
 import { isProOnlyEnhancementPresetId } from "@/lib/audio/enhancement";
 import { sniffAudioKind } from "@/lib/audio/validateFile";
 import { requirePro } from "@/lib/billing/entitlements";
@@ -43,26 +45,30 @@ import {
   type AdvancedEqSettingsInput,
 } from "@/lib/validation/audio";
 import { publishWaveSchema } from "@/lib/validation/waves";
+import { translateValidationMessage, type MessageTranslator } from "@/lib/validation/translate";
 import type { PermissionAudience } from "@/types/domain";
-
-const NOT_CONFIGURED_ERROR = "This can't be completed right now. Try again later.";
-const SIGN_IN_ERROR = "Sign in to do that.";
 
 export interface ActionFailure {
   readonly ok: false;
   readonly error: string;
 }
 
-/** Turn a thrown `src/lib/db` error into a message safe to show a user. Never forwards a raw Postgres error string. */
-function describeError(err: unknown, fallback: string): string {
+/**
+ * Turn a thrown `src/lib/db` error into a message safe to show a user. Never
+ * forwards a raw Postgres error string. `t` must be a root-scoped translator
+ * (`getTranslations()`, no namespace) — every branch here reaches across
+ * namespaces (`Common.*`), and `fallback` is expected to already be
+ * translated by the caller.
+ */
+function describeError(err: unknown, fallback: string, t: MessageTranslator): string {
   if (isRateLimitError(err)) {
-    return RATE_LIMIT_MESSAGE;
+    return t("Common.rateLimited");
   }
   if (err instanceof NotFoundError) {
-    return "That recording could not be found.";
+    return t("Common.recordingNotFound");
   }
   if (err instanceof ForbiddenError) {
-    return "You don't have permission to do that.";
+    return t("Common.noPermission");
   }
   if (err instanceof DatabaseError) {
     return fallback;
@@ -103,8 +109,10 @@ export interface CreateUploadTicketArgs {
 export async function createUploadTicket(
   args: CreateUploadTicketArgs,
 ): Promise<CreateUploadTicketResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("Common.notConfigured") };
   }
 
   // AKINTI Pro gate (PRODUCT_V2 §4/§5, docs/BILLING.md "Never paywall a
@@ -117,16 +125,16 @@ export async function createUploadTicket(
   if (args.enhancementPreset && isProOnlyEnhancementPresetId(args.enhancementPreset)) {
     const gateUser = await getCurrentUser();
     if (!gateUser) {
-      return { ok: false, error: SIGN_IN_ERROR };
+      return { ok: false, error: t("Common.signInToDoThat") };
     }
     const gateDb = await createServerSupabaseClient();
     try {
       await requirePro(gateDb, gateUser.id);
     } catch (err) {
       if (err instanceof ForbiddenError) {
-        return { ok: false, error: "This sound needs AKINTI Pro." };
+        return { ok: false, error: t("CreateActions.needsPro") };
       }
-      return { ok: false, error: describeError(err, "We couldn't confirm your AKINTI Pro status. Try again.") };
+      return { ok: false, error: describeError(err, t("CreateActions.proStatusCheckFailed"), t) };
     }
   }
 
@@ -134,13 +142,15 @@ export async function createUploadTicket(
   if (!parsed.success) {
     return {
       ok: false,
-      error: parsed.error.issues[0]?.message ?? "This file can't be uploaded.",
+      error: parsed.error.issues[0]?.message
+        ? translateValidationMessage(t, parsed.error.issues[0].message)
+        : t("CreateActions.fileInvalid"),
     };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("Common.signInToDoThat") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -161,7 +171,7 @@ export async function createUploadTicket(
       enhancement_preset: parsed.data.enhancementPreset,
     });
   } catch (err) {
-    return { ok: false, error: describeError(err, "We couldn't start this upload. Try again.") };
+    return { ok: false, error: describeError(err, t("CreateActions.uploadStartFailed"), t) };
   }
 
   // The signed-upload token embeds authorization for exactly this path; it
@@ -174,7 +184,7 @@ export async function createUploadTicket(
     .createSignedUploadUrl(originalPath);
 
   if (signError || !signed) {
-    return { ok: false, error: "We couldn't prepare an upload slot. Try again." };
+    return { ok: false, error: t("CreateActions.uploadSlotFailed") };
   }
 
   return {
@@ -221,18 +231,25 @@ export async function finalizeUpload(
   advancedEq?: AdvancedEqSettingsInput | null,
   skipAutoProcessing?: boolean,
 ): Promise<FinalizeUploadResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("Common.notConfigured") };
   }
 
   const parsed = finalizeUploadSchema.safeParse({ assetId, advancedEq, skipAutoProcessing });
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid upload." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message
+        ? translateValidationMessage(t, parsed.error.issues[0].message)
+        : t("CreateActions.uploadInvalid"),
+    };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("Common.signInToDoThat") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -241,7 +258,7 @@ export async function finalizeUpload(
   const db = await createServerSupabaseClient();
   const asset = await getAudioAssetById(db, parsed.data.assetId).catch(() => null);
   if (!asset || asset.ownerId !== user.id) {
-    return { ok: false, error: "That upload could not be found." };
+    return { ok: false, error: t("CreateActions.uploadNotFound") };
   }
   if (asset.processingStatus !== "pending") {
     // Already finalized (or already failed) — finalizing twice is a no-op,
@@ -257,14 +274,14 @@ export async function finalizeUpload(
     .eq("id", asset.id)
     .maybeSingle();
   if (pathError || !pathRow) {
-    return { ok: false, error: "That upload could not be found." };
+    return { ok: false, error: t("CreateActions.uploadNotFound") };
   }
 
   const { data: signed, error: signError } = await admin.storage
     .from(AUDIO_BUCKET)
     .createSignedUrl(pathRow.original_path, 60);
   if (signError || !signed) {
-    return { ok: false, error: "We couldn't read the uploaded file. Try uploading again." };
+    return { ok: false, error: t("CreateActions.readUploadedFailed") };
   }
 
   let headBytes: Uint8Array;
@@ -277,7 +294,7 @@ export async function finalizeUpload(
   } catch {
     return {
       ok: false,
-      error: "The upload did not complete. Try uploading again.",
+      error: t("CreateActions.uploadIncomplete"),
     };
   }
 
@@ -292,7 +309,7 @@ export async function finalizeUpload(
     });
     return {
       ok: false,
-      error: "This file doesn't look like a supported audio format. Try a different file.",
+      error: t("CreateActions.unsupportedFormat"),
     };
   }
 
@@ -300,7 +317,7 @@ export async function finalizeUpload(
     try {
       await enqueueAudioProcessing(db, asset.id, asset.enhancementPreset, parsed.data.advancedEq);
     } catch (err) {
-      return { ok: false, error: describeError(err, "We couldn't queue processing. Try again.") };
+      return { ok: false, error: describeError(err, t("CreateActions.processingQueueFailed"), t) };
     }
   }
   // else: a Duet contribution stem — `publishDuetWave` (`./duetActions.ts`)
@@ -362,18 +379,25 @@ export interface PublishWaveArgs {
  * default (`enqueueBackingTrackMixJob`, `src/lib/db/backingTracks.ts`).
  */
 export async function publishWave(args: PublishWaveArgs): Promise<PublishWaveResult> {
+  const t = (await getTranslations()) as MessageTranslator;
+
   if (!isSupabaseConfigured()) {
-    return { ok: false, error: NOT_CONFIGURED_ERROR };
+    return { ok: false, error: t("Common.notConfigured") };
   }
 
   const parsed = publishWaveSchema.safeParse(args);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "This Wave can't be published yet." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message
+        ? translateValidationMessage(t, parsed.error.issues[0].message)
+        : t("CreateActions.waveNotPublishable"),
+    };
   }
 
   const user = await getCurrentUser();
   if (!user) {
-    return { ok: false, error: SIGN_IN_ERROR };
+    return { ok: false, error: t("Common.signInToDoThat") };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { ok: false, error: SUSPENDED_ACTION_MESSAGE };
@@ -383,12 +407,12 @@ export async function publishWave(args: PublishWaveArgs): Promise<PublishWaveRes
 
   const asset = await getAudioAssetById(db, parsed.data.assetId).catch(() => null);
   if (!asset || asset.ownerId !== user.id) {
-    return { ok: false, error: "That recording could not be found." };
+    return { ok: false, error: t("Common.recordingNotFound") };
   }
   if (asset.processingStatus === "failed") {
     return {
       ok: false,
-      error: asset.processingError ?? "This recording failed to process. Try uploading it again.",
+      error: asset.processingError ?? t("CreateActions.recordingProcessingFailed"),
     };
   }
 
@@ -398,7 +422,7 @@ export async function publishWave(args: PublishWaveArgs): Promise<PublishWaveRes
       const track = await requireBackingTrack(db, parsed.data.backingTrackId);
       trackAudioAssetId = track.audioAssetId;
     } catch (err) {
-      return { ok: false, error: describeError(err, "That backing track could not be found.") };
+      return { ok: false, error: describeError(err, t("CreateActions.backingTrackNotFound"), t) };
     }
   }
 
@@ -418,7 +442,7 @@ export async function publishWave(args: PublishWaveArgs): Promise<PublishWaveRes
     });
     waveId = wave.id;
   } catch (err) {
-    return { ok: false, error: describeError(err, "We couldn't publish this Wave. Try again.") };
+    return { ok: false, error: describeError(err, t("CreateActions.publishFailed"), t) };
   }
 
   if (trackAudioAssetId) {

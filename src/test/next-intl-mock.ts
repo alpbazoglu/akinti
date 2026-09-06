@@ -12,21 +12,46 @@
 // Deliberately minimal: `{placeholder}` interpolation and a small `t.rich`
 // (single-level tags only) are all any current component/test needs.
 import en from "@/messages/en.json";
+import tr from "@/messages/tr.json";
 
 type Messages = typeof en;
 
-function resolveNamespace(namespace?: string): Record<string, unknown> {
-  if (!namespace) return en as unknown as Record<string, unknown>;
+const MESSAGES_BY_LOCALE = { en, tr } as const;
+type MockLocale = keyof typeof MESSAGES_BY_LOCALE;
+
+/**
+ * Mutable module-level locale, defaulting to English (every existing test
+ * asserts English copy unmodified). A test that needs to assert Turkish
+ * copy under a "tr request" (`docs/I18N.md` server-side i18n) calls
+ * `__setMockLocale("tr")` before invoking the action/component under test,
+ * and should restore it with `__setMockLocale("en")` (or `afterEach`)
+ * afterward so locale doesn't leak between tests.
+ */
+let mockLocale: MockLocale = "en";
+
+/** Test-only: set which locale's messages this mock resolves from. */
+export function __setMockLocale(locale: MockLocale): void {
+  mockLocale = locale;
+}
+
+/** Test-only: read the mock's current locale. */
+export function __getMockLocale(): MockLocale {
+  return mockLocale;
+}
+
+function resolveNamespace(namespace?: string, locale?: MockLocale): Record<string, unknown> {
+  const messages = MESSAGES_BY_LOCALE[locale ?? mockLocale];
+  if (!namespace) return messages as unknown as Record<string, unknown>;
   const parts = namespace.split(".");
-  let node: unknown = en;
+  let node: unknown = messages;
   for (const part of parts) {
     node = (node as Record<string, unknown> | undefined)?.[part];
   }
   return (node as Record<string, unknown>) ?? {};
 }
 
-function resolveMessage(namespace: string | undefined, key: string): string {
-  const scope = resolveNamespace(namespace);
+function resolveMessage(namespace: string | undefined, key: string, locale?: MockLocale): string {
+  const scope = resolveNamespace(namespace, locale);
   const parts = key.split(".");
   let value: unknown = scope;
   for (const part of parts) {
@@ -48,11 +73,11 @@ export interface MockTranslator {
   rich: (key: string, values?: Record<string, (chunks: string) => unknown>) => unknown;
 }
 
-function makeTranslator(namespace?: string): MockTranslator {
+function makeTranslator(namespace?: string, locale?: MockLocale): MockTranslator {
   const t = ((key: string, values?: Record<string, unknown>) =>
-    interpolate(resolveMessage(namespace, key), values)) as MockTranslator;
+    interpolate(resolveMessage(namespace, key, locale), values)) as MockTranslator;
   t.rich = (key: string, values) => {
-    const raw = resolveMessage(namespace, key);
+    const raw = resolveMessage(namespace, key, locale);
     const match = /^([\s\S]*)<(\w+)>([\s\S]*)<\/\2>([\s\S]*)$/.exec(raw);
     if (!match || !values) return raw;
     const [, before, tag, inner, after] = match;
@@ -62,9 +87,27 @@ function makeTranslator(namespace?: string): MockTranslator {
   return t;
 }
 
-/** Non-hook-named alias so `next-intl/server`'s mock can call this without eslint's react-hooks rule flagging it as a hook called from a plain async function. */
-export function resolveTranslator(namespace?: string): MockTranslator {
-  return makeTranslator(namespace);
+export interface GetTranslationsOptions {
+  locale?: MockLocale;
+  namespace?: string;
+}
+
+/**
+ * Non-hook-named alias so `next-intl/server`'s mock can call this without
+ * eslint's react-hooks rule flagging it as a hook called from a plain async
+ * function. Accepts either a bare namespace (uses the mock's current
+ * `__setMockLocale` locale, mirroring `getTranslations()` reading the real
+ * request's resolved locale) or `{ locale, namespace }` (an explicit
+ * override — real next-intl's shape for resolving a *specific* locale
+ * outside/instead of the ambient request locale, e.g.
+ * `settings/actions.ts`'s `setLocale` confirming in the language just
+ * chosen rather than the request's prior one).
+ */
+export function resolveTranslator(arg?: string | GetTranslationsOptions): MockTranslator {
+  if (typeof arg === "object" && arg !== null) {
+    return makeTranslator(arg.namespace, arg.locale);
+  }
+  return makeTranslator(arg);
 }
 
 export function useTranslations(namespace?: string): MockTranslator {
@@ -80,7 +123,7 @@ export function useFormatter() {
 }
 
 export function useLocale(): string {
-  return "en";
+  return mockLocale;
 }
 
 export type { Messages };

@@ -23,6 +23,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 
 import { assertNotSuspended, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { fieldErrorsFromZod } from "@/lib/auth/types";
@@ -38,7 +39,7 @@ import {
 import { isModerator } from "@/lib/db/moderation";
 import { DatabaseError } from "@/lib/db/types";
 import { getWaveById } from "@/lib/db/waves";
-import { isRateLimitError, RATE_LIMIT_MESSAGE } from "@/lib/moderation/errors";
+import { isRateLimitError } from "@/lib/moderation/errors";
 import { routes } from "@/config/routes";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient, type SupabaseServerClient } from "@/lib/supabase/server";
@@ -50,10 +51,8 @@ import {
   upsertChallengePickSchema,
   withdrawChallengeEntrySchema,
 } from "@/lib/validation/challenges";
+import { translateFieldErrors, type MessageTranslator } from "@/lib/validation/translate";
 
-const NOT_CONFIGURED_ERROR = "This can't be completed right now. Try again later.";
-const SIGN_IN_ERROR = "Sign in to continue.";
-const NOT_MODERATOR_ERROR = "You don't have access to manage challenges.";
 /** Postgres insufficient_privilege — RLS/a guard trigger rejected the write. */
 const INSUFFICIENT_PRIVILEGE = "42501";
 /** Postgres unique_violation. */
@@ -79,11 +78,13 @@ async function requireSignedIn(): Promise<
   | { db: null; userId: null; error: ChallengeActionFailure }
 > {
   if (!isSupabaseConfigured()) {
-    return { db: null, userId: null, error: { ok: false, formError: NOT_CONFIGURED_ERROR } };
+    const t = await getTranslations("Common");
+    return { db: null, userId: null, error: { ok: false, formError: t("notConfigured") } };
   }
   const user = await getCurrentUser();
   if (!user) {
-    return { db: null, userId: null, error: { ok: false, formError: SIGN_IN_ERROR } };
+    const t = await getTranslations("Common");
+    return { db: null, userId: null, error: { ok: false, formError: t("signInToContinue") } };
   }
   if (!(await assertNotSuspended(user.id))) {
     return { db: null, userId: null, error: { ok: false, formError: SUSPENDED_ACTION_MESSAGE } };
@@ -98,7 +99,8 @@ async function requireModerator(): Promise<
   const signedIn = await requireSignedIn();
   if (signedIn.error) return { db: null, error: signedIn.error };
   if (!(await isModerator(signedIn.db))) {
-    return { db: null, error: { ok: false, formError: NOT_MODERATOR_ERROR } };
+    const t = await getTranslations("ChallengesActions");
+    return { db: null, error: { ok: false, formError: t("notModerator") } };
   }
   return { db: signedIn.db, error: null };
 }
@@ -114,8 +116,9 @@ export async function enterChallengeAction(input: {
   challengeSlug: string;
 }): Promise<ChallengeActionResult<{ entryId: string }>> {
   const parsed = enterChallengeSchema.safeParse(input);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const signedIn = await requireSignedIn();
@@ -124,15 +127,15 @@ export async function enterChallengeAction(input: {
 
   const wave = await getWaveById(db, parsed.data.waveId);
   if (!wave) {
-    return { ok: false, formError: "This Wave isn't available." };
+    return { ok: false, formError: t("Common.waveNotAvailable") };
   }
   if (wave.creatorId !== userId) {
-    return { ok: false, formError: "You can only enter your own Waves into a challenge." };
+    return { ok: false, formError: t("ChallengesActions.notYourWave") };
   }
 
   const allowed = await canEnterChallenge(db, parsed.data.challengeId, parsed.data.waveId).catch(() => false);
   if (!allowed) {
-    return { ok: false, formError: "This challenge isn't open for entries right now." };
+    return { ok: false, formError: t("ChallengesActions.notOpenForEntries") };
   }
 
   let entryId: string;
@@ -140,16 +143,16 @@ export async function enterChallengeAction(input: {
     entryId = await enterChallenge(db, parsed.data.challengeId, parsed.data.waveId);
   } catch (err) {
     if (isRateLimitError(err)) {
-      return { ok: false, formError: RATE_LIMIT_MESSAGE };
+      return { ok: false, formError: t("Common.rateLimited") };
     }
     if (err instanceof DatabaseError && err.code === INSUFFICIENT_PRIVILEGE) {
-      return { ok: false, formError: "This challenge isn't open for entries right now." };
+      return { ok: false, formError: t("ChallengesActions.notOpenForEntries") };
     }
-    return { ok: false, formError: "We couldn't enter this challenge. Try again." };
+    return { ok: false, formError: t("ChallengesActions.enterFailed") };
   }
 
   revalidatePath(routes.challenge(parsed.data.challengeSlug));
-  return { ok: true, message: "Entered the challenge.", data: { entryId } };
+  return { ok: true, message: t("ChallengesActions.entered"), data: { entryId } };
 }
 
 /** Withdraw the caller's own entry. */
@@ -159,8 +162,9 @@ export async function withdrawChallengeEntryAction(input: {
   challengeSlug: string;
 }): Promise<ChallengeActionResult> {
   const parsed = withdrawChallengeEntrySchema.safeParse(input);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const signedIn = await requireSignedIn();
@@ -170,11 +174,11 @@ export async function withdrawChallengeEntryAction(input: {
   try {
     await withdrawChallengeEntry(db, parsed.data.challengeId, parsed.data.waveId);
   } catch {
-    return { ok: false, formError: "We couldn't withdraw this entry. Try again." };
+    return { ok: false, formError: t("ChallengesActions.withdrawFailed") };
   }
 
   revalidatePath(routes.challenge(parsed.data.challengeSlug));
-  return { ok: true, message: "Entry withdrawn." };
+  return { ok: true, message: t("ChallengesActions.withdrawn") };
 }
 
 /** Moderator-only: create a new weekly challenge (`challenges_insert` RLS re-checks `is_moderator()`). */
@@ -182,8 +186,9 @@ export async function createChallengeAction(
   input: unknown,
 ): Promise<ChallengeActionResult<{ id: string; slug: string }>> {
   const parsed = createChallengeSchema.safeParse(input);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const { db, error } = await requireModerator();
@@ -192,12 +197,16 @@ export async function createChallengeAction(
   try {
     const challenge = await createChallenge(db, parsed.data);
     revalidatePath(routes.challenges());
-    return { ok: true, message: "Challenge created.", data: { id: challenge.id, slug: challenge.slug } };
+    return {
+      ok: true,
+      message: t("ChallengesActions.created"),
+      data: { id: challenge.id, slug: challenge.slug },
+    };
   } catch (err) {
     if (err instanceof DatabaseError && err.code === UNIQUE_VIOLATION) {
-      return { ok: false, fieldErrors: { slug: "That slug is already taken." } };
+      return { ok: false, fieldErrors: { slug: t("ChallengesActions.slugTaken") } };
     }
-    return { ok: false, formError: "We couldn't create this challenge. Try again." };
+    return { ok: false, formError: t("ChallengesActions.createFailed") };
   }
 }
 
@@ -208,8 +217,9 @@ export async function setChallengeStatusAction(input: {
   challengeSlug?: string;
 }): Promise<ChallengeActionResult> {
   const parsed = setChallengeStatusSchema.safeParse(input);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const { db, error } = await requireModerator();
@@ -218,12 +228,12 @@ export async function setChallengeStatusAction(input: {
   try {
     await setChallengeStatus(db, parsed.data.challengeId, parsed.data.status);
   } catch {
-    return { ok: false, formError: "We couldn't update this challenge. Try again." };
+    return { ok: false, formError: t("ChallengesActions.updateFailed") };
   }
 
   revalidatePath(routes.challenges());
   if (input.challengeSlug) revalidatePath(routes.challenge(input.challengeSlug));
-  return { ok: true, message: "Challenge updated." };
+  return { ok: true, message: t("ChallengesActions.updated") };
 }
 
 /** Moderator-only: set (or replace) one of a challenge's 5 curated ranks. */
@@ -235,8 +245,9 @@ export async function upsertChallengePickAction(input: {
   challengeSlug?: string;
 }): Promise<ChallengeActionResult> {
   const parsed = upsertChallengePickSchema.safeParse(input);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const { db, error } = await requireModerator();
@@ -246,16 +257,16 @@ export async function upsertChallengePickAction(input: {
     await upsertChallengePick(db, parsed.data);
   } catch (err) {
     if (err instanceof DatabaseError && err.code === UNIQUE_VIOLATION) {
-      return { ok: false, formError: "That Wave already holds a different rank in this challenge's Top 5." };
+      return { ok: false, formError: t("ChallengesActions.rankTaken") };
     }
     if (err instanceof DatabaseError && err.code === INSUFFICIENT_PRIVILEGE) {
-      return { ok: false, formError: "That Wave hasn't entered this challenge." };
+      return { ok: false, formError: t("ChallengesActions.notEntered") };
     }
-    return { ok: false, formError: "We couldn't save this pick. Try again." };
+    return { ok: false, formError: t("ChallengesActions.pickSaveFailed") };
   }
 
   if (input.challengeSlug) revalidatePath(routes.challenge(input.challengeSlug));
-  return { ok: true, message: "Top 5 updated." };
+  return { ok: true, message: t("ChallengesActions.topFiveUpdated") };
 }
 
 /** Moderator-only: remove whichever Wave holds `rank` in a challenge's Top 5. */
@@ -265,8 +276,9 @@ export async function removeChallengePickAction(input: {
   challengeSlug?: string;
 }): Promise<ChallengeActionResult> {
   const parsed = removeChallengePickSchema.safeParse(input);
+  const t = (await getTranslations()) as MessageTranslator;
   if (!parsed.success) {
-    return { ok: false, fieldErrors: fieldErrorsFromZod(parsed.error.flatten().fieldErrors) };
+    return { ok: false, fieldErrors: fieldErrorsFromZod(translateFieldErrors(t, parsed.error.flatten().fieldErrors)) };
   }
 
   const { db, error } = await requireModerator();
@@ -275,9 +287,9 @@ export async function removeChallengePickAction(input: {
   try {
     await removeChallengePick(db, parsed.data.challengeId, parsed.data.rank);
   } catch {
-    return { ok: false, formError: "We couldn't remove this pick. Try again." };
+    return { ok: false, formError: t("ChallengesActions.pickRemoveFailed") };
   }
 
   if (input.challengeSlug) revalidatePath(routes.challenge(input.challengeSlug));
-  return { ok: true, message: "Pick removed." };
+  return { ok: true, message: t("ChallengesActions.pickRemoved") };
 }
