@@ -151,6 +151,12 @@ export async function assertNotSuspended(userId: string): Promise<boolean> {
  * `docs/SECURITY.md`) — `/suspended` itself must never call `requireUser`,
  * or a suspended visitor would bounce in a redirect loop; it reads
  * `getCurrentUser()` directly instead.
+ *
+ * Reads suspension off `getCurrentProfile()` (perf3, `docs/qa/perf3/WATERFALL.md`)
+ * instead of its own `profiles.suspended_until` query: the root layout
+ * already calls `getCurrentUserWithProfile()` on every request, so the
+ * `React.cache()`-memoized profile fetch is free here rather than a second
+ * round trip to Supabase for a single column.
  */
 export async function requireUser(nextPath?: string): Promise<User> {
   const user = await getCurrentUser();
@@ -159,13 +165,8 @@ export async function requireUser(nextPath?: string): Promise<User> {
   }
 
   if (isSupabaseConfigured()) {
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase
-      .from("profiles")
-      .select("suspended_until")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (data && isSuspended(data.suspended_until)) {
+    const profile = await getCurrentProfile();
+    if (profile && isSuspended(profile.suspendedUntil)) {
       redirect(routes.suspended());
     }
   }

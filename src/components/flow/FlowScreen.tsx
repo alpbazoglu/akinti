@@ -399,13 +399,10 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
 
   return (
     <div
-      // Fixed + a z-index above every shell chrome (`BottomNav`'s z-30 is
-      // the highest today) rather than editing `AppShell`/`(app)/layout.tsx`
-      // (out of this stage's ownership): Flow takes the whole viewport by
-      // covering the shell from inside its own owned tree, the same
-      // "immersive takeover from within `{children}`" shape a full-screen
-      // player or camera view would use in this app shell.
-      className="fixed inset-0 z-40 h-dvh w-full touch-none overflow-hidden bg-paper outline-none"
+      // `AppShell` (`src/components/layout/AppShell.tsx`) renders no chrome
+      // at all on `/flow`, so this only ever needs to fill the viewport it
+      // is already alone in — no `fixed`/`z-40` overlay required.
+      className="h-dvh w-full touch-none overflow-hidden bg-paper outline-none"
       tabIndex={0}
       role="region"
       aria-roledescription="carousel"

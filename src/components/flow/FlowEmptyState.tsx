@@ -19,7 +19,7 @@ export interface FlowEmptyStateProps {
  */
 export function FlowEmptyState({ error = null, onRetry }: FlowEmptyStateProps) {
   return (
-    <div className="fixed inset-0 z-40 flex h-dvh flex-col justify-center gap-6 bg-paper px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="flex h-dvh w-full flex-col justify-center gap-6 bg-paper px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="flex flex-col gap-2 text-left">
         <h1 className="type-title text-ink">{error ? "Flow couldn't load." : "Nothing new to play yet."}</h1>
         <p className="type-body text-ink-muted">

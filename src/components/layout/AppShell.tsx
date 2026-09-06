@@ -1,7 +1,9 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { routes } from "@/config/routes";
 import { cn } from "@/lib/ui";
 
 import { BottomNav } from "./BottomNav";
@@ -44,6 +46,20 @@ export function AppShell({
   // (SCREENS.md's "if there is nothing contextual to show, the column stays
   // empty" is about the context list underneath it, not the player itself).
   const hasPlayer = useHasActivePersistentPlayer();
+  const pathname = usePathname();
+
+  // Flow (`docs/FLOW.md`) is a full-screen takeover: no top bar, side rail,
+  // bottom nav or persistent player strip underneath it. Previously
+  // `FlowScreen`/`FlowEmptyState` faked this with a `fixed inset-0 z-40`
+  // overlay from inside `{children}`, which still left the whole shell
+  // mounted (and, briefly, painted) beneath it. Branching here instead means
+  // the chrome is never rendered on `/flow` at all — the shared providers
+  // above this component (playback, auth, motion) stay mounted either way,
+  // so the persistent player's state survives navigating away from Flow.
+  const isFlow = pathname === routes.flow();
+  if (isFlow) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex min-h-dvh w-full">
