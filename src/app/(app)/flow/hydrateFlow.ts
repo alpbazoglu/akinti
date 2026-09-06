@@ -44,7 +44,14 @@ export async function hydrateFlowWaves(
   const assetByWaveId = new Map(waves.map((wave) => [wave.id, assetById.get(wave.audioAssetId)]));
 
   const items: FlowWave[] = [];
+  const seenWaveIds = new Set<string>();
   for (const { waveId, bucket } of ranked) {
+    // Defense in depth against review3 finding 18 (`get_flow_page`'s
+    // `invitations` CTE could emit a Wave already present in the ranked
+    // stream): `FlowScreen` keys its windowed items on `wave.id`, so any
+    // duplicate here is a React duplicate-key collision — never trust the
+    // RPC's output alone for uniqueness.
+    if (seenWaveIds.has(waveId)) continue;
     const wave = waveById.get(waveId);
     if (!wave) continue;
     const creator = creatorById.get(wave.creatorId);
@@ -53,6 +60,7 @@ export async function hydrateFlowWaves(
     // resolves) — skip rather than render a broken Wave, matching
     // `hydrateWaveCards`'s own rule.
     if (!creator || !asset) continue;
+    seenWaveIds.add(waveId);
 
     items.push({
       id: wave.id,
