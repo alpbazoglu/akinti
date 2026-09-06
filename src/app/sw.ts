@@ -15,6 +15,15 @@
  *    are network-only — this product does not promise offline playback of
  *    uncached tracks (`docs/research/mobile-guidelines.md`: "do not attempt
  *    full offline audio playback of uncached tracks").
+ *  - Same-origin document/RSC navigations for a route `isPublicRoute` does
+ *    NOT list are network-only too (review3 finding 10):
+ *    `defaultCache`'s own `pages-rsc`/`pages-html`/`others` entries are
+ *    `NetworkFirst` with a 24h cache, so a slow/offline network on a shared
+ *    device could otherwise serve `/messages/[id]`, `/settings/privacy`, or
+ *    Flow from CacheStorage for a PREVIOUS signed-in account — nothing
+ *    clears these caches at sign-out. A public route (marketing, `/explore`,
+ *    a public `/w/[id]`/`/u/[username]`) keeps the original `NetworkFirst`
+ *    behaviour: nothing there is account-specific.
  *  - Everything else falls through to Serwist's `defaultCache`, which already
  *    covers the Next.js app shell (JS/CSS chunks), Google Fonts stylesheets +
  *    font files, and images with sensible strategies.
@@ -26,6 +35,8 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { NetworkOnly, Serwist } from "serwist";
+
+import { isPublicRoute } from "../config/routes";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -58,6 +69,17 @@ const serwist = new Serwist({
   runtimeCaching: [
     {
       matcher: ({ url }) => NEVER_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname)),
+      handler: new NetworkOnly(),
+    },
+    // review3 finding 10: intercept the same same-origin, non-`/api/`
+    // document/RSC navigation requests `defaultCache`'s `pages-rsc`/
+    // `pages-html`/`others` entries would otherwise cache with
+    // `NetworkFirst`, for every route that ISN'T public — must come before
+    // the `...defaultCache` spread below so it wins. A public route falls
+    // through to `defaultCache` unchanged.
+    {
+      matcher: ({ url, sameOrigin }) =>
+        sameOrigin && !url.pathname.startsWith("/api/") && !isPublicRoute(url.pathname),
       handler: new NetworkOnly(),
     },
     ...defaultCache,
