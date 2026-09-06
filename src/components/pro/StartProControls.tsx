@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 
 import { startProCheckout } from "@/app/(app)/settings/pro/actions";
@@ -8,7 +9,7 @@ import type { IyzicoBuyerDetails } from "@/lib/billing/types";
 import { cn } from "@/lib/ui";
 
 import { IyzicoCheckoutEmbed } from "./IyzicoCheckoutEmbed";
-import { PRO_INCLUDES } from "./proIncludes";
+import { PRO_INCLUDE_KEYS } from "./proIncludes";
 import {
   detectProCurrency,
   formatProPrice,
@@ -89,6 +90,8 @@ const EMPTY_BUYER: IyzicoBuyerDetails = {
  * checkout overlay for a USD plan.
  */
 export function StartProControls({ plans, paddleClientToken, paddleEnvironment }: StartProControlsProps) {
+  const t = useTranslations("StartProControls");
+  const tPro = useTranslations("Pro");
   const [billingInterval, setBillingInterval] = useState<ProInterval>("month");
   const currency = useDetectedCurrency();
   const [buyerOpen, setBuyerOpen] = useState(false);
@@ -106,7 +109,7 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment }
   if (checkoutFormContent) {
     return (
       <div className="flex flex-col gap-4">
-        <p className="type-body-sm text-ink-muted">Complete your payment below.</p>
+        <p className="type-body-sm text-ink-muted">{t("completePayment")}</p>
         <IyzicoCheckoutEmbed checkoutFormContent={checkoutFormContent} />
       </div>
     );
@@ -126,7 +129,7 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment }
       if (result.fieldErrors?.buyer) {
         setBuyerErrors({ identityNumber: result.fieldErrors.buyer });
       }
-      setFormError(result.formError ?? "We couldn't start checkout. Try again.");
+      setFormError(result.formError ?? t("couldNotStartCheckout"));
       return;
     }
 
@@ -146,7 +149,7 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment }
         environment: paddleEnvironment,
       });
       if (!paddle) {
-        setFormError("We couldn't open the payment window. Try again.");
+        setFormError(t("couldNotOpenPaymentWindow"));
         return;
       }
       paddle.Checkout.open({ transactionId: result.data.transactionId });
@@ -173,32 +176,32 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment }
   return (
     <div className="flex flex-col gap-8">
       <ul className="flex flex-col gap-2">
-        {PRO_INCLUDES.map((item) => (
-          <li key={item} className="type-body-sm text-ink-muted">
-            {item}
+        {PRO_INCLUDE_KEYS.map((key) => (
+          <li key={key} className="type-body-sm text-ink-muted">
+            {tPro(`includes.${key}`)}
           </li>
         ))}
       </ul>
 
       {showYearly ? (
-        <div role="group" aria-label="Billing interval" className="flex gap-3">
-          <IntervalKey active={billingInterval === "month"} label="Monthly" onClick={() => setBillingInterval("month")} />
-          <IntervalKey active={billingInterval === "year"} label="Yearly" onClick={() => setBillingInterval("year")} />
+        <div role="group" aria-label={t("billingIntervalLabel")} className="flex gap-3">
+          <IntervalKey active={billingInterval === "month"} label={t("monthly")} onClick={() => setBillingInterval("month")} />
+          <IntervalKey active={billingInterval === "year"} label={t("yearly")} onClick={() => setBillingInterval("year")} />
         </div>
       ) : null}
 
       {amount !== null ? (
         <p className="flex items-baseline gap-2">
           <span className="type-mono-lg tabular-nums text-ink">{formatProPrice(amount, currency)}</span>
-          <span className="type-body-sm text-ink-subtle">/{billingInterval === "month" ? "month" : "year"}</span>
+          <span className="type-body-sm text-ink-subtle">/{billingInterval === "month" ? t("monthUnit") : t("yearUnit")}</span>
         </p>
       ) : null}
 
       {currency === "USD" && !paddleReady ? (
-        <p className="type-body-sm text-ink-muted">Payments are not set up yet. Check back soon.</p>
+        <p className="type-body-sm text-ink-muted">{t("paymentsNotSetUp")}</p>
       ) : (
         <Button size="lg" fullWidth onClick={handleStartPro} loading={starting}>
-          Start Pro
+          {t("startPro")}
         </Button>
       )}
 
@@ -214,15 +217,15 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment }
           if (starting) return;
           setBuyerOpen(false);
         }}
-        title="Billing details"
-        description="iyzico needs these to process a Turkish Lira payment."
+        title={t("billingDetailsTitle")}
+        description={t("billingDetailsDescription")}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setBuyerOpen(false)} disabled={starting}>
-              Back
+              {t("back")}
             </Button>
             <Button onClick={handleBuyerSubmit} loading={starting}>
-              Continue to payment
+              {t("continueToPayment")}
             </Button>
           </div>
         }
@@ -230,7 +233,7 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment }
         <div className="flex flex-col gap-4">
           <Input
             id="pro-buyer-identity"
-            label="Turkish identity number"
+            label={t("identityNumberLabel")}
             value={buyer.identityNumber}
             onChange={(event) => setBuyer({ ...buyer, identityNumber: event.target.value })}
             error={buyerErrors.identityNumber}
@@ -238,33 +241,33 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment }
           />
           <Input
             id="pro-buyer-phone"
-            label="Phone number"
+            label={t("phoneNumberLabel")}
             value={buyer.gsmNumber}
             onChange={(event) => setBuyer({ ...buyer, gsmNumber: event.target.value })}
             type="tel"
           />
           <Input
             id="pro-buyer-address"
-            label="Address"
+            label={t("addressLabel")}
             value={buyer.address}
             onChange={(event) => setBuyer({ ...buyer, address: event.target.value })}
           />
           <Input
             id="pro-buyer-city"
-            label="City"
+            label={t("cityLabel")}
             value={buyer.city}
             onChange={(event) => setBuyer({ ...buyer, city: event.target.value })}
           />
           <Input
             id="pro-buyer-country"
-            label="Country"
+            label={t("countryLabel")}
             value={buyer.country}
             onChange={(event) => setBuyer({ ...buyer, country: event.target.value })}
           />
           <Input
             id="pro-buyer-zip"
-            label="Postal code"
-            hint="Optional"
+            label={t("postalCodeLabel")}
+            hint={t("optional")}
             value={buyer.zipCode ?? ""}
             onChange={(event) => setBuyer({ ...buyer, zipCode: event.target.value })}
           />

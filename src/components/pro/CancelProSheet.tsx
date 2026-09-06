@@ -1,8 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { cancelPro } from "@/app/(app)/settings/pro/actions";
+import { BRAND } from "@/config/terminology";
 import { Button, Sheet } from "@/components/ui";
 import { formatAbsoluteTime } from "@/lib/ui";
 
@@ -21,6 +23,7 @@ export interface CancelProSheetProps {
  * copy says exactly that, so nothing here reads as more final than it is.
  */
 export function CancelProSheet({ open, onClose, currentPeriodEnd, onCanceled }: CancelProSheetProps) {
+  const t = useTranslations("CancelProSheet");
   const [canceling, setCanceling] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -36,7 +39,7 @@ export function CancelProSheet({ open, onClose, currentPeriodEnd, onCanceled }: 
     void cancelPro().then((result) => {
       setCanceling(false);
       if (!result.ok) {
-        setFormError(result.formError ?? "We couldn't cancel your subscription. Try again.");
+        setFormError(result.formError ?? t("couldNotCancel"));
         return;
       }
       onCanceled();
@@ -47,19 +50,19 @@ export function CancelProSheet({ open, onClose, currentPeriodEnd, onCanceled }: 
     <Sheet
       open={open}
       onClose={close}
-      title="Cancel AKINTI Pro"
+      title={t("title", { brand: BRAND })}
       description={
         currentPeriodEnd
-          ? `Pitch snap, self-harmony, stems and your other Pro options stay available until ${formatAbsoluteTime(currentPeriodEnd)}.`
-          : "Your Pro options stay available until the end of the current billing period."
+          ? t("descriptionWithDate", { date: formatAbsoluteTime(currentPeriodEnd) })
+          : t("descriptionDefault")
       }
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={close} disabled={canceling}>
-            Keep AKINTI Pro
+            {t("keepPro", { brand: BRAND })}
           </Button>
           <Button variant="danger" onClick={handleConfirm} loading={canceling}>
-            Cancel at period end
+            {t("cancelAtPeriodEnd")}
           </Button>
         </div>
       }

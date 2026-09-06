@@ -1,4 +1,8 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { SealCheck } from "@/components/ui/icons";
+import { BRAND } from "@/config/terminology";
 import { cn } from "@/lib/ui";
 
 export interface ProMarkProps {
@@ -17,13 +21,15 @@ export interface ProMarkProps {
  * component has no opinion on entitlement, it only draws the mark.
  */
 export function ProMark({ className }: ProMarkProps) {
+  const t = useTranslations("ProMark");
+
   return (
     <span
       className={cn("inline-flex shrink-0 items-center gap-1 text-ink-subtle", className)}
-      title="AKINTI Pro"
+      title={t("title", { brand: BRAND })}
     >
       <SealCheck aria-hidden="true" weight="regular" className="size-3.5" />
-      <span className="type-caption">Pro</span>
+      <span className="type-caption">{t("label")}</span>
     </span>
   );
 }

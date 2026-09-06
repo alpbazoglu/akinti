@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Sheet } from "@/components/ui";
 import { routes } from "@/config/routes";
+import { BRAND } from "@/config/terminology";
 
-import { PRO_INCLUDES } from "./proIncludes";
+import { PRO_INCLUDE_KEYS } from "./proIncludes";
 import { useProStatus } from "./useProStatus";
 
 /** Matches `Button`'s `variant="primary" size="lg"` — a real navigation to the Pro screen, not an action, so it renders as `<a>` (mirrors `ProfileHeader`'s `SECONDARY_LINK_BUTTON`). */
@@ -37,35 +39,37 @@ export interface ProGateProps {
 export function ProGate({ open, onClose, featureLabel }: ProGateProps) {
   const { isPro, loading } = useProStatus();
   const alreadyPro = isPro && !loading;
+  const t = useTranslations("ProGate");
+  const tPro = useTranslations("Pro");
 
   return (
     <Sheet
       open={open}
       onClose={onClose}
-      title="AKINTI Pro"
+      title={t("title", { brand: BRAND })}
       description={
         alreadyPro
-          ? "You already have AKINTI Pro."
+          ? t("alreadyHave", { brand: BRAND })
           : featureLabel
-            ? `${featureLabel} is part of AKINTI Pro.`
-            : "This is part of AKINTI Pro."
+            ? t("featureIsPart", { feature: featureLabel, brand: BRAND })
+            : t("isPart", { brand: BRAND })
       }
     >
       {alreadyPro ? (
         <Link href={routes.settingsPro()} className={PRIMARY_LINK_BUTTON} onClick={onClose}>
-          Manage AKINTI Pro
+          {t("manage", { brand: BRAND })}
         </Link>
       ) : (
         <div className="flex flex-col gap-6">
           <ul className="flex flex-col gap-2">
-            {PRO_INCLUDES.map((item) => (
-              <li key={item} className="type-body-sm text-ink-muted">
-                {item}
+            {PRO_INCLUDE_KEYS.map((key) => (
+              <li key={key} className="type-body-sm text-ink-muted">
+                {tPro(`includes.${key}`)}
               </li>
             ))}
           </ul>
           <Link href={routes.settingsPro()} className={PRIMARY_LINK_BUTTON} onClick={onClose}>
-            See AKINTI Pro
+            {t("see", { brand: BRAND })}
           </Link>
         </div>
       )}

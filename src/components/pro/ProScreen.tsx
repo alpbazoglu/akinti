@@ -1,9 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { resumePro } from "@/app/(app)/settings/pro/actions";
 import type { ProStatus } from "@/app/(app)/settings/pro/actions";
+import { BRAND } from "@/config/terminology";
 import { Button } from "@/components/ui";
 import { formatAbsoluteTime } from "@/lib/ui";
 
@@ -17,13 +19,6 @@ export interface ProScreenProps {
   paddleClientToken: string | null;
   paddleEnvironment: "sandbox" | "production";
 }
-
-const PLAN_LABELS: Record<NonNullable<ProStatus["planCode"]>, string> = {
-  pro_monthly_try: "AKINTI Pro, monthly",
-  pro_yearly_try: "AKINTI Pro, yearly",
-  pro_monthly_usd: "AKINTI Pro, monthly",
-  pro_yearly_usd: "AKINTI Pro, yearly",
-};
 
 /**
  * The AKINTI Pro settings screen (Wave F, PRODUCT_V2 §4/§5,
@@ -41,6 +36,14 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false);
   const [resuming, setResuming] = useState(false);
   const [resumeError, setResumeError] = useState<string | null>(null);
+  const t = useTranslations("ProScreen");
+
+  const planLabels: Record<NonNullable<ProStatus["planCode"]>, string> = {
+    pro_monthly_try: t("planMonthly", { brand: BRAND }),
+    pro_yearly_try: t("planYearly", { brand: BRAND }),
+    pro_monthly_usd: t("planMonthly", { brand: BRAND }),
+    pro_yearly_usd: t("planYearly", { brand: BRAND }),
+  };
 
   const handleResume = () => {
     setResuming(true);
@@ -48,7 +51,7 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
     void resumePro().then((result) => {
       setResuming(false);
       if (!result.ok) {
-        setResumeError(result.formError ?? "We couldn't resume your subscription. Try again.");
+        setResumeError(result.formError ?? t("couldNotResume"));
         return;
       }
       setStatus({ ...status, cancelAtPeriodEnd: false });
@@ -58,9 +61,9 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
   if (status.status === "past_due") {
     return (
       <div className="flex flex-col gap-4">
-        <p className="type-body text-ink">Your last payment didn&apos;t go through.</p>
+        <p className="type-body text-ink">{t("pastDuePayment")}</p>
         <p className="type-body-sm text-ink-muted">
-          Fix your payment method to keep pitch snap, self-harmony, stems and your other Pro options.
+          {t("pastDueDescription")}
         </p>
         <StartProControls plans={plans} paddleClientToken={paddleClientToken} paddleEnvironment={paddleEnvironment} />
       </div>
@@ -72,15 +75,15 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
   if (isCurrentlyOn && status.cancelAtPeriodEnd) {
     return (
       <div className="flex flex-col gap-4">
-        <p className="type-body text-ink">{status.planCode ? PLAN_LABELS[status.planCode] : "AKINTI Pro"}</p>
+        <p className="type-body text-ink">{status.planCode ? planLabels[status.planCode] : t("defaultPlanName", { brand: BRAND })}</p>
         <p className="type-body-sm text-ink-muted">
           {status.currentPeriodEnd
-            ? `Ends on ${formatAbsoluteTime(status.currentPeriodEnd)}.`
-            : "Ends at the close of the current billing period."}
+            ? t("endsOn", { date: formatAbsoluteTime(status.currentPeriodEnd) })
+            : t("endsAtClose")}
         </p>
         <div>
           <Button onClick={handleResume} loading={resuming}>
-            Resume
+            {t("resume")}
           </Button>
         </div>
         {resumeError ? (
@@ -88,7 +91,7 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
             {resumeError}
           </p>
         ) : null}
-        <p className="type-body-sm text-ink-muted">Or start a new subscription:</p>
+        <p className="type-body-sm text-ink-muted">{t("orStartNew")}</p>
         <StartProControls plans={plans} paddleClientToken={paddleClientToken} paddleEnvironment={paddleEnvironment} />
       </div>
     );
@@ -97,15 +100,15 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
   if (isCurrentlyOn) {
     return (
       <div className="flex flex-col gap-4">
-        <p className="type-body text-ink">{status.planCode ? PLAN_LABELS[status.planCode] : "AKINTI Pro"}</p>
+        <p className="type-body text-ink">{status.planCode ? planLabels[status.planCode] : t("defaultPlanName", { brand: BRAND })}</p>
         <p className="type-body-sm text-ink-muted">
           {status.currentPeriodEnd
-            ? `Renews on ${formatAbsoluteTime(status.currentPeriodEnd)}.`
-            : "Renews automatically."}
+            ? t("renewsOn", { date: formatAbsoluteTime(status.currentPeriodEnd) })
+            : t("renewsAutomatically")}
         </p>
         <div>
           <Button variant="ghost" onClick={() => setCancelSheetOpen(true)}>
-            Cancel at period end
+            {t("cancelAtPeriodEnd")}
           </Button>
         </div>
         <CancelProSheet
