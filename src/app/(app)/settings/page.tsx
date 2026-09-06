@@ -83,7 +83,9 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <PageHeader title={t("settings")} />
+      {/* Hidden at >= 1024px: `SettingsNavPane` already carries a "Settings"
+          heading of its own in the left rail, right beside this page. */}
+      <PageHeader title={t("settings")} className="lg:hidden" />
       <div className="px-4 pb-6 sm:px-5">
         {profile ? (
           <Link
@@ -99,7 +101,9 @@ export default async function SettingsPage() {
           </Link>
         ) : null}
 
-        <nav aria-label={t("settings")} className="flex flex-col gap-7 pt-2">
+        {/* Hidden at >= 1024px: `SettingsNavPane` (`SettingsDesktopFrame`'s
+            left rail) already lists every section there. */}
+        <nav aria-label={t("settings")} className="flex flex-col gap-7 pt-2 lg:hidden">
           {[...grouped, ungrouped].map((sections, groupIndex) =>
             sections.length === 0 ? null : (
               <ul key={groupIndex} className="flex flex-col">

@@ -16,6 +16,7 @@ import {
   hasSeededYearlyPlan,
   planCodeFor,
   resolvePlanAmount,
+  type ProCurrency,
   type ProInterval,
   type ProPlanSummary,
 } from "./pricing";
@@ -57,6 +58,62 @@ function IntervalKey({
   );
 }
 
+/**
+ * Desktop-only (`DESIGN_V3_DESKTOP.md`: "Pro screen gets the card-row plan
+ * picker on desktop") replacement for the two `IntervalKey` line keys above —
+ * same `billingInterval` state, same click handler, just shown as a real
+ * priced card instead of a segmented line key, the way a subscription
+ * picker reads everywhere else on the web. Mobile keeps the line keys
+ * untouched (`lg:hidden` on that group below); this is `hidden lg:grid`.
+ */
+function PlanCard({
+  active,
+  label,
+  amount,
+  unit,
+  currency,
+  badge,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  amount: number | null;
+  unit: string;
+  currency: ProCurrency;
+  badge?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "akinti-press flex flex-col items-start gap-2 rounded-card border p-5 text-left transition-[border-color,background-color,box-shadow] duration-[--dur-quick]",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
+        active
+          ? "border-tide bg-elevation-2 shadow-lift"
+          : "border-hairline-strong bg-elevation-1 hover:bg-elevation-2",
+      )}
+    >
+      <span className="flex w-full items-center justify-between gap-2">
+        <span className={cn("type-subhead", active ? "text-tide" : "text-ink")}>{label}</span>
+        {badge ? (
+          <span className="type-caption rounded-tag border border-sand-deep bg-sand/10 px-2 py-0.5 font-medium text-sand-deep">
+            {badge}
+          </span>
+        ) : null}
+      </span>
+      {amount !== null ? (
+        <span className="flex items-baseline gap-1.5">
+          <span className="type-mono-lg tabular-nums text-ink">{formatProPrice(amount, currency)}</span>
+          <span className="type-body-sm text-ink-subtle">/{unit}</span>
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 const EMPTY_BUYER: IyzicoBuyerDetails = {
   identityNumber: "",
   gsmNumber: "",
@@ -87,6 +144,13 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment, 
 
   const showYearly = hasSeededYearlyPlan(plans, currency);
   const amount = resolvePlanAmount(plans, currency, billingInterval);
+  const monthlyAmount = resolvePlanAmount(plans, currency, "month");
+  const yearlyAmount = showYearly ? resolvePlanAmount(plans, currency, "year") : null;
+  // A whole-number "save N%" only when it's a real discount, never "save 0%".
+  const yearlySavingsPercent =
+    yearlyAmount !== null && monthlyAmount !== null && monthlyAmount > 0
+      ? Math.round((1 - yearlyAmount / (monthlyAmount * 12)) * 100)
+      : 0;
   const planCode = planCodeFor(currency, billingInterval);
   const paddleReady = Boolean(paddleClientToken);
   // QA `full2` defect #2: check the plan exists AND the provider is
@@ -168,7 +232,7 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment, 
 
   return (
     <div className="flex flex-col gap-8">
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:gap-x-8 lg:gap-y-2">
         {PRO_INCLUDE_KEYS.map((key) => (
           <li key={key} className="type-body-sm text-ink-muted">
             {tPro(`includes.${key}`)}
@@ -177,14 +241,40 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment, 
       </ul>
 
       {showYearly ? (
-        <div role="group" aria-label={t("billingIntervalLabel")} className="flex gap-3">
-          <IntervalKey active={billingInterval === "month"} label={t("monthly")} onClick={() => setBillingInterval("month")} />
-          <IntervalKey active={billingInterval === "year"} label={t("yearly")} onClick={() => setBillingInterval("year")} />
-        </div>
+        <>
+          {/* Mobile/tablet: the plain line-key toggle, unchanged. */}
+          <div role="group" aria-label={t("billingIntervalLabel")} className="flex gap-3 lg:hidden">
+            <IntervalKey active={billingInterval === "month"} label={t("monthly")} onClick={() => setBillingInterval("month")} />
+            <IntervalKey active={billingInterval === "year"} label={t("yearly")} onClick={() => setBillingInterval("year")} />
+          </div>
+
+          {/* Desktop: the card-row plan picker (`DESIGN_V3_DESKTOP.md`) —
+              same state, same handlers, just a priced card instead of a
+              segmented line key. */}
+          <div role="group" aria-label={t("billingIntervalLabel")} className="hidden lg:grid lg:grid-cols-2 lg:gap-4">
+            <PlanCard
+              active={billingInterval === "month"}
+              label={t("monthly")}
+              amount={monthlyAmount}
+              unit={t("monthUnit")}
+              currency={currency}
+              onClick={() => setBillingInterval("month")}
+            />
+            <PlanCard
+              active={billingInterval === "year"}
+              label={t("yearly")}
+              amount={yearlyAmount}
+              unit={t("yearUnit")}
+              currency={currency}
+              badge={yearlySavingsPercent > 0 ? t("savePercent", { percent: yearlySavingsPercent }) : undefined}
+              onClick={() => setBillingInterval("year")}
+            />
+          </div>
+        </>
       ) : null}
 
       {amount !== null ? (
-        <p className="flex items-baseline gap-2">
+        <p className={cn("flex items-baseline gap-2", showYearly && "lg:hidden")}>
           <span className="type-mono-lg tabular-nums text-ink">{formatProPrice(amount, currency)}</span>
           <span className="type-body-sm text-ink-subtle">/{billingInterval === "month" ? t("monthUnit") : t("yearUnit")}</span>
         </p>

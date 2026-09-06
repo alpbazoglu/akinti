@@ -3,6 +3,7 @@ import { getMessages } from "next-intl/server";
 import type { ReactNode } from "react";
 
 import { pickMessages } from "@/i18n/pickMessages";
+import { SettingsDesktopFrame } from "@/components/settings";
 
 /**
  * Per-route-group message narrowing (closeout perf pass), Settings' slice —
@@ -27,6 +28,7 @@ const SETTINGS_MESSAGE_NAMESPACES = [
   "ChangePasswordForm",
   "AppearanceSettingsPage",
   "AppearanceForm",
+  "AppearancePreview",
   "AvatarUploader",
   "AudioSettingsPage",
   "AudioPreferencesForm",
@@ -73,7 +75,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
   const messages = await getMessages();
   return (
     <NextIntlClientProvider messages={pickMessages(messages, SETTINGS_MESSAGE_NAMESPACES)}>
-      {children}
+      <SettingsDesktopFrame>{children}</SettingsDesktopFrame>
     </NextIntlClientProvider>
   );
 }

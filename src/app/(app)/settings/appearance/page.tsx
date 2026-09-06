@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 
 import { PageHeader } from "@/components/layout";
 import { AppearanceForm } from "@/components/profile";
+import { AppearancePreview } from "@/components/settings";
 import { EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { requireUser } from "@/lib/auth/server";
@@ -51,11 +52,19 @@ export default async function AppearanceSettingsPage() {
       <PageHeader
         title={t("title")}
       />
-      <div className="akinti-page pb-8">
-        <AppearanceForm
-          initialThemeMode={initialThemeMode}
-          initialSignatureHue={profile.signatureHue}
-        />
+      <div className="akinti-page flex flex-col gap-8 pb-8 lg:flex-row lg:items-start lg:gap-10">
+        <div className="min-w-0 lg:flex-1">
+          <AppearanceForm
+            initialThemeMode={initialThemeMode}
+            initialSignatureHue={profile.signatureHue}
+          />
+        </div>
+        {/* Desktop-only live preview (`DESIGN_V3_DESKTOP.md`): a mock Wave
+            row using the signature hue, updated live via `useCurrentUser()`
+            the moment `AppearanceForm` saves — see `AppearancePreview`. */}
+        <div className="hidden lg:block lg:w-72 lg:shrink-0">
+          <AppearancePreview initialSignatureHue={profile.signatureHue} />
+        </div>
       </div>
     </>
   );
