@@ -11,6 +11,8 @@ import { formatNotification } from "@/lib/notifications";
 import { cn, formatAbsoluteTime, timeAgo } from "@/lib/ui";
 import type { NotificationWithActor } from "@/types/domain";
 
+import { NotificationWavePreview } from "./NotificationWavePreview";
+
 export interface NotificationItemProps {
   notification: NotificationWithActor;
   /** Called once this notification is confirmed read (server call succeeded). */
@@ -89,7 +91,7 @@ export function NotificationItem({ notification, onRead, className }: Notificati
   return (
     <li
       className={cn(
-        "relative flex gap-3 border-b border-border px-4 py-3 sm:px-5",
+        "relative flex gap-3 border-b border-border px-4 py-3 transition-colors hover:bg-surface-muted sm:px-5",
         isUnread && "bg-accent-soft/40",
         className,
       )}
@@ -127,6 +129,10 @@ export function NotificationItem({ notification, onRead, className }: Notificati
         >
           {timeAgo(notification.updatedAt)}
         </time>
+
+        {notification.waveId && notification.type !== "collaborator_invite" ? (
+          <NotificationWavePreview waveId={notification.waveId} />
+        ) : null}
 
         {canRespond && resolution === "pending" ? (
           <div className="mt-2 flex items-center gap-2">

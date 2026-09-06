@@ -5,7 +5,11 @@ import { getTranslations } from "next-intl/server";
 
 import { routes } from "@/config/routes";
 import { requireUser } from "@/lib/auth/server";
+import { resolveWavePeaks } from "@/lib/audio/peaks";
+import { getAudioAssetById } from "@/lib/db/audioAssets";
 import { listNotifications, markNotificationsRead } from "@/lib/db/notifications";
+import { getProfileById } from "@/lib/db/profiles";
+import { getWaveById } from "@/lib/db/waves";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { uuidSchema } from "@/lib/validation/common";
 import type { NotificationWithActor, Page } from "@/types/domain";
@@ -69,6 +73,71 @@ export async function loadMoreNotifications(
     const supabase = await createServerSupabaseClient();
     const page = await listNotifications(supabase, { cursor });
     return { ok: true, data: page };
+  } catch (error) {
+    return { ok: false, error: await messageOf(error) };
+  }
+}
+
+export interface NotificationWaveAudio {
+  waveId: string;
+  title: string;
+  audioAssetId: string;
+  peaks: readonly number[];
+  durationMs: number;
+  creatorName: string | null;
+}
+
+/**
+ * Minimal playback data for the inline preview on a Wave-linked notification
+ * row (`DESIGN_V3_DESKTOP.md`'s "inline play for audio notifications"). Reads
+ * through the signed-in user's own Supabase client — the same
+ * `can_view_wave`/RLS boundary `/w/[id]` itself enforces — so a notification
+ * about a Wave the viewer can no longer see (deleted, hidden, visibility
+ * changed) simply fails to resolve here instead of leaking a preview of it.
+ * Real peaks come from `audio_assets.peaks` (`getAudioAssetById`); the
+ * playable URL is still resolved separately by the client, the same
+ * `GET /api/audio/[assetId]/url` route every other inline player uses.
+ */
+export async function getNotificationWaveAudio(
+  waveId: string,
+): Promise<NotificationActionResult<NotificationWaveAudio>> {
+  const parsed = uuidSchema.safeParse(waveId);
+  if (!parsed.success) {
+    const t = await getTranslations("NotificationsActions");
+    return { ok: false, error: t("waveNotFound") };
+  }
+
+  await requireUser(routes.notifications());
+
+  try {
+    const supabase = await createServerSupabaseClient();
+    const wave = await getWaveById(supabase, parsed.data);
+    if (!wave) {
+      const t = await getTranslations("NotificationsActions");
+      return { ok: false, error: t("waveNotFound") };
+    }
+
+    const [asset, creator] = await Promise.all([
+      getAudioAssetById(supabase, wave.audioAssetId),
+      getProfileById(supabase, wave.creatorId),
+    ]);
+
+    if (!asset || !asset.peaks) {
+      const t = await getTranslations("NotificationsActions");
+      return { ok: false, error: t("audioNotReady") };
+    }
+
+    return {
+      ok: true,
+      data: {
+        waveId: wave.id,
+        title: wave.title,
+        audioAssetId: wave.audioAssetId,
+        peaks: resolveWavePeaks(asset.peaks.data, wave.id, asset.peaks.bits),
+        durationMs: asset.durationMs ?? 0,
+        creatorName: creator ? (creator.displayName ?? `@${creator.username}`) : null,
+      },
+    };
   } catch (error) {
     return { ok: false, error: await messageOf(error) };
   }

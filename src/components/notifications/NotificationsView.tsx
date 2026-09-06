@@ -93,7 +93,12 @@ export function NotificationsView({
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center justify-between px-4 pb-2 sm:px-5">
+      {/* Sticky under the (mobile or desktop) top bar — both are the same
+          56px height, so one `top-top-bar` offset covers every width
+          without a breakpoint override. A static screenshot at scroll
+          position 0 looks identical to the old, non-sticky header; only
+          scrolled behaviour changes. */}
+      <div className="sticky top-top-bar z-10 flex items-center justify-between bg-paper px-4 py-2 sm:px-5">
         <p className="text-xs text-fg-subtle" aria-live="polite">
           {unreadCount > 0 ? t("unreadCount", { count: unreadCount }) : t("allCaughtUp")}
         </p>
