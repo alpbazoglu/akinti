@@ -437,7 +437,19 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
         }}
       >
         {windowed.map(({ wave, position }) => (
-          <div key={wave.id} className="h-dvh w-full" data-flow-active={position === 0} aria-hidden={position !== 0}>
+          <div
+            key={wave.id}
+            className="h-dvh w-full"
+            data-flow-active={position === 0}
+            aria-hidden={position !== 0}
+            // axe `aria-hidden-focus` (QA `full2` defect #4): `FlowWaveView`
+            // renders a full interactive control set even for the
+            // virtualized +/-1 neighbours, so `aria-hidden` alone still left
+            // them tab-reachable. `inert` removes the whole subtree from the
+            // tab order and hit-testing, not just from the accessibility
+            // tree.
+            inert={position !== 0}
+          >
             <FlowWaveView
               wave={{ ...wave, isSaved: savedById[wave.id] ?? wave.isSaved }}
               isActive={position === 0}
