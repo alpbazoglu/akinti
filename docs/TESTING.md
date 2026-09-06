@@ -84,6 +84,26 @@ RFC 2606-reserved and passes). Each spec deletes the accounts it created in a
 `e2e+*@akinti.(test|example)` accounts left over from a failed run, so a
 crashed test never leaks a throwaway account into the project indefinitely.
 
+**Manual QA passes (`scripts/qa/**`) are not covered by `globalTeardown`** —
+that only runs inside an `E2E_SUPABASE=1 npm run e2e` invocation. A manual QA
+script that crashes before its own cleanup, or that deliberately leaves an
+account behind for a follow-up pass to inspect (as `docs/qa/desktop/REPORT.md`
+did with `e2e+qadeskA-*`/`e2e+qadeskB-*`), leaks a throwaway account
+indefinitely otherwise. Sweep them with:
+
+```
+npm run cleanup:test-accounts -- --dry-run   # list only, deletes nothing
+npm run cleanup:test-accounts                # deletes every match
+```
+
+It matches only `e2e+*@akinti.test`, `e2e+*@akinti.example` and
+`qa*@akinti.test` (case-insensitive) — the same shapes this section
+documents — prints every matching email before deleting anything, and
+deletes through the same cascade-safe path as `scripts/verify-live-delete.ts`
+(both storage buckets, then `auth.admin.deleteUser`). Anything on another
+domain (a curated seed account like `curated@akinti.internal`, a real
+account) is never listed or touched.
+
 **`e2e/fixtures/tone.wav`** is a real, ffmpeg-generated 3-second 440Hz tone
 (mono, 44.1kHz PCM WAV) used for every Upload-path publish in these specs —
 regenerate it with:

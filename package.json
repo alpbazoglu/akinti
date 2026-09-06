@@ -28,6 +28,7 @@
     "db:migrate:dry": "tsx --env-file-if-exists=.env.local scripts/apply-migrations.ts --dry-run",
     "db:seed": "tsx --env-file-if-exists=.env.local scripts/apply-migrations.ts --seed",
     "verify:live": "tsx scripts/verify-live.ts",
+    "cleanup:test-accounts": "tsx --env-file-if-exists=.env.local scripts/cleanup-test-accounts.ts",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "perf": "npm run build && tsx scripts/perf-budget.ts"
   },
