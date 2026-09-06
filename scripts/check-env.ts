@@ -58,6 +58,47 @@ export function checkEnv(context: EnvContext): EnvCheckResult {
   return { context, required, missing, ok: missing.length === 0 };
 }
 
+/**
+ * Optional feature groups where a HALF-set group is worse than an unset
+ * one: each name below only degrades cleanly (a clear "unavailable" error,
+ * never a crash — `docs/BILLING.md`, `src/lib/push/send.ts`'s header
+ * comment, `src/lib/audio/sidecarPipeline.ts`) when every variable in its
+ * group is either all present or all absent. Missing just one silently
+ * breaks the feature instead (review3 finding 34) — e.g. without
+ * `SIDECAR_URL` the worker defaults to `http://127.0.0.1:8011`
+ * (`src/lib/audio/sidecarPipeline.ts`), so on a separately-hosted worker
+ * every `pitch_snap`/`self_harmony` job fails and retries forever
+ * (`scripts/worker.ts`'s header comment on those two presets having no
+ * local fallback).
+ */
+export const ENV_GROUPS = [
+  { name: "iyzico billing", vars: ["IYZICO_API_KEY", "IYZICO_SECRET_KEY", "IYZICO_MERCHANT_ID"] },
+  {
+    name: "paddle billing",
+    vars: ["PADDLE_API_KEY", "PADDLE_WEBHOOK_SECRET", "NEXT_PUBLIC_PADDLE_CLIENT_TOKEN"],
+  },
+  { name: "web push (VAPID)", vars: ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"] },
+  { name: "sidecar (separately-hosted worker)", vars: ["SIDECAR_URL", "SIDECAR_TIMEOUT_MS", "SIDECAR_RETRIES"] },
+] as const satisfies ReadonlyArray<{ name: string; vars: readonly string[] }>;
+
+export interface EnvGroupCheckResult {
+  name: string;
+  vars: readonly string[];
+  set: readonly string[];
+  missing: readonly string[];
+  /** True when the group is fully set OR fully unset — false only for a half-set group. */
+  ok: boolean;
+}
+
+/** Checks every group in `ENV_GROUPS` for "complete or absent" — never called from `assertWebEnvAtBoot`, since a half-set optional group degrades rather than crashing; surfaced instead via the CLI's `--groups`/`--strict-groups` flags. */
+export function checkEnvGroups(): EnvGroupCheckResult[] {
+  return ENV_GROUPS.map((group) => {
+    const set = group.vars.filter(isSet);
+    const missing = group.vars.filter((name) => !isSet(name));
+    return { name: group.name, vars: group.vars, set, missing, ok: set.length === 0 || missing.length === 0 };
+  });
+}
+
 function formatMissing(result: EnvCheckResult): string {
   const lines = [
     `[check-env] Missing required environment variable(s) for the ${result.context} context:`,
@@ -112,17 +153,40 @@ function isMainModule(): boolean {
   return entry.endsWith("check-env.ts") || entry.endsWith("check-env.js");
 }
 
+/** `--groups`: report every half-set optional feature group. `--strict-groups` additionally exits 1 if any are found (opt-in — a half-set group degrades rather than crashing, so this is never on by default). */
+function runGroupsCli(strict: boolean): boolean {
+  const groupResults = checkEnvGroups();
+  const halfSet = groupResults.filter((group) => !group.ok);
+
+  if (halfSet.length === 0) {
+    console.log("[check-env] optional feature groups: none half-set (each is fully configured or fully unset).");
+    return true;
+  }
+
+  console.error("\n[check-env] half-set optional feature group(s) — set every variable in the group, or none:");
+  for (const group of halfSet) {
+    console.error(`  ${group.name}: set ${group.set.join(", ") || "(none)"} — missing ${group.missing.join(", ")}`);
+  }
+  return !strict;
+}
+
 function runCli(): void {
   const context: EnvContext = process.argv.includes("--worker") ? "worker" : "web";
+  const strictGroups = process.argv.includes("--strict-groups");
+  const checkGroups = strictGroups || process.argv.includes("--groups");
+
   const result = checkEnv(context);
+  const groupsOk = checkGroups ? runGroupsCli(strictGroups) : true;
 
   if (result.ok) {
     console.log(`[check-env] ${context}: all required environment variables are set.`);
-    return;
+  } else {
+    console.error(formatMissing(result));
   }
 
-  console.error(formatMissing(result));
-  process.exit(1);
+  if (!result.ok || !groupsOk) {
+    process.exit(1);
+  }
 }
 
 if (isMainModule()) {

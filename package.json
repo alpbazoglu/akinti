@@ -22,6 +22,7 @@
     "seed:challenges": "tsx --env-file-if-exists=.env.local scripts/seed-challenges.ts",
     "check-env": "tsx --env-file-if-exists=.env.local scripts/check-env.ts",
     "check-env:worker": "tsx --env-file-if-exists=.env.local scripts/check-env.ts --worker",
+    "check-env:groups": "tsx --env-file-if-exists=.env.local scripts/check-env.ts --strict-groups",
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/apply-migrations.ts",
     "db:migrate:dry": "tsx --env-file-if-exists=.env.local scripts/apply-migrations.ts --dry-run",
     "db:seed": "tsx --env-file-if-exists=.env.local scripts/apply-migrations.ts --seed",
