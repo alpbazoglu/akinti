@@ -21,6 +21,7 @@ export interface DeleteAccountSheetProps {
 
 export function DeleteAccountSheet({ username }: DeleteAccountSheetProps) {
   const t = useTranslations("DeleteAccountSheet");
+  const tCommon = useTranslations("Common");
   const [open, setOpen] = useState(false);
   const [confirmHandle, setConfirmHandle] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -39,18 +40,28 @@ export function DeleteAccountSheet({ username }: DeleteAccountSheetProps) {
     setDeleting(true);
     setFieldError(null);
     setFormError(null);
-    void deleteAccount({ confirmHandle }).then((result) => {
-      if (!result.ok) {
+    void deleteAccount({ confirmHandle })
+      .then((result) => {
+        if (!result.ok) {
+          setDeleting(false);
+          setFieldError(result.fieldErrors?.confirmHandle ?? null);
+          setFormError(result.formError ?? null);
+          return;
+        }
+        // Mirrors `UserMenu`'s sign-out navigation: a hard navigation, not a
+        // client-side transition, so nothing keeps rendering signed in on the
+        // now-deleted account.
+        window.location.assign(result.redirectTo ?? routes.login());
+      })
+      .catch(() => {
+        // A rejected Server Action (network failure, not a `{ ok: false }`
+        // response) used to leave `deleting` true forever and the sheet
+        // stuck open with no way to dismiss it (review3 finding 16 /
+        // review2 finding 15) — the one screen where being stuck is most
+        // alarming.
         setDeleting(false);
-        setFieldError(result.fieldErrors?.confirmHandle ?? null);
-        setFormError(result.formError ?? null);
-        return;
-      }
-      // Mirrors `UserMenu`'s sign-out navigation: a hard navigation, not a
-      // client-side transition, so nothing keeps rendering signed in on the
-      // now-deleted account.
-      window.location.assign(result.redirectTo ?? routes.login());
-    });
+        setFormError(tCommon("somethingWentWrong"));
+      });
   };
 
   return (

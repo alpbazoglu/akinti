@@ -55,6 +55,7 @@ next-env.d.ts
 # testing
 /playwright-report/
 /test-results/
+.qa-scratch/
 
 # OMC runtime state
 .omc/
