@@ -71,7 +71,10 @@ export type AudioEnhancementPreset =
   | "clear_voice"
   | "warm"
   | "deep"
-  | "atmospheric";
+  | "atmospheric"
+  /** AKINTI Pro only (migration 20260906120000) — see `PRO_ENHANCEMENT_PRESETS` in `src/lib/audio/enhancement.ts`. */
+  | "pitch_snap"
+  | "self_harmony";
 export type AudioJobType = "process_audio" | "mix_duet";
 export type AudioJobStatus = "pending" | "processing" | "done" | "failed" | "cancelled";
 
@@ -213,6 +216,8 @@ export type AudioAssetRow = {
   checksum_sha256: string | null;
   /** Server-owned (migration 20260905100000) — see docs/AUDIO_ARCHITECTURE.md "Enhancement report". */
   enhancement_report: Json | null;
+  /** Server-owned (migration 20260906120000) — best-effort pYIN score, null when never computed. See docs/AUDIO_ARCHITECTURE.md "Pitch score". */
+  pitch_score: Json | null;
   created_at: string;
   updated_at: string;
   processed_at: string | null;
@@ -1004,6 +1009,10 @@ export interface Database {
         Returns: undefined;
       };
       fail_audio_job: { Args: { p_job_id: number; p_error: string }; Returns: undefined };
+      set_audio_asset_pitch_score: {
+        Args: { p_asset_id: string; p_pitch_score: Json };
+        Returns: undefined;
+      };
       list_backing_tracks: {
         Args: {
           p_genre?: string | null;

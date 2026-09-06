@@ -57,7 +57,9 @@ the real `fetch`.
 | `/clean` | DeepFilterNet3, else sidecar's own `arnndn` | This worker's own ffmpeg `arnndn` pass (bundled model: `sidecar/models/rnnoise.rnnn`) | **Yes** — if neither the sidecar nor a local model is available, the stage is simply absent from `enhancement_report`, never faked |
 | `/master` | Matchering vs. a bundled reference master (`PRESET_REFERENCE_FAMILY` in `sidecar/app/dsp.py`) | ffmpeg's documented two-pass `loudnorm` recipe | No — local ffmpeg is already a hard requirement for this worker |
 | `/peaks` | librosa/soundfile | This worker's own PCM-based extractor (unchanged from before the sidecar existed) | No |
-| `/pitch-score` | librosa pYIN vs. a reference key or the track's own detected key | — (not on the `process_audio`/`mix_duet` critical path; a future "vocal coach" surface) | — |
+| `/pitch-score` | librosa pYIN vs. a reference key or the track's own detected key | — (best-effort, called AFTER a `process_audio`/`mix_duet` job already completed — see "Pitch score" below) | **Yes** — sidecar unreachable/erroring leaves `audio_assets.pitch_score` `null`, never fails the job |
+| `/pitch-snap` | pYIN + per-segment `librosa.effects.pitch_shift` to the nearest semitone of the detected/reference key, at the requested strength | None — the `pitch_snap` Pro preset simply is this endpoint; if the sidecar is down the job fails and retries like any other sidecar-dependent stage would, since there is no local ffmpeg equivalent for pitch correction | No — Pro users chose this specific sound; silently falling back to the plain preset chain would be a fake success |
+| `/harmony` | Mixes the vocal with a pitch-shifted copy (+3 or +4 semitones, chosen from the detected key's third) and a −12 semitone doubled layer at low gain (wet 0.35) | Same as `/pitch-snap` — no local equivalent, no silent fallback | No |
 
 Env vars (`scripts/worker.ts`, `src/lib/audio/sidecarPipeline.ts`'s
 `sidecarConfigFromEnv`): `SIDECAR_URL` (default `http://127.0.0.1:8011`),
@@ -99,6 +101,59 @@ processing column — `audio_assets_guard_update` (migration 12, extended in
 migration 27) rejects a client attempt to set it directly; readable by
 anon/authenticated via the explicit column grant migration 15 already
 requires for anything on `audio_assets` that isn't a raw storage path.
+
+### Pitch score
+
+`docs/PRODUCT_V2.md` §4: "Pitch score / vocal coach ... shown after
+recording as encouragement, not judgment"; `docs/design/DESIGN.md` §12: no
+gamification, never print a zero metric, no exclamation marks. This shapes
+both where the score lives and how it is presented.
+
+After a `process_audio` or `mix_duet` job's `complete_audio_job` call
+succeeds, `scripts/worker.ts` makes one best-effort follow-up call to the
+sidecar's `POST /pitch-score` with the just-processed file, **skipped
+outright when the asset is a backing-track instrumental** (checked by
+looking the asset id up in `backing_tracks.audio_asset_id` — instrumentals
+have no vocal to score) rather than by any job-payload flag. On success, the
+result is written with `set_audio_asset_pitch_score(asset_id, jsonb)`
+(migration `20260906120000_pro_presets_pitch.sql`) to
+**`audio_assets.pitch_score`** — chosen over the `waves.pitch_score` column
+the brief offered as the default, because a Wave row does not necessarily
+exist yet when this call happens (publishing is allowed while an asset is
+still `pending`/`processing` — see "Upload sequence" below — and the worker
+processes an asset the moment it's finalized, before `publishWave` ever
+runs). `audio_assets` is already where every other worker-computed
+processing result lives (`peaks`, `enhancement_report`) for the same reason.
+Any failure of this call (sidecar down, timeout, malformed response) is
+caught and logged, never thrown — the job it follows is already `done`, and
+a missing pitch score is a legitimate, honest `null`, not a retry condition.
+
+Shape written to `audio_assets.pitch_score` (`src/types/database.ts`'s
+`Json`, no dedicated TS interface yet — read directly where needed):
+
+```json
+{
+  "score_0_100": 78.4,
+  "in_tune_ratio": 0.71,
+  "median_cents_off": 12.5,
+  "key_guess": "G major",
+  "notes_detected": 34
+}
+```
+
+`score_0_100` and `key_guess` map directly onto the sidecar's `score`/
+`detected_key` (or `reference_key`, when supplied). `in_tune_ratio` is the
+fraction of voiced one-second windows within 35 cents of the nearest in-key
+semitone (the sidecar's own "in tune" threshold — see
+`sidecar/app/dsp.py`'s `score_pitch`). `median_cents_off` is the median (not
+mean, to resist a handful of wild off-pitch seconds skewing an otherwise
+solid take) of `per_second_cents_deviation`. `notes_detected` counts voiced
+one-second windows with pitch data at all, a rough proxy for "how much of
+this had a detectable pitch" that the UI never shows as a metric on its
+own — see `PitchReport.tsx`. A track with zero voiced frames still writes a
+score (`0`), a ratio (`0`), and `notes_detected: 0`, never an absent field —
+`audio_assets_guard_update` and `set_audio_asset_pitch_score` both treat the
+whole object as one opaque, atomically-written value.
 
 ## Upload sequence (spec §18, §36, §38)
 
