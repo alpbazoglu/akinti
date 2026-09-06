@@ -990,9 +990,70 @@ A chain tree has no data layer at all yet: only immediate-parent/root lineage ex
 scratch was out of scope for a desktop layout pass and risked fabricating a tree the
 database cannot actually produce.
 
+### Create / Enhance / Publish (`/create`)
+Two-column stage at `>= 1024px`, built inside each stage component itself
+(`RecordStage`/`ReviewStage`/`EnhanceStage`/`CreateWaveForm`, `src/components/create/`)
+rather than in `CreateFlow.tsx`, which still only owns the state machine and the real
+publish sequence — unchanged. Each stage's existing top-to-bottom children are grouped
+into two `flex` children of one `lg:flex-row` section (a left "stage" column: trace,
+transport, live readouts; a right "settings" column: mic/monitoring switches on Record,
+the enhancement picker and AKINTI Pro rows on Enhance, the distribution form on Details)
+— the grouping only adds wrapper `div`s, so the mobile markup and its exact vertical
+rhythm (`gap-6`/`gap-8`) are unchanged; `CreateFlow`'s shared container drops its
+`max-w-xl` cap at `lg:` so those splits have room. `UploadDropzone` spans the full stage
+width instead of taking a column of its own — there is no per-take settings rail to sit
+beside it. `EnhancementPicker` (`src/components/audio/`) and the Enhance stage's Pro rows
+become a `lg:grid-cols-2` card grid with a genuine hover preview: while a comparison is
+already playing (started by a real click on Original/Polished, never by hover — no
+autoplay without a gesture), moving the pointer across a sound swaps the live processing
+graph to audition it without committing the selection.
+
+Keyboard shortcuts (space = arm/stop, R = retake, Enter = continue), shared via
+`useStageShortcuts` (`src/components/create/useStageShortcuts.ts`): never fire while a
+text field has focus or while a button/link the same key already activates natively has
+focus. Hints render only at `lg:` (`<kbd>` chips) since a touch device has no keyboard to
+hint at, but the shortcuts themselves are active at every width.
+
+### Messages (`/messages`, `/messages/[id]`, `/messages/new`)
+A new `layout.tsx` fetches the conversation list once (via `getCurrentUser`, not
+`requireUser` — each page below keeps its own redirect target) and provides it through
+`ConversationListContext` to both the mobile full-list `MessagesView` and the desktop
+320px `ConversationListPane` (`MessagesDesktopFrame`), so the list is genuinely fetched
+once, not duplicated per breakpoint. At `>= 1024px` the shell becomes an enclosed,
+independently-scrolling two-pane panel (list left, thread right) sized to
+`100dvh` minus the top bar and now-playing bar; `/messages` itself renders
+`MessagesEmptyPane` (an "open a conversation" invitation) in the right pane rather than a
+second copy of the list. `ThreadHeader`/`Composer`'s existing `sticky` positioning needed
+no changes — they now stick within the pane's own scroll container instead of the page.
+
+### Settings (`/settings/**`)
+A new `SettingsDesktopFrame` (`src/components/settings/`) splits every route under
+`/settings` into a 224px icon+active-state nav rail (`SettingsNavPane`, mirroring the
+mobile hub's own three groups) plus the route's form at `>= 1024px`; the mobile hub's own
+list hides at that width (`lg:hidden`) rather than duplicating it. Pro's not-subscribed
+state (`StartProControls`, `src/components/pro/`) gets a card-row plan picker at `lg:` —
+same `billingInterval` state and click handlers as the mobile line-key toggle, just a
+priced card with a "save N%" badge on yearly; checkout/Paddle/iyzico logic is untouched.
+Appearance gets a live preview panel (`AppearancePreview`) reading the signature hue
+through `useCurrentUser()` — the same context `AppearanceForm`'s `refreshProfile()`
+already updates on save — so it updates the instant a hue is picked, with no new prop on
+that form.
+
+### Notifications (`/notifications`)
+`NotificationsView`'s "unread count / Mark all as read" row is now `sticky` under the top
+bar (harmless at every width: a `sticky` element's resting appearance is identical to a
+static one, so mobile's screenshot is unchanged). Wave-linked rows (comment, save, share,
+a Duet event) get an inline play control (`NotificationWavePreview`) — a new
+`getNotificationWaveAudio` Server Action (`src/app/(app)/notifications/actions.ts`) reads
+the Wave's real peaks through the signed-in user's own Supabase client (the same
+`can_view_wave` RLS boundary `/w/[id]` enforces), then the client resolves a signed URL
+and hands off to `WavePlayer`'s existing `compact` variant — nothing is fetched until the
+reader presses play.
+
 ### Not yet built
-Notifications, Messages and Settings have not had a desktop-specific pass — they render
-whatever their existing mobile-first layout produces at desktop width (correct, but not
-redesigned to Direction A's card/rail language). `loading.tsx` skeletons for
-Flow/Explore/Wave/Profile have not been reshaped to the new desktop layouts; they still
-describe the pre-existing mobile shape.
+Challenges, Tracks, Duets and Search's desktop passes are tracked elsewhere in this file
+(see above); Analytics has not had a desktop-specific pass and still renders its
+mobile-first layout at desktop width. `loading.tsx` skeletons for Flow/Explore/Wave/
+Profile/Analytics have not been reshaped to the new desktop layouts; they still describe
+the pre-existing mobile shape. (Create, Messages, Settings and Notifications now have
+shape-true desktop `loading.tsx` skeletons — see above.)
