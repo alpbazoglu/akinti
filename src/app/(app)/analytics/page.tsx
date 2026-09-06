@@ -10,6 +10,7 @@ import {
 } from "@/components/analytics";
 import { PageHeader } from "@/components/layout";
 import { EmptyState, ErrorState } from "@/components/ui";
+import { Bookmark, Clock, Handshake, Play, Repeat, Share2, SealCheck, Users } from "@/components/ui/icons";
 import { routes } from "@/config/routes";
 import { BRAND } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
@@ -130,9 +131,36 @@ async function AnalyticsContent({ days }: { days: AnalyticsRangeDays }) {
     { label: tTerms("duets"), value: formatCount(overview.duets) },
   ].filter((figure) => figure.value !== "0");
 
+  // Desktop KPI tiles (this pass's brief: "KPI tiles row — only non-zero,
+  // icons"). Same non-zero rule as `figures` above, just every number the
+  // mobile layout already prints, reshaped into cards for the wider canvas
+  // rather than a second data source.
+  const kpiTiles = [
+    { key: "plays", raw: overview.plays, label: tTerms("plays"), value: formatCount(overview.plays), icon: Play },
+    { key: "uniqueListeners", raw: overview.uniqueListeners, label: t("uniqueListeners"), value: formatCount(overview.uniqueListeners), icon: Users },
+    { key: "replays", raw: overview.replays, label: tTerms("replays"), value: formatCount(overview.replays), icon: Repeat },
+    { key: "saves", raw: overview.saves, label: tTerms("saves"), value: formatCount(overview.saves), icon: Bookmark },
+    { key: "shares", raw: overview.shares, label: tTerms("shares"), value: formatCount(overview.shares), icon: Share2 },
+    { key: "duets", raw: overview.duets, label: tTerms("duets"), value: formatCount(overview.duets), icon: Handshake },
+    { key: "avgListen", raw: overview.avgListenSeconds ?? 0, label: t("avgListenTime"), value: formatAvgListenTime(overview.avgListenSeconds), icon: Clock },
+    { key: "completion", raw: overview.completionRate, label: t("completionRate"), value: formatPercent(overview.completionRate), icon: SealCheck },
+  ].filter((tile) => tile.raw > 0);
+
   return (
     <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
-      <div>
+      {kpiTiles.length > 0 ? (
+        <div className="hidden gap-3 lg:grid lg:grid-cols-4">
+          {kpiTiles.map(({ key, label, value, icon: Icon }) => (
+            <div key={key} className="flex flex-col gap-2 rounded-card border border-hairline bg-elevation-2 p-4">
+              <Icon className="size-5 text-ink-subtle" aria-hidden="true" />
+              <span className="type-mono-lg tabular-nums text-ink">{value}</span>
+              <span className="type-caption text-ink-subtle">{label}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="lg:hidden">
         <p className="type-mono-display tabular-nums text-ink">{formatCount(overview.plays)}</p>
         <p className="type-body-sm text-ink-muted">{tTerms("plays")}</p>
       </div>
@@ -140,9 +168,9 @@ async function AnalyticsContent({ days }: { days: AnalyticsRangeDays }) {
       <AnalyticsTimeseriesChart days={filledDays} />
 
       {figures.length > 0 ? (
-        <>
+        <div className="lg:hidden">
           <div className="border-t border-hairline" />
-          <div className="flex gap-8">
+          <div className="flex gap-8 pt-6">
             {figures.map((figure) => (
               <div key={figure.label} className="flex flex-col gap-1">
                 <span className="type-mono-lg tabular-nums text-ink">{figure.value}</span>
@@ -150,23 +178,24 @@ async function AnalyticsContent({ days }: { days: AnalyticsRangeDays }) {
               </div>
             ))}
           </div>
-        </>
+        </div>
       ) : null}
 
-      <div className="border-t border-hairline" />
-
-      <div className="flex flex-col gap-2 text-ink-muted">
-        <p className="type-caption font-medium">{t("uniqueListeners")}</p>
-        <p className="type-mono tabular-nums text-ink">{formatCount(overview.uniqueListeners)}</p>
-      </div>
-      <div className="flex gap-8 text-ink-muted">
-        <div className="flex flex-col gap-1">
-          <span className="type-mono tabular-nums text-ink">{formatAvgListenTime(overview.avgListenSeconds)}</span>
-          <span className="type-caption">{t("avgListenTime")}</span>
+      <div className="lg:hidden">
+        <div className="border-t border-hairline" />
+        <div className="flex flex-col gap-2 pt-6 text-ink-muted">
+          <p className="type-caption font-medium">{t("uniqueListeners")}</p>
+          <p className="type-mono tabular-nums text-ink">{formatCount(overview.uniqueListeners)}</p>
         </div>
-        <div className="flex flex-col gap-1">
-          <span className="type-mono tabular-nums text-ink">{formatPercent(overview.completionRate)}</span>
-          <span className="type-caption">{t("completionRate")}</span>
+        <div className="flex gap-8 pt-4 text-ink-muted">
+          <div className="flex flex-col gap-1">
+            <span className="type-mono tabular-nums text-ink">{formatAvgListenTime(overview.avgListenSeconds)}</span>
+            <span className="type-caption">{t("avgListenTime")}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="type-mono tabular-nums text-ink">{formatPercent(overview.completionRate)}</span>
+            <span className="type-caption">{t("completionRate")}</span>
+          </div>
         </div>
       </div>
 

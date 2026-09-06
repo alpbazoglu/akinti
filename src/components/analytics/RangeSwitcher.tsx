@@ -26,7 +26,14 @@ export async function RangeSwitcher({ current, section, className }: RangeSwitch
   const t = await getTranslations("RangeSwitcher");
 
   return (
-    <div role="group" aria-label={t("dateRangeLabel")} className={cn("flex items-center gap-5", className)}>
+    <div
+      role="group"
+      aria-label={t("dateRangeLabel")}
+      className={cn(
+        "flex items-center gap-5 lg:gap-0.5 lg:rounded-key lg:border lg:border-hairline lg:bg-elevation-2 lg:p-1",
+        className,
+      )}
+    >
       {ANALYTICS_RANGE_OPTIONS.map((option) => {
         const selected = option.value === current;
         return (
@@ -37,7 +44,16 @@ export async function RangeSwitcher({ current, section, className }: RangeSwitch
               className={cn(
                 "type-body-sm h-8 border-b-2 font-medium transition-colors duration-150",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink",
-                selected ? "border-ink text-ink" : "border-transparent text-ink-muted hover:text-ink",
+                // Desktop swaps the mobile underbar for a filled segmented
+                // control (this pass's brief: "range switcher as segmented
+                // control") — still no coloured pill, the active segment is
+                // marked by the same elevation-3 surface every pressed
+                // control on desktop uses (DESIGN_V3_DESKTOP.md "Surfaces
+                // and depth are allowed on desktop").
+                "lg:h-7 lg:rounded-tag lg:border-b-0 lg:px-3",
+                selected
+                  ? "border-ink text-ink lg:bg-elevation-3"
+                  : "border-transparent text-ink-muted hover:text-ink",
               )}
             >
               {t("days", { count: option.value })}

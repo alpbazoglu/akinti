@@ -60,7 +60,7 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
     days.length > 0 ? `${formatShortDate(days[0]!.day)} – ${formatShortDate(days[days.length - 1]!.day)}` : "";
 
   return (
-    <div className={cn("flex flex-col", className)}>
+    <div className={cn("flex flex-col rounded-card lg:border lg:border-hairline lg:bg-elevation-2 lg:p-5", className)}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 id={titleId} className="type-caption font-semibold text-ink-muted">
@@ -91,10 +91,10 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
 
       {showTable ? (
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[480px] border-collapse text-left text-xs">
+          <table className="w-full min-w-[480px] border-collapse text-left type-caption">
             <caption className="sr-only">{t("dailyMetric", { metric: metricLabels[metric] })}</caption>
             <thead>
-              <tr className="border-b border-border text-fg-subtle">
+              <tr className="border-b border-hairline text-ink-subtle">
                 <th scope="col" className="py-1.5 pr-3 font-medium">
                   {t("dateColumn")}
                 </th>
@@ -105,25 +105,30 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
             </thead>
             <tbody>
               {days.map((day) => (
-                <tr key={day.day} className="border-b border-border/60 last:border-0">
-                  <td className="py-1.5 pr-3 text-fg-muted">{formatShortDate(day.day)}</td>
-                  <td className="py-1.5 pr-3 tabular-nums text-fg">{formatCount(day[metric])}</td>
+                <tr key={day.day} className="border-b border-hairline/60 last:border-0">
+                  <td className="py-1.5 pr-3 text-ink-muted">{formatShortDate(day.day)}</td>
+                  <td className="type-mono-sm py-1.5 pr-3 tabular-nums text-ink">{formatCount(day[metric])}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       ) : (
+        // One hue (the current), single scale, no gridlines/axes to draw
+        // (dataviz "no chart junk"). The emphasised endpoint is the most
+        // recent day: full-strength tide fill vs. a muted tide for the rest
+        // of the series, so the eye lands on "where things are now" first.
         <svg
           role="img"
           aria-labelledby={titleId}
           viewBox={`0 0 ${barCount * barUnit} 120`}
           preserveAspectRatio="none"
-          className="mt-4 h-28 w-full overflow-visible"
+          className="mt-4 h-28 w-full overflow-visible lg:h-40"
         >
           {days.map((day, index) => {
             const value = day[metric];
             const barHeight = value > 0 ? Math.max(4, Math.round((value / max) * 112)) : 1;
+            const isEndpoint = index === days.length - 1 && value > 0;
             return (
               <rect
                 key={day.day}
@@ -132,7 +137,7 @@ export function AnalyticsTimeseriesChart({ days, className }: AnalyticsTimeserie
                 width={barUnit - 4}
                 height={barHeight}
                 rx={2}
-                className={value > 0 ? "fill-accent" : "fill-surface-inset"}
+                className={value === 0 ? "fill-elevation-3" : isEndpoint ? "fill-tide" : "fill-tide/45"}
               >
                 <title>{t("barTitle", { date: formatShortDate(day.day), value: formatCount(value), metric: metricLabels[metric] })}</title>
               </rect>
