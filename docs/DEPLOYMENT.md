@@ -134,6 +134,24 @@ Next 16's own minimum); Vercel reads `engines` automatically. No project
 setting needed unless you want to pin a specific patch version in the
 dashboard's Node.js Version setting.
 
+**`serverExternalPackages`/`outputFileTracingIncludes` — already configured,
+nothing to set in the dashboard, but don't remove them.** `next.config.ts`
+sets `serverExternalPackages: ["iyzipay"]` because `iyzipay`'s
+`_initResources` dynamically `require()`s every file under its own
+`lib/resources/` via `fs.readdirSync` — a pattern Turbopack can't statically
+bundle, so this tells Next to `require()` it at runtime instead (correct for
+a Node-only server SDK anyway). That alone isn't enough for a Vercel
+deployment: Next's file tracing (what decides which `node_modules` files
+actually ship) only follows *static* `require`/`import`, so without also
+listing `outputFileTracingIncludes` for the three routes that can reach
+`src/lib/billing/iyzico.ts` (`/api/billing/iyzico/*`, `/settings/pro`), a
+deploy would ship `iyzipay` missing its whole `lib/resources/` directory and
+fail at the first real iyzico call — not at build time, in front of a paying
+user (review3 finding 33). Both are plain `next.config.ts` fields Vercel
+reads automatically from the repo; verify after a deploy by actually
+completing an iyzico checkout once (see the smoke checklist below), not by
+inspecting build logs alone.
+
 **Environment variables** (Project Settings → Environment Variables — set
 for **Production**, **Preview**, and **Development** unless noted):
 
@@ -153,7 +171,8 @@ for **Production**, **Preview**, and **Development** unless noted):
 | `PADDLE_API_KEY` | Developer Tools → Authentication, vendors.paddle.com | **Server-only.** AKINTI Pro checkout for `_usd` plans (`src/lib/billing/paddle.ts`). |
 | `PADDLE_WEBHOOK_SECRET` | Developer Tools → Notifications → your destination | **Server-only.** Verifies `Paddle-Signature` on `POST /api/billing/paddle/webhook`. |
 | `PADDLE_ENVIRONMENT` | `production` | Defaults to `sandbox` when unset. |
-| `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | Developer Tools → Authentication, client-side token | Public. Not read by anything in this backend wave — reserved for the frontend wave that builds the Pro paywall UI (Paddle.js needs it for the hosted checkout overlay). |
+| `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` | Developer Tools → Authentication, client-side token | Public. Read by `/settings/pro` (`StartProControls.tsx`) to initialize `@paddle/paddle-js`'s hosted checkout overlay in the browser. |
+| `NEXT_PUBLIC_PADDLE_ENVIRONMENT` | `production` | Public. Defaults to `sandbox` when unset or any other value — the client-side counterpart to the server-only `PADDLE_ENVIRONMENT` above; both must agree, or checkout will initialize against one Paddle environment while the server-side webhook/API calls hit the other. |
 
 Push notifications are optional at runtime: `src/lib/push/send.ts` no-ops
 silently (no throw, no crash) when any of the three VAPID variables is
@@ -235,6 +254,51 @@ double-claimed. Start with one; add a second only once queue depth
 (`select count(*) from audio_processing_jobs where status = 'pending'`)
 shows it's actually falling behind.
 
+## 3a. Sidecar deployment (optional, but recommended)
+
+The sidecar (`sidecar/`, `Dockerfile.sidecar`) is a separate Python/FastAPI
+process the worker calls over local HTTP for DSP with no good Node
+equivalent — DeepFilterNet3 denoising, Matchering reference mastering, and
+librosa pYIN pitch scoring (`docs/AUDIO_ARCHITECTURE.md` "Audio pipeline
+stages"). It is **not required** for the app to function: every capability
+it provides has a real, honest fallback (`arnndn`/`loudnorm` in ffmpeg for
+clean/master, no pitch score at all for `/pitch-score` — never a fake one)
+except `pitch_snap`/`self_harmony` (the two AKINTI Pro sounds), which have no
+local equivalent and fail their job outright if the sidecar is unreachable
+rather than silently downgrading a paying customer's chosen sound. Deploy it
+if you want those three things; skip it otherwise and the rest of the app
+degrades exactly as designed.
+
+**Separate image on purpose:** Matchering is GPL-3.0 and must never share a
+binary/deploy artifact with the proprietary Next.js app or worker — see
+`sidecar/README.md` "Why a separate process (GPL isolation)". It talks to
+nothing but the worker, over plain HTTP, with no auth of its own — **never
+expose it on a public port.** Run it on the same private network/host as the
+worker (same Fly app as a second process, same Railway project with private
+networking, or the same VPS/Compose file) and point the worker at it with
+`SIDECAR_URL=http://<private-host>:8011`.
+
+```bash
+docker build -f Dockerfile.sidecar -t akinti-sidecar .
+docker run --rm -p 8011:8011 akinti-sidecar   # bind to a private interface only in production
+```
+
+No environment variables required — the sidecar never talks to Supabase
+directly, only to the worker that calls it. `GET /health` reports which
+capabilities actually loaded on the target machine/architecture (see
+`sidecar/README.md`'s example response); confirm `librosa: true` and
+`pitch_score: true` there before trusting a "How it sounded" pitch report or
+the two Pro sounds in production. On a Linux build image with a working Rust
+toolchain, `deepfilternet` installs normally with no code change — the
+Windows dev machine this stage was verified on falls back to `arnndn`
+instead (`sidecar/README.md` "What actually works on this machine").
+
+Point the worker at it: set `SIDECAR_URL` (default
+`http://127.0.0.1:8011`, only correct if both run in the same container/pod
+network namespace), `SIDECAR_TIMEOUT_MS` (default `120000`),
+`SIDECAR_RETRIES` (default `1`) alongside the worker's three Supabase
+variables.
+
 ## 4. Post-deploy smoke checklist
 
 Run through this once after every deploy that touches auth, storage, or the
@@ -264,6 +328,89 @@ catch a misconfigured env var or redirect URL before a real user does:
       notification arrives in real time (validates the Realtime publication
       step above).
 - [ ] `GET /sitemap.xml` and `GET /robots.txt` both return `200`.
+- [ ] `/explore` shows the seeded backing tracks and challenges (validates
+      the seed order below ran) and `/challenges` loads without error.
+- [ ] `/settings/pro` renders real plan prices for at least one provider
+      (validates `seed:plans` — a plan whose price-id env var was never set
+      is skipped, not shown with a placeholder, so an empty screen here
+      means that provider's plan rows were never seeded, not a bug).
+- [ ] Complete one real checkout per configured provider (iyzico and/or
+      Paddle) with a sandbox/test card, confirm the webhook lands (`billing_events`
+      row inserted, `subscriptions.status` becomes `active`/`trialing`) and
+      `has_pro()` flips — this is also the real verification that
+      `outputFileTracingIncludes` above shipped `iyzipay`'s resources
+      correctly, since a missing-file runtime error would surface exactly
+      here.
+- [ ] If the sidecar is deployed: `GET <sidecar-url>/health` reports
+      `librosa: true` and `capabilities.pitch_score: true`; publish a Wave
+      with real pitch content and confirm a "How it sounded" pitch report
+      eventually appears on its page (`docs/qa/pitch/` has a reference
+      screenshot from this exact check).
+- [ ] If VAPID variables are set: subscribe to push from Settings →
+      Notifications, request a Duet from a second account, confirm a real
+      OS-level push notification arrives (not just the in-app one).
+
+## 4a. Seeding order
+
+Run once against a freshly-migrated production project, in this order —
+later scripts assume earlier ones' data exists, all three are idempotent
+(safe to re-run):
+
+1. **`npm run seed:backing-tracks`** — uploads the 12 curated CC-BY
+   instrumentals to the `audio` bucket and creates their `backing_tracks`
+   rows. No dependencies. Needs the worker running (or run once manually
+   right after) to actually process each track's audio.
+2. **`npm run seed:challenges`** — seeds the first two weekly challenges,
+   one of which pairs itself with a curated backing track *if one has
+   already been seeded* — run after step 1, not before, or that challenge
+   silently seeds without a backing track instead of failing.
+3. **`npm run seed:plans`** — seeds the `plans` catalog (`docs/BILLING.md`
+   "Seeding plans"). Independent of the other two, but requires each price
+   already created by hand in the provider's own dashboard first (iyzico
+   Merchant Panel → Subscription → Products & Pricing Plans; Paddle →
+   Catalog → Prices) and passed in as an env var
+   (`IYZICO_PLAN_MONTHLY_TRY`/`IYZICO_PLAN_YEARLY_TRY`/`PADDLE_PRICE_MONTHLY_USD`/
+   `PADDLE_PRICE_YEARLY_USD`, plus the two `*_YEARLY_*_AMOUNT` variables —
+   see the script's own header). A plan whose price-id variable is unset is
+   skipped with a clear message, never inserted with a placeholder — run
+   this script again after adding a variable rather than editing `plans`
+   by hand.
+
+`npm run db:seed` (which also runs `supabase/seed.sql`, dev-only fake data)
+is unrelated to all three and refuses to run when `NODE_ENV=production` —
+never point it at this project.
+
+## 4b. Key rotation
+
+**`SUPABASE_SERVICE_ROLE_KEY`** and **`NEXT_PUBLIC_SUPABASE_ANON_KEY`**: full
+steps in [`OPERATIONS.md`](OPERATIONS.md#rotating-keys--secrets) — briefly,
+regenerate in the Supabase dashboard (Project Settings → API), update it
+everywhere it's set (Vercel env vars, the worker/sidecar host's secret
+store, local `.env.local`), then redeploy the web app and restart the
+worker container — neither hot-reloads an env var change, and the old
+`service_role` key stops working the instant it's regenerated (no grace
+period).
+
+**Database password (`DATABASE_URL`)** — used only by
+`scripts/apply-migrations.ts` and `OPERATIONS.md`'s `pg_dump`/`pg_restore`
+backup commands, never by the deployed web app, worker, or sidecar (none of
+the three hold a direct Postgres connection string):
+
+1. Supabase dashboard → Project Settings → Database → **Reset database
+   password** — this immediately invalidates the old password on every
+   connection string built from it (both the direct and pooler forms).
+2. Rebuild `DATABASE_URL`/`SUPABASE_DB_URL` with the new password wherever
+   it's stored (CI secrets for a migration step, an operator's local
+   `.env.local`, a backup cron's environment) — there is no automatic
+   propagation since nothing long-running holds this credential.
+3. Nothing to redeploy: the web app/worker/sidecar never read this
+   variable, so rotating it has zero runtime impact on them. The only
+   observable effect is the next `npm run db:migrate`/`pg_dump` invocation
+   needing the updated value.
+
+**When to rotate either:** the credential appeared in a public commit/log, a
+former collaborator's access should be revoked, or as routine hygiene —
+nothing in this codebase expires these automatically.
 
 ## 5. Rollback
 

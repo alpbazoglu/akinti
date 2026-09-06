@@ -8,8 +8,25 @@ codebase: a feature that isn't real (a missing backend, a job still
 processing, an unconfigured Supabase project) always shows an honest
 loading/empty/error state instead of pretending to work.
 
+**v2 ("Waterline"), current as of this closeout pass.** Turkish-first,
+mobile-first rebuild on top of the verified v1 backend: **Flow**, a
+full-screen continuous listening feed, is the default screen after sign-in;
+three Duet modes (layered, Atışma call-and-response, four-way Cypher);
+weekly Prompts & challenges with curated backing tracks and Top-5 picks;
+**AKINTI Pro** (₺79.99/mo TR via iyzico, $4.99/mo international via Paddle)
+unlocking two AI vocal sounds — Pitch Snap and Self-Harmony — plus a
+pYIN-scored "How it sounded" pitch report on every take; a real Python DSP
+sidecar (DeepFilterNet3 denoising, Matchering mastering, librosa pitch
+scoring) alongside the Node/ffmpeg worker; installable PWA with Web Push for
+Duet requests and open-call answers; and a single visual system built on one
+drawing primitive, the waterline (`docs/design/DESIGN.md`) — no cards, no
+shadows, no gradients, signal-red reserved for live audio only. Full product
+decisions: [`docs/PRODUCT_V2.md`](docs/PRODUCT_V2.md) (overrides `PRODUCT.md`
+where they conflict).
+
 Product source of truth: `../akın icin md.md` (the master spec), summarized
-in [`docs/PRODUCT.md`](docs/PRODUCT.md).
+in [`docs/PRODUCT.md`](docs/PRODUCT.md) and superseded by
+[`docs/PRODUCT_V2.md`](docs/PRODUCT_V2.md) for v2 scope.
 
 ## Stack
 
