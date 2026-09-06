@@ -40,7 +40,7 @@ export async function RangeSwitcher({ current, section, className }: RangeSwitch
                 selected ? "border-ink text-ink" : "border-transparent text-ink-muted hover:text-ink",
               )}
             >
-              {option.label}
+              {t("days", { count: option.value })}
             </button>
           </form>
         );

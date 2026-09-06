@@ -38,6 +38,26 @@ function sectionsFor(keys: readonly string[]): SettingsSection[] {
     .filter((section): section is SettingsSection => section !== undefined);
 }
 
+/**
+ * `SETTINGS_SECTIONS`' `label` field (`@/config/routes`, owned by another
+ * stage) is English-only, same reasoning as `TERMS`
+ * (`src/config/terminology.ts`'s header comment) — a plain module-level
+ * constant evaluated at import time, before any per-request locale exists.
+ * The `SettingsSections` message namespace mirrors it 1:1 by `key`; `.key`
+ * itself is typed as a plain `string` at the source, so this cast is the one
+ * place that gap is bridged — every value actually on `SETTINGS_SECTIONS`
+ * today is one of these eight.
+ */
+type SettingsSectionMessageKey =
+  | "account"
+  | "privacy"
+  | "appearance"
+  | "notifications"
+  | "content"
+  | "analytics"
+  | "audio"
+  | "safety";
+
 async function handleSignOut(): Promise<void> {
   "use server";
   const result = await signOut();
@@ -51,6 +71,7 @@ async function handleSignOut(): Promise<void> {
 export default async function SettingsPage() {
   const user = await requireUser(routes.settings());
   const t = await getTranslations("Terms");
+  const tSections = await getTranslations("SettingsSections");
 
   const profile = isSupabaseConfigured()
     ? await getProfileById(await createServerSupabaseClient(), user.id)
@@ -88,7 +109,9 @@ export default async function SettingsPage() {
                       href={section.href}
                       className="flex items-center gap-3 py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
                     >
-                      <span className="type-body block flex-1 text-ink">{section.label}</span>
+                      <span className="type-body block flex-1 text-ink">
+                        {tSections(section.key as SettingsSectionMessageKey)}
+                      </span>
                       <ChevronRight className="size-3 shrink-0 text-ink-subtle" aria-hidden="true" />
                     </Link>
                   </li>

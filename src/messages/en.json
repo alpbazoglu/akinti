@@ -1045,7 +1045,8 @@
     "loadingSr": "Loading analytics…"
   },
   "RangeSwitcher": {
-    "dateRangeLabel": "Date range"
+    "dateRangeLabel": "Date range",
+    "days": "{count} days"
   },
   "AnalyticsTimeseriesChart": {
     "metricUniqueListeners": "Unique listeners",
@@ -1609,5 +1610,20 @@
   },
   "ProcessingBanner": {
     "stillWorking": "Still working on the polished version. You are hearing the original, and the trace will sharpen when it lands."
+  },
+  "HomePage": {
+    "notReachable": "The stream isn't reachable from this build.",
+    "loadError": "Couldn't reach the stream.",
+    "tryAgain": "Try again"
+  },
+  "SettingsSections": {
+    "account": "Account",
+    "privacy": "Privacy",
+    "appearance": "Appearance",
+    "notifications": "Notifications",
+    "content": "Content",
+    "analytics": "Analytics",
+    "audio": "Audio",
+    "safety": "Safety"
   }
 }

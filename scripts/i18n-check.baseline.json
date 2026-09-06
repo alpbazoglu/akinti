@@ -1,6 +1,5 @@
 {
   "src/app/(app)/moderation/page.tsx": 4,
-  "src/app/(app)/page.tsx": 3,
   "src/app/(app)/search/page.tsx": 1,
   "src/app/(app)/suspended/page.tsx": 5,
   "src/app/error.tsx": 2,

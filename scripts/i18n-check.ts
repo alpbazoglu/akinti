@@ -41,6 +41,30 @@ const ROOT = path.resolve(__dirname, "..");
 const SCAN_DIRS = ["src/app", "src/components"];
 const BASELINE_PATH = path.join(__dirname, "i18n-check.baseline.json");
 
+/**
+ * Server-side surfaces (`docs/I18N.md`, i18n-c stage): every Server Action's
+ * `formError`/`message`/`fieldErrors` string and every Zod validation
+ * message must be a `"namespace.key"` message key, resolved with
+ * `getTranslations()`/`translateFieldErrors` at the action boundary — never
+ * a hardcoded English sentence, the same rule the `.tsx` scanner above
+ * enforces for JSX copy. Unlike that scanner, this one has NO baseline
+ * ratchet: by the time this shipped, every file in `SERVER_SCAN_DIRS` was
+ * already fully migrated, so any hit here is a real regression, not
+ * pre-existing debt — `main()` fails the moment `SERVER_FILE_PATTERN` finds
+ * one, independent of `scripts/i18n-check.baseline.json`.
+ */
+const SERVER_SCAN_DIRS = ["src/app", "src/lib/moderation", "src/lib/validation", "src/lib/push", "src/config"];
+/** Only actions.ts under src/app; every .ts file under the other four (their .tsx components are already covered by the scanner above). */
+function isServerScanTarget(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/");
+  if (!normalized.endsWith(".ts")) return false;
+  if (normalized.endsWith(".test.ts")) return false;
+  if (normalized.includes("/src/app/")) return normalized.endsWith("/actions.ts");
+  return true;
+}
+/** A `"Namespace.key"` (optionally `:param`) message-key reference — the intended, non-hardcoded shape for every string this scanner inspects. */
+const MESSAGE_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z0-9]+)+(:[^\s]*)?$/;
+
 /** Dev-only surfaces excluded from the product's user-facing copy rules. */
 const EXCLUDED_SEGMENTS = ["/(dev)/", "\\(dev)\\"];
 
@@ -124,6 +148,88 @@ function countViolations(filePath: string): Violation[] {
   return violations;
 }
 
+const VALIDATION_MESSAGE_METHODS = new Set(["min", "max", "regex", "email", "url"]);
+
+/**
+ * Hardcoded-copy scan for a server-side `.ts` file: every string literal
+ * assigned to a `formError`/`message`/`fieldErrors`-member property, and
+ * every string literal in the validation-message position of a Zod
+ * `.min/.max/.regex/.email/.url(...)` call — flagged unless it is a
+ * `"Namespace.key"` message-key reference (`MESSAGE_KEY_PATTERN`).
+ */
+function countServerViolations(filePath: string): Violation[] {
+  const source = readFileSync(filePath, "utf8");
+  const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const violations: Violation[] = [];
+
+  // `src/config/**` is a catalog of plain constants (`TERMS.message` is the
+  // "Message" button/nav label, not a Server Action result) — checking the
+  // `message` property name there would flag legitimate, unrelated
+  // vocabulary. `formError`/`fieldErrors` never collide this way, so those
+  // stay checked everywhere; config's Zod-message-call-argument surface (the
+  // other half of this scan) is unaffected, since no Zod schemas live there.
+  const isConfigFile = filePath.replace(/\\/g, "/").includes("/src/config/");
+  const objectPropertyNames = isConfigFile ? ["formError", "fieldErrors"] : ["formError", "message", "fieldErrors"];
+
+  function record(node: ts.Node, text: string) {
+    if (!hasLetters(text) || MESSAGE_KEY_PATTERN.test(text)) return;
+    const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+    violations.push({ line: line + 1, snippet: text.trim().slice(0, 60) });
+  }
+
+  function checkStringLiteralProperty(node: ts.ObjectLiteralExpression, names: readonly string[]) {
+    for (const prop of node.properties) {
+      if (!ts.isPropertyAssignment(prop)) continue;
+      const name = prop.name.getText(sourceFile).replace(/^["']|["']$/g, "");
+      if (!names.includes(name)) continue;
+      if (ts.isStringLiteralLike(prop.initializer)) {
+        record(prop.initializer, prop.initializer.text);
+      } else if (name === "fieldErrors" && ts.isObjectLiteralExpression(prop.initializer)) {
+        for (const inner of prop.initializer.properties) {
+          if (ts.isPropertyAssignment(inner) && ts.isStringLiteralLike(inner.initializer)) {
+            record(inner.initializer, inner.initializer.text);
+          }
+        }
+      }
+    }
+  }
+
+  function visit(node: ts.Node) {
+    if (ts.isObjectLiteralExpression(node)) {
+      checkStringLiteralProperty(node, objectPropertyNames);
+    } else if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      VALIDATION_MESSAGE_METHODS.has(node.expression.name.text) &&
+      node.arguments.length >= 2
+    ) {
+      const messageArg = node.arguments[node.arguments.length - 1];
+      if (messageArg && ts.isStringLiteralLike(messageArg)) {
+        record(messageArg, messageArg.text);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return violations;
+}
+
+function listServerFiles(dir: string): string[] {
+  const absDir = path.join(ROOT, dir);
+  if (!existsSync(absDir)) return [];
+  const out: string[] = [];
+  for (const entry of readdirSync(absDir, { withFileTypes: true })) {
+    const full = path.join(absDir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...listServerFiles(path.relative(ROOT, full)));
+    } else if (isServerScanTarget(full)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
 type Baseline = Record<string, number>;
 
 function loadBaseline(): Baseline {
@@ -131,8 +237,45 @@ function loadBaseline(): Baseline {
   return JSON.parse(readFileSync(BASELINE_PATH, "utf8")) as Baseline;
 }
 
+/** Runs independently of the `.tsx` ratchet/`--update-baseline` — see this constant's own doc comment. Returns `true` if the server-side surfaces are clean. */
+function checkServerSurfaces(): boolean {
+  const files = SERVER_SCAN_DIRS.flatMap(listServerFiles);
+  const violationsByFile = new Map<string, Violation[]>();
+  let totalInstances = 0;
+
+  for (const file of files) {
+    const violations = countServerViolations(file);
+    if (violations.length > 0) {
+      const rel = path.relative(ROOT, file).replace(/\\/g, "/");
+      violationsByFile.set(rel, violations);
+      totalInstances += violations.length;
+    }
+  }
+
+  if (violationsByFile.size === 0) {
+    console.log(
+      `i18n-check: server-side surfaces clean — 0 hardcoded formError/message/fieldErrors/Zod strings across ${files.length} file(s) (src/app/**/actions.ts, src/lib/moderation, src/lib/validation, src/lib/push, src/config).`,
+    );
+    return true;
+  }
+
+  console.error(
+    `\ni18n-check: hardcoded copy in ${violationsByFile.size} server-side file(s), ${totalInstances} instance(s) — this surface has no baseline, every hit is a regression:`,
+  );
+  for (const [file, violations] of violationsByFile) {
+    for (const violation of violations) {
+      console.error(`  ${file}:${violation.line} — "${violation.snippet}"`);
+    }
+  }
+  console.error(
+    '\nMove the string into src/messages/{tr,en}.json and reference it as a "namespace.key" (translateFieldErrors/getTranslations), or as a Zod message key resolved via translateValidationMessage.',
+  );
+  return false;
+}
+
 function main() {
   const updateBaseline = process.argv.includes("--update-baseline");
+  const serverSurfacesClean = checkServerSurfaces();
   const files = SCAN_DIRS.flatMap(listTsxFiles);
 
   const current: Baseline = {};
@@ -150,6 +293,7 @@ function main() {
     const sorted = Object.fromEntries(Object.entries(current).sort(([a], [b]) => a.localeCompare(b)));
     writeFileSync(BASELINE_PATH, `${JSON.stringify(sorted, null, 2)}\n`);
     console.log(`i18n-check: baseline updated — ${Object.keys(sorted).length} file(s), ${Object.values(sorted).reduce((a, b) => a + b, 0)} instance(s).`);
+    if (!serverSurfacesClean) process.exit(1);
     return;
   }
 
@@ -182,6 +326,7 @@ function main() {
 
   if (newFiles.length === 0 && regressed.length === 0) {
     console.log("i18n-check: no new hardcoded copy beyond the recorded baseline.");
+    if (!serverSurfacesClean) process.exit(1);
     return;
   }
 

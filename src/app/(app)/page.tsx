@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { FollowingFeed, HomeEmptyState } from "@/components/feed";
 import type { TraceRowWave } from "@/components/feed";
@@ -27,14 +29,13 @@ const EMPTY_STATE_WAVES = 3;
  */
 export default async function HomePage() {
   const user = await requireUser(routes.home());
+  const t = await getTranslations("HomePage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
         <PageHeader title={TERMS.home} />
-        <p className="akinti-page type-body measure text-ink-muted">
-          The stream isn&apos;t reachable from this build.
-        </p>
+        <p className="akinti-page type-body measure text-ink-muted">{t("notReachable")}</p>
       </>
     );
   }
@@ -81,13 +82,13 @@ export default async function HomePage() {
       {loadError ? (
         <div className="akinti-page flex flex-col items-start gap-3 pb-8">
           <p role="alert" className="type-body measure text-ink">
-            Couldn&apos;t reach the stream.
+            {t("loadError")}
           </p>
           <a
             href={routes.home()}
             className="akinti-press inline-flex h-10 items-center rounded-key border border-hairline-strong px-4 type-subhead text-ink transition-colors hover:bg-paper-sunk focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            Try again
+            {t("tryAgain")}
           </a>
         </div>
       ) : initialItems.length === 0 ? (

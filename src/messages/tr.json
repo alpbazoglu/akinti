@@ -1045,7 +1045,8 @@
     "loadingSr": "Analitik yükleniyor"
   },
   "RangeSwitcher": {
-    "dateRangeLabel": "Tarih aralığı"
+    "dateRangeLabel": "Tarih aralığı",
+    "days": "{count} gün"
   },
   "AnalyticsTimeseriesChart": {
     "metricUniqueListeners": "Tekil dinleyici",
@@ -1609,5 +1610,20 @@
   },
   "ProcessingBanner": {
     "stillWorking": "Cilalı sürüm üzerinde hâlâ çalışılıyor. Şu an orijinali duyuyorsunuz, iz hazır olduğunda netleşecek."
+  },
+  "HomePage": {
+    "notReachable": "Akış bu sürümden ulaşılabilir değil.",
+    "loadError": "Akışa ulaşılamadı.",
+    "tryAgain": "Tekrar dene"
+  },
+  "SettingsSections": {
+    "account": "Hesap",
+    "privacy": "Gizlilik",
+    "appearance": "Görünüm",
+    "notifications": "Bildirimler",
+    "content": "İçerik",
+    "analytics": "Analiz",
+    "audio": "Ses",
+    "safety": "Güvenlik"
   }
 }
