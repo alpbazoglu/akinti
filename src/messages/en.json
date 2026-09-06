@@ -730,6 +730,9 @@
     "metricShares": "{count, plural, one {share} other {shares}}",
     "metricDuets": "{count, plural, one {duet} other {duets}}"
   },
+  "WaveCreatorCard": {
+    "heading": "Creator"
+  },
   "WavePlayer": {
     "retryPlayback": "Retry playback",
     "seekWithin": "Seek within {title}",

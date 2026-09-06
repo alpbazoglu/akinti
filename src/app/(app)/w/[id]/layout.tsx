@@ -24,6 +24,7 @@ const WAVE_MESSAGE_NAMESPACES = [
   "WaveCard",
   "WaveCardContainer",
   "WaveActions",
+  "WaveCreatorCard",
   "ProcessingBanner",
   "ProcessingErrors",
   "PitchReport",
@@ -58,6 +59,10 @@ const WAVE_MESSAGE_NAMESPACES = [
   "MessagesActions",
   "ErrorPage",
   "NotFoundPage",
+  // `CommentComposer` now calls `useActionToast`, which reads "Layout"
+  // (previously unneeded here: only `AppShell` chrome outside this
+  // provider used it).
+  "Layout",
 ] as const;
 
 export default async function WaveLayout({ children }: { children: ReactNode }) {

@@ -17,11 +17,13 @@ import { pickMessages } from "@/i18n/pickMessages";
  * real import graph from `page.tsx`/`actions.ts`/`hydrateFlow.ts` (including
  * through dynamic()-imported children like `FlowCommentSheet`'s own reuse of
  * the Wave-page comment components, and `ShareSheet`), not guessed. AppShell's
- * own chrome (`SideNav`/`TopBar`/`BottomNav`, the `Layout` namespace) renders
- * OUTSIDE where `{children}` lands here, so it stays covered by the ancestor
- * provider and does not need to be repeated in this list. `ErrorPage`/
- * `NotFoundPage` cover the per-segment error/not-found boundaries Next
- * attaches under this layout.
+ * own chrome (`SideNav`/`TopBar`/`BottomNav`) renders OUTSIDE where
+ * `{children}` lands here, so it stays covered by the ancestor provider and
+ * does not need to be repeated in this list — `Layout` itself, though, IS
+ * needed below: `CommentComposer` (reached via `FlowCommentSheet`) calls
+ * `useActionToast`, which reads that namespace regardless of which screen
+ * mounts it. `ErrorPage`/`NotFoundPage` cover the per-segment error/not-found
+ * boundaries Next attaches under this layout.
  */
 const FLOW_MESSAGE_NAMESPACES = [
   "Terms",
@@ -35,6 +37,7 @@ const FLOW_MESSAGE_NAMESPACES = [
   "ShareSheet",
   "Sheet",
   "MessagesActions",
+  "Layout",
   "ErrorPage",
   "NotFoundPage",
 ] as const;

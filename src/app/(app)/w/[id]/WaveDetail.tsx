@@ -172,7 +172,13 @@ export function WaveDetail({ wave, children }: WaveDetailProps) {
         {wave.title}
       </h1>
 
-      <div className="akinti-rail akinti-page pt-5">
+      {/* Hidden at >= 1024px: the desktop two-column layout
+          (DESIGN_V3_DESKTOP.md "Wave page ... right rail with creator
+          card") shows this same information as a card in the right rail
+          instead (`WaveCreatorCard`, rendered by `page.tsx`) — never both,
+          so there is exactly one "who made this" affordance on screen at
+          a time. */}
+      <div className="akinti-rail akinti-page pt-5 lg:hidden">
         <Link
           href={routes.profile(wave.creator.username)}
           className="self-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"

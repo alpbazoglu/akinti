@@ -88,7 +88,11 @@ export function CommentsSection({
         ) : null}
       </h2>
 
-      <div className="akinti-page">
+      {/* Sticky at >= 1024px (DESIGN_V3_DESKTOP.md Wave page: "the composer
+          sticky") — below the desktop top bar, so a long comment thread can
+          be scrolled without losing the reply box. Unchanged below that
+          width. */}
+      <div className="akinti-page lg:sticky lg:top-top-bar lg:z-10 lg:bg-paper lg:py-3">
         <CommentComposer
           waveId={waveId}
           allowStructured

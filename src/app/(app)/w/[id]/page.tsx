@@ -9,6 +9,7 @@ import { routes } from "@/config/routes";
 import { resolveWavePeaks } from "@/lib/audio/peaks";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
+import { getFollowEdgesForViewer } from "@/lib/db/discovery";
 import { getDuetTree } from "@/lib/db/duets";
 import { getOpenCallByWaveId } from "@/lib/db/openCalls";
 import { getProfileById, getProfilesByIds } from "@/lib/db/profiles";
@@ -22,6 +23,7 @@ import type { CollaboratorStatus, DuetTreeNode, Profile, Wave } from "@/types/do
 import { getCommentPermissionState, loadComments } from "./interactions";
 import { OwnerInsights } from "./OwnerInsights";
 import { ProcessingBanner } from "./ProcessingBanner";
+import { WaveCreatorCard } from "./WaveCreatorCard";
 import { WaveDetail, type WaveDetailWave } from "./WaveDetail";
 import { WaveOwnerMenu } from "./WaveOwnerMenu";
 
@@ -93,6 +95,7 @@ export default async function WavePage({ params }: WavePageProps) {
     canRequestDuetResult,
     commentsResult,
     commentPermission,
+    creatorFollowEdges,
   ] = await Promise.all([
     getAudioAssetById(db, wave.audioAssetId),
     getProfileById(db, wave.creatorId),
@@ -102,6 +105,11 @@ export default async function WavePage({ params }: WavePageProps) {
     db.rpc("can_request_duet", { p_wave_id: wave.id }),
     loadComments(wave.id, null),
     getCommentPermissionState(wave.id),
+    // The desktop right rail's creator card (`WaveCreatorCard`) shows a
+    // Follow key the mobile inline row never had room for.
+    viewer && viewer.id !== wave.creatorId
+      ? getFollowEdgesForViewer(db, viewer.id, [wave.creatorId])
+      : Promise.resolve(new Map()),
   ]);
 
   const initialComments =
@@ -200,35 +208,78 @@ export default async function WavePage({ params }: WavePageProps) {
         </div>
       ) : null}
 
-      <div className="akinti-page pt-4 pb-2">
-        <ProcessingBanner
-          assetId={asset.id}
-          initialStatus={asset.processingStatus}
-          initialError={asset.processingError}
-        />
-      </div>
+      {/* Desktop two-column (DESIGN_V3_DESKTOP.md "Wave page ... two-column:
+          trace + transport + actions left (max 800px), right rail with
+          creator card, chain tree, OwnerInsights"). Below 1024px this is a
+          single column, byte-for-byte the previous layout — the right rail
+          is simply not rendered there (`hidden lg:flex`), and everything it
+          would have shown (OwnerInsights, the chain) stays inline in
+          `WaveDetail`'s children exactly as before, only wrapped in
+          `lg:hidden` so it does not also show up twice once the rail
+          appears. `OwnerInsights`/`DuetChain`/`DirectDuets` are pure,
+          already-fetched-data presentation (no client subscriptions), so
+          rendering each once per breakpoint costs nothing extra. */}
+      <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-10">
+        <div className="min-w-0 flex-1 lg:max-w-[800px]">
+          <div className="akinti-page pt-4 pb-2">
+            <ProcessingBanner
+              assetId={asset.id}
+              initialStatus={asset.processingStatus}
+              initialError={asset.processingError}
+            />
+          </div>
 
-      <OwnerInsights isOwner={isCreator} audioAssetId={wave.audioAssetId} />
+          <div className="lg:hidden">
+            <OwnerInsights isOwner={isCreator} audioAssetId={wave.audioAssetId} />
+          </div>
 
-      <WaveDetail wave={detailWave}>
-        {parentWave || originalWave ? (
-          <Lineage
-            parentWave={parentWave}
-            originalWave={originalWave}
-            profileById={profileById}
+          <WaveDetail wave={detailWave}>
+            {parentWave || originalWave ? (
+              <Lineage
+                parentWave={parentWave}
+                originalWave={originalWave}
+                profileById={profileById}
+              />
+            ) : null}
+
+            <div className="lg:hidden">
+              {chain.length > 0 ? (
+                <DuetChain nodes={chain} currentWaveId={wave.id} />
+              ) : directDuets.items.length > 0 ? (
+                <DirectDuets waves={directDuets.items} profileById={profileById} />
+              ) : null}
+            </div>
+
+            {allCollaborators.length > 0 ? (
+              <CollaboratorsSection allCollaborators={allCollaborators} profileById={profileById} />
+            ) : null}
+          </WaveDetail>
+        </div>
+
+        <aside className="hidden w-full shrink-0 flex-col gap-6 lg:flex lg:w-right-rail">
+          <WaveCreatorCard
+            creator={{
+              id: creator.id,
+              username: creator.username,
+              displayName: creator.displayName ?? undefined,
+              avatarUrl: creator.avatarUrl,
+            }}
+            publishedAt={wave.publishedAt}
+            creationType={wave.creationType}
+            isSignedIn={Boolean(viewer)}
+            followStatus={isCreator ? "self" : (creatorFollowEdges.get(wave.creatorId)?.status ?? null)}
+            followsViewer={creatorFollowEdges.get(wave.creatorId)?.followsViewer ?? false}
           />
-        ) : null}
 
-        {chain.length > 0 ? (
-          <DuetChain nodes={chain} currentWaveId={wave.id} />
-        ) : directDuets.items.length > 0 ? (
-          <DirectDuets waves={directDuets.items} profileById={profileById} />
-        ) : null}
+          <OwnerInsights isOwner={isCreator} audioAssetId={wave.audioAssetId} />
 
-        {allCollaborators.length > 0 ? (
-          <CollaboratorsSection allCollaborators={allCollaborators} profileById={profileById} />
-        ) : null}
-      </WaveDetail>
+          {chain.length > 0 ? (
+            <DuetChain nodes={chain} currentWaveId={wave.id} />
+          ) : directDuets.items.length > 0 ? (
+            <DirectDuets waves={directDuets.items} profileById={profileById} />
+          ) : null}
+        </aside>
+      </div>
 
       <CommentsSection
         waveId={wave.id}

@@ -730,6 +730,9 @@
     "metricShares": "paylaşım",
     "metricDuets": "duet"
   },
+  "WaveCreatorCard": {
+    "heading": "Yaratıcı"
+  },
   "WavePlayer": {
     "retryPlayback": "Oynatmayı tekrar dene",
     "seekWithin": "{title} içinde ilerlet",

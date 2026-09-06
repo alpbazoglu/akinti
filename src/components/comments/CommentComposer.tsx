@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { createComment } from "@/app/(app)/w/[id]/interactions";
-import { Button, Input, Textarea } from "@/components/ui";
+import { Button, Input, Textarea, useActionToast } from "@/components/ui";
 import { emitAnalyticsEvent } from "@/lib/metrics";
 import { COMMENT_MAX_LENGTH } from "@/lib/validation/limits";
 import type { CommentWithAuthor } from "@/types/domain";
@@ -64,6 +64,7 @@ export function CommentComposer({
   onCancel,
 }: CommentComposerProps) {
   const t = useTranslations("CommentComposer");
+  const { notify } = useActionToast();
   const [body, setBody] = useState("");
   const [structured, setStructured] = useState(false);
   const [fields, setFields] = useState<FeedbackFields>({});
@@ -96,6 +97,7 @@ export function CommentComposer({
       setBody("");
       setFields({});
       setStructured(false);
+      notify("comment", "success");
       onPosted(result.data.comment);
     });
   };
