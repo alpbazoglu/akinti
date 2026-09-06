@@ -456,5 +456,53 @@
       }
     },
     "composite_notes": "The three effects in this product are the grain layer, the Canvas trace and the onboarding stroke draw, and only the trace is essential. They never stack: the grain sits on a fixed pseudo-element beneath all content so it is composited once and never repaints on scroll, and the Canvas surfaces sit above it and are never blurred, shadowed or transformed. This restraint is the design, not a budget constraint. The most common failure mode for this system is additive drift, where an implementer adds a glow to the Signal fill, a gradient under the played region, a shimmer to the skeleton or a rounded cap to every bar; each of those individually destroys the instrument reading, and together they reproduce exactly the generic audio-app appearance this DNA exists to replace. Performance envelope, from docs/research/mobile-guidelines.md: LCP under 2.5s, INP under 200ms, CLS under 0.1 at the 75th percentile on mobile, initial JS under 150KB gzipped, with the waveform renderer loaded via next/dynamic and never in the initial bundle."
+  },
+
+  "desktop_v3": {
+    "source": "docs/design/DESIGN_V3_DESKTOP.md, founder decision 6 Sept 2026 (Direction A, \"Akış\")",
+    "scope": "Wins over design_system above wherever the two conflict, but only at viewports >= 1024px. Everything below that breakpoint reads design_system unchanged; this section documents the delta, not a replacement DNA.",
+    "theme_default": "Dark is the desktop default regardless of system preference or the absence of an explicit choice. An explicit light theme choice still works on desktop and gets its own coherent mapping of the same four-step ladder below, rather than falling back to the flat mobile light palette.",
+    "elevation_ladder_dark": {
+      "elevation_0": { "hex": "#0A100E", "role": "rail, top bar, now-playing bar (the chrome floor)" },
+      "elevation_1": { "hex": "#10171A", "role": "content ground; aliases --akinti-paper so every existing bg-paper call site still lands correctly" },
+      "elevation_2": { "hex": "#16211F", "role": "card" },
+      "elevation_3": { "hex": "#1C2926", "role": "card hover / raised" },
+      "hairline_inner": "rgb(255 255 255 / 0.06), a translucent inner edge for raised cards, distinct from the opaque dividers"
+    },
+    "elevation_ladder_light": {
+      "elevation_0": { "hex": "#E2E9E5" },
+      "elevation_1": { "hex": "#ECF1EE" },
+      "elevation_2": { "hex": "#F6F9F7" },
+      "elevation_3": { "hex": "#FFFFFF" },
+      "note": "Same structure, same accent roles, deeper accent values so text/keys still clear 4.5:1 on a light ground."
+    },
+    "accents": {
+      "current_dark": { "hex": "#2FE0C9", "deep": "#12A893" },
+      "current_light": { "hex": "#0E6B6B", "deep": "#0A4F50" },
+      "sand_dark": { "hex": "#F0A63F", "deep": "#C07F1E" },
+      "sand_light": { "hex": "#8C6418", "deep": "#6A4A10" },
+      "signal": "unchanged, exclusive to live audio in both themes: #FF5C33 dark / #DE3C11 light"
+    },
+    "shell": {
+      "sidebar_expanded": "240px",
+      "sidebar_collapsed_rail": "72px, collapse state in localStorage",
+      "main_column": "fluid, max 1280px, 32px gutters",
+      "right_rail": "320px, optional, Flow/Wave up-next and Duet callout",
+      "now_playing_bar": "88px, full width, fixed bottom, replaces the column-scoped DesktopPlayerStrip on desktop only",
+      "top_bar": "56px, back/forward, search opening a command palette on Cmd/Ctrl+K, notifications, avatar"
+    },
+    "density": {
+      "ui": "14px (existing --type-body-sm-size, unchanged)",
+      "meta": "13px (existing --type-caption-size, unchanged)",
+      "headings": "32/24/18, additive .type-desktop-title/.type-desktop-heading/.type-desktop-subheading classes — the shared display/title/heading/subhead tokens used by every other screen at every width are not renamed or overridden",
+      "target_size": "32px on desktop where mobile needs 44px"
+    },
+    "shadows": {
+      "card": "0 12px 32px -16px rgb(0 0 0 / .55) dark / 0 12px 28px -16px rgb(15 26 24 / .16) light",
+      "lift": "0 20px 44px -18px rgb(0 0 0 / .65) plus a 1px hairline-strong ring, for the hover-lift on a grid card",
+      "bar": "a top hairline plus a soft upward shadow on the now-playing bar"
+    },
+    "radius_card": "18px, the one radius exception where DESIGN.md's card ban is deliberately relaxed for desktop grids (Explore, Challenges, Tracks, Profile) per DESIGN_V3_DESKTOP.md; rows stay rows in feeds and lists",
+    "do_not": "No purple/violet, no AI gradients, no emoji, no Likes, no confetti, no autoplay without gesture, no fake counts — unchanged from design_system."
   }
 }

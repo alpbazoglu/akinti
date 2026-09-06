@@ -103,6 +103,13 @@ export const TERMS = {
   profile: "Profile",
   settings: "Settings",
   search: "Search",
+  tracks: "Tracks",
+  pro: "Pro",
+  drafts: "Drafts",
+  library: "Library",
+  newWave: "New Wave",
+  queue: "Queue",
+  volume: "Volume",
 
   /* Auth */
   logIn: "Log in",

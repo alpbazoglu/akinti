@@ -118,6 +118,22 @@ const HUES: readonly { hue: TraceHue; label: string }[] = [
   { hue: "genre-rock", label: "genre tint — rock" },
 ];
 
+/** DESIGN_V3_DESKTOP.md's four-step elevation ladder, dark theme — desktop-only, >= 1024px. */
+const DESKTOP_ELEVATION: readonly { token: string; hex: string; use: string }[] = [
+  { token: "elevation-0", hex: "#0A100E", use: "Rail, top bar, now-playing bar — the chrome floor." },
+  { token: "elevation-1", hex: "#10171A", use: "Content ground. Aliases --akinti-paper." },
+  { token: "elevation-2", hex: "#16211F", use: "Card." },
+  { token: "elevation-3", hex: "#1C2926", use: "Card hover / raised." },
+];
+
+const DESKTOP_ACCENTS: readonly { token: string; hex: string; use: string }[] = [
+  { token: "current (dark)", hex: "#2FE0C9", use: "Primary actions, active nav, played trace, links, focus." },
+  { token: "current-2 (dark)", hex: "#12A893", use: "Pressed/hover depth of the current." },
+  { token: "sand (dark)", hex: "#F0A63F", use: "Secondary highlights, backing-track and Cypher marks, Pro." },
+  { token: "sand-deep (dark)", hex: "#C07F1E", use: "Pressed/hover depth of sand." },
+  { token: "signal", hex: "#FF5C33", use: "Unchanged — exclusive to live audio." },
+];
+
 const RADII: readonly { token: string; value: string; means: string }[] = [
   { token: "line", value: "0", means: "a line" },
   { token: "label", value: "2px", means: "a label" },
@@ -567,6 +583,73 @@ export function KitGallery() {
           <div className="relative h-24 overflow-hidden border border-hairline">
             <BottomNav className="!absolute md:!block" />
           </div>
+        </Section>
+
+        <Section
+          title="Desktop v3"
+          note="docs/design/DESIGN_V3_DESKTOP.md — >= 1024px only, dark by default"
+        >
+          <p className="type-body-sm measure text-ink-muted">
+            Direction A, &ldquo;Akış&rdquo;: a four-step elevation ladder, two vivid
+            accents and real shadows replace the flat paper/current pair above once
+            the viewport reaches 1024px. Resize this window past that width to see
+            every token below take over live.
+          </p>
+
+          <TraceRow label="Elevation ladder (dark)">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {DESKTOP_ELEVATION.map((row) => (
+                <div key={row.token} className="flex flex-col gap-2">
+                  <div
+                    className="h-16 rounded-card border border-hairline-strong"
+                    style={{ background: row.hex }}
+                  />
+                  <div className="flex flex-col">
+                    <span className="type-caption-strong text-ink">{row.token}</span>
+                    <span className="type-mono-sm text-ink-subtle">{row.hex}</span>
+                    <span className="type-caption text-ink-subtle">{row.use}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </TraceRow>
+
+          <TraceRow label="Accents">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {DESKTOP_ACCENTS.map((row) => (
+                <div key={row.token} className="flex flex-col gap-2">
+                  <div
+                    className="h-12 rounded-card border border-hairline-strong"
+                    style={{ background: row.hex }}
+                  />
+                  <div className="flex flex-col">
+                    <span className="type-caption-strong text-ink">{row.token}</span>
+                    <span className="type-mono-sm text-ink-subtle">{row.hex}</span>
+                    <span className="type-caption text-ink-subtle">{row.use}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </TraceRow>
+
+          <TraceRow label="Heading trio (32 / 24 / 18, additive — the shared type-title/type-heading/type-subhead steps are unchanged)">
+            <div className="flex flex-col gap-3 border-y border-hairline py-5">
+              <p className="type-desktop-title text-ink">Sabah provası</p>
+              <p className="type-desktop-heading text-ink">Trending Waves</p>
+              <p className="type-desktop-subheading text-ink">Live this hour</p>
+            </div>
+          </TraceRow>
+
+          <TraceRow label="Shell metrics">
+            <ul className="type-mono-sm flex flex-col gap-1 text-ink-subtle">
+              <li>sidebar: 240px expanded / 72px collapsed rail</li>
+              <li>main column: fluid, max 1280px, 32px gutters</li>
+              <li>right rail: 320px (optional)</li>
+              <li>now-playing bar: 88px, full width, fixed bottom</li>
+              <li>top bar: 56px</li>
+              <li>desktop target size: 32px (mobile keeps 44px)</li>
+            </ul>
+          </TraceRow>
         </Section>
       </div>
     </div>

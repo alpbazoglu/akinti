@@ -283,6 +283,129 @@
   --akinti-grain-blend: screen;
 }
 
+/* =====================================================================
+   Desktop v3 — "Akış" (docs/design/DESIGN_V3_DESKTOP.md, founder decision
+   6 Sept 2026). This block wins over every token above wherever it
+   conflicts, but **only at >= 1024px** — everything below `lg` reads the
+   tokens defined above, untouched.
+
+   Dark is the desktop default regardless of system preference or the
+   absence of an explicit choice (the theme setting still works: picking
+   light explicitly on desktop gets its own coherent mapping of the same
+   four-step elevation ladder, defined in the second block below).
+   ===================================================================== */
+@media (min-width: 1024px) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    /* Four-step elevation ladder (DESIGN_V3 "Surfaces and depth") replaces
+       the three-step paper/raised/sunk scale for desktop chrome and cards.
+       `--akinti-paper` stays aliased to elevation-1 so every existing
+       `bg-paper` call site, including <body>'s own background, still
+       lands on the right ground without a rename. */
+    --akinti-elevation-0: #0a100e; /* rail, top bar, now-playing bar */
+    --akinti-elevation-1: #10171a; /* content ground */
+    --akinti-elevation-2: #16211f; /* card */
+    --akinti-elevation-3: #1c2926; /* card hover / raised */
+    --akinti-paper: var(--akinti-elevation-1);
+    --akinti-paper-raised: var(--akinti-elevation-2);
+    --akinti-paper-sunk: var(--akinti-elevation-0);
+
+    --akinti-ink: #eaf2ef;
+    --akinti-ink-muted: #9fb3ad;
+    --akinti-ink-subtle: #6c7f79;
+
+    --akinti-hairline: #23302c;
+    --akinti-hairline-strong: #324640;
+    /* A translucent inner edge for raised cards, distinct from the opaque
+       dividers above (DESIGN_V3: "1px inner hairline rgba(255,255,255,.06)"). */
+    --akinti-hairline-inner: rgb(255 255 255 / 0.06);
+
+    /* The two desktop accents (DESIGN_V3 "Two accents"). Vivid, because
+       desktop finally has elevation for them to sit on and glow against;
+       Signal still never carries anything but live audio state. */
+    --akinti-current: #2fe0c9;
+    --akinti-current-2: #12a893;
+    --akinti-current-wash: rgb(47 224 201 / 0.12);
+    --akinti-sand: #f0a63f;
+    --akinti-sand-deep: #c07f1e;
+    --akinti-signal: #ff5c33;
+
+    --akinti-shadow-card: 0 12px 32px -16px rgb(0 0 0 / 0.55), inset 0 1px 0 0 rgb(255 255 255 / 0.02);
+    --akinti-shadow-lift: 0 20px 44px -18px rgb(0 0 0 / 0.65), 0 0 0 1px var(--akinti-hairline-strong);
+    --akinti-shadow-bar: 0 -1px 0 0 var(--akinti-hairline), 0 -24px 48px -24px rgb(0 0 0 / 0.6);
+
+    --akinti-radius-card: 18px;
+  }
+
+  /* An explicit light choice on desktop: the same four-step structure,
+     mapped coherently to a light ground instead of negating it back to a
+     flat page (DESIGN_V3: "light theme on desktop gets a coherent light
+     mapping of the same structure"). */
+  :root[data-theme="light"] {
+    color-scheme: light;
+
+    --akinti-elevation-0: #e2e9e5; /* rail, top bar, now-playing bar */
+    --akinti-elevation-1: #ecf1ee; /* content ground */
+    --akinti-elevation-2: #f6f9f7; /* card */
+    --akinti-elevation-3: #ffffff; /* card hover / raised */
+    --akinti-paper: var(--akinti-elevation-1);
+    --akinti-paper-raised: var(--akinti-elevation-2);
+    --akinti-paper-sunk: var(--akinti-elevation-0);
+
+    --akinti-ink: #0f1a18;
+    --akinti-ink-muted: #33443f;
+    --akinti-ink-subtle: #4e625c;
+
+    --akinti-hairline: #c9d3ce;
+    --akinti-hairline-strong: #a9bdb4;
+    --akinti-hairline-inner: rgb(15 26 24 / 0.06);
+
+    /* Same two accent roles, at the deeper values light grounds need to
+       clear 4.5:1 as text/keys — the vivid pair above is a dark-surface
+       effect, not a hue swap (COLOR_V2's contrast floors still apply). */
+    --akinti-current: #0e6b6b;
+    --akinti-current-2: #0a4f50;
+    --akinti-current-wash: rgb(14 107 107 / 0.1);
+    --akinti-sand: #8c6418;
+    --akinti-sand-deep: #6a4a10;
+    --akinti-signal: #de3c11;
+
+    --akinti-shadow-card: 0 12px 28px -16px rgb(15 26 24 / 0.16), inset 0 1px 0 0 rgb(255 255 255 / 0.6);
+    --akinti-shadow-lift: 0 20px 40px -18px rgb(15 26 24 / 0.22), 0 0 0 1px var(--akinti-hairline-strong);
+    --akinti-shadow-bar: 0 -1px 0 0 var(--akinti-hairline), 0 -24px 40px -24px rgb(15 26 24 / 0.14);
+
+    --akinti-radius-card: 18px;
+  }
+
+  :root {
+    /* Shell metrics (DESIGN_V3_DESKTOP.md "Shell"). */
+    --akinti-sidebar-w: 240px;
+    --akinti-sidebar-rail-w: 72px;
+    --akinti-right-rail-w: 320px;
+    --akinti-now-playing-h: 88px;
+    --akinti-desktop-content-max: 1280px;
+    --akinti-desktop-gutter: 32px;
+
+    /* Density (DESIGN_V3: "desktop scale is denser: 14px UI, 13px meta,
+       32/24/18 headings"). `--type-body-sm-size` (14px) and
+       `--type-caption-size` (13px) already carry the UI/meta steps at every
+       width — nothing to change there. The 32/24/18 heading trio is new
+       (the existing display/title/heading tokens are shared by every
+       screen at every width and stay put); `.type-desktop-*` below are
+       additive classes for shell chrome, not a rename of those tokens. */
+    --type-desktop-title-size: 2rem; /* 32px */
+    --type-desktop-title-leading: 2.375rem;
+    --type-desktop-heading-size: 1.5rem; /* 24px */
+    --type-desktop-heading-leading: 1.875rem;
+    --type-desktop-subheading-size: 1.125rem; /* 18px */
+    --type-desktop-subheading-leading: 1.5rem;
+
+    /* Desktop targets: 32px where mobile needs 44px (DESIGN_V3 "Density"). */
+    --akinti-target-desktop: 32px;
+  }
+}
+
 /* `dark:` utilities follow the same resolution order as the tokens above. */
 @custom-variant dark {
   @media (prefers-color-scheme: dark) {
@@ -478,6 +601,31 @@
   --spacing-side-nav: var(--akinti-labelled-rail-w);
   --spacing-content: var(--akinti-content-max);
   --spacing-bottom-nav: var(--akinti-keyboard-h);
+
+  /* -- Desktop v3 shell metrics (DESIGN_V3_DESKTOP.md) -------------- */
+  --spacing-sidebar: var(--akinti-sidebar-w, var(--akinti-labelled-rail-w));
+  --spacing-sidebar-rail: var(--akinti-sidebar-rail-w, var(--akinti-icon-rail-w));
+  --spacing-right-rail: var(--akinti-right-rail-w, 300px);
+  --spacing-now-playing: var(--akinti-now-playing-h, var(--akinti-keyboard-h));
+  --spacing-desktop-content: var(--akinti-desktop-content-max, var(--akinti-frame-max));
+  --spacing-desktop-gutter: var(--akinti-desktop-gutter, var(--akinti-page-inline));
+  --spacing-target-desktop: var(--akinti-target-desktop, var(--akinti-rail));
+
+  /* -- Desktop v3 elevation ladder ----------------------------------
+     Falls back to the three-step paper/raised/sunk scale below 1024px,
+     where the ladder tokens above are never defined. */
+  --color-elevation-0: var(--akinti-elevation-0, var(--akinti-paper-sunk));
+  --color-elevation-1: var(--akinti-elevation-1, var(--akinti-paper));
+  --color-elevation-2: var(--akinti-elevation-2, var(--akinti-paper-raised));
+  --color-elevation-3: var(--akinti-elevation-3, var(--akinti-paper-raised));
+  --color-hairline-inner: var(--akinti-hairline-inner, var(--akinti-hairline));
+  --color-current-wash: var(--akinti-current-wash, var(--akinti-foam));
+  --color-sand-deep: var(--akinti-sand-deep, var(--akinti-sand));
+
+  --shadow-card: var(--akinti-shadow-card, var(--akinti-shadow-lifted));
+  --shadow-lift: var(--akinti-shadow-lift, var(--akinti-shadow-lifted));
+  --shadow-bar: var(--akinti-shadow-bar, var(--akinti-shadow-sheet));
+  --radius-card: var(--akinti-radius-card, var(--akinti-radius-object));
 }
 
 /* =====================================================================
@@ -667,6 +815,38 @@
     font-variation-settings: "wdth" var(--wdth-ui);
   }
 
+  /* Desktop v3's own 32/24/18 heading trio (DESIGN_V3_DESKTOP.md
+     "Density"). Additive: the shared display/title/heading/subhead steps
+     above are untouched, since they are load-bearing on every screen at
+     every width. These three are for desktop shell chrome only — the
+     sidebar wordmark row, the now-playing bar, the command palette, page
+     titles inside `AppShell`'s desktop column — and fall back to the
+     nearest existing step below 1024px so nothing renders unset. */
+  .type-desktop-title {
+    font-size: var(--type-desktop-title-size, var(--type-title-size));
+    line-height: var(--type-desktop-title-leading, var(--type-title-leading));
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variation-settings: "wdth" var(--wdth-display);
+    text-wrap: balance;
+  }
+
+  .type-desktop-heading {
+    font-size: var(--type-desktop-heading-size, var(--type-heading-size));
+    line-height: var(--type-desktop-heading-leading, var(--type-heading-leading));
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    font-variation-settings: "wdth" var(--wdth-ui);
+  }
+
+  .type-desktop-subheading {
+    font-size: var(--type-desktop-subheading-size, var(--type-subhead-size));
+    line-height: var(--type-desktop-subheading-leading, var(--type-subhead-leading));
+    font-weight: 600;
+    letter-spacing: -0.006em;
+    font-variation-settings: "wdth" var(--wdth-ui);
+  }
+
   /* Every readout in the product: timecodes, dB, latency, counts,
      character counters, analytics figures (§3.4). */
   .type-mono-display,
@@ -790,6 +970,16 @@
   .akinti-press:active:not(:disabled) {
     transform: scale(0.975);
     box-shadow: inset 0 0 0 1px var(--akinti-hairline-strong);
+  }
+
+  /* Desktop v3 press physics (DESIGN_V3_DESKTOP.md "Feedback"): a deeper
+     press plus a brightness step, since desktop has real elevation for a
+     control to visibly press into. Mobile keeps the plain scale above. */
+  @media (min-width: 1024px) {
+    .akinti-press:active:not(:disabled) {
+      transform: scale(0.97);
+      filter: brightness(0.92);
+    }
   }
 
   .akinti-scrim {
