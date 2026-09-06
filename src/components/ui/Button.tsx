@@ -45,7 +45,7 @@ export interface ButtonProps extends ComponentPropsWithRef<"button"> {
 }
 
 const BASE =
-  "akinti-press relative inline-flex select-none items-center justify-center gap-2 " +
+  "akinti-press relative inline-flex cursor-pointer select-none items-center justify-center gap-2 " +
   "rounded-key type-subhead whitespace-nowrap " +
   "transition-[background-color,border-color,color] duration-[--dur-micro] " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide " +
@@ -53,8 +53,11 @@ const BASE =
 
 const VARIANTS: Record<ButtonVariant, string> = {
   // The current fill with paper text (docs/design/COLOR_V2.md "Buttons").
-  primary: "bg-tide text-on-ink",
-  secondary: "border border-hairline-strong text-ink",
+  // `hover:bg-tide-2` is the one place a preview matters most: the single
+  // most important action on a screen previously gave no hover feedback at
+  // all (`docs/research/desktop/FEEDBACK_AUDIT.md` #2, fix list item 4).
+  primary: "bg-tide text-on-ink hover:bg-tide-2",
+  secondary: "border border-hairline-strong text-ink hover:bg-elevation-2",
   ghost:
     "text-ink underline decoration-hairline-strong decoration-1 underline-offset-[3px] " +
     "hover:decoration-ink",

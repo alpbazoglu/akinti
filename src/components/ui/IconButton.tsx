@@ -30,7 +30,7 @@ export interface IconButtonProps
 }
 
 const BASE =
-  "akinti-press relative inline-flex shrink-0 select-none items-center justify-center gap-2 " +
+  "akinti-press relative inline-flex shrink-0 cursor-pointer select-none items-center justify-center gap-2 " +
   "transition-[background-color,border-color,color] duration-[--dur-micro] " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide " +
   "disabled:cursor-not-allowed disabled:opacity-55";
@@ -39,8 +39,8 @@ const VARIANTS: Record<IconButtonVariant, string> = {
   // Matches Button's primary: the current fill, paper glyph (COLOR_V2
   // "Buttons") — including the transport play/pause key, which is exactly
   // the kind of moving, actionable control colour belongs on.
-  primary: "bg-tide text-on-ink",
-  secondary: "border border-hairline-strong text-ink",
+  primary: "bg-tide text-on-ink hover:bg-tide-2",
+  secondary: "border border-hairline-strong text-ink hover:bg-elevation-2",
   ghost: "text-ink-muted hover:text-ink",
   // Danger is its own hue, never Signal (COLOR_V2 principle 2).
   danger: "text-danger",
