@@ -617,6 +617,30 @@ async function isBackingTrackAudioAsset(admin: SupabaseAdminClient, assetId: str
 }
 
 /**
+ * Downsamples the sidecar's per-second cents-deviation array to at most
+ * `maxPoints`, purely to back `PitchReport.tsx`'s mini trace without a
+ * second sidecar call or a second column — see docs/AUDIO_ARCHITECTURE.md
+ * "Pitch score". Not one of the five canonical fields; simply omitted from
+ * the stored `pitch_score` when the source array is empty.
+ */
+function downsampleCentsTrace(values: readonly number[], maxPoints = 60): number[] {
+  if (values.length === 0) return [];
+  if (values.length <= maxPoints) {
+    return values.map((value) => Math.round(value * 10) / 10);
+  }
+  const bucketSize = values.length / maxPoints;
+  const out: number[] = [];
+  for (let i = 0; i < maxPoints; i++) {
+    const start = Math.floor(i * bucketSize);
+    const end = Math.max(start + 1, Math.floor((i + 1) * bucketSize));
+    const slice = values.slice(start, end);
+    const avg = slice.reduce((sum, value) => sum + value, 0) / slice.length;
+    out.push(Math.round(avg * 10) / 10);
+  }
+  return out;
+}
+
+/**
  * Best-effort follow-up call made AFTER `complete_audio_job` has already
  * marked the job/asset done — never allowed to fail or retry the job it
  * follows (docs/AUDIO_ARCHITECTURE.md "Pitch score"). On any failure
@@ -634,12 +658,17 @@ async function runPitchScoreSideEffect(
       return;
     }
     const body = await callSidecar(sidecarConfig, "/pitch-score", filePath, {}, fetch);
+    const perSecond = Array.isArray(body.per_second_cents_deviation)
+      ? (body.per_second_cents_deviation as number[])
+      : [];
+    const centsTrace = downsampleCentsTrace(perSecond);
     const pitchScore = {
       score_0_100: Number(body.score) || 0,
       in_tune_ratio: Number(body.in_tune_ratio) || 0,
       median_cents_off: Number(body.median_cents_off) || 0,
       key_guess: String(body.detected_key ?? ""),
       notes_detected: Number(body.notes_detected) || 0,
+      ...(centsTrace.length > 0 ? { cents_trace: centsTrace } : {}),
     };
     const { error } = await admin.rpc("set_audio_asset_pitch_score", {
       p_asset_id: assetId,

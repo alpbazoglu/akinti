@@ -4,6 +4,7 @@ export { RecordStage, type RecordStageProps, type RecordStageBackingTrack, type 
 export { ReviewStage, type ReviewStageProps } from "./ReviewStage";
 export { EnhanceStage, type EnhanceStageProps } from "./EnhanceStage";
 export { PublishProgress, PUBLISH_STAGES, type PublishProgressProps, type PublishStage } from "./PublishProgress";
+export { PitchReport, type PitchReportProps, type PitchScore } from "./PitchReport";
 export { Countdown, type CountdownProps } from "./Countdown";
 export { MicPrimer, MicDenied, MicUnsupported, recoveryFor, type MicPrimerProps, type MicDeniedProps, type MicUnsupportedProps } from "./MicPermission";
 export { LevelReadout, PitchMeter, type LevelReadoutProps, type PitchMeterProps } from "./Readouts";

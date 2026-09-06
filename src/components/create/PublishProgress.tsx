@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/ui";
 
+import { PitchReport, type PitchScore } from "./PitchReport";
+
 /**
  * Publish stages, in order. Each is a real step with a real boundary, not a
  * slice of an invented percentage.
@@ -26,6 +28,18 @@ export interface PublishProgressProps {
   /** Set when a stage failed. The recording is never lost. */
   error?: string | null;
   onRetry?: () => void;
+  /**
+   * The just-published Wave's pitch score, when already known at "done"
+   * (PRODUCT_V2 §4/§5 — see `PitchReport`). Almost always `null` here in
+   * practice: the worker computes this after real processing time, well
+   * after this screen's brief "done" moment, and CreateFlow.tsx redirects to
+   * the Wave page immediately regardless — `PitchReport` on the Wave page
+   * itself (`OwnerInsights.tsx`) is where a Wave's creator actually sees
+   * this. Accepted here too so a caller that DOES already have it (a retry
+   * flow, a future non-redirecting publish screen) shows it honestly rather
+   * than needing a second component.
+   */
+  pitchScore?: PitchScore | null;
   className?: string;
 }
 
@@ -42,7 +56,13 @@ export interface PublishProgressProps {
  * A failure names the stage that failed, says the recording is still here, and
  * offers a retry that resumes from the top (spec §38).
  */
-export function PublishProgress({ stage, error, onRetry, className }: PublishProgressProps) {
+export function PublishProgress({
+  stage,
+  error,
+  onRetry,
+  pitchScore = null,
+  className,
+}: PublishProgressProps) {
   const currentIndex = stage === "done" ? PUBLISH_STAGES.length : PUBLISH_STAGES.indexOf(stage);
 
   return (
@@ -82,6 +102,11 @@ export function PublishProgress({ stage, error, onRetry, className }: PublishPro
             </div>
           ) : null}
         </div>
+      ) : stage === "done" ? (
+        <>
+          <p className="type-caption measure text-ink-subtle">Published.</p>
+          <PitchReport pitchScore={pitchScore} />
+        </>
       ) : (
         <p className="type-caption measure text-ink-subtle">
           Polishing happens after this, on our side. You can watch it on the Wave.

@@ -20,6 +20,7 @@ import { timeAgo } from "@/lib/ui";
 import type { CollaboratorStatus, DuetTreeNode, Profile, Wave } from "@/types/domain";
 
 import { getCommentPermissionState, loadComments } from "./interactions";
+import { OwnerInsights } from "./OwnerInsights";
 import { ProcessingBanner } from "./ProcessingBanner";
 import { WaveDetail, type WaveDetailWave } from "./WaveDetail";
 import { WaveOwnerMenu } from "./WaveOwnerMenu";
@@ -205,6 +206,8 @@ export default async function WavePage({ params }: WavePageProps) {
           initialError={asset.processingError}
         />
       </div>
+
+      <OwnerInsights isOwner={isCreator} audioAssetId={wave.audioAssetId} />
 
       <WaveDetail wave={detailWave}>
         {parentWave || originalWave ? (

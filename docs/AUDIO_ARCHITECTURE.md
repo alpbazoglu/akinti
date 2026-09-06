@@ -128,8 +128,9 @@ Any failure of this call (sidecar down, timeout, malformed response) is
 caught and logged, never thrown — the job it follows is already `done`, and
 a missing pitch score is a legitimate, honest `null`, not a retry condition.
 
-Shape written to `audio_assets.pitch_score` (`src/types/database.ts`'s
-`Json`, no dedicated TS interface yet — read directly where needed):
+Shape written to `audio_assets.pitch_score` (`PitchScore` in
+`src/components/create/PitchReport.tsx` — the UI is the one consumer, so the
+type lives there rather than in `src/types/domain.ts`):
 
 ```json
 {
@@ -137,7 +138,8 @@ Shape written to `audio_assets.pitch_score` (`src/types/database.ts`'s
   "in_tune_ratio": 0.71,
   "median_cents_off": 12.5,
   "key_guess": "G major",
-  "notes_detected": 34
+  "notes_detected": 34,
+  "cents_trace": [4.2, 6.8, 41.0, 12.1]
 }
 ```
 
@@ -150,8 +152,15 @@ mean, to resist a handful of wild off-pitch seconds skewing an otherwise
 solid take) of `per_second_cents_deviation`. `notes_detected` counts voiced
 one-second windows with pitch data at all, a rough proxy for "how much of
 this had a detectable pitch" that the UI never shows as a metric on its
-own — see `PitchReport.tsx`. A track with zero voiced frames still writes a
-score (`0`), a ratio (`0`), and `notes_detected: 0`, never an absent field —
+own — see `PitchReport.tsx`. `cents_trace` is not one of the five fields the
+brief called canonical — `scripts/worker.ts` downsamples the sidecar's
+`per_second_cents_deviation` to at most 60 points (`downsampleCentsTrace`)
+and adds it purely so `PitchReport`'s "how your pitch tracked over this
+take" mini trace has real data to draw without a second sidecar call or
+column; it is optional and a score computed before this field existed simply
+omits it, never backfilled with an invented one. A track with zero voiced
+frames still writes a score (`0`), a ratio (`0`), and `notes_detected: 0`,
+never an absent field —
 `audio_assets_guard_update` and `set_audio_asset_pitch_score` both treat the
 whole object as one opaque, atomically-written value.
 
