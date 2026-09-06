@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { FlowScreen } from "@/components/flow";
 import { routes } from "@/config/routes";
 import { TERMS } from "@/config/terminology";
@@ -8,7 +10,10 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 import { hydrateFlowWaves } from "./hydrateFlow";
 
-export const metadata = { title: "Flow" };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  return { title: t("flow") };
+}
 
 const FLOW_PAGE_LIMIT = 10;
 
@@ -43,7 +48,12 @@ export default async function FlowPage() {
     initialItems = await hydrateFlowWaves(db, page.items, user.id);
     initialCursor = page.nextCursor;
   } catch (err) {
-    initialError = err instanceof Error ? err.message : "Flow couldn't load. Try again.";
+    if (err instanceof Error) {
+      initialError = err.message;
+    } else {
+      const t = await getTranslations("Flow");
+      initialError = `${t("loadError")}. ${t("tryAgain")}.`;
+    }
   }
 
   return (

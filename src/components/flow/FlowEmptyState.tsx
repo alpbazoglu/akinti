@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 
 export interface FlowEmptyStateProps {
   /** A real error (network/RPC failure) shows a retry key; otherwise this is a genuinely empty ranking. */
@@ -18,13 +18,13 @@ export interface FlowEmptyStateProps {
  * record, browse challenges, find people to follow.
  */
 export function FlowEmptyState({ error = null, onRetry }: FlowEmptyStateProps) {
+  const t = useTranslations("Flow");
+
   return (
     <div className="flex h-dvh w-full flex-col justify-center gap-6 bg-paper px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="flex flex-col gap-2 text-left">
-        <h1 className="type-title text-ink">{error ? "Flow couldn't load." : "Nothing new to play yet."}</h1>
-        <p className="type-body text-ink-muted">
-          {error ?? "Follow a few creators, or record something of your own to get the current moving."}
-        </p>
+        <h1 className="type-title text-ink">{error ? t("loadError") : t("emptyTitle")}</h1>
+        <p className="type-body text-ink-muted">{error ?? t("emptyDescription")}</p>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -34,7 +34,7 @@ export function FlowEmptyState({ error = null, onRetry }: FlowEmptyStateProps) {
             onClick={onRetry}
             className="akinti-press flex h-13 items-center justify-start rounded-key bg-ink px-5 type-subhead text-on-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
           >
-            Try again
+            {t("tryAgain")}
           </button>
         ) : (
           <>
@@ -42,19 +42,19 @@ export function FlowEmptyState({ error = null, onRetry }: FlowEmptyStateProps) {
               href={routes.create()}
               className="akinti-press flex h-13 items-center justify-start rounded-key bg-ink px-5 type-subhead text-on-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
             >
-              {TERMS.record} {TERMS.aWave}
+              {t("recordAction")}
             </Link>
             <Link
               href={routes.challenges()}
               className="akinti-press flex h-13 items-center justify-start rounded-key border border-hairline-strong px-5 type-subhead text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
             >
-              Browse challenges
+              {t("browseChallenges")}
             </Link>
             <Link
               href={routes.explore()}
               className="akinti-press flex h-13 items-center justify-start rounded-key border border-hairline-strong px-5 type-subhead text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide"
             >
-              Find people to follow
+              {t("findPeople")}
             </Link>
           </>
         )}

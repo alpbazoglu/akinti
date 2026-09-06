@@ -1,11 +1,14 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { routes } from "@/config/routes";
-import { BRAND, BRAND_TAGLINE } from "@/config/terminology";
+import { BRAND } from "@/config/terminology";
 
 /** Minimal centred layout for sign-in, sign-up and onboarding. */
-export default function AuthLayout({ children }: { children: ReactNode }) {
+export default async function AuthLayout({ children }: { children: ReactNode }) {
+  const t = await getTranslations("Terms");
+
   return (
     <div className="akinti-page flex min-h-dvh flex-col justify-center py-10">
       <main id="main" className="w-full max-w-sm">
@@ -16,7 +19,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           >
             <span className="type-wordmark text-ink">{BRAND}</span>
           </Link>
-          <p className="type-body-sm measure text-ink-muted">{BRAND_TAGLINE}</p>
+          <p className="type-body-sm measure text-ink-muted">{t("tagline")}</p>
         </div>
         {children}
       </main>

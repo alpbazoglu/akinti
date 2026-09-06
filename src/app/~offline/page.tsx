@@ -1,7 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { routes } from "@/config/routes";
-import { BRAND } from "@/config/terminology";
 import { Button, EmptyState } from "@/components/ui";
 
 /**
@@ -21,17 +22,17 @@ import { Button, EmptyState } from "@/components/ui";
  * earlier visit (Serwist's own default page cache).
  */
 export default function OfflinePage() {
+  const t = useTranslations("Offline");
+
   return (
     <div className="akinti-page mx-auto flex min-h-dvh w-full max-w-content flex-col justify-center">
       <EmptyState
-        title="You're offline"
-        description={`${BRAND} needs a connection to load this. Your Wave drafts are safe on this device and will still be here when you're back.`}
-        action={
-          <Button onClick={() => window.location.reload()}>Try again</Button>
-        }
+        title={t("title")}
+        description={t("description")}
+        action={<Button onClick={() => window.location.reload()}>{t("tryAgain")}</Button>}
         secondaryAction={
           <Button variant="secondary" onClick={() => window.location.assign(routes.explore())}>
-            Go to Explore
+            {t("goToExplore")}
           </Button>
         }
       />
