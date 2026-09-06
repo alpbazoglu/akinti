@@ -1,15 +1,28 @@
 import { SerwistProvider } from "@serwist/next/react";
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getTranslations } from "next-intl/server";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Archivo, Martian_Mono } from "next/font/google";
 
 import { BRAND, SITE } from "@/config/terminology";
 import { getCurrentUserWithProfile } from "@/lib/auth/server";
+import { pickMessages } from "@/i18n/pickMessages";
 
 import { Providers } from "./providers";
 import "./globals.css";
+
+/**
+ * Namespaces needed directly under the root layout's own tree — everything
+ * that is NOT `(app)` or `(auth)` (both provide their own, larger,
+ * self-sufficient sets below their own `NextIntlClientProvider`, since
+ * nesting one does not merge with an ancestor's): `/onboarding`,
+ * `/~offline`, and the zero-`useTranslations` `error.tsx`/`not-found.tsx`
+ * boundaries, which only need a safe fallback (review3 finding 12 — see
+ * `pickMessages`'s doc comment for why a nested provider must be
+ * self-sufficient rather than additive).
+ */
+const ROOT_MESSAGE_NAMESPACES = ["Terms", "Offline", "OnboardingPage", "OnboardingFlow"] as const;
 
 /**
  * Archivo Variable carries display, UI and body: the width axis, not a second
@@ -113,7 +126,12 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const [{ user, profile }, locale] = await Promise.all([getCurrentUserWithProfile(), getLocale()]);
+  const [{ user, profile }, locale, messages] = await Promise.all([
+    getCurrentUserWithProfile(),
+    getLocale(),
+    getMessages(),
+  ]);
+  const rootMessages = pickMessages(messages, ROOT_MESSAGE_NAMESPACES);
 
   return (
     <html
@@ -133,7 +151,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             no `import`/`export`) — registering that as a module-type worker
             silently never activates it (Chromium accepts the registration
             but the worker never installs). */}
-        <NextIntlClientProvider>
+        <NextIntlClientProvider messages={rootMessages}>
           <SerwistProvider
             swUrl="/sw.js"
             disable={process.env.NODE_ENV === "development"}
