@@ -24,13 +24,17 @@ import { ProfileHeader, type ProfileHeaderProps, type ProfileHeaderViewerState }
 import type { Profile } from "@/types/domain";
 import { ToastProvider } from "@/components/ui";
 
-/** `ShareProfileButton` calls `useToast()`, so every render needs a provider. */
-function renderHeader(props: ProfileHeaderProps) {
-  return render(
-    <ToastProvider>
-      <ProfileHeader {...props} />
-    </ToastProvider>,
-  );
+/**
+ * `ShareProfileButton` calls `useToast()`, so every render needs a provider.
+ *
+ * `ProfileHeader` is an async Server Component (it awaits `getTranslations`)
+ * — React DOM's test renderer can only render already-resolved JSX, not a
+ * function that returns a `Promise`, so this calls it directly and awaits
+ * the result first, the same pattern Next.js's own RSC runtime uses.
+ */
+async function renderHeader(props: ProfileHeaderProps) {
+  const element = await ProfileHeader(props);
+  return render(<ToastProvider>{element}</ToastProvider>);
 }
 
 function makeProfile(overrides: Partial<Profile> = {}): Profile {
@@ -77,8 +81,8 @@ function viewer(overrides: Partial<ProfileHeaderViewerState> = {}): ProfileHeade
 }
 
 describe("ProfileHeader", () => {
-  it("own profile: shows Edit profile, no Follow/Message/overflow actions", () => {
-    renderHeader({ profile: makeProfile(), viewer: viewer({ isSelf: true }) });
+  it("own profile: shows Edit profile, no Follow/Message/overflow actions", async () => {
+    await renderHeader({ profile: makeProfile(), viewer: viewer({ isSelf: true }) });
 
     expect(screen.getByRole("link", { name: /edit profile/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^follow$/i })).toBeNull();
@@ -86,28 +90,28 @@ describe("ProfileHeader", () => {
     expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 
-  it("anonymous visitor: shows a Follow action and no overflow menu (sign-in required to block/report)", () => {
-    renderHeader({ profile: makeProfile(), viewer: viewer({ isSignedIn: false, followStatus: null }) });
+  it("anonymous visitor: shows a Follow action and no overflow menu (sign-in required to block/report)", async () => {
+    await renderHeader({ profile: makeProfile(), viewer: viewer({ isSignedIn: false, followStatus: null }) });
 
     expect(screen.getByRole("button", { name: /^follow$/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /more actions/i })).toBeNull();
   });
 
-  it("following: shows Following (muted) instead of Follow", () => {
-    renderHeader({ profile: makeProfile(), viewer: viewer({ followStatus: "accepted" }) });
+  it("following: shows Following (muted) instead of Follow", async () => {
+    await renderHeader({ profile: makeProfile(), viewer: viewer({ followStatus: "accepted" }) });
 
     expect(screen.getByRole("button", { name: /following/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^follow$/i })).toBeNull();
   });
 
-  it("requested: shows Requested for a pending follow request", () => {
-    renderHeader({ profile: makeProfile(), viewer: viewer({ followStatus: "pending" }) });
+  it("requested: shows Requested for a pending follow request", async () => {
+    await renderHeader({ profile: makeProfile(), viewer: viewer({ followStatus: "pending" }) });
 
     expect(screen.getByRole("button", { name: /requested/i })).toBeInTheDocument();
   });
 
-  it("blocked: the overflow menu offers Unblock instead of Block", () => {
-    renderHeader({ profile: makeProfile(), viewer: viewer({ isBlockedByViewer: true }) });
+  it("blocked: the overflow menu offers Unblock instead of Block", async () => {
+    await renderHeader({ profile: makeProfile(), viewer: viewer({ isBlockedByViewer: true }) });
 
     fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
 
@@ -115,15 +119,15 @@ describe("ProfileHeader", () => {
     expect(screen.queryByRole("menuitem", { name: /^block$/i })).toBeNull();
   });
 
-  it("renders a plain Message link pointed at /messages/new, not an interactive compose flow", () => {
-    renderHeader({ profile: makeProfile(), viewer: viewer() });
+  it("renders a plain Message link pointed at /messages/new, not an interactive compose flow", async () => {
+    await renderHeader({ profile: makeProfile(), viewer: viewer() });
 
     const link = screen.getByRole("link", { name: /^message$/i });
     expect(link).toHaveAttribute("href", "/messages/new?to=maria");
   });
 
-  it("renders identity and counts", () => {
-    renderHeader({ profile: makeProfile(), viewer: viewer() });
+  it("renders identity and counts", async () => {
+    await renderHeader({ profile: makeProfile(), viewer: viewer() });
 
     expect(screen.getByRole("heading", { name: "Maria Lopez" })).toBeInTheDocument();
     expect(screen.getByText("@maria")).toBeInTheDocument();
@@ -132,13 +136,13 @@ describe("ProfileHeader", () => {
     expect(screen.getByRole("link", { name: /5 Following/i })).toBeInTheDocument();
   });
 
-  it("shows the Pro mark next to the handle only when isPro is true", () => {
-    renderHeader({ profile: makeProfile(), viewer: viewer(), isPro: true });
+  it("shows the Pro mark next to the handle only when isPro is true", async () => {
+    await renderHeader({ profile: makeProfile(), viewer: viewer(), isPro: true });
     expect(screen.getByText("Pro")).toBeInTheDocument();
   });
 
-  it("never shows the Pro mark for a non-Pro profile", () => {
-    renderHeader({ profile: makeProfile(), viewer: viewer() });
+  it("never shows the Pro mark for a non-Pro profile", async () => {
+    await renderHeader({ profile: makeProfile(), viewer: viewer() });
     expect(screen.queryByText("Pro")).toBeNull();
   });
 });
