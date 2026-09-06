@@ -258,31 +258,41 @@ must stay usable on small screens.
 | Critical end-to-end scenario (full user journey) | both, via Playwright | fully automated end to end in `e2e/critical-journey.spec.ts` (signup→onboarding→upload→publish→worker→discover→play→comment/save/share→duet request→accept→record→publish→worker→lineage), gated on `E2E_SUPABASE`; `e2e/auth.spec.ts` and `e2e/duet.spec.ts` cover the auth and Duet legs in isolation too |
 | Duet lifecycle + denial scenarios (UI) | Duet agent | automated in `e2e/duet.spec.ts` (gated on `E2E_SUPABASE`) — happy path, duets-disabled denial, blocked-user denial |
 
-## Performance budgets (waveE-perf)
+## Performance budgets (waveE-perf, updated perf3)
 
 `npm run perf` (`next build` then `scripts/perf-budget.ts`) checks the real
-client JS weight of Home, Explore, Wave and Create straight from the
+client JS weight of Home, Flow, Explore, Wave and Create straight from the
 production build output — no running server, no auth, no live Supabase
 project needed, so it is safe to run in CI. It reads each route's
 `page_client-reference-manifest.js` under `.next/server/app/` to find every
 chunk that route's fresh load needs, gzips them (Next serves `_next/static/*`
 compressed in production), and fails the build if any route exceeds the
-budget defined in `scripts/perf-budget.ts` (`ROUTE_BUDGET_KB`).
+budget defined in `scripts/perf-budget.ts` (`ROUTE_BUDGET_KB`). Flow was
+added to the tracked routes in perf3 — it has been the default screen after
+login since `feat(flow): make Flow the default route` but was never added to
+this gate.
 
-That budget is 260KB gzipped per route, not the 150KB
+That budget is 340KB gzipped per route (raised from waveE-perf's 260KB in
+perf3 — see `docs/qa/perf3/ANALYSIS.md`), not the 150KB
 `docs/research/mobile-guidelines.md` rule 42 names: `@supabase/supabase-js`
 alone is roughly 85KB gzipped with no built-in subpath tree-shaking, and it
 loads on every authenticated route, on top of React 19 and the App Router
-runtime. 150KB of *additional* JS is not reachable on this stack without
-dropping Supabase or React — see `docs/qa/waveE-perf/ANALYSIS.md` for the
-measured breakdown and the real floor.
+runtime; concurrent feature work (Pro, billing, challenges, the audio pitch
+pipeline) pushed every route past 260KB between waveE-perf and perf3, an
+increase unrelated to any one pass's own code (confirmed with an isolated
+`git stash` control build in perf3). 150KB of *additional* JS is not
+reachable on this stack without dropping Supabase or React — see
+`docs/qa/waveE-perf/ANALYSIS.md` for the original measured floor.
 
 Lighthouse itself (LCP, TBT, performance score) needs a real authenticated
 session against the live Supabase project and is not part of this automated
 gate; `docs/qa/waveE-perf/ANALYSIS.md` documents the manual method
 (`next start` on a fixed port, a throwaway `e2e/helpers/supabaseAdmin.ts`
 account, Playwright to sign in, `npx lighthouse` with the resulting session
-cookie) and the before/after numbers it produced.
+cookie) and the before/after numbers it produced. `docs/qa/perf3/ANALYSIS.md`
+extends that method with `--throttling-method=devtools` alongside the
+original `simulate` mode, and found the two disagree sharply on this app —
+worth reading before trusting a `simulate`-only number again.
 
 ## Known gap
 

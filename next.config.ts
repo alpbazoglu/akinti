@@ -78,6 +78,20 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Don't advertise the framework in an `X-Powered-By` response header.
   poweredByHeader: false,
+  experimental: {
+    // perf3 (`docs/qa/perf3/ANALYSIS.md`): Lighthouse's own render-blocking
+    // insight flagged the single global stylesheet Tailwind 4 emits
+    // (~12.6KB) as render-blocking on every route, worth an estimated
+    // 830-900ms of LCP under mobile-simulate throttling — the cost is the
+    // extra request/RTT the `<link rel="stylesheet">` adds to the critical
+    // chain before paint, not the byte count (12.6KB is trivial). Emitting
+    // it as an inline `<style>` in `<head>` instead removes that request
+    // entirely. This is the documented trade-off case for the flag: atomic
+    // CSS (Tailwind) that stays small regardless of UI surface, and this
+    // app's `public/sw.js` (Serwist) precache is the returning-visitor
+    // caching layer that inlining otherwise gives up.
+    inlineCss: true,
+  },
   // `iyzipay` (AKINTI Pro billing, Wave F — `src/lib/billing/iyzico.ts`)
   // dynamically `require()`s every file under its own `lib/resources/`
   // directory via `fs.readdirSync` (`node_modules/iyzipay/lib/Iyzipay.js`'s
