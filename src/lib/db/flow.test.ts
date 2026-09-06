@@ -6,17 +6,17 @@ import type { FlowFeedRankRow } from "@/types/database";
 
 describe("encodeFlowCursor / decodeFlowCursor", () => {
   it("round-trips a full cursor", () => {
-    const cursor = { bucket: 4, score: -12.5, id: "3fa85f64-5717-4562-b3fc-2c963f66afa6", slot: 30 };
+    const cursor = { bucket: 4, score: -12.5, id: "3fa85f64-5717-4562-b3fc-2c963f66afa6", slot: 30, seed: 7 };
     expect(decodeFlowCursor(encodeFlowCursor(cursor))).toEqual(cursor);
   });
 
   it("round-trips a cursor with null bucket/score/id (ranked stream never produced a row)", () => {
-    const cursor = { bucket: null, score: null, id: null, slot: 8 };
+    const cursor = { bucket: null, score: null, id: null, slot: 8, seed: 42 };
     expect(decodeFlowCursor(encodeFlowCursor(cursor))).toEqual(cursor);
   });
 
   it("round-trips slot 0", () => {
-    const cursor = { bucket: 1, score: -100, id: "id-a", slot: 0 };
+    const cursor = { bucket: 1, score: -100, id: "id-a", slot: 0, seed: 1 };
     expect(decodeFlowCursor(encodeFlowCursor(cursor))).toEqual(cursor);
   });
 
@@ -27,28 +27,35 @@ describe("encodeFlowCursor / decodeFlowCursor", () => {
   });
 
   it("returns null when the payload is valid JSON but missing slot", () => {
-    const tampered = Buffer.from(JSON.stringify({ bucket: 1, score: 1, id: "x" }), "utf8").toString(
+    const tampered = Buffer.from(JSON.stringify({ bucket: 1, score: 1, id: "x", seed: 1 }), "utf8").toString(
       "base64url",
     );
     expect(decodeFlowCursor(tampered)).toBeNull();
   });
 
   it("returns null when slot is not a finite number", () => {
-    const tampered = Buffer.from(JSON.stringify({ slot: "thirty" }), "utf8").toString("base64url");
+    const tampered = Buffer.from(JSON.stringify({ slot: "thirty", seed: 1 }), "utf8").toString("base64url");
+    expect(decodeFlowCursor(tampered)).toBeNull();
+  });
+
+  it("returns null when the payload is valid JSON but missing seed (review3 finding 11)", () => {
+    const tampered = Buffer.from(JSON.stringify({ bucket: 1, score: 1, id: "x", slot: 5 }), "utf8").toString(
+      "base64url",
+    );
     expect(decodeFlowCursor(tampered)).toBeNull();
   });
 
   it("falls back non-string/number bucket, score, id fields to null rather than throwing", () => {
     const tampered = Buffer.from(
-      JSON.stringify({ bucket: "one", score: "neg", id: 42, slot: 5 }),
+      JSON.stringify({ bucket: "one", score: "neg", id: 42, slot: 5, seed: 9 }),
       "utf8",
     ).toString("base64url");
-    expect(decodeFlowCursor(tampered)).toEqual({ bucket: null, score: null, id: null, slot: 5 });
+    expect(decodeFlowCursor(tampered)).toEqual({ bucket: null, score: null, id: null, slot: 5, seed: 9 });
   });
 
   it("never produces the same string for different cursors", () => {
-    const a = encodeFlowCursor({ bucket: 1, score: -1, id: "a", slot: 0 });
-    const b = encodeFlowCursor({ bucket: 1, score: -1, id: "b", slot: 0 });
+    const a = encodeFlowCursor({ bucket: 1, score: -1, id: "a", slot: 0, seed: 1 });
+    const b = encodeFlowCursor({ bucket: 1, score: -1, id: "b", slot: 0, seed: 1 });
     expect(a).not.toBe(b);
   });
 });
@@ -93,6 +100,7 @@ describe("getFlowPage", () => {
       score: 1.2,
       id: "wave-2",
       slot: 2,
+      seed: 7,
     });
   });
 
@@ -109,14 +117,37 @@ describe("getFlowPage", () => {
       return { data: [], error: null };
     });
 
-    const cursor = encodeFlowCursor({ bucket: 3, score: 5, id: "wave-9", slot: 20 });
+    const cursor = encodeFlowCursor({ bucket: 3, score: 5, id: "wave-9", slot: 20, seed: 11 });
     await getFlowPage(db, { cursor, seed: 3, limit: 5 });
 
+    // The cursor's OWN seed (11) wins over the `seed: 3` argument passed
+    // alongside it — review3 finding 11: page 1's seed must not drift once
+    // a cursor exists, regardless of what a caller passes for a later page.
     expect(seenArgs).toEqual({
       p_cursor: { bucket: 3, score: 5, id: "wave-9", slot: 20 },
-      p_seed: 3,
+      p_seed: 11,
       p_limit: 5,
     });
+  });
+
+  it("carries page 1's seed into nextCursor, and page 2 reuses it even when a different seed is passed", async () => {
+    const rows: FlowFeedRankRow[] = [
+      { wave_id: "wave-1", bucket: 4, score: 2, cursor_bucket: 4, cursor_score: 2, cursor_id: "wave-1", cursor_slot: 1 },
+    ];
+    const db = fakeDb(async () => ({ data: rows, error: null }));
+
+    const page1 = await getFlowPage(db, { seed: 555, limit: 1 });
+    expect(decodeFlowCursor(page1.nextCursor as string)?.seed).toBe(555);
+
+    let seenArgs: Record<string, unknown> | undefined;
+    const db2 = fakeDb(async (_name, args) => {
+      seenArgs = args;
+      return { data: rows, error: null };
+    });
+    // A client-side page 2 call that (incorrectly, or from a stale random
+    // value) passes a DIFFERENT seed must still be ranked with page 1's.
+    await getFlowPage(db2, { cursor: page1.nextCursor, seed: 999, limit: 1 });
+    expect(seenArgs?.p_seed).toBe(555);
   });
 
   it("treats a malformed incoming cursor as a fresh page (p_cursor: null)", async () => {

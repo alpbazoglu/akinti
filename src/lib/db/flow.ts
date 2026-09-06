@@ -28,6 +28,19 @@ export interface FlowCursor {
   readonly score: number | null;
   readonly id: string | null;
   readonly slot: number;
+  /**
+   * The seed page 1 of this session was ranked with (review3 finding 11).
+   * `getFlowPage` treats this as authoritative over whatever `seed` a
+   * caller passes once a cursor exists — bucket 4's ranking includes a
+   * seeded jitter term the keyset cursor's score comparison depends on, so
+   * a seed that drifts between page 1 and page 2 shifts every rising
+   * Wave's score out from under its own cursor, skipping some and
+   * re-serving others. Carrying it in the cursor (rather than trusting the
+   * client to keep passing the same value) makes drift structurally
+   * impossible: the only way to get a new seed is to start a new session
+   * with no cursor at all.
+   */
+  readonly seed: number;
 }
 
 /**
@@ -58,11 +71,15 @@ export function decodeFlowCursor(raw: string): FlowCursor | null {
     if (typeof obj.slot !== "number" || !Number.isFinite(obj.slot)) {
       return null;
     }
+    if (typeof obj.seed !== "number" || !Number.isFinite(obj.seed)) {
+      return null;
+    }
     return {
       bucket: typeof obj.bucket === "number" ? obj.bucket : null,
       score: typeof obj.score === "number" ? obj.score : null,
       id: typeof obj.id === "string" ? obj.id : null,
       slot: obj.slot,
+      seed: obj.seed,
     };
   } catch {
     return null;
@@ -109,10 +126,14 @@ function clampFlowLimit(limit: number | undefined): number {
 /** Fetch the next page of the Flow ranking for the signed-in caller. */
 export async function getFlowPage(db: Db, params: FlowPageParams = {}): Promise<FlowPage> {
   const cursor = params.cursor ? decodeFlowCursor(params.cursor) : null;
+  // Once a cursor exists, ITS seed governs — never whatever `params.seed`
+  // the caller passes for this call (review3 finding 11). Only a
+  // cursor-less page 1 can establish a session's seed.
+  const seed = cursor ? cursor.seed : (params.seed ?? 0);
 
   const result = await db.rpc("get_flow_page", {
     p_cursor: cursor ? { bucket: cursor.bucket, score: cursor.score, id: cursor.id, slot: cursor.slot } : null,
-    p_seed: params.seed ?? 0,
+    p_seed: seed,
     p_limit: clampFlowLimit(params.limit),
   });
   const rows = unwrap("getFlowPage", { data: result.data ?? [], error: result.error });
@@ -127,6 +148,7 @@ export async function getFlowPage(db: Db, params: FlowPageParams = {}): Promise<
     score: last.cursor_score,
     id: last.cursor_id,
     slot: last.cursor_slot,
+    seed,
   });
 
   return {

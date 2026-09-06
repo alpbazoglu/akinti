@@ -44,17 +44,24 @@ export default async function FlowPage() {
   let initialCursor: string | null = null;
   let initialError: string | null = null;
 
+  // Session-seeded (docs/FLOW.md "session-seeded mix, never repeats within
+  // a session") — generated once here, server-side, for page 1.
+  // `getFlowPage` (src/lib/db/flow.ts) carries this same seed forward in
+  // every later page's cursor, so it cannot drift even if a client-side
+  // refetch passes a different value (review3 finding 11).
+  const seed = Math.floor(Math.random() * 1_000_000);
+
   try {
-    const page = await getFlowPage(db, { limit: FLOW_PAGE_LIMIT });
+    const page = await getFlowPage(db, { limit: FLOW_PAGE_LIMIT, seed });
     initialItems = await hydrateFlowWaves(db, page.items, user.id);
     initialCursor = page.nextCursor;
   } catch (err) {
-    if (err instanceof Error) {
-      initialError = err.message;
-    } else {
-      const t = await getTranslations("Flow");
-      initialError = `${t("loadError")}. ${t("tryAgain")}.`;
-    }
+    // Never render a raw DB error on the default post-login screen
+    // (review3 finding 14, CLAUDE.md's ban on engineering language in the
+    // UI) — log it for diagnosis, always show the same translated copy.
+    console.error("[flow/page] getFlowPage failed:", err);
+    const t = await getTranslations("Flow");
+    initialError = `${t("loadError")}. ${t("tryAgain")}.`;
   }
 
   return (
