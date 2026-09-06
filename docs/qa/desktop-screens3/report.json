@@ -1,0 +1,71 @@
+{
+  "base": "http://localhost:3799",
+  "consoleErrors": [],
+  "failedRequests": [],
+  "axeResults": [
+    {
+      "label": "challenges (1440-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "challenge detail (1440-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "challenges (390-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "hashtag (1440-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "tracks (1440-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "tracks (390-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "duets (1440-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "duets (390-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "search results (1440-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "search results (390-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "analytics (1440-dark)",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "analytics (390-dark)",
+      "total": 0,
+      "serious": []
+    }
+  ],
+  "notReached": [],
+  "notes": [
+    "No accepted Duet Request with a pending recording exists — could not reach the mode-picker cards screen."
+  ]
+}
