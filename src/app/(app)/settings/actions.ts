@@ -212,6 +212,8 @@ export async function setLocale(locale: AppLocale): Promise<AuthActionResult> {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
   });
 
   // Resolved AFTER the cookie write, from `locale` (not the request's prior
