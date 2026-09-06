@@ -14,6 +14,32 @@
     "tryAgain": "Yeniden dene",
     "goToExplore": "Keşfet'e git"
   },
+  "ModerationPage": {
+    "title": "Moderasyon kuyruğu",
+    "notConfiguredTitle": "Arka uç yapılandırılmadı",
+    "notConfiguredDescription": "Moderasyon kuyruğu bu ortamda kullanılamıyor."
+  },
+  "SearchPage": {
+    "notReachable": "Arama bu derlemeden erişilebilir değil.",
+    "searchFailed": "Arama çalışmadı. Tekrar deneyin."
+  },
+  "SuspendedPage": {
+    "title": "Hesap askıya alındı",
+    "subtitle": "Hesabın geçici olarak askıya alındı",
+    "description": "Bir moderatör, bir inceleme sonrasında bu hesabı askıya aldı. <until>{date}</until> tarihinden sonra {brand}'i tekrar kullanabilirsin. Bunun bir hata olduğunu düşünüyorsan destek ekibiyle iletişime geç."
+  },
+  "ErrorPage": {
+    "title": "Bir şeyler ters gitti",
+    "descriptionWithRef": "Beklenmeyen bir hata oluştu (referans {ref}). Tekrar deneyin ya da ana sayfaya dönün.",
+    "description": "Beklenmeyen bir hata oluştu. Tekrar deneyin ya da ana sayfaya dönün.",
+    "goHome": "Ana sayfaya git"
+  },
+  "NotFoundPage": {
+    "title": "Sayfa bulunamadı",
+    "description": "Bu sayfa mevcut değil ya da taşınmış olabilir. {brand} uygulama içindeki bağlantılarda yaşar. Bunun yerine Ana sayfa veya Keşfet'i deneyin.",
+    "goHome": "Ana sayfaya git",
+    "browseExplore": "Keşfet'e göz at"
+  },
   "Flow": {
     "loadError": "Akış yüklenemedi",
     "emptyTitle": "Henüz oynatılacak yeni bir şey yok",

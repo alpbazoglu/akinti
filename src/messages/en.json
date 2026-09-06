@@ -14,6 +14,32 @@
     "tryAgain": "Try again",
     "goToExplore": "Go to Explore"
   },
+  "ModerationPage": {
+    "title": "Moderation queue",
+    "notConfiguredTitle": "Backend not configured",
+    "notConfiguredDescription": "The moderation queue is unavailable in this environment."
+  },
+  "SearchPage": {
+    "notReachable": "Search isn't reachable from this build.",
+    "searchFailed": "Search didn't run. Try again."
+  },
+  "SuspendedPage": {
+    "title": "Account suspended",
+    "subtitle": "Your account is temporarily suspended",
+    "description": "A moderator suspended this account following a review. You can browse {brand} again after <until>{date}</until>. If you believe this is a mistake, contact support."
+  },
+  "ErrorPage": {
+    "title": "Something went wrong",
+    "descriptionWithRef": "An unexpected error occurred (ref {ref}). Try again, or head back to Home.",
+    "description": "An unexpected error occurred. Try again, or head back to Home.",
+    "goHome": "Go to Home"
+  },
+  "NotFoundPage": {
+    "title": "Page not found",
+    "description": "This page doesn't exist, or it may have moved. {brand} lives at the links inside the app. Try Home or Explore instead.",
+    "goHome": "Go to Home",
+    "browseExplore": "Browse Explore"
+  },
   "Flow": {
     "loadError": "Flow couldn't load",
     "emptyTitle": "Nothing new to play yet",

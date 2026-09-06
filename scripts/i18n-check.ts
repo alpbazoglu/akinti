@@ -11,35 +11,27 @@
  *      user-visible copy (`title`, `label`, `description`, `placeholder`,
  *      `alt`, `aria-label`, `aria-description`).
  *
- * This is a ratchet, not a hard "zero hardcoded strings" gate: full
- * extraction across ~450 files in `src/app`/`src/components` is a large,
- * ongoing migration (see `docs/I18N.md` for what has moved to
- * `src/messages/{tr,en}.json` so far and what has not), and turning this
- * into a hard failure today would break `npm run lint` for the whole
- * repository, including every other agent currently working in it. Instead:
- *
- *   - `scripts/i18n-check.baseline.json` records the current, known set of
- *     files with hardcoded copy and how many instances each has.
- *   - A file with MORE violations than its baseline entry (or a violation in
- *     a file with NO baseline entry at all) fails the check — the ratchet
- *     only tightens.
- *   - A file with fewer violations than baseline (including zero) never
- *     fails; run with `--update-baseline` after migrating a screen to shrink
- *     the baseline to match.
+ * Zero-tolerance (no ratchet, no baseline): the last 7 files/17 instances of
+ * client-side hardcoded copy (`ModerationPage`, `SearchPage`,
+ * `SuspendedPage`, `ErrorPage`/`NotFoundPage`, `OnboardingFlow.tsx`) were
+ * migrated to `src/messages/{tr,en}.json` in review3 finding 3's pass, and
+ * `scripts/i18n-check.baseline.json` was emptied and deleted — every hit
+ * from here on is a real regression, the same standard §1's server-side
+ * scan already holds. A bare domain/path literal (e.g. `OnboardingFlow.tsx`'s
+ * `akinti.app/u/{username}` handle preview) is not copy to translate — see
+ * `isUrlLike` below.
  *
  * Run with `npm run lint` (wired in `package.json`) or directly:
  *   npx tsx scripts/i18n-check.ts
- *   npx tsx scripts/i18n-check.ts --update-baseline
  */
 
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import ts from "typescript";
 
 const ROOT = path.resolve(__dirname, "..");
 const SCAN_DIRS = ["src/app", "src/components"];
-const BASELINE_PATH = path.join(__dirname, "i18n-check.baseline.json");
 
 /**
  * Server-side surfaces (`docs/I18N.md`, i18n-c stage): every Server Action's
@@ -83,6 +75,19 @@ function hasLetters(value: string): boolean {
   return /\p{L}/u.test(value);
 }
 
+/**
+ * A bare domain/path literal (e.g. `OnboardingFlow.tsx`'s
+ * `akinti.app/u/{username}` handle preview) is not user-facing copy to
+ * translate — it's the product's own domain, shown as-is in every locale.
+ * Matches an optional `scheme://` followed by a dotted host and path,
+ * deliberately narrow (starts with a host-shaped token, no spaces) so real
+ * sentences that merely mention a URL are still flagged.
+ */
+const URL_LIKE_PATTERN = /^(?:[a-z][a-z0-9+.-]*:\/\/)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s]*)?$/i;
+function isUrlLike(value: string): boolean {
+  return URL_LIKE_PATTERN.test(value);
+}
+
 function isExcluded(filePath: string): boolean {
   const normalized = filePath.replace(/\\/g, "/");
   if (!normalized.endsWith(".tsx")) return true;
@@ -117,7 +122,7 @@ function countViolations(filePath: string): Violation[] {
 
   function record(node: ts.Node, text: string) {
     const trimmed = text.trim();
-    if (!trimmed || !hasLetters(trimmed)) return;
+    if (!trimmed || !hasLetters(trimmed) || isUrlLike(trimmed)) return;
     const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
     violations.push({ line: line + 1, snippet: trimmed.slice(0, 60) });
   }
@@ -301,14 +306,7 @@ function checkKeyParity(): boolean {
   return false;
 }
 
-type Baseline = Record<string, number>;
-
-function loadBaseline(): Baseline {
-  if (!existsSync(BASELINE_PATH)) return {};
-  return JSON.parse(readFileSync(BASELINE_PATH, "utf8")) as Baseline;
-}
-
-/** Runs independently of the `.tsx` ratchet/`--update-baseline` — see this constant's own doc comment. Returns `true` if the server-side surfaces are clean. */
+/** Returns `true` if the server-side surfaces are clean. */
 function checkServerSurfaces(): boolean {
   const files = SERVER_SCAN_DIRS.flatMap(listServerFiles);
   const violationsByFile = new Map<string, Violation[]>();
@@ -344,80 +342,45 @@ function checkServerSurfaces(): boolean {
   return false;
 }
 
-function main() {
-  const updateBaseline = process.argv.includes("--update-baseline");
-  const serverSurfacesClean = checkServerSurfaces();
-  const emDashClean = checkEmDash();
-  const keyParityClean = checkKeyParity();
+/** Zero-tolerance `.tsx` scan — see this file's header comment for why the old baseline ratchet is gone. Returns `true` if clean. */
+function checkTsxSurfaces(): boolean {
   const files = SCAN_DIRS.flatMap(listTsxFiles);
-
-  const current: Baseline = {};
   const violationsByFile = new Map<string, Violation[]>();
+  let totalInstances = 0;
+
   for (const file of files) {
     const violations = countViolations(file);
     if (violations.length > 0) {
       const rel = path.relative(ROOT, file).replace(/\\/g, "/");
-      current[rel] = violations.length;
       violationsByFile.set(rel, violations);
+      totalInstances += violations.length;
     }
   }
 
-  if (updateBaseline) {
-    const sorted = Object.fromEntries(Object.entries(current).sort(([a], [b]) => a.localeCompare(b)));
-    writeFileSync(BASELINE_PATH, `${JSON.stringify(sorted, null, 2)}\n`);
-    console.log(`i18n-check: baseline updated — ${Object.keys(sorted).length} file(s), ${Object.values(sorted).reduce((a, b) => a + b, 0)} instance(s).`);
-    if (!serverSurfacesClean || !emDashClean || !keyParityClean) process.exit(1);
-    return;
+  if (violationsByFile.size === 0) {
+    console.log(`i18n-check: .tsx surfaces clean — 0 hardcoded copy across ${files.length} file(s) (src/app/**, src/components/**).`);
+    return true;
   }
 
-  const baseline = loadBaseline();
-  const newFiles: string[] = [];
-  const regressed: Array<{ file: string; baseline: number; current: number }> = [];
-  const improved: string[] = [];
-
-  for (const [file, count] of Object.entries(current)) {
-    const baselineCount = baseline[file];
-    if (baselineCount === undefined) {
-      newFiles.push(file);
-    } else if (count > baselineCount) {
-      regressed.push({ file, baseline: baselineCount, current: count });
-    } else if (count < baselineCount) {
-      improved.push(file);
+  console.error(`\ni18n-check: hardcoded copy in ${violationsByFile.size} file(s), ${totalInstances} instance(s):`);
+  for (const [file, violations] of violationsByFile) {
+    for (const violation of violations) {
+      console.error(`  ${file}:${violation.line} — "${violation.snippet}"`);
     }
   }
-  for (const file of Object.keys(baseline)) {
-    if (!(file in current)) improved.push(`${file} (fully migrated)`);
-  }
+  console.error("\nMove the string into src/messages/{tr,en}.json and reference it via useTranslations/getTranslations.");
+  return false;
+}
 
-  const totalFiles = Object.keys(current).length;
-  const totalInstances = Object.values(current).reduce((a, b) => a + b, 0);
-  console.log(`i18n-check: ${totalFiles} file(s) with hardcoded copy, ${totalInstances} instance(s) total (baseline ratchet — see scripts/i18n-check.ts).`);
+function main() {
+  const serverSurfacesClean = checkServerSurfaces();
+  const emDashClean = checkEmDash();
+  const keyParityClean = checkKeyParity();
+  const tsxSurfacesClean = checkTsxSurfaces();
 
-  if (improved.length > 0) {
-    console.log(`i18n-check: ${improved.length} file(s) improved since the baseline was last updated. Run "npx tsx scripts/i18n-check.ts --update-baseline" to record the progress.`);
+  if (!serverSurfacesClean || !emDashClean || !keyParityClean || !tsxSurfacesClean) {
+    process.exit(1);
   }
-
-  if (newFiles.length === 0 && regressed.length === 0) {
-    console.log("i18n-check: no new hardcoded copy beyond the recorded baseline.");
-    if (!serverSurfacesClean || !emDashClean || !keyParityClean) process.exit(1);
-    return;
-  }
-
-  if (newFiles.length > 0) {
-    console.error("\ni18n-check: hardcoded copy in file(s) with no baseline entry:");
-    for (const file of newFiles) {
-      const sample = violationsByFile.get(file)?.[0];
-      console.error(`  ${file} (${current[file]} instance(s))${sample ? ` — e.g. line ${sample.line}: "${sample.snippet}"` : ""}`);
-    }
-  }
-  if (regressed.length > 0) {
-    console.error("\ni18n-check: more hardcoded copy than the recorded baseline:");
-    for (const { file, baseline: b, current: c } of regressed) {
-      console.error(`  ${file}: baseline ${b} -> now ${c}`);
-    }
-  }
-  console.error("\nMove new user-visible strings into src/messages/{tr,en}.json instead of hardcoding them, or run --update-baseline if this is a deliberate, reviewed addition.");
-  process.exit(1);
 }
 
 main();

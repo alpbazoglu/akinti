@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { ModerationQueueFilters, ReportDetailSheet, ReportQueueList } from "@/components/moderation";
@@ -35,12 +36,13 @@ interface ModerationPageProps {
  */
 export default async function ModerationPage({ searchParams }: ModerationPageProps) {
   await requireUser(routes.moderation());
+  const t = await getTranslations("ModerationPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="Moderation queue" />
-        <EmptyState title="Backend not configured" description="The moderation queue is unavailable in this environment." />
+        <PageHeader title={t("title")} />
+        <EmptyState title={t("notConfiguredTitle")} description={t("notConfiguredDescription")} />
       </>
     );
   }
@@ -70,7 +72,7 @@ export default async function ModerationPage({ searchParams }: ModerationPagePro
 
   return (
     <>
-      <PageHeader title="Moderation queue" />
+      <PageHeader title={t("title")} />
       <div className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
         <ModerationQueueFilters />
         <ReportQueueList

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { routes } from "@/config/routes";
 import { Button, ErrorState } from "@/components/ui";
@@ -26,6 +27,7 @@ export default function GlobalSegmentError({
   retry: () => void;
 }) {
   const router = useRouter();
+  const t = useTranslations("ErrorPage");
 
   useEffect(() => {
     // No third-party error-reporting backend is wired up yet (see
@@ -38,16 +40,12 @@ export default function GlobalSegmentError({
   return (
     <main className="flex min-h-dvh items-center justify-center bg-surface px-4">
       <ErrorState
-        title="Something went wrong"
-        description={
-          error.digest
-            ? `An unexpected error occurred (ref ${error.digest}). Try again, or head back to Home.`
-            : "An unexpected error occurred. Try again, or head back to Home."
-        }
+        title={t("title")}
+        description={error.digest ? t("descriptionWithRef", { ref: error.digest }) : t("description")}
         onRetry={retry}
         action={
           <Button variant="secondary" onClick={() => router.push(routes.home())}>
-            Go to Home
+            {t("goHome")}
           </Button>
         }
       />

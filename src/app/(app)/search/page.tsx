@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { SearchView } from "@/components/feed";
@@ -27,14 +28,13 @@ interface SearchPageProps {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const { q } = await searchParams;
   const query = (q ?? "").trim();
+  const t = await getTranslations("SearchPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
         <PageHeader title={TERMS.search} />
-        <p className="akinti-page type-body measure text-ink-muted">
-          Search isn&apos;t reachable from this build.
-        </p>
+        <p className="akinti-page type-body measure text-ink-muted">{t("notReachable")}</p>
       </>
     );
   }
@@ -51,7 +51,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       profiles = result.profiles;
       waves = await hydrateWaveCards(supabase, result.waves, user?.id ?? null);
     } catch {
-      loadError = "Search didn't run. Try again.";
+      loadError = t("searchFailed");
     }
   }
 

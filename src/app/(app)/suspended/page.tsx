@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -51,19 +52,18 @@ export default async function SuspendedPage() {
     redirect(routes.home());
   }
 
+  const t = await getTranslations("SuspendedPage");
+
   return (
     <>
-      <PageHeader title="Account suspended" />
+      <PageHeader title={t("title")} />
       <EmptyState
-        title="Your account is temporarily suspended"
-        description={
-          <>
-            A moderator suspended this account following a review. You can browse{" "}
-            {TERMS.brand} again after{" "}
-            <span className="font-medium text-fg">{formatAbsoluteTime(suspendedUntil as string)}</span>.
-            If you believe this is a mistake, contact support.
-          </>
-        }
+        title={t("subtitle")}
+        description={t.rich("description", {
+          brand: TERMS.brand,
+          date: formatAbsoluteTime(suspendedUntil as string),
+          until: (chunks) => <span className="font-medium text-fg">{chunks}</span>,
+        })}
       />
     </>
   );
