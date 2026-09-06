@@ -144,9 +144,11 @@ export function ThreadView({
 
 /** Decorative loading placeholder, exported for the page-level Suspense boundary if one is added later. */
 export function ThreadViewSkeleton() {
+  const t = useTranslations("ThreadView");
+
   return (
     <div className="flex h-[60dvh] items-center justify-center">
-      <Spinner label="Loading conversation" />
+      <Spinner label={t("loadingConversation")} />
     </div>
   );
 }
