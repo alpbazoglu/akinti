@@ -20,9 +20,20 @@ describe("publishWaveSchema", () => {
     if (result.success) {
       expect(result.data.visibility).toBe("everyone");
       expect(result.data.commentPermission).toBeNull();
-      expect(result.data.duetPermission).toBeNull();
+      // fixDesktop P1 (docs/qa/desktop/REPORT.md #1): a freshly published
+      // Wave defaults to duet-requestable by everyone, not an inherited-but-
+      // invisible NULL — see this schema's `duetPermission` doc comment.
+      expect(result.data.duetPermission).toBe("everyone");
       expect(result.data.collaboratorUsernames).toEqual([]);
       expect(result.data.categories).toEqual([]);
+    }
+  });
+
+  it("still allows explicitly requesting profile-default inheritance with null", () => {
+    const result = publishWaveSchema.safeParse(baseInput({ duetPermission: null }));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.duetPermission).toBeNull();
     }
   });
 

@@ -29,12 +29,6 @@ export interface CreateWaveFormProps {
   submitLabel?: string;
   /** Title of the backing track this take was sung over, when there was one. */
   backingTrackTitle?: string | null;
-  /**
-   * "Open for Duet". Omitted entirely when the caller has nowhere to send it:
-   * a switch that silently does nothing is worse than no switch.
-   */
-  openCall?: boolean;
-  onOpenCallChange?: (open: boolean) => void;
   className?: string;
 }
 
@@ -92,8 +86,6 @@ export function CreateWaveForm({
   submitting = false,
   submitLabel = "Publish",
   backingTrackTitle,
-  openCall,
-  onOpenCallChange,
   className,
 }: CreateWaveFormProps) {
   const t = useTranslations("CreateWaveForm");
@@ -124,14 +116,24 @@ export function CreateWaveForm({
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<WaveVisibility>("everyone");
   const [commentPermission, setCommentPermission] = useState<PermissionAudience | null>(null);
-  const [duetPermission, setDuetPermission] = useState<PermissionAudience | null>(null);
+  /**
+   * Defaults to "Everyone" (fixDesktop P1, docs/qa/desktop/REPORT.md #1) —
+   * a first-time creator who never opens this select still publishes a
+   * duet-requestable Wave, and the select itself shows a concrete, honest
+   * value instead of an ambiguous blank "use my profile default" row.
+   */
+  const [duetPermission, setDuetPermission] = useState<PermissionAudience | null>("everyone");
+  const [openCall, setOpenCall] = useState(false);
   const [collaboratorInput, setCollaboratorInput] = useState("");
   const [collaborators, setCollaborators] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [titleError, setTitleError] = useState<string | null>(null);
 
   const creationMeta = CREATION_TYPES[audio.creationType];
-  const showOpenCall = typeof openCall === "boolean" && Boolean(onOpenCallChange);
+  // Visible whenever this Wave will accept Duet requests at all — hidden
+  // only when the creator explicitly chose "Nobody" above, since opening a
+  // call to skip the request step makes no sense on a Wave nobody may Duet.
+  const showOpenCall = duetPermission !== "nobody";
 
   const addCollaborator = () => {
     const username = normaliseUsername(collaboratorInput);
@@ -176,6 +178,7 @@ export function CreateWaveForm({
       visibility,
       commentPermission,
       duetPermission,
+      openCall: showOpenCall && openCall,
       collaboratorUsernames: collaborators,
       categories,
     });
@@ -225,8 +228,8 @@ export function CreateWaveForm({
             <Switch
               label={tTerms("openForDuet")}
               description={t("openForDuetDescription")}
-              checked={openCall === true}
-              onCheckedChange={(next) => onOpenCallChange?.(next)}
+              checked={openCall}
+              onCheckedChange={setOpenCall}
             />
           </div>
         ) : null}
@@ -261,6 +264,7 @@ export function CreateWaveForm({
             setDuetPermission((event.target.value || null) as PermissionAudience | null)
           }
           options={permissionOptionsWithDefault}
+          hint={t("duetPermissionHint")}
         />
 
         <div className="flex flex-col gap-2">

@@ -55,7 +55,17 @@ export const publishWaveSchema = z.object({
   creationType: z.enum(["recorded", "uploaded"]),
   visibility: z.enum(WAVE_VISIBILITIES).default("everyone"),
   commentPermission: z.enum(COMMENT_AUDIENCES).nullable().default(null),
-  duetPermission: z.enum(PERMISSION_AUDIENCES).nullable().default(null),
+  /**
+   * `'everyone'` by default (fixDesktop P1, docs/qa/desktop/REPORT.md #1) —
+   * a freshly published Wave a creator didn't touch the "Who can request a
+   * Duet" select for is duet-requestable by anyone, matching
+   * `profiles.duet_permission`'s own `not null default 'everyone'`, rather
+   * than relying invisibly on `can_request_duet()`'s inheritance fallback.
+   * `null` still means "inherit the creator's profile default" wherever a
+   * caller (`WaveOwnerMenu`'s "use my profile default" option) explicitly
+   * sends it.
+   */
+  duetPermission: z.enum(PERMISSION_AUDIENCES).nullable().default("everyone"),
   collaboratorUsernames: usernameListSchema,
   categories: tagsSchema.default([]),
   /**

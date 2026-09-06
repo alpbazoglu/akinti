@@ -57,6 +57,15 @@ export interface CreateWaveDraft {
   /** `null` means "inherit the creator's profile default" (spec §21). */
   readonly commentPermission: PermissionAudience | null;
   readonly duetPermission: PermissionAudience | null;
+  /**
+   * "Open for Duet" (fixDesktop P1, docs/qa/desktop/REPORT.md #1): the
+   * creator opted, during publish, to also open an Open Call on this Wave —
+   * `CreateFlow` calls `setOpenCall(waveId, null, null)` right after a
+   * successful publish when this is `true`. Distinct from `duetPermission`:
+   * that governs who may send a Duet *request*; an Open Call lets anyone
+   * skip the request/accept round trip entirely.
+   */
+  readonly openCall: boolean;
   /** Usernames without the leading `@`. Invites, not memberships — spec §16: never auto-add without consent. */
   readonly collaboratorUsernames: readonly string[];
   readonly categories: readonly string[];

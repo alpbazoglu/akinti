@@ -27,6 +27,7 @@ describe("CreateWaveDraft shape", () => {
       visibility: "everyone",
       commentPermission: null,
       duetPermission: null,
+      openCall: false,
       collaboratorUsernames: [],
       categories: [],
     };
@@ -50,6 +51,7 @@ describe("CreateWaveDraft shape", () => {
       visibility: "followers",
       commentPermission: "everyone",
       duetPermission: "following",
+      openCall: true,
       collaboratorUsernames: ["maria", "alex"],
       categories: ["Music", "Talk"],
     };

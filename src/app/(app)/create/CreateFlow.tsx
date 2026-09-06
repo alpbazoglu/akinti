@@ -24,6 +24,9 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
 import { enterChallengeAction } from "@/app/(app)/challenges/actions";
+// Owned by the desktop-duet agent (`src/app/(app)/w/[id]/duet/**`) — only
+// importing its already-exported `setOpenCall` action, not editing the file.
+import { setOpenCall as setOpenCallAction } from "@/app/(app)/w/[id]/duet/actions";
 import { PageHeader } from "@/components/layout";
 import {
   CreateWaveForm,
@@ -278,6 +281,24 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
       if (!published.ok) {
         setPublishError(published.error);
         return;
+      }
+
+      if (draft.openCall) {
+        // Best-effort, same tolerance as the challenge-entry and
+        // collaborator-invite calls below/above: the Wave already published
+        // successfully, so a failed Open Call (e.g. a transient DB error)
+        // is surfaced as a toast, never a reason to block navigation to the
+        // Wave that did publish (fixDesktop P1, docs/qa/desktop/REPORT.md #1).
+        const openCallResult = await setOpenCallAction(published.waveId, null, null).catch(
+          () => null,
+        );
+        if (!openCallResult?.ok) {
+          toast({
+            title: t("publishedButOpenCallFailed"),
+            description: openCallResult?.error ?? t("tryOpenCallAgain"),
+            tone: "error",
+          });
+        }
       }
 
       if (initialChallenge) {
