@@ -1,0 +1,370 @@
+{
+  "base": "http://localhost:3700",
+  "userA": {
+    "username": "e2ef2amtpbgoezkw2p",
+    "email": "e2e+f2a-mtpbgoezkw2p@akinti.test",
+    "id": "1ead508a-f575-492f-abfc-254746f88d52"
+  },
+  "userB": {
+    "username": "e2ef2bmtpbgowea5jp",
+    "email": "e2e+f2b-mtpbgowea5jp@akinti.test",
+    "id": "32d5a820-1349-4966-a2e0-ade0f230ea58"
+  },
+  "waveIdForDuet": "812d5c6b-7061-4c34-bd4c-7a9b171048b5",
+  "findings": [
+    {
+      "label": "TR: <html lang> is tr for tr-TR context",
+      "ok": true,
+      "detail": "lang=\"tr\""
+    },
+    {
+      "label": "TR: login page shows Turkish (E-posta/Şifre)",
+      "ok": true,
+      "detail": "AKINTI  Sesin bağlantıya dönüştüğü yer  Giriş yap  E-posta ve şifrenle giriş yap.  E-posta* Şifre* Giriş yap Şifreni mi "
+    },
+    {
+      "label": "TR: login redirects to onboarding",
+      "ok": true,
+      "detail": "http://localhost:3700/onboarding"
+    },
+    {
+      "label": "TR: onboarding completes, lands past onboarding",
+      "ok": true,
+      "detail": "http://localhost:3700/"
+    },
+    {
+      "label": "TR: default post-login landing route",
+      "ok": true,
+      "detail": "http://localhost:3700/"
+    },
+    {
+      "label": "TR: Flow renders a trace or an honest empty state",
+      "ok": true,
+      "detail": "trace present"
+    },
+    {
+      "label": "TR: time to first sound from login click under 10s (brief target)",
+      "ok": true,
+      "detail": "9853ms (includes onboarding steps, not a pure measure)"
+    },
+    {
+      "label": "TR: Flow trace canvas repaints while playing",
+      "ok": true,
+      "detail": "655624818 -> 2545185883"
+    },
+    {
+      "label": "TR: swipe up advances Flow",
+      "ok": true,
+      "detail": "see screenshot 09"
+    },
+    {
+      "label": "TR: Duet hero action present in Flow rail",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "TR: 'new for you' badge present somewhere in nav",
+      "ok": true,
+      "detail": "count=0 (nav icon badge may not be text-queryable)"
+    },
+    {
+      "label": "axe: TR Flow",
+      "ok": false,
+      "detail": "1 serious/critical of 1 total"
+    },
+    {
+      "label": "TR: record flow (arm -> start -> stop)",
+      "ok": false,
+      "detail": "TimeoutError: locator.click: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /Mikrofonu (etkinleştir|aç)|Arm the microphone/i }).first()\u001b[22m\n"
+    },
+    {
+      "label": "TR: record flow (arm -> countdown -> live trace -> stop)",
+      "ok": false,
+      "detail": ""
+    },
+    {
+      "label": "TR: upload path (Enhance present or intentionally skipped, per prior QA note)",
+      "ok": true,
+      "detail": "skips Enhance -> Details directly"
+    },
+    {
+      "label": "TR: /tracks backing-track library renders",
+      "ok": true,
+      "detail": "İçeriğe geç AKINTI E2 e2ef2amtpbgoezkw2p Parçalar Üzerine söylenecek parçalar Wave D demo — uploaded"
+    },
+    {
+      "label": "TR: /tracks has at least one 'sing over this' entry point",
+      "ok": false,
+      "detail": "no track CTA found (library may be empty)"
+    },
+    {
+      "label": "TR: challenge detail page loads",
+      "ok": true,
+      "detail": "/challenges/atisma-call"
+    },
+    {
+      "label": "TR: challenge -> /create?challenge= navigation",
+      "ok": false,
+      "detail": "http://localhost:3700/challenges/atisma-call"
+    },
+    {
+      "label": "TR: /hashtag/[tag] renders without crashing",
+      "ok": true,
+      "detail": "http://localhost:3700/hashtag/qa"
+    },
+    {
+      "label": "EN: User B logged in and onboarded",
+      "ok": false,
+      "detail": "http://localhost:3700/onboarding"
+    },
+    {
+      "label": "screenshot 37-en-userB-post-onboarding",
+      "ok": false,
+      "detail": "Error: page.screenshot: Protocol error (Page.captureScreenshot): Unable to capture screenshot\nCall log:\n\u001b[2m  - taking page screenshot\u001b[22m\n\u001b[2m  - waiting for fonts to load...\u001b[22m\n\u001b[2m  - fonts loaded\u001b[22m\n"
+    },
+    {
+      "label": "EN: Explore New shows recent Waves",
+      "ok": true,
+      "detail": "812d5c6b-7061-4c34-bd4c-7a9b171048b5"
+    },
+    {
+      "label": "EN: Duet request submitted",
+      "ok": true,
+      "detail": "http://localhost:3700/duets"
+    },
+    {
+      "label": "TR: A accepts Duet request",
+      "ok": false,
+      "detail": "no Accept button visible in Received tab"
+    },
+    {
+      "label": "EN: 'Record your Duet' link present after accept",
+      "ok": false,
+      "detail": "not found in Sent tab"
+    },
+    {
+      "label": "TR: notifications page shows duet-related activity",
+      "ok": true,
+      "detail": "İçeriğe geç AKINTI E2 e2ef2amtpbgoezkw2p Notifications Henüz bildirim yok  Biri seni takip ettiğinde, yorum yaptığında, Wave'lerinden birini kaydettiğ"
+    },
+    {
+      "label": "TR: owner menu present on own Wave",
+      "ok": false,
+      "detail": ""
+    },
+    {
+      "label": "EN: push subscription attempt in Playwright",
+      "ok": false,
+      "detail": "{\"ok\":false,\"detail\":\"AbortError: Registration failed - missing applicationServerKey, and gcm_sender_id not found in manifest\"}"
+    },
+    {
+      "label": "TR: own profile renders (signature trace present)",
+      "ok": true,
+      "detail": "svg/trace nodes=17"
+    },
+    {
+      "label": "TR: no Pro mark shown for non-Pro own profile",
+      "ok": true,
+      "detail": "Pro-label matches=0"
+    },
+    {
+      "label": "TR: followers/following pages render",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "TR: starting a new 1:1 conversation works (prior P0 defect #1)",
+      "ok": true,
+      "detail": "conversation opened"
+    },
+    {
+      "label": "TR: voice-message control present in thread",
+      "ok": true,
+      "detail": "matches=1"
+    },
+    {
+      "label": "TR: language switch row (TR<->EN) found on Settings > Appearance",
+      "ok": false,
+      "detail": "not found — checked /settings/appearance"
+    },
+    {
+      "label": "TR: delete-account sheet opens and Escape closes it (cancel path)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "TR: analytics screen renders without a 3x3 identical metric-card grid appearance",
+      "ok": true,
+      "detail": "see screenshot 63 for manual grid check"
+    },
+    {
+      "label": "TR: Pro screen shows not-subscribed state",
+      "ok": true,
+      "detail": "İçeriğe geç AKINTI E2 e2ef2amtpbgoezkw2p AKINTI Pro Pitch snap ve self-harmony sesleri Yayınladığın her Wave için stemler Sınırsız kaydetme Her zaman "
+    },
+    {
+      "label": "TR: Pro checkout with no provider keys shows honest 'payments not set up', not a crash/fake success",
+      "ok": false,
+      "detail": "İçeriğe geç AKINTI E2 e2ef2amtpbgoezkw2p AKINTI Pro Pitch snap ve self-harmony sesleri Yayınladığın her Wave için stemler Sınırsız kaydetme Her zaman reklamsız Ayda bir öne çıkan Duet yeri Adının yanı"
+    },
+    {
+      "label": "Theme sweep: light captured on Flow/Explore/Wave/Create",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "Theme sweep: dark captured on Flow/Explore/Wave/Create",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "axe: TR /explore",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "axe: TR /search",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "axe: TR /notifications",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "axe: TR /messages",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "axe: TR /duets",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "axe: TR /settings",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "axe: TR /settings/privacy",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "axe: TR /settings/notifications",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "axe: TR /settings/safety",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "Keyboard: Enter on trigger opens sheet, focus moves inside",
+      "ok": true,
+      "detail": "focusedInSheet=true"
+    },
+    {
+      "label": "Keyboard: Escape closes sheet and focus returns to a button",
+      "ok": true,
+      "detail": "active tag focus check=true"
+    },
+    {
+      "label": "axe: Desktop 1280x800 Flow",
+      "ok": true,
+      "detail": "0 serious/critical of 0 total"
+    },
+    {
+      "label": "Desktop 1280x800 pass completed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "PWA: manifest.webmanifest is valid JSON with name/icons",
+      "ok": true,
+      "detail": "{\"id\":\"/\",\"name\":\"AKINTI · Sesin bağlantıya dönüştüğü yer\",\"short_name\":\"AKINTI\",\"description\":\"Sesi önceleyen bir sosyal ağ. Sesini paylaş, yaratıcıları keşfet, dinlemeyi iş birliğine dönüştür.\",\"lan"
+    },
+    {
+      "label": "PWA: service worker registers",
+      "ok": true,
+      "detail": "active"
+    }
+  ],
+  "consoleErrors": [
+    {
+      "label": "TR-mobile",
+      "text": "pageerror: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+    }
+  ],
+  "failedRequests": [],
+  "axeResults": [
+    {
+      "label": "TR Flow",
+      "total": 1,
+      "serious": [
+        {
+          "id": "aria-hidden-focus",
+          "impact": "serious",
+          "help": "ARIA hidden element must not be focusable or contain focusable elements",
+          "nodes": [
+            ".h-dvh.w-full[data-flow-active=\"false\"]:nth-child(1)",
+            ".h-dvh.w-full[data-flow-active=\"false\"]:nth-child(3)"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "TR /explore",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "TR /search",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "TR /notifications",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "TR /messages",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "TR /duets",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "TR /settings",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "TR /settings/privacy",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "TR /settings/notifications",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "TR /settings/safety",
+      "total": 0,
+      "serious": []
+    },
+    {
+      "label": "Desktop 1280x800 Flow",
+      "total": 0,
+      "serious": []
+    }
+  ]
+}
