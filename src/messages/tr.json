@@ -250,6 +250,25 @@
     "seekWithin": "{title} içinde ilerlet",
     "singOverThis": "Bunun üzerine söyle"
   },
+  "TrackCard": {
+    "bpm": "{bpm} bpm",
+    "pause": "{title} duraklat",
+    "play": "{title} oynat",
+    "singOverThis": "Bunun üzerine söyle"
+  },
+  "TracksLibraryGrid": {
+    "filterByGenre": "Parçaları türe göre filtrele",
+    "allGenres": "Tüm türler",
+    "filterByBpm": "Parçaları tempoya göre filtrele",
+    "allTempos": "Tüm tempolar",
+    "bpmUnder90": "90 bpm altı",
+    "bpm90to119": "90–119 bpm",
+    "bpm120to139": "120–139 bpm",
+    "bpm140plus": "140+ bpm",
+    "filterByKey": "Parçaları tona göre filtrele",
+    "allKeys": "Tüm tonlar",
+    "noMatch": "Bu filtrelere uyan parça yok."
+  },
   "HomeEmptyState": {
     "noFollowsYet": "Takip ettiklerin henüz bir şey paylaşmadı.",
     "hereIsWhatPeopleListenTo": "İşte şu anda insanların dinlediği şeyler.",

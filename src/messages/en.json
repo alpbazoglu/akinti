@@ -250,6 +250,25 @@
     "seekWithin": "Seek within {title}",
     "singOverThis": "Sing over this"
   },
+  "TrackCard": {
+    "bpm": "{bpm} bpm",
+    "pause": "Pause {title}",
+    "play": "Play {title}",
+    "singOverThis": "Sing over this"
+  },
+  "TracksLibraryGrid": {
+    "filterByGenre": "Filter tracks by genre",
+    "allGenres": "All genres",
+    "filterByBpm": "Filter tracks by tempo",
+    "allTempos": "All tempos",
+    "bpmUnder90": "Under 90 bpm",
+    "bpm90to119": "90–119 bpm",
+    "bpm120to139": "120–139 bpm",
+    "bpm140plus": "140+ bpm",
+    "filterByKey": "Filter tracks by key",
+    "allKeys": "All keys",
+    "noMatch": "No tracks match these filters."
+  },
   "HomeEmptyState": {
     "noFollowsYet": "No one you follow has posted yet.",
     "hereIsWhatPeopleListenTo": "Here is what people are listening to right now.",

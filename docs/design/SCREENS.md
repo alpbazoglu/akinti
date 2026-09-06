@@ -949,9 +949,18 @@ coloured pill). The per-Wave sparkline column called for in the original brief i
 omitted — `creator_wave_performance` returns no peaks data to draw one from, and this pass
 did not add a new query for it (see `WavePerformanceTable`'s own comment).
 
+### Tracks (`/tracks`)
+Desktop picks a second render path (`TracksView`, `useIsDesktopViewport`, one tree
+mounted): a filterable card grid (`TracksLibraryGrid`) instead of `BackingTracksLane`'s
+teaser-lane shape, which mobile keeps unchanged. Genre, tempo-bucket ("under 90 bpm",
+"90–119", ...) and key chip rows are derived from the tracks actually loaded — a chip only
+appears when at least one track has that value, never a fixed list of options that could
+all be empty. Each `TrackCard` carries the same hover-reveal play button and genre tint as
+`ExploreWaveCard`, and a "Sing over this" primary key linking straight to `/create?track=`.
+
 ### Not yet built
-Tracks, Duets, Search, Notifications, Messages and Settings have not had a desktop-specific
-pass — they render whatever their existing mobile-first layout produces at desktop width
-(correct, but not redesigned to Direction A's card/rail language). `loading.tsx` skeletons
-for Flow/Explore/Wave/Profile have not been reshaped to the new desktop layouts; they still
+Duets, Search, Notifications, Messages and Settings have not had a desktop-specific pass —
+they render whatever their existing mobile-first layout produces at desktop width (correct,
+but not redesigned to Direction A's card/rail language). `loading.tsx` skeletons for
+Flow/Explore/Wave/Profile have not been reshaped to the new desktop layouts; they still
 describe the pre-existing mobile shape.

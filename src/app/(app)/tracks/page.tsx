@@ -1,7 +1,8 @@
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
-import { BackingTracksLane, type BackingTrackCard } from "@/components/feed";
+import { type BackingTrackCard } from "@/components/feed";
+import { TracksView } from "@/components/tracks";
 import { routes } from "@/config/routes";
 import { requireOnboarded } from "@/lib/auth/server";
 import { resolveWavePeaks } from "@/lib/audio/peaks";
@@ -69,7 +70,7 @@ export default async function TracksPage() {
           </p>
         </div>
       ) : (
-        <BackingTracksLane tracks={tracks} />
+        <TracksView tracks={tracks} />
       )}
     </>
   );
