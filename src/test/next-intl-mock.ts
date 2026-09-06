@@ -5,16 +5,43 @@
 // React context, which no component test wraps its tree in — every existing
 // test renders a bare component tree. Rather than adding that provider (and
 // its message bundle) to every test that touches a translated component,
-// this resolves messages directly from `src/messages/en.json` (the typed
-// source locale, `src/i18n/global.ts`), so a test asserting on real English
-// copy keeps working unmodified after a component adopts `useTranslations`.
+// this resolves messages directly from `src/messages/{en,tr}.json` (`en` is
+// the typed source locale, `src/i18n/global.ts`).
 //
-// Deliberately minimal: `{placeholder}` interpolation and a small `t.rich`
-// (single-level tags only) are all any current component/test needs.
+// Translation itself goes through `use-intl`'s real `createTranslator` (the
+// same engine `next-intl` re-exports it from) rather than a hand-rolled
+// `{placeholder}` replaceAll (review3 finding 25): a naive replaceAll never
+// understood ICU plural/select syntax, so a test asserting a metric line
+// against a message using real ICU plurals passed against the raw ICU
+// source string while production correctly rendered "3 plays" — the mock
+// was hiding exactly the formatting layer next-intl was adopted for.
+// Imported from `use-intl` directly, not `next-intl` (this module IS the
+// `next-intl` alias target, so importing `next-intl` here would be
+// circular) — `createTranslator` is synchronous and needs no
+// `NextIntlClientProvider`.
+import { createTranslator } from "use-intl";
+
 import en from "@/messages/en.json";
 import tr from "@/messages/tr.json";
 
 type Messages = typeof en;
+
+/**
+ * `createTranslator`'s real signature ties its `namespace`/key arguments to
+ * literal keys computed from the exact `messages` object type — the same
+ * `NamespacedMessageKeys` machinery `docs/I18N.md` §8.1 already flags as
+ * hitting TypeScript's complexity ceiling for a *namespaced* translator;
+ * here `namespace`/`key` are plain runtime strings a test can pass for any
+ * screen, so this mock deliberately calls through a loosened signature
+ * instead of fighting that generic — one cast, at the one call site below.
+ */
+type LooseCreateTranslator = (config: {
+  locale: string;
+  messages: Record<string, unknown>;
+  namespace?: string;
+  onError?: (error: unknown) => void;
+  getMessageFallback?: (info: { key: string }) => string;
+}) => MockTranslator;
 
 const MESSAGES_BY_LOCALE = { en, tr } as const;
 type MockLocale = keyof typeof MESSAGES_BY_LOCALE;
@@ -39,52 +66,35 @@ export function __getMockLocale(): MockLocale {
   return mockLocale;
 }
 
-function resolveNamespace(namespace?: string, locale?: MockLocale): Record<string, unknown> {
-  const messages = MESSAGES_BY_LOCALE[locale ?? mockLocale];
-  if (!namespace) return messages as unknown as Record<string, unknown>;
-  const parts = namespace.split(".");
-  let node: unknown = messages;
-  for (const part of parts) {
-    node = (node as Record<string, unknown> | undefined)?.[part];
-  }
-  return (node as Record<string, unknown>) ?? {};
-}
-
-function resolveMessage(namespace: string | undefined, key: string, locale?: MockLocale): string {
-  const scope = resolveNamespace(namespace, locale);
-  const parts = key.split(".");
-  let value: unknown = scope;
-  for (const part of parts) {
-    value = (value as Record<string, unknown> | undefined)?.[part];
-  }
-  return typeof value === "string" ? value : key;
-}
-
-function interpolate(message: string, values?: Record<string, unknown>): string {
-  if (!values) return message;
-  return Object.entries(values).reduce(
-    (acc, [name, value]) => acc.replaceAll(`{${name}}`, String(value)),
-    message,
-  );
-}
-
 export interface MockTranslator {
   (key: string, values?: Record<string, unknown>): string;
   rich: (key: string, values?: Record<string, (chunks: string) => unknown>) => unknown;
 }
 
+/**
+ * `messages`/`namespace`/`key` are loosely typed here on purpose
+ * (`Record<string, unknown>`/plain `string`, not the precise `Messages`
+ * type `en.json` carries): a test can request any namespace or key at
+ * runtime, and typing this against the full message tree hits the same
+ * "union type too complex to represent" ceiling `MessageTranslator`
+ * (`src/lib/validation/translate.ts`, `docs/I18N.md` §8.1) documents for
+ * the same reason.
+ */
 function makeTranslator(namespace?: string, locale?: MockLocale): MockTranslator {
-  const t = ((key: string, values?: Record<string, unknown>) =>
-    interpolate(resolveMessage(namespace, key, locale), values)) as MockTranslator;
-  t.rich = (key: string, values) => {
-    const raw = resolveMessage(namespace, key, locale);
-    const match = /^([\s\S]*)<(\w+)>([\s\S]*)<\/\2>([\s\S]*)$/.exec(raw);
-    if (!match || !values) return raw;
-    const [, before, tag, inner, after] = match;
-    const render = values[tag];
-    return [before, render ? render(inner ?? "") : inner, after];
-  };
-  return t;
+  const resolvedLocale = locale ?? mockLocale;
+  const messages = MESSAGES_BY_LOCALE[resolvedLocale] as unknown as Record<string, unknown>;
+  const loosely = createTranslator as unknown as LooseCreateTranslator;
+  return loosely({
+    locale: resolvedLocale,
+    messages,
+    namespace,
+    // A test resolving a namespace/key that doesn't exist yet is expected
+    // sometimes (asserting a screen BEFORE its copy is migrated); stay
+    // silent rather than spamming stderr the way next-intl's default
+    // `onError` (`console.error`) would.
+    onError: () => {},
+    getMessageFallback: ({ key }) => key,
+  });
 }
 
 export interface GetTranslationsOptions {
