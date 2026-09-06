@@ -24,6 +24,25 @@ import createNextIntlPlugin from "next-intl/plugin";
  * through `src/proxy.ts` (owned by the auth/proxy layer, not this stage) is
  * out of scope here. `'unsafe-eval'` is added in development only, where
  * Fast Refresh needs it.
+ *
+ * Payment providers (docs/qa/review3/REVIEW.md finding 2, docs/BILLING.md):
+ * both AKINTI Pro rails inject a third-party script into this app's own
+ * document, so without these origins the CSP silently blocks every
+ * checkout, with no error surfaced to the buyer beyond a console violation.
+ *  - Paddle (`StartProControls.tsx`): `@paddle/paddle-js`'s `initializePaddle`
+ *    loads `https://cdn.paddle.com` and opens `Paddle.Checkout.open()` in an
+ *    iframe on `https://buy.paddle.com` (sandbox: `https://sandbox-buy.
+ *    paddle.com`); its overlay also calls back to `*.paddle.com` for
+ *    pricing/localization. See https://developer.paddle.com/build/
+ *    transactions/paddlejs-overlay-checkout-guide.
+ *  - iyzico (`IyzicoCheckoutEmbed.tsx`): `checkoutFormContent` returned by
+ *    `startProCheckout` (`src/lib/billing/iyzico.ts`, `IYZICO_BASE_URL`)
+ *    is iyzico's own HTML+`<script>` embed, re-executed in place — that
+ *    script is served from `static.iyzipay.com` and draws the actual card
+ *    fields via a same-page iframe hosted on `sandbox-api.iyzipay.com`
+ *    (sandbox) or `api.iyzipay.com` (production); both call back to that
+ *    same host over XHR. `*.iyzipay.com` covers sandbox and production
+ *    without hardcoding which one `IYZICO_BASE_URL` points at.
  */
 function contentSecurityPolicy(): string {
   const isDev = process.env.NODE_ENV !== "production";
@@ -34,17 +53,21 @@ function contentSecurityPolicy(): string {
   const supabaseWsOrigins = Array.from(
     new Set(["wss://*.supabase.co", supabaseUrl.replace(/^http/, "ws")].filter(Boolean)),
   ).join(" ");
+  const paddleScriptOrigins = "https://cdn.paddle.com";
+  const paddleFrameOrigins = "https://buy.paddle.com https://sandbox-buy.paddle.com";
+  const paddleConnectOrigins = "https://*.paddle.com";
+  const iyzicoOrigins = "https://*.iyzipay.com";
 
   const directives: Record<string, string> = {
     "default-src": "'self'",
-    "script-src": `'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+    "script-src": `'self' 'unsafe-inline' ${paddleScriptOrigins} ${iyzicoOrigins}${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src": "'self' 'unsafe-inline'",
     "img-src": `'self' data: blob: ${supabaseOrigins}`,
     "media-src": `'self' blob: ${supabaseOrigins}`,
-    "connect-src": `'self' ${supabaseOrigins} ${supabaseWsOrigins}`,
+    "connect-src": `'self' ${supabaseOrigins} ${supabaseWsOrigins} ${paddleConnectOrigins} ${iyzicoOrigins}`,
     "font-src": "'self' data:",
     "worker-src": "'self' blob:",
-    "frame-src": "'none'",
+    "frame-src": `${paddleFrameOrigins} ${iyzicoOrigins}`,
     "frame-ancestors": "'none'",
     "object-src": "'none'",
     "base-uri": "'self'",
