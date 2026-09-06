@@ -11,7 +11,7 @@ import { BillingProviderError } from "./types";
 import type { BillingProviderClient, CreateCheckoutResult, IyzicoBuyerDetails } from "./types";
 
 export * from "./types";
-export { iyzicoProvider } from "./iyzico";
+export { isIyzicoConfigured, iyzicoProvider } from "./iyzico";
 export { paddleProvider } from "./paddle";
 export { isPro, requirePro } from "./entitlements";
 export * as billingRepository from "./repository";
@@ -82,7 +82,7 @@ export async function startCheckout(
 
   const plan = await repository.getPlanByCode(admin, args.planCode);
   if (!plan) {
-    throw new BillingProviderError("iyzico", "This plan is not available right now.");
+    throw new BillingProviderError("iyzico", "This plan is not available right now.", "planNotAvailable");
   }
 
   const provider = providerFor(plan.provider);
@@ -122,7 +122,7 @@ export async function startCheckout(
 export async function cancelSubscriptionForUser(admin: SupabaseAdminClient, userId: string): Promise<void> {
   const subscription = await repository.getLatestSubscriptionForUser(admin, userId);
   if (!subscription || subscription.status === "canceled" || subscription.status === "expired") {
-    throw new BillingProviderError("iyzico", "You don't have an active AKINTI Pro subscription.");
+    throw new BillingProviderError("iyzico", "You don't have an active AKINTI Pro subscription.", "noActiveSubscription");
   }
 
   const provider = providerFor(subscription.provider);
@@ -146,7 +146,7 @@ export async function resumeSubscriptionForUser(admin: SupabaseAdminClient, user
     subscription.cancel_at_period_end &&
     (subscription.status === "active" || subscription.status === "trialing");
   if (!subscription || !resumable) {
-    throw new BillingProviderError("iyzico", "You don't have a subscription to resume.");
+    throw new BillingProviderError("iyzico", "You don't have a subscription to resume.", "noSubscriptionToResume");
   }
 
   const provider = providerFor(subscription.provider);

@@ -74,12 +74,22 @@ async function requireSignedIn(): Promise<
   return { userId: user.id, email: user.email, name: profile?.displayName || user.email, error: null };
 }
 
+/**
+ * `BillingProviderError.message` is an internal, English-only detail —
+ * never rendered directly (QA `full2` defect #2). A known `messageKey`
+ * translates to the matching `SettingsProActions` key; anything without one
+ * (an env-var misconfiguration, a webhook-only error) falls back to the
+ * already-translated generic `fallback` rather than leaking raw English.
+ */
 function describeError(err: unknown, fallback: string, t: MessageTranslator): string {
   if (isRateLimitError(err)) {
     return t("Common.rateLimited");
   }
   if (err instanceof BillingProviderError) {
-    return err.message;
+    if (err.messageKey === "planNotAvailable") return t("SettingsProActions.planNotAvailable");
+    if (err.messageKey === "noActiveSubscription") return t("SettingsProActions.noActiveSubscription");
+    if (err.messageKey === "noSubscriptionToResume") return t("SettingsProActions.noSubscriptionToResume");
+    return fallback;
   }
   if (err instanceof DatabaseError && err.code === UNIQUE_VIOLATION) {
     return t("SettingsProActions.checkoutInProgress");

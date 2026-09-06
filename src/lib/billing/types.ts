@@ -123,11 +123,22 @@ export interface BillingProviderClient {
   readonly verifiesDuringParse?: boolean;
 }
 
-/** Thrown by a provider client for a condition the caller should show as a normal, non-crashing failure. */
+/**
+ * Thrown by a provider client for a condition the caller should show as a
+ * normal, non-crashing failure. `message` is an internal, English-only
+ * detail (for logs and the handful of cases nothing ever surfaces it to a
+ * user, e.g. a misconfigured env var) — a caller that shows a
+ * `BillingProviderError` to an end user must translate via `messageKey`
+ * (`SettingsProActions.<key>`, `src/app/(app)/settings/pro/actions.ts`'s
+ * `describeError`) rather than rendering `message` directly (QA `full2`
+ * defect #2: the untranslated English "This plan is not available right
+ * now." used to leak straight into a fully-Turkish billing sheet).
+ */
 export class BillingProviderError extends Error {
   constructor(
     readonly provider: BillingProvider,
     message: string,
+    readonly messageKey?: string,
   ) {
     super(message);
     this.name = "BillingProviderError";

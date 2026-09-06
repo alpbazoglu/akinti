@@ -25,6 +25,8 @@ export interface StartProControlsProps {
   /** `null` means `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` isn't set — a USD/international caller then sees an honest "not set up yet" state instead of a broken Start Pro key. */
   paddleClientToken: string | null;
   paddleEnvironment: "sandbox" | "production";
+  /** `IYZICO_API_KEY`/`IYZICO_SECRET_KEY` are both set — the TRY-side equivalent of `paddleClientToken !== null` (QA `full2` defect #2). */
+  iyzicoReady: boolean;
   /** The request's resolved locale (`getLocale()`), threaded down from `settings/pro/page.tsx` -> `ProScreen` -> here (review3 finding 27) — determines the checkout currency (`detectProCurrency`), not `navigator.language` alone. */
   locale: string;
 }
@@ -71,7 +73,7 @@ const EMPTY_BUYER: IyzicoBuyerDetails = {
  * Sheet then its embedded Checkout Form for a TRY plan, Paddle's own
  * checkout overlay for a USD plan.
  */
-export function StartProControls({ plans, paddleClientToken, paddleEnvironment, locale }: StartProControlsProps) {
+export function StartProControls({ plans, paddleClientToken, paddleEnvironment, iyzicoReady, locale }: StartProControlsProps) {
   const t = useTranslations("StartProControls");
   const tPro = useTranslations("Pro");
   const [billingInterval, setBillingInterval] = useState<ProInterval>("month");
@@ -87,6 +89,11 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment, 
   const amount = resolvePlanAmount(plans, currency, billingInterval);
   const planCode = planCodeFor(currency, billingInterval);
   const paddleReady = Boolean(paddleClientToken);
+  // QA `full2` defect #2: check the plan exists AND the provider is
+  // configured before ever asking for a Turkish national ID — mirrors the
+  // USD/Paddle `paddleReady` gate below, which already worked this way.
+  const tryPlanSeeded = plans.some((plan) => plan.currency === "TRY");
+  const iyzicoUnavailable = currency === "TRY" && (!iyzicoReady || !tryPlanSeeded);
 
   if (checkoutFormContent) {
     return (
@@ -143,6 +150,11 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment, 
   };
 
   const handleStartPro = () => {
+    // Unreachable in practice — the button below is replaced by the
+    // "not set up" message whenever `iyzicoUnavailable` is true — but kept
+    // as a guard so a TRY checkout can never open the buyer-details Sheet
+    // (and ask for a national ID) without a real plan and provider behind it.
+    if (iyzicoUnavailable) return;
     if (currency === "TRY") {
       setBuyerOpen(true);
       return;
@@ -178,7 +190,7 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment, 
         </p>
       ) : null}
 
-      {currency === "USD" && !paddleReady ? (
+      {(currency === "USD" && !paddleReady) || iyzicoUnavailable ? (
         <p className="type-body-sm text-ink-muted">{t("paymentsNotSetUp")}</p>
       ) : (
         <Button size="lg" fullWidth onClick={handleStartPro} loading={starting}>

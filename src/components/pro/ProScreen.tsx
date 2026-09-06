@@ -18,6 +18,8 @@ export interface ProScreenProps {
   plans: readonly ProPlanSummary[];
   paddleClientToken: string | null;
   paddleEnvironment: "sandbox" | "production";
+  /** `IYZICO_API_KEY`/`IYZICO_SECRET_KEY` are both set (`isIyzicoConfigured`, `src/lib/billing/iyzico.ts`) — the TRY-side equivalent of `paddleClientToken !== null`. */
+  iyzicoReady: boolean;
   /** The request's resolved locale (`getLocale()`) — threaded through to `StartProControls` (review3 finding 27). */
   locale: string;
 }
@@ -33,7 +35,7 @@ export interface ProScreenProps {
  * the provider's webhook confirms the period actually ended
  * (`docs/BILLING.md` "Cancel / refund policy").
  */
-export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvironment, locale }: ProScreenProps) {
+export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvironment, iyzicoReady, locale }: ProScreenProps) {
   const [status, setStatus] = useState(initialStatus);
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false);
   const [resuming, setResuming] = useState(false);
@@ -67,7 +69,7 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
         <p className="type-body-sm text-ink-muted">
           {t("pastDueDescription")}
         </p>
-        <StartProControls plans={plans} paddleClientToken={paddleClientToken} paddleEnvironment={paddleEnvironment} locale={locale} />
+        <StartProControls plans={plans} paddleClientToken={paddleClientToken} paddleEnvironment={paddleEnvironment} iyzicoReady={iyzicoReady} locale={locale} />
       </div>
     );
   }
@@ -94,7 +96,7 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
           </p>
         ) : null}
         <p className="type-body-sm text-ink-muted">{t("orStartNew")}</p>
-        <StartProControls plans={plans} paddleClientToken={paddleClientToken} paddleEnvironment={paddleEnvironment} locale={locale} />
+        <StartProControls plans={plans} paddleClientToken={paddleClientToken} paddleEnvironment={paddleEnvironment} iyzicoReady={iyzicoReady} locale={locale} />
       </div>
     );
   }
@@ -127,6 +129,6 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
   }
 
   return (
-    <StartProControls plans={plans} paddleClientToken={paddleClientToken} paddleEnvironment={paddleEnvironment} locale={locale} />
+    <StartProControls plans={plans} paddleClientToken={paddleClientToken} paddleEnvironment={paddleEnvironment} iyzicoReady={iyzicoReady} locale={locale} />
   );
 }

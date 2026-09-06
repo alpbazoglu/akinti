@@ -6,6 +6,7 @@ import type { ProPlanSummary } from "@/components/pro/pricing";
 import { BRAND } from "@/config/terminology";
 import { routes } from "@/config/routes";
 import { requireUser } from "@/lib/auth/server";
+import { isIyzicoConfigured } from "@/lib/billing";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui";
@@ -73,6 +74,10 @@ export default async function ProSettingsPage() {
 
   const paddleClientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.trim() || null;
   const paddleEnvironment = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT === "production" ? "production" : "sandbox";
+  // QA `full2` defect #2: the TRY/iyzico path had no equivalent to the USD/
+  // Paddle `paddleReady` gate above — checked here, before the buyer-details
+  // Sheet ever opens, alongside whether a TRY plan is actually seeded.
+  const iyzicoReady = isIyzicoConfigured();
 
   return (
     <>
@@ -83,6 +88,7 @@ export default async function ProSettingsPage() {
           plans={plans}
           paddleClientToken={paddleClientToken}
           paddleEnvironment={paddleEnvironment}
+          iyzicoReady={iyzicoReady}
           locale={locale}
         />
       </div>

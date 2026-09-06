@@ -41,6 +41,18 @@ import type {
 
 let cachedClient: Iyzipay | null = null;
 
+/**
+ * `true` once the two credentials `client()` requires are both set — the
+ * server-side half of the "check the provider is configured before asking
+ * for the Turkish national ID" fix (QA `full2` defect #2). Deliberately
+ * cheap (no `client()` call, no network): the not-subscribed screen
+ * (`src/app/(app)/settings/pro/page.tsx`) reads this synchronously on every
+ * render to decide whether to show the TRY checkout at all.
+ */
+export function isIyzicoConfigured(): boolean {
+  return Boolean(process.env.IYZICO_API_KEY?.trim() && process.env.IYZICO_SECRET_KEY?.trim());
+}
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
