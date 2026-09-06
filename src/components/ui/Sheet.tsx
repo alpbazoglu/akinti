@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Drawer } from "vaul";
 
@@ -53,6 +54,7 @@ export function Sheet({
   // focused right before open and restoring it ourselves on close (below)
   // is what actually returns focus to the trigger element.
   const triggerRef = useRef<HTMLElement | null>(null);
+  const t = useTranslations("Sheet");
 
   useEffect(() => {
     if (open) {
@@ -121,7 +123,7 @@ export function Sheet({
             </div>
             <Drawer.Close asChild>
               <IconButton
-                label="Close"
+                label={t("close")}
                 icon={<X className="size-5" />}
                 className="-mt-1 -mr-2"
               />

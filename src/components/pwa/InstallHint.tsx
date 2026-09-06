@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { ArrowLineDown, X } from "@phosphor-icons/react";
 
@@ -47,6 +48,7 @@ export function InstallHint() {
   const { canInstall, hasPublished, dismissed, installed } = useInstallPromptState();
   const [isIOS] = useState(detectIOSNotStandalone);
   const [installing, setInstalling] = useState(false);
+  const t = useTranslations("InstallHint");
 
   if (!hasPublished || dismissed || installed) return null;
   if (!canInstall && !isIOS) return null;
@@ -67,18 +69,18 @@ export function InstallHint() {
         <div className="flex flex-col gap-2">
           <p className="type-body-sm text-ink">
             {isIOS
-              ? `Add ${BRAND} to your home screen: tap Share, then "Add to Home Screen".`
-              : `Install ${BRAND} for quicker access and Duet notifications.`}
+              ? t("iosInstructions", { brand: BRAND })
+              : t("installDescription", { brand: BRAND })}
           </p>
           {!isIOS ? (
             <Button size="sm" variant="secondary" onClick={handleInstall} loading={installing}>
-              Install
+              {t("install")}
             </Button>
           ) : null}
         </div>
       </div>
       <IconButton
-        label="Dismiss"
+        label={t("dismiss")}
         icon={<X size={18} weight="regular" />}
         variant="ghost"
         size="sm"
