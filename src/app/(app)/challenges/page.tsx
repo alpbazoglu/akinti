@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
-import { deriveChallengePhase, listChallenges } from "@/lib/db/challenges";
+import { deriveChallengePhase, listChallenges, localizeChallenge } from "@/lib/db/challenges";
 import { routes } from "@/config/routes";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -26,6 +26,7 @@ const PAGE_SIZE = 50;
 export default async function ChallengesPage() {
   const t = await getTranslations("Terms");
   const tPage = await getTranslations("ChallengesPage");
+  const locale = await getLocale();
 
   if (!isSupabaseConfigured()) {
     return (
@@ -71,19 +72,22 @@ export default async function ChallengesPage() {
           />
         ) : (
           <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
-            {challenges.map((challenge) => (
-              <li key={challenge.id}>
-                <Link
-                  href={routes.challenge(challenge.slug)}
-                  className="flex flex-col gap-1 py-4 hover:bg-paper-raised"
-                >
-                  <span className="type-heading text-ink">{challenge.title}</span>
-                  <span className="type-body-sm text-ink-muted">
-                    #{challenge.hashtag} · {phaseCopy(challenge, tPage)}
-                  </span>
-                </Link>
-              </li>
-            ))}
+            {challenges.map((challenge) => {
+              const { title } = localizeChallenge(challenge, locale);
+              return (
+                <li key={challenge.id}>
+                  <Link
+                    href={routes.challenge(challenge.slug)}
+                    className="flex flex-col gap-1 py-4 hover:bg-paper-raised"
+                  >
+                    <span className="type-heading text-ink">{title}</span>
+                    <span className="type-body-sm text-ink-muted">
+                      #{challenge.hashtag} · {phaseCopy(challenge, tPage)}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

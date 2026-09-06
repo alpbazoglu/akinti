@@ -1,10 +1,10 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { requireOnboarded } from "@/lib/auth/server";
 import { routes } from "@/config/routes";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
 import { getBackingTrackById } from "@/lib/db/backingTracks";
-import { getChallengeBySlug } from "@/lib/db/challenges";
+import { getChallengeBySlug, localizeChallenge } from "@/lib/db/challenges";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { uuidSchema } from "@/lib/validation/common";
@@ -76,10 +76,11 @@ async function loadChallenge(slug: string): Promise<CreateFlowChallenge | null> 
     const db = await createServerSupabaseClient();
     const challenge = await getChallengeBySlug(db, slug);
     if (!challenge) return null;
+    const locale = await getLocale();
     return {
       id: challenge.id,
       slug: challenge.slug,
-      title: challenge.title,
+      title: localizeChallenge(challenge, locale).title,
       backingTrackId: challenge.backingTrackId ?? null,
     };
   } catch {

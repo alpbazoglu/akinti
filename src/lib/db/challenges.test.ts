@@ -4,6 +4,7 @@ import {
   decodeChallengeCursor,
   deriveChallengePhase,
   encodeChallengeCursor,
+  localizeChallenge,
 } from "./challenges";
 
 describe("encodeChallengeCursor / decodeChallengeCursor", () => {
@@ -67,5 +68,22 @@ describe("deriveChallengePhase", () => {
     expect(deriveChallengePhase({ startsAt, endsAt }, new Date("2026-10-01T00:00:00.000Z"))).toBe(
       "ended",
     );
+  });
+});
+
+describe("localizeChallenge", () => {
+  const seeded = { title: "Opening week", brief: "Record a Wave.", titleTr: "Açılış haftası", briefTr: "Bir Wave kaydet." };
+
+  it("returns the English columns for a non-Turkish locale", () => {
+    expect(localizeChallenge(seeded, "en")).toEqual({ title: "Opening week", brief: "Record a Wave." });
+  });
+
+  it("returns the Turkish columns for the Turkish locale", () => {
+    expect(localizeChallenge(seeded, "tr")).toEqual({ title: "Açılış haftası", brief: "Bir Wave kaydet." });
+  });
+
+  it("falls back to English when no Turkish variant has been seeded yet", () => {
+    const unseeded = { title: "Opening week", brief: "Record a Wave.", titleTr: null, briefTr: null };
+    expect(localizeChallenge(unseeded, "tr")).toEqual({ title: "Opening week", brief: "Record a Wave." });
   });
 });

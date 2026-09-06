@@ -9,7 +9,10 @@
  * seeded/system challenge, see the migration's own comments) since there is
  * no `auth.uid()` behind a service-role write.
  *
- * Idempotent — re-running skips any challenge whose slug already exists.
+ * Idempotent — re-running never inserts a duplicate row or moves an
+ * existing challenge's schedule/backing-track/mode, but it does refresh
+ * title/brief/title_tr/brief_tr on every run, so this is also how a live
+ * challenge's copy gets corrected without a manual SQL update.
  *
  * Run with: `npx tsx --env-file-if-exists=.env.local scripts/seed-challenges.ts`
  * (documented in docs/CHALLENGES.md; no `npm run` script entry —
@@ -54,6 +57,9 @@ interface SeedChallenge {
   slug: string;
   title: string;
   brief: string;
+  /** Hand-written Turkish (`docs/I18N.md`: sentence case, no em dash, no exclamation marks) — never a machine translation of `title`/`brief`. */
+  titleTr: string;
+  briefTr: string;
   hashtag: string;
   /** Days from "now" the challenge starts/ends, so re-seeding stays "current" whenever it's run. */
   startOffsetDays: number;
@@ -62,12 +68,22 @@ interface SeedChallenge {
   duetMode: "atisma" | null;
 }
 
+/**
+ * QA `full2` defect #3: the previous English brief for "atisma-call" was a
+ * broken half-English, half-Turkish sentence with an em dash, and neither
+ * challenge had any Turkish variant at all. Both are rewritten here in
+ * plain, sentence-case prose with no em dash and no exclamation marks, per
+ * `docs/I18N.md`.
+ */
 const SEED_CHALLENGES: SeedChallenge[] = [
   {
     slug: "opening-week",
     title: "Opening week",
     brief:
-      "Record a Wave over this week's featured backing track — any genre, any style. The Top 5 gets curated at the end of the week.",
+      "Record a Wave over this week's featured backing track, any genre, any style. The Top 5 gets curated at the end of the week.",
+    titleTr: "Açılış haftası",
+    briefTr:
+      "Bu haftanın öne çıkan enstrümantaliyle bir Wave kaydet, tür ve tarz serbest. Hafta sonunda en iyi 5 seçki olarak öne çıkarılır.",
     hashtag: "openingweek",
     startOffsetDays: 0,
     endOffsetDays: 7,
@@ -78,7 +94,10 @@ const SEED_CHALLENGES: SeedChallenge[] = [
     slug: "atisma-call",
     title: "Atışma call",
     brief:
-      "Start a call-and-response Duet — record the first line, then invite someone to answer it back. Türkçe atışma sözlü gelenegi, modern bir Duet olarak.",
+      "Start a call and response Duet. Record the first line, then invite someone to answer it back. Atışma is a Turkish call and response tradition, reimagined here as a modern Duet.",
+    titleTr: "Atışma daveti",
+    briefTr:
+      "Bir soru cevap Duet başlat. İlk dizeyi kaydet, ardından birini cevap vermeye davet et. Atışma, sözlü gelenekteki bu söyleşiyi modern bir Duet olarak yorumluyor.",
     hashtag: "atismacall",
     startOffsetDays: 0,
     endOffsetDays: 14,
@@ -106,7 +125,7 @@ async function main(): Promise<void> {
   }
 
   let seeded = 0;
-  let skipped = 0;
+  let updated = 0;
 
   for (const challenge of SEED_CHALLENGES) {
     const { data: existing } = await admin
@@ -115,9 +134,29 @@ async function main(): Promise<void> {
       .eq("slug", challenge.slug)
       .maybeSingle();
 
+    // Content (title/brief/title_tr/brief_tr) is kept current on every run
+    // rather than skipped once seeded (fixQA2, QA `full2` defect #3: this is
+    // how the live "atisma-call" row's broken bilingual brief gets replaced
+    // without a manual SQL update). Schedule/backing-track/mode are only set
+    // on first insert — re-running this script should never move a live
+    // challenge's dates out from under anyone already in it.
     if (existing) {
-      console.log(`[seed] already seeded: "${challenge.title}" (${existing.id}) — skipping`);
-      skipped += 1;
+      const { error } = await admin
+        .from("challenges")
+        .update({
+          title: challenge.title,
+          brief: challenge.brief,
+          title_tr: challenge.titleTr,
+          brief_tr: challenge.briefTr,
+        })
+        .eq("id", existing.id);
+
+      if (error) {
+        throw new Error(`Failed to update "${challenge.title}": ${error.message}`);
+      }
+
+      console.log(`[seed] updated content: "${challenge.title}" (${existing.id})`);
+      updated += 1;
       continue;
     }
 
@@ -130,6 +169,8 @@ async function main(): Promise<void> {
         slug: challenge.slug,
         title: challenge.title,
         brief: challenge.brief,
+        title_tr: challenge.titleTr,
+        brief_tr: challenge.briefTr,
         hashtag: challenge.hashtag,
         starts_at: startsAt.toISOString(),
         ends_at: endsAt.toISOString(),
@@ -149,7 +190,7 @@ async function main(): Promise<void> {
     seeded += 1;
   }
 
-  console.log(`[seed] done — ${seeded} seeded, ${skipped} already present, ${SEED_CHALLENGES.length} total.`);
+  console.log(`[seed] done — ${seeded} created, ${updated} updated, ${SEED_CHALLENGES.length} total.`);
 }
 
 main().catch((err) => {

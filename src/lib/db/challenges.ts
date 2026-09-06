@@ -73,6 +73,26 @@ export function deriveChallengePhase(
   return "active";
 }
 
+/**
+ * Renders a challenge's title/brief by request locale (QA `full2` defect
+ * #3: challenge content was hardcoded English with no Turkish variant at
+ * all). Turkish falls back to the English column when no `_tr` value has
+ * been seeded yet, rather than showing an empty string — the same
+ * null-means-no-explicit-value convention as `profiles.locale`.
+ */
+export function localizeChallenge(
+  challenge: Pick<Challenge, "title" | "brief" | "titleTr" | "briefTr">,
+  locale: string,
+): { title: string; brief: string } {
+  if (locale !== "tr") {
+    return { title: challenge.title, brief: challenge.brief };
+  }
+  return {
+    title: challenge.titleTr ?? challenge.title,
+    brief: challenge.briefTr ?? challenge.brief,
+  };
+}
+
 /* ------------------------------------------------------------------------ */
 /* Reads                                                                     */
 /* ------------------------------------------------------------------------ */

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -12,6 +12,7 @@ import {
   getChallengeBySlug,
   listChallengeEntries,
   listChallengePicks,
+  localizeChallenge,
 } from "@/lib/db/challenges";
 import { getWavesByIds, listProfileWaves } from "@/lib/db/waves";
 import { routes } from "@/config/routes";
@@ -37,6 +38,7 @@ export default async function ChallengePage({ params, searchParams }: ChallengeP
   const { entriesCursor } = await searchParams;
   const t = await getTranslations("Terms");
   const tPage = await getTranslations("ChallengePage");
+  const locale = await getLocale();
 
   if (!isSupabaseConfigured()) {
     return (
@@ -78,15 +80,17 @@ export default async function ChallengePage({ params, searchParams }: ChallengeP
       ? (await listProfileWaves(db, viewer.id, { limit: 50 })).items
       : [];
 
+  const { title, brief } = localizeChallenge(challenge, locale);
+
   return (
     <>
-      <PageHeader title={challenge.title} />
+      <PageHeader title={title} />
       <div className="akinti-page flex flex-col gap-8 pb-16">
         <div className="flex flex-col gap-2">
           <Link href={routes.hashtag(challenge.hashtag)} className="type-subhead text-ink hover:underline">
             #{challenge.hashtag}
           </Link>
-          <p className="type-body measure whitespace-pre-line text-ink">{challenge.brief}</p>
+          <p className="type-body measure whitespace-pre-line text-ink">{brief}</p>
           <p className="type-body-sm text-ink-muted">
             {phase === "upcoming" ? tPage("starts") : phase === "ended" ? tPage("ended") : tPage("ends")}{" "}
             {new Date(phase === "upcoming" ? challenge.startsAt : challenge.endsAt).toLocaleDateString()}
