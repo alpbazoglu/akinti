@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { unblockUser } from "@/app/(app)/settings/actions";
@@ -15,14 +16,15 @@ export interface BlockedListProps {
 
 /** Settings → Safety: blocked users, with unblock (spec §25/§26). */
 export function BlockedList({ blocked }: BlockedListProps) {
+  const t = useTranslations("BlockedList");
   const [entries, setEntries] = useState(blocked);
 
   if (entries.length === 0) {
     return (
       <EmptyState
         size="sm"
-        title="No blocked accounts"
-        description="Accounts you block cannot view your profile, message you, or send Duet Requests."
+        title={t("emptyTitle")}
+        description={t("emptyDescription")}
       />
     );
   }
@@ -43,17 +45,19 @@ export function BlockedList({ blocked }: BlockedListProps) {
 function BlockedRow({ profile, onUnblocked }: { profile: Profile; onUnblocked: () => void }) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations("BlockedList");
+  const tTerms = useTranslations("Terms");
   const [isPending, startTransition] = useTransition();
 
   function handleUnblock() {
     startTransition(async () => {
       const result = await unblockUser(profile.id);
       if (!result.ok) {
-        toast({ title: result.formError ?? "Could not unblock this account.", tone: "error" });
+        toast({ title: result.formError ?? t("couldNotUnblock"), tone: "error" });
         return;
       }
       onUnblocked();
-      toast({ title: result.message ?? "Account unblocked.", tone: "success" });
+      toast({ title: result.message ?? t("unblocked"), tone: "success" });
       router.refresh();
     });
   }
@@ -70,7 +74,7 @@ function BlockedRow({ profile, onUnblocked }: { profile: Profile; onUnblocked: (
         </div>
       </Link>
       <Button variant="secondary" size="sm" onClick={handleUnblock} loading={isPending}>
-        Unblock
+        {tTerms("unblock")}
       </Button>
     </li>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { routes } from "@/config/routes";
@@ -47,6 +48,7 @@ export function AppShell({
   // empty" is about the context list underneath it, not the player itself).
   const hasPlayer = useHasActivePersistentPlayer();
   const pathname = usePathname();
+  const t = useTranslations("Layout");
 
   // Flow (`docs/FLOW.md`) is a full-screen takeover: no top bar, side rail,
   // bottom nav or persistent player strip underneath it. Previously
@@ -67,7 +69,7 @@ export function AppShell({
         href="#main"
         className="akinti-skip-link rounded-key bg-paper-raised px-4 py-3 type-subhead text-ink shadow-sheet"
       >
-        Skip to content
+        {t("skipToContent")}
       </a>
 
       <SideNav badges={badges} />

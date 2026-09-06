@@ -1,8 +1,9 @@
 
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { FollowerList, LockedContent } from "@/components/profile";
 import { EmptyState } from "@/components/ui";
-import { TERMS } from "@/config/terminology";
 import { getCurrentUser } from "@/lib/auth/server";
 import { listFollowing } from "@/lib/db/follows";
 import { canViewProfileContent, getProfileByUsername } from "@/lib/db/profiles";
@@ -15,18 +16,21 @@ interface FollowingPageProps {
 
 export async function generateMetadata({ params }: FollowingPageProps) {
   const { username } = await params;
-  return { title: `${TERMS.following} · @${username}` };
+  const t = await getTranslations("Terms");
+  return { title: `${t("following")} · @${username}` };
 }
 
 /** `/u/[username]/following` (spec §21). Same visibility rule as the profile's Waves tab. */
 export default async function FollowingPage({ params }: FollowingPageProps) {
   const { username } = await params;
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("FollowingPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title={TERMS.following} />
-        <EmptyState title="Backend not configured" description="Following lists are unavailable in this environment." />
+        <PageHeader title={t("following")} />
+        <EmptyState title={tPage("backendNotConfiguredTitle")} description={tPage("backendNotConfiguredDescription")} />
       </>
     );
   }
@@ -38,8 +42,8 @@ export default async function FollowingPage({ params }: FollowingPageProps) {
   if (!profile) {
     return (
       <>
-        <PageHeader title={TERMS.following} />
-        <EmptyState title="Profile unavailable" description="This profile doesn't exist, or isn't available to you." />
+        <PageHeader title={t("following")} />
+        <EmptyState title={tPage("unavailableTitle")} description={tPage("unavailableDescription")} />
       </>
     );
   }
@@ -49,13 +53,13 @@ export default async function FollowingPage({ params }: FollowingPageProps) {
 
   return (
     <>
-      <PageHeader title={TERMS.following} />
+      <PageHeader title={t("following")} />
       {canSeeContent ? (
         <div className="px-4 pb-8 sm:px-5">
           <FollowerList
             profiles={(await listFollowing(supabase, profile.id)).items}
-            emptyTitle="Not following anyone yet"
-            emptyDescription={isSelf ? "Accounts you follow will show up here." : `@${profile.username} isn't following anyone yet.`}
+            emptyTitle={tPage("emptyTitle")}
+            emptyDescription={isSelf ? tPage("emptySelf") : tPage("emptyOther", { username: profile.username })}
           />
         </div>
       ) : (

@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { LogOut, Settings, User as UserIcon } from "@/components/ui/icons";
 
 import { signOut } from "@/app/(auth)/actions";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
 import { cn } from "@/lib/ui";
 import { Avatar, Menu, type MenuItem } from "@/components/ui";
@@ -26,6 +26,8 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, profile } = useCurrentUser();
+  const t = useTranslations("Terms");
+  const tLayout = useTranslations("Layout");
 
   if (!user) {
     return (
@@ -39,7 +41,7 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
           )}
         >
-          {TERMS.logIn}
+          {t("logIn")}
         </Link>
         <Link
           href={routes.signup()}
@@ -51,18 +53,18 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
           )}
         >
-          {TERMS.signUp}
+          {t("signUp")}
         </Link>
       </div>
     );
   }
 
-  const name = profile?.displayName ?? profile?.username ?? user.email ?? "Account";
+  const name = profile?.displayName ?? profile?.username ?? user.email ?? tLayout("accountMenu");
 
   const items: MenuItem[] = [
     {
       id: "profile",
-      label: TERMS.profile,
+      label: t("profile"),
       icon: <UserIcon className="size-4" />,
       disabled: !profile,
       onSelect: () => {
@@ -73,13 +75,13 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
     },
     {
       id: "settings",
-      label: TERMS.settings,
+      label: t("settings"),
       icon: <Settings className="size-4" />,
       onSelect: () => router.push(routes.settings()),
     },
     {
       id: "sign-out",
-      label: TERMS.logOut,
+      label: t("logOut"),
       icon: <LogOut className="size-4" />,
       destructive: true,
       onSelect: () => {
@@ -100,7 +102,7 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
 
   return (
     <Menu
-      label="Account"
+      label={tLayout("accountMenu")}
       align="end"
       className={className}
       items={items}
@@ -108,7 +110,7 @@ export function UserMenu({ size = "md", className }: UserMenuProps) {
         <button
           {...triggerProps}
           type="button"
-          aria-label={`${name}, account menu`}
+          aria-label={tLayout("accountMenuLabel", { name })}
           className={cn(
             "akinti-press inline-flex items-center gap-3 rounded-[13px] transition-colors",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",

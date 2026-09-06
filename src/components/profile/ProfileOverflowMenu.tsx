@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { Ban, Flag, MoreHorizontal } from "@/components/ui/icons";
 
 import { block, unblock } from "@/app/(app)/u/[username]/actions";
-import { TERMS } from "@/config/terminology";
 import { IconButton, Menu, useToast, type MenuItem } from "@/components/ui";
 
 import { ReportSheet } from "./ReportSheet";
@@ -27,6 +27,8 @@ export function ProfileOverflowMenu({
 }: ProfileOverflowMenuProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations("ProfileOverflowMenu");
+  const tTerms = useTranslations("Terms");
   const [reportOpen, setReportOpen] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -34,10 +36,10 @@ export function ProfileOverflowMenu({
     startTransition(async () => {
       const result = isBlocked ? await unblock(profileId) : await block(profileId);
       if (!result.ok) {
-        toast({ title: result.formError ?? "Something went wrong.", tone: "error" });
+        toast({ title: result.formError ?? t("somethingWrong"), tone: "error" });
         return;
       }
-      toast({ title: result.message ?? "Done.", tone: "success" });
+      toast({ title: result.message ?? t("done"), tone: "success" });
       router.refresh();
     });
   }
@@ -45,14 +47,14 @@ export function ProfileOverflowMenu({
   const items: MenuItem[] = [
     {
       id: "block",
-      label: isBlocked ? TERMS.unblock : TERMS.block,
+      label: isBlocked ? tTerms("unblock") : tTerms("block"),
       icon: <Ban className="size-4" />,
       destructive: !isBlocked,
       onSelect: handleBlockToggle,
     },
     {
       id: "report",
-      label: TERMS.report,
+      label: tTerms("report"),
       icon: <Flag className="size-4" />,
       destructive: true,
       onSelect: () => setReportOpen(true),
@@ -62,14 +64,14 @@ export function ProfileOverflowMenu({
   return (
     <>
       <Menu
-        label="More actions"
+        label={t("moreActions")}
         align="end"
         className={className}
         items={items}
         trigger={(triggerProps) => (
           <IconButton
             {...triggerProps}
-            label="More actions"
+            label={t("moreActions")}
             icon={<MoreHorizontal className="size-4" />}
             variant="secondary"
           />

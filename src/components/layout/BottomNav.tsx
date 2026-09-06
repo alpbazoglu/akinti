@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { isActiveRoute, routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
 import { useUnreadMessages } from "@/lib/messages";
 import { cn } from "@/lib/ui";
@@ -37,10 +37,12 @@ export function BottomNav({ badges, className }: BottomNavProps) {
   const { profile } = useCurrentUser();
   const { count: unreadMessages } = useUnreadMessages(profile?.id ?? null);
   const flowNew = useFlowNewCount(profile?.id ?? null);
+  const t = useTranslations("Terms");
+  const tLayout = useTranslations("Layout");
 
   return (
     <nav
-      aria-label="Primary"
+      aria-label={tLayout("primaryNav")}
       className={cn(
         "akinti-safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-paper md:hidden",
         className,
@@ -57,6 +59,7 @@ export function BottomNav({ badges, className }: BottomNavProps) {
                 : routes.login(pathname)
               : item.href;
           const active = isActiveRoute(pathname, href);
+          const label = t(item.labelKey);
           const badge =
             badges?.[item.key] ??
             (item.key === "messages" ? unreadMessages : item.key === "flow" ? flowNew : 0);
@@ -67,7 +70,7 @@ export function BottomNav({ badges, className }: BottomNavProps) {
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
-                  aria-label={`${TERMS.record} ${TERMS.aWave}`}
+                  aria-label={`${t("record")} ${t("aWave")}`}
                   className={cn(
                     // 44px key: references `--akinti-radius-key-44` (13px)
                     // instead of restating the pixel value (§8.5, §5.2).
@@ -108,12 +111,12 @@ export function BottomNav({ badges, className }: BottomNavProps) {
                   {badge > 0 ? (
                     <CountBadge
                       count={badge}
-                      label={`unread ${item.label.toLowerCase()}`}
+                      label={tLayout("unreadItem", { item: label })}
                       className="absolute -top-1.5 -right-2.5"
                     />
                   ) : null}
                 </span>
-                {item.label}
+                {label}
               </Link>
             </li>
           );

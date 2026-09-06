@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { ChevronRight } from "@/components/ui/icons";
 
@@ -26,38 +27,6 @@ export interface PrivacyFormProps {
   pendingFollowRequestCount: number;
 }
 
-const AUDIENCE_LABELS: Record<PermissionAudience, string> = {
-  everyone: "Everyone",
-  followers: "Followers",
-  following: "People I follow",
-  nobody: "Nobody",
-};
-
-const COMMENT_AUDIENCE_LABELS: Record<(typeof COMMENT_AUDIENCES)[number], string> = {
-  everyone: "Everyone",
-  followers: "Followers",
-  nobody: "Nobody",
-};
-
-const VISIBILITY_LABELS: Record<WaveVisibility, string> = {
-  everyone: "Everyone",
-  followers: "Followers",
-  only_me: "Only me",
-};
-
-const AUDIENCE_OPTIONS: SelectOption[] = PERMISSION_AUDIENCES.map((value) => ({
-  value,
-  label: AUDIENCE_LABELS[value],
-}));
-const COMMENT_AUDIENCE_OPTIONS: SelectOption[] = COMMENT_AUDIENCES.map((value) => ({
-  value,
-  label: COMMENT_AUDIENCE_LABELS[value],
-}));
-const VISIBILITY_OPTIONS: SelectOption[] = WAVE_VISIBILITIES.map((value) => ({
-  value,
-  label: VISIBILITY_LABELS[value],
-}));
-
 /** Settings → Privacy (spec §25): every account-level permission default, saved as soon as it changes. */
 export function PrivacyForm({
   initialPrivacy,
@@ -69,6 +38,38 @@ export function PrivacyForm({
 }: PrivacyFormProps) {
   const { refreshProfile } = useCurrentUser();
   const { toast } = useToast();
+  const t = useTranslations("PrivacyForm");
+  const tTerms = useTranslations("Terms");
+
+  const audienceLabels: Record<PermissionAudience, string> = {
+    everyone: t("audienceEveryone"),
+    followers: tTerms("followers"),
+    following: t("audienceFollowing"),
+    nobody: t("audienceNobody"),
+  };
+  const commentAudienceLabels: Record<(typeof COMMENT_AUDIENCES)[number], string> = {
+    everyone: t("audienceEveryone"),
+    followers: tTerms("followers"),
+    nobody: t("audienceNobody"),
+  };
+  const visibilityLabels: Record<WaveVisibility, string> = {
+    everyone: t("audienceEveryone"),
+    followers: tTerms("followers"),
+    only_me: t("visibilityOnlyMe"),
+  };
+  const audienceOptions: SelectOption[] = PERMISSION_AUDIENCES.map((value) => ({
+    value,
+    label: audienceLabels[value],
+  }));
+  const commentAudienceOptions: SelectOption[] = COMMENT_AUDIENCES.map((value) => ({
+    value,
+    label: commentAudienceLabels[value],
+  }));
+  const visibilityOptions: SelectOption[] = WAVE_VISIBILITIES.map((value) => ({
+    value,
+    label: visibilityLabels[value],
+  }));
+
   const [privacy, setPrivacy] = useState<ProfilePrivacy>(initialPrivacy);
   const [messagePermission, setMessagePermission] = useState(initialMessagePermission);
   const [duetPermission, setDuetPermission] = useState(initialDuetPermission);
@@ -88,11 +89,11 @@ export function PrivacyForm({
     startTransition(async () => {
       const result = await updatePrivacy(next);
       if (!result.ok) {
-        setError(result.formError ?? "Could not save your privacy settings.");
+        setError(result.formError ?? t("saveErrorDefault"));
         return;
       }
       await refreshProfile();
-      toast({ title: result.message ?? "Saved.", tone: "success" });
+      toast({ title: result.message ?? t("saved"), tone: "success" });
     });
   }
 
@@ -100,8 +101,8 @@ export function PrivacyForm({
     <div className="flex flex-col gap-6">
       <section className="rounded-xl border border-border bg-surface p-5">
         <Switch
-          label="Private account"
-          description="Only accepted followers can see your Waves and follower list. Switching to private keeps everyone who already follows you."
+          label={t("privateAccountLabel")}
+          description={t("privateAccountDescription")}
           checked={privacy === "private"}
           onCheckedChange={(checked) => {
             const next = checked ? "private" : "public";
@@ -116,7 +117,7 @@ export function PrivacyForm({
             className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-sm hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <span className="flex items-center gap-2 text-fg">
-              Pending follow requests
+              {t("pendingFollowRequests")}
               {pendingFollowRequestCount > 0 ? (
                 <Badge>{pendingFollowRequestCount}</Badge>
               ) : null}
@@ -127,60 +128,60 @@ export function PrivacyForm({
       </section>
 
       <section className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
-        <h2 className="text-sm font-semibold text-fg">Who can reach you</h2>
+        <h2 className="text-sm font-semibold text-fg">{t("whoCanReachYou")}</h2>
         <Select
           id="privacy-message-permission"
-          label="Who can message me"
+          label={t("whoCanMessageLabel")}
           value={messagePermission}
           onChange={(event) => {
             const next = event.target.value as PermissionAudience;
             setMessagePermission(next);
             save({ privacy, messagePermission: next, duetPermission, commentPermission, defaultWaveVisibility });
           }}
-          options={AUDIENCE_OPTIONS}
+          options={audienceOptions}
           disabled={isPending}
         />
         <Select
           id="privacy-duet-permission"
-          label="Who can send Duet Requests"
+          label={t("whoCanDuetLabel")}
           value={duetPermission}
           onChange={(event) => {
             const next = event.target.value as PermissionAudience;
             setDuetPermission(next);
             save({ privacy, messagePermission, duetPermission: next, commentPermission, defaultWaveVisibility });
           }}
-          options={AUDIENCE_OPTIONS}
+          options={audienceOptions}
           disabled={isPending}
         />
         <Select
           id="privacy-comment-permission"
-          label="Who can comment on my Waves by default"
+          label={t("whoCanCommentLabel")}
           value={commentPermission}
           onChange={(event) => {
             const next = event.target.value as PermissionAudience;
             setCommentPermission(next);
             save({ privacy, messagePermission, duetPermission, commentPermission: next, defaultWaveVisibility });
           }}
-          options={COMMENT_AUDIENCE_OPTIONS}
+          options={commentAudienceOptions}
           disabled={isPending}
-          hint="Each Wave can override this when you publish it."
+          hint={t("commentHint")}
         />
       </section>
 
       <section className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
-        <h2 className="text-sm font-semibold text-fg">Publishing</h2>
+        <h2 className="text-sm font-semibold text-fg">{t("publishingHeading")}</h2>
         <Select
           id="privacy-default-wave-visibility"
-          label="Default Wave visibility"
+          label={t("defaultVisibilityLabel")}
           value={defaultWaveVisibility}
           onChange={(event) => {
             const next = event.target.value as WaveVisibility;
             setDefaultWaveVisibility(next);
             save({ privacy, messagePermission, duetPermission, commentPermission, defaultWaveVisibility: next });
           }}
-          options={VISIBILITY_OPTIONS}
+          options={visibilityOptions}
           disabled={isPending}
-          hint="This actually controls who can open it — you can still change it per Wave when publishing."
+          hint={t("defaultVisibilityHint")}
         />
       </section>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition, type CSSProperties } from "react";
 
 import { updateAppearance } from "@/app/(app)/settings/actions";
@@ -46,6 +47,7 @@ export function AppearanceForm({
 }: AppearanceFormProps) {
   const { refreshProfile } = useCurrentUser();
   const { toast } = useToast();
+  const t = useTranslations("AppearanceForm");
   const [bgColor, setBgColor] = useState(initialBgColor);
   const [bgGradient, setBgGradient] = useState(initialBgGradient);
   const [bgPattern, setBgPattern] = useState(initialBgPattern);
@@ -80,11 +82,11 @@ export function AppearanceForm({
         accentColor: accent,
       });
       if (!result.ok) {
-        setError(result.formError ?? "Could not save your appearance settings.");
+        setError(result.formError ?? t("saveErrorDefault"));
         return;
       }
       await refreshProfile();
-      toast({ title: result.message ?? "Saved.", tone: "success" });
+      toast({ title: result.message ?? t("saved"), tone: "success" });
     });
   }
 
@@ -112,14 +114,14 @@ export function AppearanceForm({
               className="mt-1 inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium"
               style={{ backgroundColor: resolved.accent.hex, color: resolved.accentForeground }}
             >
-              Preview
+              {t("preview")}
             </span>
           </div>
         </div>
       </section>
 
       <PresetSection
-        label="Background"
+        label={t("backgroundLabel")}
         presets={Object.values(BACKGROUND_PRESETS)}
         value={bgColor}
         onChange={(value) => setBgColor(value as ThemeBackgroundColor)}
@@ -127,7 +129,7 @@ export function AppearanceForm({
       />
 
       <PresetSection
-        label="Gradient"
+        label={t("gradientLabel")}
         presets={Object.values(GRADIENT_PRESETS).map((p) => ({ id: p.id, label: p.label, hex: "" }))}
         value={bgGradient}
         onChange={(value) => setBgGradient(value as ThemeBackgroundGradient)}
@@ -141,7 +143,7 @@ export function AppearanceForm({
       />
 
       <PresetSection
-        label="Pattern"
+        label={t("patternLabel")}
         presets={Object.values(PATTERN_PRESETS).map((p) => ({ id: p.id, label: p.label, hex: "" }))}
         value={bgPattern}
         onChange={(value) => setBgPattern(value as ThemeBackgroundPattern)}
@@ -156,7 +158,7 @@ export function AppearanceForm({
       />
 
       <PresetSection
-        label="Accent"
+        label={t("accentLabel")}
         presets={Object.values(ACCENT_PRESETS)}
         value={accent}
         onChange={(value) => setAccent(value as ThemeAccent)}
@@ -176,7 +178,7 @@ export function AppearanceForm({
         disabled={!dirty && !isPending}
         className="self-start"
       >
-        Save appearance
+        {t("saveAppearance")}
       </Button>
     </div>
   );

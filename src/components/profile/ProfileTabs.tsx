@@ -1,8 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Mic } from "@/components/ui/icons";
-import { TERMS } from "@/config/terminology";
 import { routes } from "@/config/routes";
 import { WaveCardContainer, type WaveCardContainerWave } from "@/components/wave";
 import { Button, EmptyState, TabPanel, Tabs, tabId, tabPanelId } from "@/components/ui";
@@ -19,17 +19,19 @@ const ID_PREFIX = "profile-tabs";
 /** Profile → Waves / Duets tabs (spec §21). Presentation only — data arrives pre-hydrated from the page. */
 export function ProfileTabs({ waves, duets, isSelf, username }: ProfileTabsProps) {
   const [tab, setTab] = useState<"waves" | "duets">("waves");
+  const t = useTranslations("ProfileTabs");
+  const tTerms = useTranslations("Terms");
 
   return (
     <div className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
       <Tabs
         idPrefix={ID_PREFIX}
-        label="Profile content"
+        label={t("tabsLabel")}
         value={tab}
         onValueChange={(value) => setTab(value as "waves" | "duets")}
         items={[
-          { value: "waves", label: TERMS.waves, count: waves.length },
-          { value: "duets", label: TERMS.duets, count: duets.length },
+          { value: "waves", label: tTerms("waves"), count: waves.length },
+          { value: "duets", label: tTerms("duets"), count: duets.length },
         ]}
       />
 
@@ -41,8 +43,8 @@ export function ProfileTabs({ waves, duets, isSelf, username }: ProfileTabsProps
         {waves.length === 0 ? (
           <EmptyState
             size="sm"
-            title={isSelf ? `You haven't published a ${TERMS.wave.toLowerCase()} yet` : `No ${TERMS.waves.toLowerCase()} yet`}
-            description={isSelf ? "Record or upload your first Wave to get started." : undefined}
+            title={isSelf ? t("noWavesSelf") : t("noWavesOther")}
+            description={isSelf ? t("recordCta") : undefined}
             action={
               isSelf ? (
                 <Button
@@ -52,7 +54,7 @@ export function ProfileTabs({ waves, duets, isSelf, username }: ProfileTabsProps
                     window.location.href = routes.create();
                   }}
                 >
-                  {TERMS.record}
+                  {tTerms("record")}
                 </Button>
               ) : undefined
             }
@@ -74,12 +76,8 @@ export function ProfileTabs({ waves, duets, isSelf, username }: ProfileTabsProps
         {duets.length === 0 ? (
           <EmptyState
             size="sm"
-            title={`No ${TERMS.duets.toLowerCase()} yet`}
-            description={
-              isSelf
-                ? `Duets you publish will show up here, credited back to the original ${TERMS.wave.toLowerCase()}.`
-                : `@${username} hasn't published a ${TERMS.duet.toLowerCase()} yet.`
-            }
+            title={t("noDuets")}
+            description={isSelf ? t("duetsDescriptionSelf") : t("duetsDescriptionOther", { username })}
           />
         ) : (
           <div className="flex flex-col gap-4">

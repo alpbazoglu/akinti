@@ -1,4 +1,6 @@
 
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { LockedContent, ProfileHeader, ProfileTabs } from "@/components/profile";
 import { EmptyState } from "@/components/ui";
@@ -62,14 +64,15 @@ function toWaveCardWave(
 /** Public profile (spec §21): header, theming, Follow/Message/Share/Block/Report, Waves/Duets tabs. */
 export default async function ProfilePage({ params }: ProfilePageProps) {
   const { username } = await params;
+  const t = await getTranslations("ProfilePage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
         <PageHeader title={`@${username}`} />
         <EmptyState
-          title="Backend not configured"
-          description="NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set. Profiles are unavailable until this environment is connected to a Supabase project."
+          title={t("backendNotConfiguredTitle")}
+          description={t("backendNotConfiguredDescription")}
         />
       </>
     );
@@ -87,8 +90,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
       <>
         <PageHeader title={`@${username}`} />
         <EmptyState
-          title="Profile unavailable"
-          description="This profile doesn't exist, or isn't available to you."
+          title={t("unavailableTitle")}
+          description={t("unavailableDescription")}
         />
       </>
     );

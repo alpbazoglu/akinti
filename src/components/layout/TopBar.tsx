@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 import { routes } from "@/config/routes";
-import { BRAND, TERMS } from "@/config/terminology";
+import { BRAND } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
 import { useUnreadNotifications } from "@/lib/notifications";
 import { cn } from "@/lib/ui";
@@ -46,6 +47,8 @@ export function TopBar({
   const { profile } = useCurrentUser();
   const { count: liveUnreadNotifications } = useUnreadNotifications(profile?.id ?? null);
   const notificationsBadge = unreadNotifications ?? liveUnreadNotifications;
+  const t = useTranslations("Terms");
+  const tLayout = useTranslations("Layout");
 
   return (
     <header
@@ -66,7 +69,7 @@ export function TopBar({
         {showSearch ? (
           <Link
             href={routes.explore()}
-            aria-label={TERMS.search}
+            aria-label={t("search")}
             className={cn(
               "akinti-press inline-flex size-11 items-center justify-center rounded-[13px] text-ink-muted",
               "transition-colors hover:text-ink",
@@ -79,7 +82,7 @@ export function TopBar({
 
         <Link
           href={routes.notifications()}
-          aria-label={TERMS.notifications}
+          aria-label={t("notifications")}
           className={cn(
             "akinti-press relative inline-flex size-11 items-center justify-center rounded-[13px] text-ink-muted",
             "transition-colors hover:text-ink",
@@ -90,7 +93,7 @@ export function TopBar({
           {notificationsBadge > 0 ? (
             <CountBadge
               count={notificationsBadge}
-              label="unread notifications"
+              label={tLayout("unreadNotifications")}
               className="absolute top-1 right-1"
             />
           ) : null}

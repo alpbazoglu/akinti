@@ -1,11 +1,18 @@
 import { Compass, House, MessageCircle, Play, User, type IconComponent } from "@/components/ui/icons";
 
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
+import type { TermKey } from "@/config/terminology";
 
 export interface NavItem {
   readonly key: string;
-  readonly label: string;
+  /**
+   * Key into the `Terms` message namespace (`useTranslations("Terms")`),
+   * resolved by the rendering component rather than stored here — this is a
+   * plain module-level constant evaluated once at import time, before any
+   * per-request locale exists (`docs/I18N.md` §4), so it can only carry the
+   * lookup key, never the resolved label string.
+   */
+  readonly labelKey: TermKey;
   readonly href: string;
   /** Absent on the Record key, which is drawn geometry rather than a glyph. */
   readonly icon?: IconComponent;
@@ -28,15 +35,15 @@ export interface NavItem {
  * thumb belongs to the former.
  */
 export const KEYBOARD_ITEMS: readonly NavItem[] = [
-  { key: "flow", label: TERMS.flow, href: routes.flow(), icon: Play },
-  { key: "home", label: TERMS.home, href: routes.home(), icon: House },
-  { key: "explore", label: TERMS.explore, href: routes.explore(), icon: Compass },
-  { key: "create", label: TERMS.record, href: routes.create(), record: true },
-  { key: "messages", label: TERMS.messages, href: routes.messages(), icon: MessageCircle },
+  { key: "flow", labelKey: "flow", href: routes.flow(), icon: Play },
+  { key: "home", labelKey: "home", href: routes.home(), icon: House },
+  { key: "explore", labelKey: "explore", href: routes.explore(), icon: Compass },
+  { key: "create", labelKey: "record", href: routes.create(), record: true },
+  { key: "messages", labelKey: "messages", href: routes.messages(), icon: MessageCircle },
   // `Keyboard`/`SideNav` resolve this to the signed-in user's real profile (or
   // `/login` when signed out) at render time; this default only applies if some
   // future consumer renders the table without that override.
-  { key: "profile", label: "You", href: routes.login(), icon: User },
+  { key: "profile", labelKey: "profile", href: routes.login(), icon: User },
 ];
 
 /** The desktop rail (§8.1). Record becomes a full-width key beneath the list. */

@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ChartColumn, Pencil } from "@/components/ui/icons";
 
 import { WaveformCanvas, type TraceHue } from "@/components/audio";
 import { ProMark } from "@/components/pro/ProMark";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import type { FollowStatus, Profile } from "@/types/domain";
 import { Avatar } from "@/components/ui";
 import { cn, formatCount } from "@/lib/ui";
@@ -80,7 +80,7 @@ function DormantSignature() {
  * Creation-type-agnostic — this component knows nothing about
  * Recorded/Uploaded/Duet, that lives entirely on `WaveCard`.
  */
-export function ProfileHeader({
+export async function ProfileHeader({
   profile,
   viewer,
   signature = [],
@@ -89,6 +89,8 @@ export function ProfileHeader({
   className,
 }: ProfileHeaderProps) {
   const name = profile.displayName ?? profile.username;
+  const t = await getTranslations("ProfileHeader");
+  const tTerms = await getTranslations("Terms");
 
   return (
     <div className={cn("flex flex-col", className)}>
@@ -114,12 +116,12 @@ export function ProfileHeader({
               <>
                 <Link href={routes.settingsAccount()} className={SECONDARY_LINK_BUTTON}>
                   <Pencil className="size-4" aria-hidden="true" />
-                  {TERMS.editProfile}
+                  {tTerms("editProfile")}
                 </Link>
                 {/* spec §27 (creator analytics): one tap from the owner's own profile to their Plays/Replays/Wave performance dashboard. */}
                 <Link href={routes.analytics()} className={SECONDARY_LINK_BUTTON}>
                   <ChartColumn className="size-4" aria-hidden="true" />
-                  Analytics
+                  {t("analytics")}
                 </Link>
               </>
             ) : (
@@ -132,7 +134,7 @@ export function ProfileHeader({
                 />
                 {/* Just the link (spec deliverable) — the compose flow itself is Messaging (Stage 10). */}
                 <Link href={routes.messageNew(profile.username)} className={SECONDARY_LINK_BUTTON}>
-                  {TERMS.message}
+                  {tTerms("message")}
                 </Link>
                 <ShareProfileButton username={profile.username} />
                 {viewer.isSignedIn ? (
@@ -160,9 +162,7 @@ export function ProfileHeader({
           ) : null}
           {viewer.isSelf ? (
             <p className="type-caption text-ink-subtle">
-              {signature.length > 0
-                ? "Your signature, from your last 12 Waves."
-                : "Your signature appears once you publish."}
+              {signature.length > 0 ? t("signatureWithWaves") : t("signatureEmpty")}
             </p>
           ) : null}
         </div>
@@ -175,7 +175,7 @@ export function ProfileHeader({
             <span className="font-semibold text-fg tabular-nums">
               {formatCount(profile.counts.followers)}
             </span>{" "}
-            <span className="text-fg-subtle">{TERMS.followers}</span>
+            <span className="text-fg-subtle">{tTerms("followers")}</span>
           </Link>
           <Link
             href={routes.profileFollowing(profile.username)}
@@ -184,13 +184,13 @@ export function ProfileHeader({
             <span className="font-semibold text-fg tabular-nums">
               {formatCount(profile.counts.following)}
             </span>{" "}
-            <span className="text-fg-subtle">{TERMS.following}</span>
+            <span className="text-fg-subtle">{tTerms("following")}</span>
           </Link>
           <span>
             <span className="font-semibold text-fg tabular-nums">
               {formatCount(profile.counts.waves)}
             </span>{" "}
-            <span className="text-fg-subtle">{TERMS.waves}</span>
+            <span className="text-fg-subtle">{tTerms("waves")}</span>
           </span>
         </div>
       </div>

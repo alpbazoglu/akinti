@@ -31,6 +31,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { Waveform } from "@/components/audio";
 import { IconButton, Spinner } from "@/components/ui";
@@ -117,10 +118,12 @@ function PlayerBody({
   playback: ActivePlayback;
   onClose: () => void;
 }) {
+  const t = useTranslations("Terms");
+  const tLayout = useTranslations("Layout");
   const label = playback.creatorUsername
     ? `${playback.title} · @${playback.creatorUsername}`
     : playback.title;
-  const transportLabel = `${playback.isPlaying ? "Pause" : "Play"} ${playback.title}`;
+  const transportLabel = `${playback.isPlaying ? t("pauseAction") : t("playAction")} ${playback.title}`;
 
   return (
     <div className="flex items-center gap-3 py-2">
@@ -148,7 +151,7 @@ function PlayerBody({
         </span>
       </Link>
 
-      <IconButton label="Close player" icon={<X className="size-4" />} variant="ghost" size="sm" onClick={onClose} />
+      <IconButton label={tLayout("closePlayer")} icon={<X className="size-4" />} variant="ghost" size="sm" onClick={onClose} />
     </div>
   );
 }

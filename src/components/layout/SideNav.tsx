@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { isActiveRoute, routes } from "@/config/routes";
-import { BRAND, TERMS } from "@/config/terminology";
+import { BRAND } from "@/config/terminology";
 import { useCurrentUser } from "@/lib/auth";
 import { useUnreadMessages } from "@/lib/messages";
 import { useUnreadNotifications } from "@/lib/notifications";
@@ -35,6 +36,8 @@ export function SideNav({ badges, className }: SideNavProps) {
   const { count: unreadNotifications } = useUnreadNotifications(profile?.id ?? null);
   const { count: unreadMessages } = useUnreadMessages(profile?.id ?? null);
   const flowNew = useFlowNewCount(profile?.id ?? null);
+  const t = useTranslations("Terms");
+  const tLayout = useTranslations("Layout");
 
   const railLink = cn(
     "akinti-press flex h-12 items-center gap-4 rounded-key px-3 transition-colors",
@@ -58,7 +61,7 @@ export function SideNav({ badges, className }: SideNavProps) {
         <span className="type-wordmark text-ink max-lg:sr-only">{BRAND}</span>
       </Link>
 
-      <nav aria-label="Primary" className="flex-1">
+      <nav aria-label={tLayout("primaryNav")} className="flex-1">
         <ul className="flex flex-col gap-1">
           {RAIL_ITEMS.map((item) => {
             const href =
@@ -69,6 +72,7 @@ export function SideNav({ badges, className }: SideNavProps) {
                 : item.href;
             const active = isActiveRoute(pathname, href);
             const Icon = item.icon;
+            const label = t(item.labelKey);
             const liveBadge = item.key === "messages" ? unreadMessages : item.key === "flow" ? flowNew : 0;
             const badge = badges?.[item.key] ?? liveBadge;
 
@@ -93,18 +97,18 @@ export function SideNav({ badges, className }: SideNavProps) {
                     {badge > 0 ? (
                       <CountBadge
                         count={badge}
-                        label={`unread ${item.label.toLowerCase()}`}
+                        label={tLayout("unreadItem", { item: label })}
                         className="absolute -top-1.5 -right-2.5 lg:hidden"
                       />
                     ) : null}
                   </span>
                   <span className="type-subhead flex-1 truncate max-lg:sr-only">
-                    {item.label}
+                    {label}
                   </span>
                   {badge > 0 ? (
                     <CountBadge
                       count={badge}
-                      label={`unread ${item.label.toLowerCase()}`}
+                      label={tLayout("unreadItem", { item: label })}
                       className="max-lg:hidden"
                     />
                   ) : null}
@@ -137,18 +141,18 @@ export function SideNav({ badges, className }: SideNavProps) {
                 {unreadNotifications > 0 ? (
                   <CountBadge
                     count={unreadNotifications}
-                    label="unread notifications"
+                    label={tLayout("unreadNotifications")}
                     className="absolute -top-1.5 -right-2.5 lg:hidden"
                   />
                 ) : null}
               </span>
               <span className="type-subhead flex-1 truncate max-lg:sr-only">
-                {TERMS.notifications}
+                {t("notifications")}
               </span>
               {unreadNotifications > 0 ? (
                 <CountBadge
                   count={unreadNotifications}
-                  label="unread notifications"
+                  label={tLayout("unreadNotifications")}
                   className="max-lg:hidden"
                 />
               ) : null}
@@ -164,7 +168,7 @@ export function SideNav({ badges, className }: SideNavProps) {
             COLOR_V2's record key rule, never a pill. */}
         <Link
           href={routes.create()}
-          aria-label={`${TERMS.record} ${TERMS.aWave}`}
+          aria-label={`${t("record")} ${t("aWave")}`}
           className={cn(
             "akinti-press inline-flex h-12 items-center justify-center gap-3 rounded-key bg-tide",
             "type-subhead text-on-ink transition-colors",
@@ -173,7 +177,7 @@ export function SideNav({ badges, className }: SideNavProps) {
         >
           <span aria-hidden="true" className="size-3.5 shrink-0 rounded-full bg-signal" />
           <span aria-hidden="true" className="max-lg:hidden">
-            {TERMS.record}
+            {t("record")}
           </span>
         </Link>
 
@@ -191,7 +195,7 @@ export function SideNav({ badges, className }: SideNavProps) {
             aria-hidden="true"
             weight={isActiveRoute(pathname, routes.settings()) ? "fill" : "regular"}
           />
-          <span className="type-subhead max-lg:sr-only">{TERMS.settings}</span>
+          <span className="type-subhead max-lg:sr-only">{t("settings")}</span>
         </Link>
       </div>
     </div>

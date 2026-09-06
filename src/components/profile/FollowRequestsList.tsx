@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { acceptFollowRequest, declineFollowRequest } from "@/app/(app)/u/[username]/actions";
@@ -15,14 +16,15 @@ export interface FollowRequestsListProps {
 
 /** `/settings/follow-requests`: accept or decline pending follow requests (spec §21). */
 export function FollowRequestsList({ requests }: FollowRequestsListProps) {
+  const t = useTranslations("FollowRequestsList");
   const [entries, setEntries] = useState(requests);
 
   if (entries.length === 0) {
     return (
       <EmptyState
         size="sm"
-        title="No pending follow requests"
-        description="When someone requests to follow your private account, they'll show up here."
+        title={t("emptyTitle")}
+        description={t("emptyDescription")}
       />
     );
   }
@@ -43,6 +45,7 @@ export function FollowRequestsList({ requests }: FollowRequestsListProps) {
 function RequestRow({ profile, onResolved }: { profile: Profile; onResolved: () => void }) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useTranslations("FollowRequestsList");
   const [isPending, startTransition] = useTransition();
 
   function respond(accept: boolean) {
@@ -51,7 +54,7 @@ function RequestRow({ profile, onResolved }: { profile: Profile; onResolved: () 
         ? await acceptFollowRequest(profile.id)
         : await declineFollowRequest(profile.id);
       if (!result.ok) {
-        toast({ title: result.formError ?? "Could not update this request.", tone: "error" });
+        toast({ title: result.formError ?? t("couldNotUpdate"), tone: "error" });
         return;
       }
       onResolved();
@@ -72,10 +75,10 @@ function RequestRow({ profile, onResolved }: { profile: Profile; onResolved: () 
       </Link>
       <div className="flex shrink-0 items-center gap-2">
         <Button variant="secondary" size="sm" onClick={() => respond(false)} disabled={isPending}>
-          Decline
+          {t("decline")}
         </Button>
         <Button size="sm" onClick={() => respond(true)} loading={isPending}>
-          Accept
+          {t("accept")}
         </Button>
       </div>
     </li>

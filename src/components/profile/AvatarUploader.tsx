@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef, useState, useTransition, type ChangeEvent } from "react";
 
 import { updateAvatar } from "@/app/(app)/settings/actions";
@@ -71,6 +72,7 @@ async function resizeToJpeg(file: File, maxDimension: number, quality: number): 
  */
 export function AvatarUploader({ initialAvatarUrl, name, className }: AvatarUploaderProps) {
   const { user, refreshProfile } = useCurrentUser();
+  const t = useTranslations("AvatarUploader");
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(initialAvatarUrl);
   const [error, setError] = useState<string | null>(null);
@@ -89,19 +91,19 @@ export function AvatarUploader({ initialAvatarUrl, name, className }: AvatarUplo
     setError(null);
 
     if (!isSupabaseConfigured()) {
-      setError("Backend not configured — avatar upload is unavailable in this environment.");
+      setError(t("backendNotConfigured"));
       return;
     }
     if (!user) {
-      setError("Your session has expired. Sign in again to continue.");
+      setError(t("sessionExpired"));
       return;
     }
     if (!isAllowedAvatarMimeType(file.type)) {
-      setError("Use a PNG, JPEG, WebP or AVIF image.");
+      setError(t("invalidType"));
       return;
     }
     if (file.size > MAX_AVATAR_BYTES) {
-      setError(`That image is larger than the ${Math.round(MAX_AVATAR_BYTES / (1024 * 1024))} MB limit.`);
+      setError(t("tooLarge", { mb: Math.round(MAX_AVATAR_BYTES / (1024 * 1024)) }));
       return;
     }
 
@@ -122,15 +124,15 @@ export function AvatarUploader({ initialAvatarUrl, name, className }: AvatarUplo
 
         const result = await updateAvatar(data.publicUrl);
         if (!result.ok) {
-          setError(result.formError ?? "Could not save your new photo.");
+          setError(result.formError ?? t("couldNotSaveNewPhoto"));
           return;
         }
 
         setPreview(data.publicUrl);
         await refreshProfile();
-        toast({ title: result.message ?? "Profile photo updated.", tone: "success" });
+        toast({ title: result.message ?? t("profilePhotoUpdated"), tone: "success" });
       } catch {
-        setError("Could not upload that image. Try a different file.");
+        setError(t("couldNotUpload"));
       }
     });
   }
@@ -146,13 +148,13 @@ export function AvatarUploader({ initialAvatarUrl, name, className }: AvatarUplo
             accept={ALLOWED_AVATAR_MIME_TYPES.join(",")}
             onChange={handleFileChange}
             className="sr-only"
-            aria-label="Upload profile photo"
+            aria-label={t("uploadLabel")}
           />
           <Button type="button" variant="secondary" size="sm" onClick={handlePick} loading={isPending}>
-            Change photo
+            {t("changePhoto")}
           </Button>
           <p className="text-xs text-fg-subtle">
-            PNG, JPEG, WebP or AVIF. Resized to {MAX_DIMENSION_PX}px automatically.
+            {t("hint", { px: MAX_DIMENSION_PX })}
           </p>
         </div>
       </div>

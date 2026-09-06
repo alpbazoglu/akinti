@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition, type FormEvent } from "react";
 
 import { updateAccount } from "@/app/(app)/settings/actions";
@@ -25,6 +26,7 @@ export function AccountForm({
   initialAvatarUrl,
 }: AccountFormProps) {
   const { refreshProfile } = useCurrentUser();
+  const t = useTranslations("AccountForm");
   const [username, setUsername] = useState(initialUsername);
   const [displayName, setDisplayName] = useState(initialDisplayName ?? "");
   const [bio, setBio] = useState(initialBio ?? "");
@@ -52,7 +54,7 @@ export function AccountForm({
       }
 
       await refreshProfile();
-      toast({ title: result.message ?? "Saved.", tone: "success" });
+      toast({ title: result.message ?? t("saved"), tone: "success" });
     });
   }
 
@@ -63,7 +65,7 @@ export function AccountForm({
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <Input
           id="account-display-name"
-          label="Display name"
+          label={t("displayNameLabel")}
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
           maxLength={50}
@@ -71,17 +73,17 @@ export function AccountForm({
         />
         <Input
           id="account-username"
-          label="Username"
+          label={t("usernameLabel")}
           value={username}
           onChange={(event) => setUsername(event.target.value.toLowerCase())}
           maxLength={30}
           required
-          hint="Lowercase letters, numbers and underscores only."
+          hint={t("usernameHint")}
           error={fieldErrors.username}
         />
         <Textarea
           id="account-bio"
-          label="Bio"
+          label={t("bioLabel")}
           value={bio}
           onChange={(event) => setBio(event.target.value)}
           maxLength={BIO_MAX_LENGTH}
@@ -94,7 +96,7 @@ export function AccountForm({
           </p>
         ) : null}
         <Button type="submit" loading={isPending} className="self-start">
-          Save changes
+          {t("saveChanges")}
         </Button>
       </form>
     </div>

@@ -1,5 +1,5 @@
+import { getTranslations } from "next-intl/server";
 
-import { TERMS } from "@/config/terminology";
 import { EmptyState } from "@/components/ui";
 
 export interface LockedContentProps {
@@ -14,14 +14,19 @@ export interface LockedContentProps {
  * follower). The identity card above this (avatar, name, bio, counts)
  * stays visible per `can_view_profile` — only the content itself locks.
  */
-export function LockedContent({ username, requested = false }: LockedContentProps) {
+export async function LockedContent({ username, requested = false }: LockedContentProps) {
+  const t = await getTranslations("LockedContent");
+  const tTerms = await getTranslations("Terms");
+  const waves = tTerms("waves");
+  const duets = tTerms("duets");
+
   return (
     <EmptyState
-      title="This profile is private"
+      title={t("title")}
       description={
         requested
-          ? `Your follow request to @${username} is pending. Once accepted, you'll see their ${TERMS.waves} and ${TERMS.duets} here.`
-          : `Follow @${username} to see their ${TERMS.waves} and ${TERMS.duets} once they accept.`
+          ? t("pending", { username, waves, duets })
+          : t("notFollowing", { username, waves, duets })
       }
     />
   );
