@@ -1,5 +1,9 @@
 # AKINTI
 
+> New to this repo? Start with [`docs/HANDOVER.md`](docs/HANDOVER.md)
+> (Turkish, written for a maintainer who has never seen this codebase) and
+> [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for going live.
+
 AKINTI is an audio-first social network. Users share voice, music and spoken
 audio ("Waves"), discover creators, and collaborate through **Duets** —
 recording a synchronized response against someone else's Wave. There are no
