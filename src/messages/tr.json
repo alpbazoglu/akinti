@@ -256,6 +256,10 @@
     "findPeopleToFollow": "Takip edilecek kişiler bul",
     "recordYourFirst": "İlk {wave}'ini kaydet"
   },
+  "HorizontalScroller": {
+    "scrollPrevious": "Sola kaydır",
+    "scrollNext": "Sağa kaydır"
+  },
   "OpenCallsLane": {
     "openCalls": "Açık çağrılar",
     "answerThisCall": "Bu çağrıya cevap ver",

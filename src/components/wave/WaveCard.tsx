@@ -57,6 +57,14 @@ export interface WaveCardWave {
    * unplayed part of the trace. Omitted draws the plain current, as always.
    */
   readonly hue?: TraceHue;
+  /**
+   * `wave.tags` (`src/types/domain.ts`), first entry only meaningfully used
+   * today: the desktop Explore card grid (`ExploreWaveCard`) derives its
+   * genre tint from `tags[0]` via `genreHueForTag`, the same mapping Flow's
+   * `flowTraceHue` uses for its own genre field. Optional — a card with no
+   * tags just draws the plain current, as every card always has.
+   */
+  readonly tags?: readonly string[];
 }
 
 export type WaveCardVariant = "stream" | "detail";

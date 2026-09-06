@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useRef } from "react";
 
 import { WaveformCanvas } from "@/components/audio";
 import { FollowButton } from "@/components/profile";
 import { Avatar, Skeleton } from "@/components/ui";
+import { HorizontalScroller } from "@/components/ui/desktop";
+import { Users } from "@/components/ui/icons";
 import { routes } from "@/config/routes";
 import type { FollowStatus, Profile } from "@/types/domain";
 
@@ -51,17 +54,20 @@ export interface RisingCreatorsStripProps {
  */
 export function RisingCreatorsStrip({ creators, isSignedIn }: RisingCreatorsStripProps) {
   const t = useTranslations("RisingCreatorsStrip");
+  const scrollRef = useRef<HTMLUListElement>(null);
   if (creators.length === 0) {
     return null;
   }
 
   return (
     <section aria-labelledby="rising-creators" className="flex flex-col gap-4 pt-6">
-      <h2 id="rising-creators" className="akinti-page type-caption-strong text-ink-muted">
+      <h2 id="rising-creators" className="akinti-page type-caption-strong flex items-center gap-2 text-ink-muted">
+        <Users className="hidden size-4 lg:inline" aria-hidden="true" />
         {t("title")}
       </h2>
 
-      <ul className="akinti-page flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
+      <HorizontalScroller scrollRef={scrollRef}>
+      <ul ref={scrollRef} className="akinti-page flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
         {creators.map(({ profile, followStatus, followsViewer, signature, waveTags }) => {
           const name = profile.displayName ?? profile.username;
           const hue = waveTags ? deriveGenreHue(waveTags) : undefined;
@@ -101,6 +107,7 @@ export function RisingCreatorsStrip({ creators, isSignedIn }: RisingCreatorsStri
           );
         })}
       </ul>
+      </HorizontalScroller>
     </section>
   );
 }

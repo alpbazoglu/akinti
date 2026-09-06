@@ -256,6 +256,10 @@
     "findPeopleToFollow": "Find people to follow",
     "recordYourFirst": "Record your first {wave}"
   },
+  "HorizontalScroller": {
+    "scrollPrevious": "Scroll left",
+    "scrollNext": "Scroll right"
+  },
   "OpenCallsLane": {
     "openCalls": "Open calls",
     "answerThisCall": "Answer this call",

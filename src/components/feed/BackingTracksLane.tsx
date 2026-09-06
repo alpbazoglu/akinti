@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Waveform } from "@/components/audio";
 import { Chip, IconButton, Spinner } from "@/components/ui";
-import { Pause, Play, RotateCcw } from "@/components/ui/icons";
+import { HorizontalScroller } from "@/components/ui/desktop";
+import { MusicNotes, Pause, Play, RotateCcw } from "@/components/ui/icons";
 import { routes } from "@/config/routes";
 import { usePlaybackStore, useWavePlayback } from "@/lib/audio";
-import { formatDuration } from "@/lib/ui";
+import { cn, formatDuration } from "@/lib/ui";
 
 import { useSignedAudio } from "./signedAudio";
 
@@ -62,6 +63,7 @@ export function BackingTracksLane({ tracks }: BackingTracksLaneProps) {
     () => (genre ? tracks.filter((track) => track.genreTags.includes(genre)) : tracks),
     [genre, tracks],
   );
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   if (tracks.length === 0) {
     return null;
@@ -69,7 +71,8 @@ export function BackingTracksLane({ tracks }: BackingTracksLaneProps) {
 
   return (
     <section aria-labelledby="backing-tracks" className="flex flex-col gap-4 pt-8">
-      <h2 id="backing-tracks" className="akinti-page type-caption-strong text-ink-muted">
+      <h2 id="backing-tracks" className="akinti-page type-caption-strong flex items-center gap-2 text-ink-muted">
+        <MusicNotes className="size-4 text-sand" aria-hidden="true" weight="fill" />
         {t("title")}
       </h2>
 
@@ -90,16 +93,22 @@ export function BackingTracksLane({ tracks }: BackingTracksLaneProps) {
         </div>
       ) : null}
 
-      <div className="akinti-page flex flex-col">
-        {shown.map((track) => (
-          <TrackRow key={track.id} track={track} />
-        ))}
-      </div>
+      <HorizontalScroller scrollRef={scrollRef}>
+        <div ref={scrollRef} className="akinti-page flex flex-col lg:flex-row lg:gap-4 lg:overflow-x-auto lg:pb-1">
+          {shown.map((track) => (
+            <TrackRow
+              key={track.id}
+              track={track}
+              className="lg:w-[340px] lg:shrink-0 lg:rounded-card lg:border lg:border-hairline lg:bg-elevation-2 lg:p-4 lg:border-b-0"
+            />
+          ))}
+        </div>
+      </HorizontalScroller>
     </section>
   );
 }
 
-function TrackRow({ track }: { track: BackingTrackCard }) {
+function TrackRow({ track, className }: { track: BackingTrackCard; className?: string }) {
   const t = useTranslations("BackingTracksLane");
   const store = usePlaybackStore();
   const playbackId = `track:${track.id}`;
@@ -144,7 +153,7 @@ function TrackRow({ track }: { track: BackingTrackCard }) {
   ].filter((value): value is string => Boolean(value));
 
   return (
-    <div className="akinti-rail border-b border-hairline py-4 last:border-b-0">
+    <div className={cn("akinti-rail border-b border-hairline py-4 last:border-b-0", className)}>
       <div className="flex justify-start">
         <IconButton
           label={

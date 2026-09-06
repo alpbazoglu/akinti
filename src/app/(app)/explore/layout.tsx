@@ -32,6 +32,12 @@ const EXPLORE_MESSAGE_NAMESPACES = [
   "MessagesActions",
   "ErrorPage",
   "NotFoundPage",
+  // Desktop card grid (>= 1024px, `ExploreWaveCard`/`HorizontalScroller`) —
+  // `ExploreWaveCard` reuses "WaveCard"'s own metric labels and calls
+  // `useActionToast`, which reads "Layout" (previously unneeded here: only
+  // `AppShell` chrome outside this provider used it).
+  "Layout",
+  "HorizontalScroller",
 ] as const;
 
 export default async function ExploreLayout({ children }: { children: ReactNode }) {

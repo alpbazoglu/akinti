@@ -54,6 +54,7 @@ export function toCardWave(
     creator: toPerson(creator),
     collaborators,
     creationType: wave.creationType,
+    tags: wave.tags,
     audioAssetId: asset.id,
     peaks: resolveWavePeaks(asset.peaks?.data, asset.id, asset.peaks?.bits),
     duration: asset.durationMs ? asset.durationMs / 1000 : undefined,

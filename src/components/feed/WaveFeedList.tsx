@@ -21,7 +21,9 @@ import { useEffect, useRef } from "react";
 
 import { WaveCardContainer, WaveCardSkeleton, type WaveCardContainerWave } from "@/components/wave";
 import type { FeedStatus } from "@/lib/feed";
-import { cn } from "@/lib/ui";
+import { cn, useIsDesktopViewport } from "@/lib/ui";
+
+import { ExploreWaveCard } from "./ExploreWaveCard";
 
 export interface WaveFeedListProps {
   items: readonly WaveCardContainerWave[];
@@ -50,6 +52,12 @@ export function WaveFeedList({
   const t = useTranslations("WaveFeedList");
   const sentinelRef = useRef<HTMLDivElement>(null);
   const onLoadMoreRef = useRef(onLoadMore);
+  // `DESIGN_V3_DESKTOP.md`: "card grid (allowed on desktop): 4-5 columns at
+  // 1440". One render path, not a CSS-hidden duplicate of the other — each
+  // row/card here carries its own audio + analytics hooks
+  // (`usePlayTracker`, playback subscriptions), so mounting both at once
+  // would double that cost for every item in the stream.
+  const isDesktop = useIsDesktopViewport();
 
   // Keep the ref current without writing to it during render (the "latest
   // ref" pattern) — the IntersectionObserver effect below reads it lazily so
@@ -81,13 +89,21 @@ export function WaveFeedList({
 
   return (
     <div className={cn("flex flex-col", className)}>
-      {items.map((wave) => (
-        <WaveCardContainer
-          key={wave.id}
-          wave={wave}
-          unheard={unheardIds?.has(wave.id) ?? false}
-        />
-      ))}
+      {isDesktop ? (
+        <div className="akinti-page grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {items.map((wave) => (
+            <ExploreWaveCard key={wave.id} wave={wave} unheard={unheardIds?.has(wave.id) ?? false} />
+          ))}
+        </div>
+      ) : (
+        items.map((wave) => (
+          <WaveCardContainer
+            key={wave.id}
+            wave={wave}
+            unheard={unheardIds?.has(wave.id) ?? false}
+          />
+        ))
+      )}
 
       {status === "loading" ? <WaveCardSkeleton /> : null}
 
