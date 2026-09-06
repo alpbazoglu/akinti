@@ -127,6 +127,22 @@ export async function markCancelAtPeriodEnd(
   }
 }
 
+/** Undo `markCancelAtPeriodEnd` after a real, confirmed `resume()` at the provider — never called speculatively. */
+export async function clearCancelAtPeriodEnd(
+  admin: SupabaseAdminClient,
+  provider: BillingProvider,
+  providerSubscriptionId: string,
+): Promise<void> {
+  const result = await admin
+    .from("subscriptions")
+    .update({ cancel_at_period_end: false })
+    .eq("provider", provider)
+    .eq("provider_subscription_id", providerSubscriptionId);
+  if (result.error) {
+    throw new DatabaseError("clearCancelAtPeriodEnd", result.error);
+  }
+}
+
 /**
  * Idempotently record one webhook event and, if it carries subscription
  * state, apply it. Returns `{ duplicate: true }` without touching

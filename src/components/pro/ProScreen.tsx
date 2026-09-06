@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { resumePro } from "@/app/(app)/settings/pro/actions";
 import type { ProStatus } from "@/app/(app)/settings/pro/actions";
 import { Button } from "@/components/ui";
 import { formatAbsoluteTime } from "@/lib/ui";
@@ -38,6 +39,21 @@ const PLAN_LABELS: Record<NonNullable<ProStatus["planCode"]>, string> = {
 export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvironment }: ProScreenProps) {
   const [status, setStatus] = useState(initialStatus);
   const [cancelSheetOpen, setCancelSheetOpen] = useState(false);
+  const [resuming, setResuming] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+
+  const handleResume = () => {
+    setResuming(true);
+    setResumeError(null);
+    void resumePro().then((result) => {
+      setResuming(false);
+      if (!result.ok) {
+        setResumeError(result.formError ?? "We couldn't resume your subscription. Try again.");
+        return;
+      }
+      setStatus({ ...status, cancelAtPeriodEnd: false });
+    });
+  };
 
   if (status.status === "past_due") {
     return (
@@ -62,6 +78,17 @@ export function ProScreen({ initialStatus, plans, paddleClientToken, paddleEnvir
             ? `Ends on ${formatAbsoluteTime(status.currentPeriodEnd)}.`
             : "Ends at the close of the current billing period."}
         </p>
+        <div>
+          <Button onClick={handleResume} loading={resuming}>
+            Resume
+          </Button>
+        </div>
+        {resumeError ? (
+          <p role="alert" className="type-body-sm text-danger">
+            {resumeError}
+          </p>
+        ) : null}
+        <p className="type-body-sm text-ink-muted">Or start a new subscription:</p>
         <StartProControls plans={plans} paddleClientToken={paddleClientToken} paddleEnvironment={paddleEnvironment} />
       </div>
     );

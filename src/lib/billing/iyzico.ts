@@ -206,6 +206,30 @@ export class IyzicoProvider implements BillingProviderClient {
     );
   }
 
+  /**
+   * iyzico's Subscription API (`node_modules/iyzipay/lib/resources/Subscription.js`)
+   * does expose an `activate` endpoint (`POST
+   * /v2/subscription/subscriptions/{subscriptionReferenceCode}/activate`),
+   * but docs.iyzico.com documents that specifically for reactivating a
+   * subscription stuck `PENDING` after a failed initial payment — not for
+   * reversing a `cancel` call, and this codebase's own convention (see this
+   * file's header comment: "one shape ... could not be confirmed from
+   * documentation alone") is to never guess at an endpoint's behavior for
+   * something this consequential (silently failing to actually restore
+   * billing would be exactly the "fake success" spec §44 forbids). There is
+   * no confirmed iyzico endpoint that undoes an already-recorded
+   * cancellation, so this always rejects — `resumeSubscriptionForUser`
+   * (`index.ts`) surfaces this to the caller as "start a new subscription"
+   * rather than a silent no-op.
+   */
+  async resume(_providerSubscriptionId: string): Promise<void> {
+    void _providerSubscriptionId;
+    throw new BillingProviderError(
+      "iyzico",
+      "This subscription can't be resumed automatically. Start a new AKINTI Pro subscription instead.",
+    );
+  }
+
   async verifyWebhook(rawBody: string, headers: Headers): Promise<boolean> {
     const signature = headers.get("x-iyz-signature-v3");
     if (!signature) return false;

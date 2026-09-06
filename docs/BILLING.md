@@ -184,6 +184,40 @@ flips it early. Refunds are handled directly in each provider's dashboard
 (iyzico Merchant Panel / Paddle) per that provider's own policy — there is no
 in-app refund action in this wave.
 
+## Resume
+
+`resumePro()` (`settings/pro/actions.ts` → `resumeSubscriptionForUser()`,
+`src/lib/billing/index.ts`) undoes a pending cancel-at-period-end — only
+valid while the subscription is still `active`/`trialing` with
+`cancel_at_period_end = true` (the "Resume" button in the canceled state of
+`src/components/pro/ProScreen.tsx`). It is **not** a way to reactivate an
+already-`canceled`/`expired` subscription; that always needs a brand new
+checkout.
+
+Provider support differs, per `BillingProviderClient.resume()`
+(`src/lib/billing/types.ts`):
+
+- **Paddle** — real support. `cancel()` schedules the cancellation as a
+  `scheduledChange` on the subscription rather than ending it immediately
+  (`effectiveFrom: 'next_billing_period'`), so undoing it is one documented
+  PATCH: `subscriptions.update(id, { scheduledChange: null })`
+  (`UpdateSubscriptionRequestBody`, confirmed against the installed SDK's
+  own `.d.ts`). Unit-tested in `src/lib/billing/paddle.resume.test.ts`
+  (mocking the SDK's `Paddle` class — unlike `verifyWebhook`/`parseEvent`,
+  `subscriptions.update` is a real network call with no local-crypto path to
+  test against directly).
+- **iyzico** — no support. iyzico's Subscription API does expose an
+  `activate` endpoint, but docs.iyzico.com documents it for reactivating a
+  subscription stuck `PENDING` after a failed initial payment, not for
+  reversing a `cancel` call — there is no confirmed iyzico endpoint that
+  undoes an already-recorded cancellation. Rather than guess at a
+  consequential, unconfirmed API call, `IyzicoProvider.resume()` always
+  rejects with a clear `BillingProviderError` ("start a new AKINTI Pro
+  subscription instead"), surfaced as an honest `formError` on the Resume
+  button rather than a silent no-op. `ProScreen.tsx`'s canceled state
+  already offers `StartProControls` right below Resume for exactly this
+  case. Unit-tested in `src/lib/billing/iyzico.test.ts`.
+
 ## KVKK (Turkish data protection law) note
 
 Card/payment data itself never reaches this application — both providers'

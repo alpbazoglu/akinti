@@ -130,6 +130,30 @@ export async function cancelSubscriptionForUser(admin: SupabaseAdminClient, user
   await repository.markCancelAtPeriodEnd(admin, subscription.provider, subscription.provider_subscription_id);
 }
 
+/**
+ * Undo a pending cancel-at-period-end (docs/BILLING.md "Resume") — only
+ * valid while the subscription is still `active`/`trialing` with
+ * `cancel_at_period_end = true`. Never called for an already-`canceled`/
+ * `expired` subscription: that requires a brand new checkout, not a resume
+ * (`BillingProviderClient.resume`'s doc comment). `IyzicoProvider.resume`
+ * always throws (no confirmed iyzico endpoint for this) — this function
+ * lets that propagate as an honest error rather than catching it here.
+ */
+export async function resumeSubscriptionForUser(admin: SupabaseAdminClient, userId: string): Promise<void> {
+  const subscription = await repository.getLatestSubscriptionForUser(admin, userId);
+  const resumable =
+    subscription &&
+    subscription.cancel_at_period_end &&
+    (subscription.status === "active" || subscription.status === "trialing");
+  if (!subscription || !resumable) {
+    throw new BillingProviderError("iyzico", "You don't have a subscription to resume.");
+  }
+
+  const provider = providerFor(subscription.provider);
+  await provider.resume(subscription.provider_subscription_id);
+  await repository.clearCancelAtPeriodEnd(admin, subscription.provider, subscription.provider_subscription_id);
+}
+
 /** Shared webhook handling for both `/api/billing/iyzico/webhook` and `/api/billing/paddle/webhook`: verify, parse, apply idempotently. */
 export async function handleWebhook(
   admin: SupabaseAdminClient,

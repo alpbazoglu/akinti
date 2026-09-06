@@ -23,7 +23,7 @@ import { z } from "zod";
 
 import { assertNotSuspended, getCurrentProfile, getCurrentUser, SUSPENDED_ACTION_MESSAGE } from "@/lib/auth/server";
 import { fieldErrorsFromZod } from "@/lib/auth/types";
-import { cancelSubscriptionForUser, isPro, startCheckout } from "@/lib/billing";
+import { cancelSubscriptionForUser, isPro, resumeSubscriptionForUser, startCheckout } from "@/lib/billing";
 import { BillingProviderError } from "@/lib/billing/types";
 import type { IyzicoBuyerDetails } from "@/lib/billing/types";
 import { DatabaseError } from "@/lib/db/types";
@@ -181,6 +181,27 @@ export async function cancelPro(): Promise<ProActionResult> {
   }
 
   return { ok: true, message: "Your subscription will end at the close of the current billing period." };
+}
+
+/**
+ * Undo a pending cancel-at-period-end (docs/BILLING.md "Resume"). iyzico
+ * subscriptions can't be resumed this way — `resumeSubscriptionForUser`
+ * throws a `BillingProviderError` in that case, surfaced here as an honest
+ * `formError` rather than a silent no-op, so the Pro screen can point the
+ * caller at starting a new subscription instead.
+ */
+export async function resumePro(): Promise<ProActionResult> {
+  const signedIn = await requireSignedIn();
+  if (signedIn.error) return signedIn.error;
+
+  const admin = createAdminClient();
+  try {
+    await resumeSubscriptionForUser(admin, signedIn.userId);
+  } catch (err) {
+    return { ok: false, formError: describeError(err, "We couldn't resume your subscription. Try again.") };
+  }
+
+  return { ok: true, message: "Your subscription will keep renewing." };
 }
 
 export interface ProStatus {

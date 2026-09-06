@@ -117,6 +117,20 @@ export class PaddleProvider implements BillingProviderClient {
     await client().subscriptions.cancel(providerSubscriptionId, { effectiveFrom: "next_billing_period" });
   }
 
+  /**
+   * `cancel()` above schedules the cancellation as a `scheduledChange` on
+   * the subscription (Paddle never ends access immediately for
+   * `effectiveFrom: "next_billing_period"`) rather than cancelling
+   * outright — so undoing it is a real, documented Paddle operation: PATCH
+   * the subscription with `scheduledChange: null`
+   * (`UpdateSubscriptionRequestBody`, confirmed against the installed SDK's
+   * own `.d.ts` under `node_modules/@paddle/paddle-node-sdk/dist/types/resources/subscriptions/operations/update-subscription-request-body.d.ts`).
+   * `subscriptions.update` issues that PATCH.
+   */
+  async resume(providerSubscriptionId: string): Promise<void> {
+    await client().subscriptions.update(providerSubscriptionId, { scheduledChange: null });
+  }
+
   async verifyWebhook(rawBody: string, headers: Headers): Promise<boolean> {
     const signature = headers.get("paddle-signature");
     if (!signature) return false;

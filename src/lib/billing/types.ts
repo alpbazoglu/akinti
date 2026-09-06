@@ -85,6 +85,19 @@ export interface BillingProviderClient {
   readonly provider: BillingProvider;
   createCheckout(args: CreateCheckoutArgs): Promise<CreateCheckoutResult>;
   cancel(providerSubscriptionId: string): Promise<void>;
+  /**
+   * Undo a pending cancel-at-period-end (the buyer changed their mind before
+   * the current period actually ended — `status` is still `active`/`trialing`
+   * at this point, only `cancel_at_period_end` is true). NOT a
+   * reactivation of an already-`canceled`/`expired` subscription — that
+   * always requires a brand new checkout (`docs/BILLING.md` "Resume").
+   * Paddle supports this natively (removing the subscription's own
+   * `scheduledChange`); iyzico's Subscription API has no equivalent for a
+   * cancellation already recorded at the provider, so `IyzicoProvider.resume`
+   * always rejects with a clear, honest `BillingProviderError` rather than
+   * guessing at an endpoint that was not confirmed to do this.
+   */
+  resume(providerSubscriptionId: string): Promise<void>;
   /** Verify the raw request body against the provider's webhook signature header(s). Never trust `parseEvent`'s output before this passes. */
   verifyWebhook(rawBody: string, headers: Headers): Promise<boolean>;
   /** `headers` is unused by iyzico (its signature is fully derivable from the body) but Paddle's own `unmarshal` needs the `paddle-signature` header again here. */

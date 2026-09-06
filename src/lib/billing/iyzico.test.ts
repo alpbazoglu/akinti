@@ -115,3 +115,15 @@ describe("iyzicoProvider.parseEvent", () => {
     });
   });
 });
+
+describe("iyzicoProvider.resume", () => {
+  it("always rejects — there is no confirmed iyzico endpoint that undoes a recorded cancellation", async () => {
+    await expect(iyzicoProvider.resume(SUCCESS_PAYLOAD.subscriptionReferenceCode)).rejects.toMatchObject({
+      name: "BillingProviderError",
+      provider: "iyzico",
+    });
+    await expect(iyzicoProvider.resume(SUCCESS_PAYLOAD.subscriptionReferenceCode)).rejects.toThrow(
+      /new AKINTI Pro subscription/i,
+    );
+  });
+});
