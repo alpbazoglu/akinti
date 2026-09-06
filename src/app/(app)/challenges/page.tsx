@@ -1,12 +1,20 @@
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 
+import { ChallengeHeroCard, type ChallengeHeroCardBackingTrack } from "@/components/challenges";
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
-import { deriveChallengePhase, listChallenges, localizeChallenge } from "@/lib/db/challenges";
+import { getBackingTrackById } from "@/lib/db/backingTracks";
+import {
+  deriveChallengePhase,
+  listChallengeEntries,
+  listChallenges,
+  localizeChallenge,
+} from "@/lib/db/challenges";
+import { MAX_PAGE_LIMIT } from "@/lib/db/types";
 import { routes } from "@/config/routes";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createServerSupabaseClient, type SupabaseServerClient } from "@/lib/supabase/server";
 import type { Challenge } from "@/types/domain";
 
 export async function generateMetadata() {
@@ -59,6 +67,10 @@ export default async function ChallengesPage() {
   };
   challenges = [...challenges].sort((a, b) => phaseRank[deriveChallengePhase(a)] - phaseRank[deriveChallengePhase(b)]);
 
+  const liveChallenges = challenges.filter((challenge) => deriveChallengePhase(challenge) === "active");
+  const restChallenges = challenges.filter((challenge) => deriveChallengePhase(challenge) !== "active");
+  const heroCards = loadError ? [] : await Promise.all(liveChallenges.map((challenge) => loadHeroCardData(db, challenge)));
+
   return (
     <>
       <PageHeader title={t("challenges")} />
@@ -71,27 +83,108 @@ export default async function ChallengesPage() {
             description={tPage("emptyDescription")}
           />
         ) : (
-          <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
-            {challenges.map((challenge) => {
-              const { title } = localizeChallenge(challenge, locale);
-              return (
-                <li key={challenge.id}>
-                  <Link
-                    href={routes.challenge(challenge.slug)}
-                    className="flex flex-col gap-1 py-4 hover:bg-paper-raised"
-                  >
-                    <span className="type-heading text-ink">{title}</span>
-                    <span className="type-body-sm text-ink-muted">
-                      #{challenge.hashtag} · {phaseCopy(challenge, tPage)}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            {/* Mobile keeps the exact original plain-list shape, every
+                phase in one list (this pass's brief: "mobile unchanged"). */}
+            <ChallengeList challenges={challenges} locale={locale} tPage={tPage} className="lg:hidden" />
+
+            {/* Desktop: live challenges as hero cards (item 1: "live
+                challenges as hero cards with the backing-track play,
+                deadline, entry count, sand mark"), everything else as the
+                same plain list below. */}
+            <div className="hidden flex-col gap-8 lg:flex">
+              {heroCards.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
+                  {heroCards.map(({ challenge, entryCount, entryCountCapped, backingTrack, daysLeft }) => (
+                    <ChallengeHeroCard
+                      key={challenge.id}
+                      slug={challenge.slug}
+                      title={localizeChallenge(challenge, locale).title}
+                      brief={localizeChallenge(challenge, locale).brief}
+                      daysLeft={daysLeft}
+                      entryCount={entryCount}
+                      entryCountCapped={entryCountCapped}
+                      backingTrack={backingTrack}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {restChallenges.length > 0 ? (
+                <ChallengeList challenges={restChallenges} locale={locale} tPage={tPage} />
+              ) : null}
+            </div>
+          </>
         )}
       </div>
     </>
+  );
+}
+
+interface HeroCardData {
+  challenge: Challenge;
+  entryCount: number;
+  entryCountCapped: boolean;
+  backingTrack: ChallengeHeroCardBackingTrack | null;
+  daysLeft: number;
+}
+
+/** Whole days until `endsAtIso`. A plain (non-component) function, per `deriveChallengePhase`'s own pattern — the "now" read stays out of a component's render body, where the React Compiler's purity rule flags a direct `Date.now()` call. */
+function daysUntil(endsAtIso: string, now: number = Date.now()): number {
+  return Math.ceil((new Date(endsAtIso).getTime() - now) / 86_400_000);
+}
+
+/** Real entry count (capped by `MAX_PAGE_LIMIT`, never fabricated past that — see `ChallengeHeroCard`'s own doc comment) plus the backing track a live challenge's hero card needs. */
+async function loadHeroCardData(db: SupabaseServerClient, challenge: Challenge): Promise<HeroCardData> {
+  const [entryPage, backingTrack] = await Promise.all([
+    listChallengeEntries(db, challenge.id, { limit: MAX_PAGE_LIMIT }).catch(() => ({ items: [], nextCursor: null })),
+    challenge.backingTrackId ? getBackingTrackById(db, challenge.backingTrackId).catch(() => null) : Promise.resolve(null),
+  ]);
+  return {
+    challenge,
+    entryCount: entryPage.items.length,
+    entryCountCapped: entryPage.nextCursor !== null,
+    daysLeft: daysUntil(challenge.endsAt),
+    backingTrack: backingTrack
+      ? {
+          audioAssetId: backingTrack.audioAssetId,
+          title: backingTrack.title,
+          artistCredit: backingTrack.artistCredit,
+          durationMs: backingTrack.durationMs,
+        }
+      : null,
+  };
+}
+
+function ChallengeList({
+  challenges,
+  locale,
+  tPage,
+  className,
+}: {
+  challenges: readonly Challenge[];
+  locale: string;
+  tPage: (key: "startsSoon" | "ended" | "liveNow") => string;
+  className?: string;
+}) {
+  return (
+    <ul className={`flex flex-col divide-y divide-hairline border-t border-hairline ${className ?? ""}`}>
+      {challenges.map((challenge) => {
+        const { title } = localizeChallenge(challenge, locale);
+        return (
+          <li key={challenge.id}>
+            <Link
+              href={routes.challenge(challenge.slug)}
+              className="flex flex-col gap-1 py-4 hover:bg-paper-raised"
+            >
+              <span className="type-heading text-ink">{title}</span>
+              <span className="type-body-sm text-ink-muted">
+                #{challenge.hashtag} · {phaseCopy(challenge, tPage)}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

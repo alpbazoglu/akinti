@@ -1091,6 +1091,14 @@
     "pauseTrack": "{title} duraklat",
     "playTrack": "{title} oynat"
   },
+  "ChallengeHeroCard": {
+    "liveNow": "Şimdi canlı",
+    "endsToday": "Bugün bitiyor",
+    "endsTomorrow": "Yarın bitiyor",
+    "endsInDays": "{days} gün içinde bitiyor",
+    "entryCount": "{count} giriş",
+    "entryCountPlus": "{count}+ giriş"
+  },
   "EnterChallengeWavePicker": {
     "couldNotEnter": "Bu meydan okumaya katılınamadı. Yeniden dene.",
     "couldntEnterTitle": "Bu meydan okumaya katılınamadı",

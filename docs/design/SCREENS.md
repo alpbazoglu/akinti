@@ -920,9 +920,38 @@ optimistic (`useOptimistic`); Save already was (a hand-rolled reducer, left as-i
 already had rollback, this pass only added a double-submit guard and routed its error
 through the shared toast helper without losing the server's specific message).
 
+### Challenges (`/challenges`, `/challenges/[slug]`, `/hashtag/[tag]`)
+Live challenges render as hero cards at `lg` (`ChallengeHeroCard`, new — a 2/3-column grid
+above the plain list, itself kept for upcoming/ended challenges): the backing-track play
+widget (`ChallengeBackingTrack`, reused unmodified — its play mark stays sand per
+`COLOR_V2.md`, the live-status dot is the current), a real deadline ("Ends in N days"),
+and a real entry count that is simply omitted rather than printed as zero when a challenge
+has no entries yet (never a fabricated total past its own fetch page, rendered "50+" when
+capped). The detail page becomes two columns at `lg` (brief, backing track, Top 5 left;
+entries right) via CSS grid column placement, not DOM reordering, so mobile's DOM is
+untouched. Entries are hydrated to full `WaveCardContainerWave`s (`hydrateWaveCards`) and
+render as a card grid with hover play at `lg` (`ChallengeEntriesGrid`, new) while mobile
+keeps its original title-only rows exactly as they were. The hashtag page gets the same
+grid treatment via `ChallengeWaveGrid` (new, shared with any future desktop grid of
+already-hydrated Waves) — mobile there was already full `WaveCardContainer` rows, so it
+is genuinely unchanged.
+
+### Analytics (`/analytics`)
+A `lg`-only KPI tile row (icons, only non-zero figures) sits above the same chart and
+Wave-performance table mobile already had (which stay `lg:hidden` unchanged below the
+tiles). The chart (`AnalyticsTimeseriesChart`) moved off its old `fill-accent`/`text-fg-*`
+v1 token aliases onto the same `tide`/`ink`/`elevation` names the rest of the desktop pass
+uses, gained a card surface at `lg`, and now emphasises its endpoint (today's bar full
+`tide`, the rest a muted `tide/45`) per the dataviz pass's "no chart junk, one scale,
+emphasised endpoint" rule. `RangeSwitcher` keeps its mobile underbar and gains a filled
+segmented-control treatment at `lg` (`bg-elevation-3` on the active segment, still no
+coloured pill). The per-Wave sparkline column called for in the original brief is still
+omitted — `creator_wave_performance` returns no peaks data to draw one from, and this pass
+did not add a new query for it (see `WavePerformanceTable`'s own comment).
+
 ### Not yet built
-Challenges, Tracks, Duets, Search, Notifications, Messages, Settings and Analytics have
-not had a desktop-specific pass — they render whatever their existing mobile-first
-layout produces at desktop width (correct, but not redesigned to Direction A's card/rail
-language). `loading.tsx` skeletons for Flow/Explore/Wave/Profile/Analytics have not been
-reshaped to the new desktop layouts; they still describe the pre-existing mobile shape.
+Tracks, Duets, Search, Notifications, Messages and Settings have not had a desktop-specific
+pass — they render whatever their existing mobile-first layout produces at desktop width
+(correct, but not redesigned to Direction A's card/rail language). `loading.tsx` skeletons
+for Flow/Explore/Wave/Profile have not been reshaped to the new desktop layouts; they still
+describe the pre-existing mobile shape.

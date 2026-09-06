@@ -4,7 +4,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
-import { ChallengeBackingTrack, EnterChallengeWavePicker } from "@/components/challenges";
+import { ChallengeBackingTrack, ChallengeEntriesGrid, EnterChallengeWavePicker } from "@/components/challenges";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getBackingTrackById } from "@/lib/db/backingTracks";
 import {
@@ -15,6 +15,7 @@ import {
   localizeChallenge,
 } from "@/lib/db/challenges";
 import { getWavesByIds, listProfileWaves } from "@/lib/db/waves";
+import { hydrateWaveCards } from "@/lib/feed";
 import { routes } from "@/config/routes";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -67,7 +68,15 @@ export default async function ChallengePage({ params, searchParams }: ChallengeP
 
   const waveIds = [...new Set([...picks.map((p) => p.waveId), ...entryPage.items.map((e) => e.waveId)])];
   const waves = await getWavesByIds(db, waveIds);
-  const waveById = new Map(waves.map((w) => [w.id, w]));
+  // Hydrated to full `WaveCardContainerWave` shape (creator, peaks, saved
+  // state) — the desktop entries grid needs the whole card; the mobile
+  // title-only rows below just read `.title` off the same fetch rather than
+  // hitting the database twice for the same Waves.
+  const cards = await hydrateWaveCards(db, waves, viewer?.id ?? null);
+  const cardById = new Map(cards.map((c) => [c.id, c]));
+  const entryCards = entryPage.items
+    .map((entry) => cardById.get(entry.waveId))
+    .filter((card): card is NonNullable<typeof card> => card !== undefined);
 
   const phase = deriveChallengePhase(challenge);
 
@@ -85,86 +94,82 @@ export default async function ChallengePage({ params, searchParams }: ChallengeP
   return (
     <>
       <PageHeader title={title} />
-      <div className="akinti-page flex flex-col gap-8 pb-16">
-        <div className="flex flex-col gap-2">
-          <Link href={routes.hashtag(challenge.hashtag)} className="type-subhead text-ink hover:underline">
-            #{challenge.hashtag}
-          </Link>
-          <p className="type-body measure whitespace-pre-line text-ink">{brief}</p>
-          <p className="type-body-sm text-ink-muted">
-            {phase === "upcoming" ? tPage("starts") : phase === "ended" ? tPage("ended") : tPage("ends")}{" "}
-            {new Date(phase === "upcoming" ? challenge.startsAt : challenge.endsAt).toLocaleDateString()}
-          </p>
+      {/* Two-column at desktop (this pass's brief, item 1: "detail page
+          two-column — brief + track left, entries right"). `lg:grid`
+          overrides the mobile `flex flex-col` only from `lg` up, so mobile's
+          DOM and classes are otherwise untouched; column placement (not DOM
+          order) is what puts entries on the right regardless of where the
+          Top 5 section falls in source order. */}
+      <div className="akinti-page flex flex-col gap-8 pb-16 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-10">
+        <div className="flex flex-col gap-8 lg:col-start-1">
+          <div className="flex flex-col gap-2">
+            <Link href={routes.hashtag(challenge.hashtag)} className="type-subhead text-ink hover:underline">
+              #{challenge.hashtag}
+            </Link>
+            <p className="type-body measure whitespace-pre-line text-ink">{brief}</p>
+            <p className="type-body-sm text-ink-muted">
+              {phase === "upcoming" ? tPage("starts") : phase === "ended" ? tPage("ended") : tPage("ends")}{" "}
+              {new Date(phase === "upcoming" ? challenge.startsAt : challenge.endsAt).toLocaleDateString()}
+            </p>
 
-          {backingTrack ? (
-            <ChallengeBackingTrack
-              assetId={backingTrack.audioAssetId}
-              title={backingTrack.title}
-              artistCredit={backingTrack.artistCredit}
-              durationMs={backingTrack.durationMs}
-            />
-          ) : null}
-
-          {viewer && challenge.status === "live" ? (
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <EnterChallengeWavePicker
-                challengeId={challenge.id}
-                challengeSlug={challenge.slug}
-                waves={eligibleWaves.map((wave) => ({ id: wave.id, title: wave.title, publishedAt: wave.publishedAt }))}
+            {backingTrack ? (
+              <ChallengeBackingTrack
+                assetId={backingTrack.audioAssetId}
+                title={backingTrack.title}
+                artistCredit={backingTrack.artistCredit}
+                durationMs={backingTrack.durationMs}
               />
-              <Link
-                href={routes.create({ challenge: challenge.slug })}
-                className="type-body-sm text-ink underline"
-              >
-                {tPage("enterWithNewWave")}
-              </Link>
-            </div>
-          ) : null}
+            ) : null}
+
+            {viewer && challenge.status === "live" ? (
+              <div className="flex flex-wrap items-center gap-4 pt-2">
+                <EnterChallengeWavePicker
+                  challengeId={challenge.id}
+                  challengeSlug={challenge.slug}
+                  waves={eligibleWaves.map((wave) => ({ id: wave.id, title: wave.title, publishedAt: wave.publishedAt }))}
+                />
+                <Link
+                  href={routes.create({ challenge: challenge.slug })}
+                  className="type-body-sm text-ink underline"
+                >
+                  {tPage("enterWithNewWave")}
+                </Link>
+              </div>
+            ) : null}
+          </div>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="type-caption-strong text-ink-muted">{t("topFive")}</h2>
+            {picks.length === 0 ? (
+              <p className="type-body-sm text-ink-muted">{tPage("noPicksYet")}</p>
+            ) : (
+              <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
+                {picks.map((pick) => {
+                  const card = cardById.get(pick.waveId);
+                  if (!card) return null;
+                  return (
+                    <li key={pick.id}>
+                      <Link
+                        href={routes.wave(card.id)}
+                        className="flex items-baseline gap-3 py-3 hover:bg-paper-raised"
+                      >
+                        <span className="type-mono-sm text-ink-muted">{pick.rank}</span>
+                        <span className="type-body text-ink">{card.title}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
 
-        <section className="flex flex-col gap-3">
-          <h2 className="type-caption-strong text-ink-muted">{t("topFive")}</h2>
-          {picks.length === 0 ? (
-            <p className="type-body-sm text-ink-muted">{tPage("noPicksYet")}</p>
-          ) : (
-            <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
-              {picks.map((pick) => {
-                const wave = waveById.get(pick.waveId);
-                if (!wave) return null;
-                return (
-                  <li key={pick.id}>
-                    <Link
-                      href={routes.wave(wave.id)}
-                      className="flex items-baseline gap-3 py-3 hover:bg-paper-raised"
-                    >
-                      <span className="type-mono-sm text-ink-muted">{pick.rank}</span>
-                      <span className="type-body text-ink">{wave.title}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-3 lg:col-start-2 lg:row-start-1">
           <h2 className="type-caption-strong text-ink-muted">{tPage("entriesHeading")}</h2>
           {entryPage.items.length === 0 ? (
             <p className="type-body-sm text-ink-muted">{tPage("noEntriesYet")}</p>
           ) : (
-            <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
-              {entryPage.items.map((entry) => {
-                const wave = waveById.get(entry.waveId);
-                if (!wave) return null;
-                return (
-                  <li key={entry.id}>
-                    <Link href={routes.wave(wave.id)} className="block py-3 type-body text-ink hover:bg-paper-raised">
-                      {wave.title}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <ChallengeEntriesGrid entries={entryCards} />
           )}
           {entryPage.nextCursor ? (
             <Link

@@ -1091,6 +1091,14 @@
     "pauseTrack": "Pause {title}",
     "playTrack": "Play {title}"
   },
+  "ChallengeHeroCard": {
+    "liveNow": "Live now",
+    "endsToday": "Ends today",
+    "endsTomorrow": "Ends tomorrow",
+    "endsInDays": "Ends in {days} days",
+    "entryCount": "{count, plural, one {# entry} other {# entries}}",
+    "entryCountPlus": "{count}+ entries"
+  },
   "EnterChallengeWavePicker": {
     "couldNotEnter": "We couldn't enter this challenge. Try again.",
     "couldntEnterTitle": "Couldn't enter this challenge",

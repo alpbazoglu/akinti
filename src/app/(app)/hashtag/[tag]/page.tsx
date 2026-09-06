@@ -2,9 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { ChallengeWaveGrid } from "@/components/challenges";
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
-import { WaveCardContainer } from "@/components/wave";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getAudioAssetById } from "@/lib/db/audioAssets";
 import { listWavesByHashtag } from "@/lib/db/challenges";
@@ -113,11 +113,12 @@ export default async function HashtagPage({ params, searchParams }: HashtagPageP
             description={t("emptyDescription", { tag })}
           />
         ) : (
-          <div className="flex flex-col divide-y divide-hairline border-t border-hairline">
-            {cards.map((card) => (
-              <WaveCardContainer key={card.id} wave={card} />
-            ))}
-          </div>
+          // Mobile: the same full `WaveCardContainer` rows this page always
+          // rendered (unchanged). Desktop: a card grid, matching Explore and
+          // Challenges (SCREENS.md "Desktop v3" not-yet-built list: "hashtag
+          // page grid") — `ChallengeWaveGrid` picks one render path with a
+          // single `useIsDesktopViewport()` call rather than mounting both.
+          <ChallengeWaveGrid waves={cards} />
         )}
 
         {page.nextCursor ? (
