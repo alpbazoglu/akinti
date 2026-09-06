@@ -120,7 +120,6 @@ export function StartProControls({ plans, paddleClientToken, paddleEnvironment }
     setFormError(null);
     const result = await startProCheckout({
       planCode,
-      returnUrl: window.location.href,
       buyer: withBuyer,
     });
     setStarting(false);

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { routes } from "@/config/routes";
+import { siteOrigin } from "@/lib/env/siteOrigin";
 
 /**
  * Static, public-routes-only sitemap (see `public/robots.txt` for the
@@ -13,24 +14,10 @@ import { routes } from "@/config/routes";
  * biggest SEO lever is these fixed entry points and Search Console
  * discovering individual `/w/`/`/u/` pages by crawling links from them.
  *
- * Base URL resolution order: `NEXT_PUBLIC_SITE_URL` (set it in production —
- * see `.env.example`/`docs/DEPLOYMENT.md`) → Vercel's own `VERCEL_URL` (set
- * automatically on every deployment, no `https://` prefix) → localhost, for
- * `npm run dev`.
+ * Base URL resolution: `siteOrigin()` (`src/lib/env/siteOrigin.ts`).
  */
-function siteUrl(): string {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL;
-  if (explicit) {
-    return explicit.replace(/\/+$/, "");
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  return "http://localhost:3000";
-}
-
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = siteUrl();
+  const base = siteOrigin();
   const entries: Array<{ path: string; priority: number }> = [
     { path: routes.explore(), priority: 1 },
     { path: routes.search(), priority: 0.6 },

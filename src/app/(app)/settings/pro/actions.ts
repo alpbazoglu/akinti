@@ -27,7 +27,9 @@ import { fieldErrorsFromZod } from "@/lib/auth/types";
 import { cancelSubscriptionForUser, isPro, resumeSubscriptionForUser, startCheckout } from "@/lib/billing";
 import { BillingProviderError } from "@/lib/billing/types";
 import type { IyzicoBuyerDetails } from "@/lib/billing/types";
+import { routes } from "@/config/routes";
 import { DatabaseError } from "@/lib/db/types";
+import { siteOrigin } from "@/lib/env/siteOrigin";
 import { isRateLimitError } from "@/lib/moderation/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -98,14 +100,12 @@ const iyzicoBuyerSchema = z.object({
 
 const startProCheckoutSchema = z.object({
   planCode: z.enum(PLAN_CODES),
-  returnUrl: z.string().url(),
   /** Required only for a `_try` plan (iyzico) — validated against that at runtime, not by this schema alone. */
   buyer: iyzicoBuyerSchema.optional(),
 });
 
 export interface StartProCheckoutInput {
   planCode: PlanCode;
-  returnUrl: string;
   buyer?: IyzicoBuyerDetails;
 }
 
@@ -152,7 +152,7 @@ export async function startProCheckout(
       userEmail: signedIn.email,
       userName: signedIn.name,
       planCode: parsed.data.planCode,
-      returnUrl: parsed.data.returnUrl,
+      returnUrl: `${siteOrigin()}${routes.settingsPro()}`,
       buyer: parsed.data.buyer,
     });
 
