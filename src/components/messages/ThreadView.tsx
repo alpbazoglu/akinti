@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 import { markConversationRead } from "@/app/(app)/messages/actions";
@@ -43,6 +44,8 @@ export function ThreadView({
       initialOtherLastReadAt,
     );
   const { refresh: refreshUnread } = useUnreadMessages(viewerId);
+  const t = useTranslations("ThreadView");
+  const tBlocked = useTranslations("BlockedNotice");
   const [reportingMessageId, setReportingMessageId] = useState<string | null>(null);
   const markedReadRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -80,16 +83,16 @@ export function ThreadView({
           ) : null}
           {hasMore ? (
             <Button variant="ghost" size="sm" onClick={loadOlder} loading={loadingOlder}>
-              Load earlier messages
+              {t("loadEarlier")}
             </Button>
           ) : messages.length > 0 ? (
-            <p className="text-xs text-fg-subtle">Start of your conversation</p>
+            <p className="text-xs text-fg-subtle">{t("startOfConversation")}</p>
           ) : null}
         </div>
 
         {messages.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-fg-muted">
-            No messages yet. Say hello.
+            {t("noMessagesYet")}
           </p>
         ) : (
           dayGroups.map((group) => (
@@ -123,7 +126,7 @@ export function ThreadView({
       <Composer
         conversationId={conversationId}
         disabled={isBlocked}
-        disabledReason="You can't reply to this conversation."
+        disabledReason={tBlocked("cantReply")}
         onMessageSent={(message) => {
           appendOptimistic(message);
           bottomRef.current?.scrollIntoView({ behavior: "smooth" });

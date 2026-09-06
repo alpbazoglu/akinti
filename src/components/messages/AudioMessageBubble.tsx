@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { TriangleAlert } from "@/components/ui/icons";
 
@@ -22,6 +23,7 @@ export interface AudioMessageBubbleProps {
  * deterministic decorative shape, not real peak data.
  */
 export function AudioMessageBubble({ messageId, audioAssetId }: AudioMessageBubbleProps) {
+  const t = useTranslations("AudioMessageBubble");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ export function AudioMessageBubble({ messageId, audioAssetId }: AudioMessageBubb
         if (!cancelled) setAudioUrl(data.url);
       })
       .catch(() => {
-        if (!cancelled) setError("This audio message could not be loaded.");
+        if (!cancelled) setError(t("couldNotLoad"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -46,12 +48,12 @@ export function AudioMessageBubble({ messageId, audioAssetId }: AudioMessageBubb
     return () => {
       cancelled = true;
     };
-  }, [audioAssetId]);
+  }, [audioAssetId, t]);
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-1.5 text-fg-subtle">
-        <Spinner size="sm" label="Loading audio message" />
+        <Spinner size="sm" label={t("loading")} />
       </div>
     );
   }
@@ -60,7 +62,7 @@ export function AudioMessageBubble({ messageId, audioAssetId }: AudioMessageBubb
     return (
       <p role="alert" className="flex items-center gap-1.5 py-1 text-sm text-danger">
         <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
-        {error ?? "This audio message could not be loaded."}
+        {error ?? t("couldNotLoad")}
       </p>
     );
   }
@@ -70,7 +72,7 @@ export function AudioMessageBubble({ messageId, audioAssetId }: AudioMessageBubb
       waveId={`message-${messageId}`}
       src={audioUrl}
       peaks={placeholderPeaks(40, hashSeed(messageId))}
-      title="Audio message"
+      title={t("title")}
       variant="compact"
       className="min-w-52"
     />

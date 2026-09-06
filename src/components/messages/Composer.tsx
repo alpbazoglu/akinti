@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { Mic, Send, TriangleAlert, X } from "@/components/ui/icons";
@@ -42,6 +43,7 @@ export interface ComposerProps {
 
 /** Text + audio-message composer (spec §22 deliverable 3). */
 export function Composer({ conversationId, disabled = false, disabledReason, onMessageSent }: ComposerProps) {
+  const t = useTranslations("Composer");
   const [body, setBody] = useState("");
   const [textError, setTextError] = useState<string | null>(null);
   const [isSending, startSending] = useTransition();
@@ -57,7 +59,7 @@ export function Composer({ conversationId, disabled = false, disabledReason, onM
         onMessageSent(result.data.message);
         setBody("");
       } else {
-        setTextError(result.error ?? "Could not send that message. Try again.");
+        setTextError(result.error ?? t("couldNotSend"));
       }
     });
   };
@@ -65,7 +67,7 @@ export function Composer({ conversationId, disabled = false, disabledReason, onM
   if (disabled) {
     return (
       <div className="sticky bottom-0 border-t border-border bg-surface px-4 py-3 text-sm text-fg-subtle sm:px-5">
-        {disabledReason ?? "You can't send messages in this conversation."}
+        {disabledReason ?? t("defaultDisabled")}
       </div>
     );
   }
@@ -74,7 +76,7 @@ export function Composer({ conversationId, disabled = false, disabledReason, onM
     <div className="akinti-safe-bottom sticky bottom-0 border-t border-border bg-surface px-3 py-2.5 sm:px-4">
       <div className="flex items-end gap-2">
         <IconButton
-          label="Record an audio message"
+          label={t("recordAudioLabel")}
           icon={<Mic className="size-5" />}
           variant="secondary"
           onClick={() => setRecordOpen(true)}
@@ -83,9 +85,9 @@ export function Composer({ conversationId, disabled = false, disabledReason, onM
         <div className="min-w-0 flex-1">
           <Textarea
             id="composer-body"
-            label="Message"
+            label={t("messageLabel")}
             hideLabel
-            placeholder="Message…"
+            placeholder={t("messagePlaceholder")}
             rows={1}
             value={body}
             maxLength={MAX_MESSAGE_BODY_LENGTH}
@@ -107,7 +109,7 @@ export function Composer({ conversationId, disabled = false, disabledReason, onM
         </div>
 
         <IconButton
-          label="Send message"
+          label={t("sendLabel")}
           icon={<Send className="size-5" />}
           variant="primary"
           loading={isSending}
@@ -139,6 +141,7 @@ interface RecordSheetProps {
 type RecordSheetPhase = "record" | "preview" | "uploading" | "error";
 
 function RecordSheet({ open, onClose, conversationId, onSent }: RecordSheetProps) {
+  const t = useTranslations("Composer");
   const [phase, setPhase] = useState<RecordSheetPhase>("record");
   const [result, setResult] = useState<RecorderResult | null>(null);
   const [peaks, setPeaks] = useState<readonly number[]>([]);
@@ -177,7 +180,7 @@ function RecordSheet({ open, onClose, conversationId, onSent }: RecordSheetProps
       result.durationMs,
     );
     if (!ticket.ok || !ticket.data) {
-      setError(ticket.error ?? "We couldn't start this upload. Try again.");
+      setError(ticket.error ?? t("couldNotStartUpload"));
       setPhase("error");
       return;
     }
@@ -190,37 +193,37 @@ function RecordSheet({ open, onClose, conversationId, onSent }: RecordSheetProps
           contentType: result.mimeType,
         });
       if (uploadError) {
-        setError("The upload didn't complete. Try again.");
+        setError(t("uploadIncomplete"));
         setPhase("error");
         return;
       }
     } catch {
-      setError("The upload didn't complete. Check your connection and try again.");
+      setError(t("uploadIncompleteConnection"));
       setPhase("error");
       return;
     }
 
     const finalized = await finalizeMessageAudio(ticket.data.assetId);
     if (!finalized.ok) {
-      setError(finalized.error ?? "We couldn't finish preparing this recording.");
+      setError(finalized.error ?? t("couldNotFinishPreparing"));
       setPhase("error");
       return;
     }
 
     const sent = await sendAudioMessage(conversationId, ticket.data.assetId, result.durationMs);
     if (!sent.ok || !sent.data) {
-      setError(sent.error ?? "Could not send that recording. Try again.");
+      setError(sent.error ?? t("couldNotSendRecording"));
       setPhase("error");
       return;
     }
 
-    toast({ title: "Audio message sent.", tone: "success" });
+    toast({ title: t("audioMessageSent"), tone: "success" });
     onSent(sent.data.message);
     reset();
   };
 
   return (
-    <Sheet open={open} onClose={handleClose} title="Audio message" description="Recorded audio is private — it is never a Wave and never appears in a feed.">
+    <Sheet open={open} onClose={handleClose} title={t("recordSheetTitle")} description={t("recordSheetDescription")}>
       {phase === "record" ? (
         <RecorderPanel onComplete={handleComplete} />
       ) : null}
@@ -228,7 +231,7 @@ function RecordSheet({ open, onClose, conversationId, onSent }: RecordSheetProps
       {phase === "preview" || phase === "uploading" || phase === "error" ? (
         <div className="flex flex-col gap-4">
           {result ? (
-            <AudioPreview blob={result.blob} durationMs={result.durationMs} peaks={peaks} title="Preview" />
+            <AudioPreview blob={result.blob} durationMs={result.durationMs} peaks={peaks} title={t("previewTitle")} />
           ) : null}
 
           {error ? (
@@ -245,10 +248,10 @@ function RecordSheet({ open, onClose, conversationId, onSent }: RecordSheetProps
               onClick={reset}
               disabled={phase === "uploading"}
             >
-              Retake
+              {t("retake")}
             </Button>
             <Button variant="primary" onClick={handleSend} loading={phase === "uploading"}>
-              Send
+              {t("send")}
             </Button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { MoreHorizontal } from "@/components/ui/icons";
 
 import { formatAbsoluteTime } from "@/lib/ui";
@@ -32,8 +33,9 @@ export function MessageBubble({
   showReadReceipt,
   onReport,
 }: MessageBubbleProps) {
+  const t = useTranslations("MessageBubble");
   const isCard = message.kind === "wave_share" || message.kind === "duet_request" || message.kind === "audio";
-  const otherName = otherProfile ? (otherProfile.displayName ?? `@${otherProfile.username}`) : "them";
+  const otherName = otherProfile ? (otherProfile.displayName ?? `@${otherProfile.username}`) : t("them");
 
   return (
     <div
@@ -67,13 +69,13 @@ export function MessageBubble({
           <time dateTime={message.createdAt} title={formatAbsoluteTime(message.createdAt)}>
             {formatMessageTime(message.createdAt)}
           </time>
-          {showReadReceipt ? <span>· Read</span> : null}
+          {showReadReceipt ? <span>· {t("readReceipt")}</span> : null}
         </div>
       </div>
 
       {!isSelf ? (
         <IconButton
-          label="Report message"
+          label={t("reportMessage")}
           icon={<MoreHorizontal className="size-4" />}
           size="sm"
           className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"

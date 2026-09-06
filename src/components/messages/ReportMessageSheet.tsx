@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { reportMessage } from "@/app/(app)/messages/actions";
@@ -12,25 +13,25 @@ export interface ReportMessageSheetProps {
   messageId: string | null;
 }
 
-const REASON_LABELS: Record<ReportReason, string> = {
-  spam: "Spam",
-  harassment: "Harassment",
-  impersonation: "Impersonation",
-  copyright: "Copyright concern",
-  inappropriate: "Inappropriate content",
-  abusive: "Abusive behavior",
-  other: "Other",
-};
-
-const REASON_OPTIONS: SelectOption[] = REPORT_REASONS.map((value) => ({
-  value,
-  label: REASON_LABELS[value],
-}));
-
 const DETAILS_MAX_LENGTH = 1000;
 
 /** Report a message (spec §26) — mirrors `ReportSheet` (profiles). Never auto-actioned; lands in the moderation queue as `open`. */
 export function ReportMessageSheet({ open, onClose, messageId }: ReportMessageSheetProps) {
+  const t = useTranslations("ReportMessageSheet");
+  const tReport = useTranslations("Report");
+  const reasonLabels: Record<ReportReason, string> = {
+    spam: tReport("reasonSpam"),
+    harassment: tReport("reasonHarassment"),
+    impersonation: tReport("reasonImpersonation"),
+    copyright: tReport("reasonCopyright"),
+    inappropriate: tReport("reasonInappropriate"),
+    abusive: tReport("reasonAbusive"),
+    other: tReport("reasonOther"),
+  };
+  const reasonOptions: SelectOption[] = REPORT_REASONS.map((value) => ({
+    value,
+    label: reasonLabels[value],
+  }));
   const [reason, setReason] = useState<ReportReason>("spam");
   const [details, setDetails] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -47,10 +48,10 @@ export function ReportMessageSheet({ open, onClose, messageId }: ReportMessageSh
         details.trim().length > 0 ? details.trim() : null,
       );
       if (!result.ok) {
-        setError(result.error ?? "Could not submit your report.");
+        setError(result.error ?? t("couldNotSubmit"));
         return;
       }
-      toast({ title: result.message ?? "Report submitted.", tone: "success" });
+      toast({ title: result.message ?? t("reportSubmitted"), tone: "success" });
       setDetails("");
       setReason("spam");
       onClose();
@@ -61,15 +62,15 @@ export function ReportMessageSheet({ open, onClose, messageId }: ReportMessageSh
     <Sheet
       open={open}
       onClose={onClose}
-      title="Report message"
-      description="Tell us what's wrong. Reports are reviewed by our team — this does not notify the sender."
+      title={t("title")}
+      description={t("description")}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose} disabled={isPending}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button variant="danger" onClick={handleSubmit} loading={isPending}>
-            Submit report
+            {t("submitReport")}
           </Button>
         </div>
       }
@@ -77,15 +78,15 @@ export function ReportMessageSheet({ open, onClose, messageId }: ReportMessageSh
       <div className="flex flex-col gap-4">
         <Select
           id="report-message-reason"
-          label="Reason"
+          label={t("reasonLabel")}
           value={reason}
           onChange={(event) => setReason(event.target.value as ReportReason)}
-          options={REASON_OPTIONS}
+          options={reasonOptions}
         />
         <Textarea
           id="report-message-details"
-          label="Details (optional)"
-          placeholder="Add any context that will help our team review this."
+          label={t("detailsLabel")}
+          placeholder={t("detailsPlaceholder")}
           value={details}
           onChange={(event) => setDetails(event.target.value)}
           maxLength={DETAILS_MAX_LENGTH}

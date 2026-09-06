@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { routes } from "@/config/routes";
 import { formatMessagePreview } from "@/lib/messages";
@@ -13,8 +14,9 @@ export interface ConversationRowProps {
 
 /** One row in the `/messages` inbox: other member, last-message preview by kind, timestamp, unread count. */
 export function ConversationRow({ summary, viewerId }: ConversationRowProps) {
+  const t = useTranslations("ConversationRow");
   const other = summary.members.find((m) => m.id !== viewerId) ?? summary.members[0] ?? null;
-  const name = other?.displayName ?? (other ? `@${other.username}` : "Unknown");
+  const name = other?.displayName ?? (other ? `@${other.username}` : t("unknownMember"));
   const unread = summary.unreadCount > 0;
 
   return (
@@ -36,7 +38,7 @@ export function ConversationRow({ summary, viewerId }: ConversationRowProps) {
               // "there is unheard audio here" — the one non-audio use of it.
               <span className="inline-flex items-center">
                 <span aria-hidden="true" className="size-1.5 rounded-full bg-signal" />
-                <span className="sr-only">{summary.unreadCount} unread</span>
+                <span className="sr-only">{t("unreadSr", { count: summary.unreadCount })}</span>
               </span>
             ) : null}
           </span>

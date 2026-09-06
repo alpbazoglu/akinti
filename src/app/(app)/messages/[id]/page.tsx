@@ -1,5 +1,6 @@
+import { getTranslations } from "next-intl/server";
+
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { isBlockedBetween } from "@/lib/db/blocks";
 import { getConversationById, listMessages } from "@/lib/db/conversations";
@@ -19,7 +20,8 @@ interface ConversationPageProps {
 
 export async function generateMetadata({ params }: ConversationPageProps) {
   const { id } = await params;
-  return { title: `${TERMS.messages} · ${id}` };
+  const t = await getTranslations("Terms");
+  return { title: `${t("messages")} · ${id}` };
 }
 
 /**
@@ -48,13 +50,14 @@ export default async function ConversationPage({ params }: ConversationPageProps
   const { id } = await params;
   const user = await requireUser(routes.conversation(id));
   const supabase = await createServerSupabaseClient();
+  const t = await getTranslations("ConversationPage");
 
   const conversation = await getConversationById(supabase, id).catch(() => null);
   if (!conversation) {
     return (
       <EmptyState
-        title="Conversation not found"
-        description="This conversation doesn't exist, or you're not part of it."
+        title={t("notFoundTitle")}
+        description={t("notFoundDescription")}
       />
     );
   }
@@ -92,11 +95,11 @@ export default async function ConversationPage({ params }: ConversationPageProps
       isBlocked,
     };
   } catch (error) {
-    loadError = error instanceof Error ? error.message : "We could not load this conversation right now.";
+    loadError = error instanceof Error ? error.message : t("loadErrorDefault");
   }
 
   if (loadError || !thread) {
-    return <ErrorState description={loadError ?? "We could not load this conversation right now."} />;
+    return <ErrorState description={loadError ?? t("loadErrorDefault")} />;
   }
 
   return (

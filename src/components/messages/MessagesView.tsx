@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { Search } from "@/components/ui/icons";
 
@@ -32,6 +33,7 @@ function matchesQuery(summary: ConversationSummary, viewerId: string, query: str
  * what's loaded, and "Load more" cursor pagination (spec §22 deliverable 1).
  */
 export function MessagesView({ viewerId, initialItems, initialCursor }: MessagesViewProps) {
+  const t = useTranslations("MessagesView");
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);
   const [query, setQuery] = useState("");
@@ -52,7 +54,7 @@ export function MessagesView({ viewerId, initialItems, initialCursor }: Messages
         setItems((current) => [...current, ...result.data!.items]);
         setCursor(result.data.nextCursor);
       } else {
-        setLoadMoreError(result.error ?? "Could not load more conversations.");
+        setLoadMoreError(result.error ?? t("couldNotLoadMore"));
       }
     });
   };
@@ -60,8 +62,8 @@ export function MessagesView({ viewerId, initialItems, initialCursor }: Messages
   if (items.length === 0) {
     return (
       <EmptyState
-        title="No conversations yet"
-        description="Audio messages are private. They are never Waves, and they never appear in a feed or in Explore."
+        title={t("emptyTitle")}
+        description={t("emptyDescription")}
       />
     );
   }
@@ -71,9 +73,9 @@ export function MessagesView({ viewerId, initialItems, initialCursor }: Messages
       <div className="px-4 pb-2 sm:px-5">
         <Input
           id="messages-search"
-          label="Search conversations"
+          label={t("searchLabel")}
           hideLabel
-          placeholder="Search by name"
+          placeholder={t("searchPlaceholder")}
           leadingIcon={<Search className="size-4" />}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -81,7 +83,7 @@ export function MessagesView({ viewerId, initialItems, initialCursor }: Messages
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState size="sm" title="No matches" description="No conversation matches that name." />
+        <EmptyState size="sm" title={t("noMatchesTitle")} description={t("noMatchesDescription")} />
       ) : (
         <ul className="flex flex-col divide-y divide-border">
           {filtered.map((summary) => (
@@ -101,10 +103,10 @@ export function MessagesView({ viewerId, initialItems, initialCursor }: Messages
           ) : null}
           {cursor ? (
             <Button variant="secondary" size="sm" onClick={handleLoadMore} loading={isLoadingMore}>
-              Load more
+              {t("loadMore")}
             </Button>
           ) : (
-            <p className="text-xs text-fg-subtle">You&apos;ve reached the start of your inbox.</p>
+            <p className="text-xs text-fg-subtle">{t("reachedStart")}</p>
           )}
         </div>
       ) : null}

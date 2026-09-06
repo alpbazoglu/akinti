@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ArrowLeft } from "@/components/ui/icons";
 
 import { routes } from "@/config/routes";
@@ -11,13 +12,15 @@ export interface ThreadHeaderProps {
 
 /** Sticky thread header: back to the inbox (mobile), other member's avatar/name (spec §22 deliverable 3). */
 export function ThreadHeader({ otherProfile }: ThreadHeaderProps) {
-  const name = otherProfile ? (otherProfile.displayName ?? `@${otherProfile.username}`) : "Conversation";
+  const t = useTranslations("ThreadHeader");
+  const tTerms = useTranslations("Terms");
+  const name = otherProfile ? (otherProfile.displayName ?? `@${otherProfile.username}`) : t("fallbackName");
 
   return (
     <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-surface px-3 py-2.5 sm:px-5">
       <Link
         href={routes.messages()}
-        aria-label="Back to Messages"
+        aria-label={t("backToMessages", { messages: tTerms("messages") })}
         className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:hidden"
       >
         <ArrowLeft className="size-5" aria-hidden="true" />

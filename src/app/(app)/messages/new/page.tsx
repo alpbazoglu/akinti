@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
@@ -13,7 +13,11 @@ const PRIMARY_LINK = "text-sm font-medium text-accent underline underline-offset
 const SECONDARY_LINK =
   "inline-flex h-9 items-center justify-center rounded-full border border-border-strong bg-surface px-4 text-sm font-medium text-fg transition-colors hover:bg-surface-muted";
 
-export const metadata = { title: `New message · ${TERMS.messages}` };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("NewConversationPage");
+  return { title: tPage("metaTitle", { messages: t("messages") }) };
+}
 
 interface NewConversationPageProps {
   searchParams: Promise<{ to?: string }>;
@@ -29,17 +33,19 @@ interface NewConversationPageProps {
 export default async function NewConversationPage({ searchParams }: NewConversationPageProps) {
   const { to } = await searchParams;
   await requireUser(to ? routes.messageNew(to) : routes.messages());
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("NewConversationPage");
 
   if (!to) {
     return (
       <>
-        <PageHeader title="New message" />
+        <PageHeader title={tPage("title")} />
         <EmptyState
-          title="No one to message"
-          description="Open a profile and choose Message to start a conversation."
+          title={tPage("noOneTitle")}
+          description={tPage("noOneDescription")}
           action={
             <Link href={routes.messages()} className={PRIMARY_LINK}>
-              Back to {TERMS.messages}
+              {tPage("backTo", { messages: t("messages") })}
             </Link>
           }
         />
@@ -55,18 +61,18 @@ export default async function NewConversationPage({ searchParams }: NewConversat
 
   return (
     <>
-      <PageHeader title="New message" />
+      <PageHeader title={tPage("title")} />
       <EmptyState
-        title="Can't start this conversation"
-        description={result.error ?? "This account can't be messaged right now."}
+        title={tPage("cantStartTitle")}
+        description={result.error ?? tPage("cantStartDefault")}
         action={
           <Link href={routes.profile(to)} className={SECONDARY_LINK}>
-            View profile
+            {tPage("viewProfile")}
           </Link>
         }
         secondaryAction={
           <Link href={routes.messages()} className={PRIMARY_LINK}>
-            Back to {TERMS.messages}
+            {tPage("backTo", { messages: t("messages") })}
           </Link>
         }
       />
