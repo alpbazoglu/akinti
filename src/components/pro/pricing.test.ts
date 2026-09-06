@@ -43,6 +43,11 @@ describe("detectProCurrency", () => {
     expect(detectProCurrency("en-US")).toBe("USD");
     expect(detectProCurrency(null)).toBe("USD");
   });
+
+  it("a resolved locale decides outright — the browser language never overrides it (review3 finding 27)", () => {
+    Object.defineProperty(window.navigator, "language", { value: "tr-TR", configurable: true });
+    expect(detectProCurrency("en-US")).toBe("USD");
+  });
 });
 
 describe("resolvePlanAmount / hasSeededYearlyPlan", () => {

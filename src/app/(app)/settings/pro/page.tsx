@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/layout";
 import { ProScreen } from "@/components/pro/ProScreen";
@@ -42,11 +42,15 @@ export default async function ProSettingsPage() {
   await requireUser(routes.settingsPro());
 
   const db = await createServerSupabaseClient();
-  const [statusResult, plansResult] = await Promise.all([
+  const [statusResult, plansResult, locale] = await Promise.all([
     getProStatus(),
     // `plans` is a public catalog (RLS `plans_select`, `is_active`) — the
     // caller's own client is enough, no admin client needed for this read.
     db.from("plans").select("code, amount, currency, interval").eq("is_active", true),
+    // Resolved once here and threaded down to `StartProControls`
+    // (review3 finding 27) rather than re-derived from `navigator.language`
+    // on the client, which ignored the signed-in profile's own locale.
+    getLocale(),
   ]);
 
   if (!statusResult.ok || !statusResult.data) {
@@ -79,6 +83,7 @@ export default async function ProSettingsPage() {
           plans={plans}
           paddleClientToken={paddleClientToken}
           paddleEnvironment={paddleEnvironment}
+          locale={locale}
         />
       </div>
     </>

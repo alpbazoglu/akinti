@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 
 import { startProCheckout } from "@/app/(app)/settings/pro/actions";
 import { Button, Input, Sheet } from "@/components/ui";
@@ -16,7 +16,6 @@ import {
   hasSeededYearlyPlan,
   planCodeFor,
   resolvePlanAmount,
-  type ProCurrency,
   type ProInterval,
   type ProPlanSummary,
 } from "./pricing";
@@ -26,6 +25,8 @@ export interface StartProControlsProps {
   /** `null` means `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` isn't set — a USD/international caller then sees an honest "not set up yet" state instead of a broken Start Pro key. */
   paddleClientToken: string | null;
   paddleEnvironment: "sandbox" | "production";
+  /** The request's resolved locale (`getLocale()`), threaded down from `settings/pro/page.tsx` -> `ProScreen` -> here (review3 finding 27) — determines the checkout currency (`detectProCurrency`), not `navigator.language` alone. */
+  locale: string;
 }
 
 /** Line key look (§8.7): active is an ink key, inactive a hairline key — never a segmented pill (§12.4). */
@@ -54,25 +55,6 @@ function IntervalKey({
   );
 }
 
-/** The browser's own language never changes without a full page reload, so there is nothing to subscribe to. */
-function subscribeToNothing(): () => void {
-  return () => {};
-}
-
-/**
- * `navigator.language` doesn't exist during SSR, so reading it directly in
- * render (or updating state for it from an effect) makes the server's first
- * paint diverge from the client's — a genuine hydration mismatch (React
- * error #418), not a cosmetic one. `useSyncExternalStore`'s third argument
- * is exactly React's own answer to "a value that exists on the client only":
- * the server (and the client's very first render, before hydration
- * reconciles) sees `getServerSnapshot`'s USD; the real detected currency
- * appears the instant hydration finishes, with no extra render pass.
- */
-function useDetectedCurrency(): ProCurrency {
-  return useSyncExternalStore(subscribeToNothing, detectProCurrency, () => "USD");
-}
-
 const EMPTY_BUYER: IyzicoBuyerDetails = {
   identityNumber: "",
   gsmNumber: "",
@@ -89,11 +71,11 @@ const EMPTY_BUYER: IyzicoBuyerDetails = {
  * Sheet then its embedded Checkout Form for a TRY plan, Paddle's own
  * checkout overlay for a USD plan.
  */
-export function StartProControls({ plans, paddleClientToken, paddleEnvironment }: StartProControlsProps) {
+export function StartProControls({ plans, paddleClientToken, paddleEnvironment, locale }: StartProControlsProps) {
   const t = useTranslations("StartProControls");
   const tPro = useTranslations("Pro");
   const [billingInterval, setBillingInterval] = useState<ProInterval>("month");
-  const currency = useDetectedCurrency();
+  const currency = detectProCurrency(locale);
   const [buyerOpen, setBuyerOpen] = useState(false);
   const [buyer, setBuyer] = useState<IyzicoBuyerDetails>(EMPTY_BUYER);
   const [buyerErrors, setBuyerErrors] = useState<Record<string, string>>({});

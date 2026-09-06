@@ -25,15 +25,23 @@ export function planCodeFor(currency: ProCurrency, interval: ProInterval): PlanC
 }
 
 /**
- * TRY when the profile's own locale says Turkish, or (client-side only,
- * `locale` omitted) the browser's own language is `tr` — PRODUCT_V2 §4's "TR
- * -> iyzico" rule, decided once, up front, never re-derived per click.
- * `profiles` carries no locale column yet, so the "profile" half of that
- * rule reduces to whatever `locale` the caller passes in (today, always
- * undefined) until one exists.
+ * TRY when the resolved locale (`getLocale()`, `src/i18n/locale.ts`'s
+ * precedence: `profiles.locale` -> `akinti_locale` cookie -> `Accept-Language`
+ * -> English) says Turkish — PRODUCT_V2 §4's "TR -> iyzico" rule, decided
+ * once, up front, never re-derived per click. `profiles.locale` exists as of
+ * `20260906130000_profile_locale.sql`, so every caller now threads that
+ * resolved value in as `locale` (`ProScreen`/`StartProControls`,
+ * `settings/pro/page.tsx`); `navigator.language` is only consulted as a
+ * last-resort client-only fallback when no `locale` was passed in at all
+ * (review3 finding 27 — this used to fall through to `navigator.language`
+ * even when a non-Turkish `locale` WAS given, which could override a
+ * correctly-resolved English request with a Turkish browser language, or
+ * vice versa).
  */
 export function detectProCurrency(locale?: string | null): ProCurrency {
-  if (locale && locale.toLowerCase().startsWith("tr")) return "TRY";
+  if (locale != null) {
+    return locale.toLowerCase().startsWith("tr") ? "TRY" : "USD";
+  }
   if (typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("tr")) {
     return "TRY";
   }
