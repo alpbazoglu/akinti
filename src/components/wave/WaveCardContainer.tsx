@@ -29,6 +29,7 @@
  * its accessible name exactly like the transport-button interception above.
  */
 
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -38,10 +39,19 @@ import { usePlaybackStore } from "@/lib/audio";
 import { saveReducer } from "@/lib/interactions";
 import { emitAnalyticsEvent, usePlayTracker } from "@/lib/metrics";
 import { routes } from "@/config/routes";
-import { ShareSheet } from "@/components/share";
 import { useToast } from "@/components/ui";
 
 import { WaveCard, type WaveCardProps, type WaveCardWave } from "./WaveCard";
+
+/**
+ * Code-split, matching `FlowScreen.tsx`'s own `ShareSheet` import (fixQA2
+ * item 4, TBT): every `WaveCardContainer` — every Wave row on Explore, a
+ * profile's tabs, a hashtag page, a track's page — used to statically pull
+ * in the whole Share Sheet, including its conversation picker and messaging
+ * actions, whether or not that Wave's Share was ever opened. Deferred to
+ * its own chunk, fetched only on first tap.
+ */
+const ShareSheet = dynamic(() => import("@/components/share").then((mod) => mod.ShareSheet));
 
 export type WaveCardContainerWave = Omit<WaveCardWave, "audioUrl"> & {
   /** `audio_assets.id` — resolved to a signed URL lazily on first play. */
@@ -93,6 +103,11 @@ export function WaveCardContainer({
     status: "idle" as const,
   });
   const [shareOpen, setShareOpen] = useState(false);
+  // Set once, on first Share tap, and never back to `false` — `ShareSheet`
+  // itself only mounts once this is true (fixQA2 item 4, TBT), so its code
+  // (conversation picker, messaging actions) is never fetched or parsed for
+  // a Wave nobody ever tries to share.
+  const [hasOpenedShare, setHasOpenedShare] = useState(false);
 
   const canRequestDuet = wave.canRequestDuet ?? true;
 
@@ -221,6 +236,7 @@ export function WaveCardContainer({
   const handleShare = useCallback(
     (waveId: string) => {
       onShare?.(waveId);
+      setHasOpenedShare(true);
       setShareOpen(true);
     },
     [onShare],
@@ -257,7 +273,9 @@ export function WaveCardContainer({
         </p>
       ) : null}
 
-      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} wave={{ id: wave.id, title: wave.title }} />
+      {hasOpenedShare ? (
+        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} wave={{ id: wave.id, title: wave.title }} />
+      ) : null}
     </div>
   );
 }
