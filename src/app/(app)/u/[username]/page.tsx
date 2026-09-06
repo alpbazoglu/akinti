@@ -11,6 +11,7 @@ import { isPro } from "@/lib/billing/entitlements";
 import { getFollowStatus, isFollowing } from "@/lib/db/follows";
 import { canViewProfileContent, getProfileByUsername } from "@/lib/db/profiles";
 import { listProfileDuetCards, listProfileWaveCards, type ProfileWaveCard } from "@/lib/db/profileWaves";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { PermissionAudience, Profile, Wave } from "@/types/domain";
@@ -22,6 +23,21 @@ interface ProfilePageProps {
 export async function generateMetadata({ params }: ProfilePageProps) {
   const { username } = await params;
   return { title: `@${username}` };
+}
+
+/**
+ * Wraps `isPro` in a real try/catch — `createAdminClient()` throws
+ * synchronously when `SUPABASE_SERVICE_ROLE_KEY` is unset, which a plain
+ * `.catch()` on the resulting promise would not catch (the throw happens
+ * before the promise even exists), and this must never crash the profile
+ * page for every visitor over one missing badge.
+ */
+async function resolveProfileIsPro(profileId: string): Promise<boolean> {
+  try {
+    return await isPro(createAdminClient(), profileId);
+  } catch {
+    return false;
+  }
 }
 
 /** Best-effort UI hint only — `can_request_duet` (server-side) is the real gate. */
@@ -103,9 +119,15 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
     !isSelf && viewerUser ? isFollowing(supabase, profile.id, viewerUser.id) : Promise.resolve(false),
     isSelf ? Promise.resolve(true) : canViewProfileContent(supabase, profile.id),
     // AKINTI Pro mark (Wave F, PRODUCT_V2 §5) — best-effort: a lookup failure
-    // (e.g. Supabase configured without the Wave F migration applied yet)
-    // just hides the mark, never breaks the profile page.
-    isPro(supabase, profile.id).catch(() => false),
+    // (e.g. Supabase configured without the Wave F migration applied yet, or
+    // the service-role key missing) just hides the mark, never breaks the
+    // profile page. Uses the admin client deliberately: `has_pro`'s `execute`
+    // grant no longer includes `anon` (review3 finding 36 — an
+    // unauthenticated caller had no legitimate reason to probe an arbitrary
+    // user id's Pro status via a direct RPC call), but a signed-out visitor
+    // viewing this very page still needs the same publicly-rendered badge a
+    // signed-in viewer sees.
+    resolveProfileIsPro(profile.id),
   ]);
 
   let waveCards: WaveCardContainerWave[] = [];
