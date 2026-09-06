@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-09-06T13:43:28.267Z",
+  "base": "http://localhost:3832",
+  "sampleIntervalMs": 10,
+  "visibleWithinBudgetMs": 50,
+  "routes": [
+    {
+      "route": "explore",
+      "clickAt": 1566,
+      "visibleAt": 1577.7000000178814,
+      "elapsedMs": 11.700000017881393,
+      "samples": 197,
+      "sampleIntervalMs": 10,
+      "visibleWithinBudget": true
+    },
+    {
+      "route": "search",
+      "clickAt": 4115.0999999940395,
+      "visibleAt": 4127.200000017881,
+      "elapsedMs": 12.100000023841858,
+      "samples": 200,
+      "sampleIntervalMs": 10,
+      "visibleWithinBudget": true
+    },
+    {
+      "route": "challenges",
+      "clickAt": 6663.300000011921,
+      "visibleAt": 6678.0999999940395,
+      "elapsedMs": 14.799999982118607,
+      "samples": 200,
+      "sampleIntervalMs": 10,
+      "visibleWithinBudget": true
+    },
+    {
+      "route": "tracks",
+      "clickAt": 9213.700000017881,
+      "visibleAt": 9226.40000000596,
+      "elapsedMs": 12.699999988079071,
+      "samples": 199,
+      "sampleIntervalMs": 10,
+      "visibleWithinBudget": true
+    },
+    {
+      "route": "messages",
+      "clickAt": 11764.800000011921,
+      "visibleAt": 11775.700000017881,
+      "elapsedMs": 10.900000005960464,
+      "samples": 199,
+      "sampleIntervalMs": 10,
+      "visibleWithinBudget": true
+    }
+  ],
+  "allPass": true
+}
