@@ -861,3 +861,68 @@ the trace, the playhead, and the title — tap to expand to the full Wave detail
 - The single-accent rule.
 - Hover states are additions, never the only affordance. Every hover-revealed control is
   also reachable by focus and is visible on touch.
+
+---
+
+## Desktop v3 (Direction A, "Akış")
+
+The section above predates the founder's 6 Sept 2026 desktop rejection ("ugly, nobody
+would want to enter, dead clicks, no icons") and the resulting `DESIGN_V3_DESKTOP.md`,
+which now governs everything at `>= 1024px` and wins over both `DESIGN.md` and this
+file's own desktop notes where they conflict. What follows is what actually shipped,
+screen by screen, so this file stays the map of what exists rather than what was once
+proposed. Mobile (`< 1024px`) is unchanged by every item below unless stated otherwise.
+
+A discovery worth recording: `globals.css`'s desktop elevation block makes `>= 1024px`
+dark by default regardless of the reader's light/dark preference (`--akinti-paper`
+re-aliases to the dark `elevation-1` floor there, with an explicit light choice getting
+its own coherent light mapping of the same four-step ladder) — so most existing
+`bg-paper`/`text-ink`/`border-hairline` call sites picked up the "Akış" dark palette for
+free at desktop width, with no `lg:` class needed. Screens below only add `lg:` classes
+where the *layout*, not the palette, needed to change.
+
+### Flow (`/flow`)
+Full-screen swipe carousel below `1024px`, unchanged. At `>= 1024px`, `FlowScreen` picks
+a second render path (`useIsDesktopViewport`, one tree mounted, not two) inside the real
+shell (`AppShell` now renders its sidebar/top bar/now-playing bar for `/flow` at that
+width — previously it bypassed all chrome unconditionally, fixed alongside this pass):
+a centred stage (creator row, title, a 220px trace, transport, a horizontal action bar
+with keyboard hints) capped at 720px, plus a 320px right rail — "Up next" (three mini-
+trace rows, click to jump), a Duet callout (built from data Flow already hydrates, not a
+fetched chain tree — see `FlowDuetCallout`'s own comment), and a two-comment preview
+opening the same `FlowCommentSheet` the mobile Comment key does.
+
+### Explore (`/explore`, and Home's stream, since `WaveFeedList` is shared)
+The stream becomes a 2-5 column card grid (`ExploreWaveCard`, new) at `>= 768px+`, hover-
+lift with a play button that reveals on hover/focus, genre-tinted trace (`WaveCard`
+gained an optional `tags` field for this). Rising Creators, Open Calls and Backing
+Tracks gain prev/next arrow overlays (`HorizontalScroller`, `src/components/ui/desktop/`)
+and horizontal card lanes at `lg`, with a Phosphor icon per section heading and a sand
+mark on Open Calls/Backing Tracks.
+
+### Wave (`/w/[id]`)
+Two columns at `>= 1024px`: trace/transport/title/description/actions left (capped at
+800px, unchanged markup), a 320px right rail with a new `WaveCreatorCard` (creator info
+plus a Follow key the mobile inline row never had room for), `OwnerInsights`, and the
+Duet chain — each of those three is genuinely mounted once per breakpoint (not duplicated
+client-side state), since all three are pure server-rendered data already fetched by
+`page.tsx`. The comment composer is sticky under the desktop top bar at that width.
+
+### Profile (`/u/[username]`)
+Waves/Duets tabs render the same card grid Explore uses, picked by the same
+`useIsDesktopViewport` hook. The stats row gains a Phosphor icon per metric at `lg`; the
+signature banner needed no palette change (see the elevation note above).
+
+### Call sites (item 7)
+`FollowButton`, `WaveCardContainer`'s Save, `CommentComposer`, the Duet request form and
+inbox, and `CreateFlow`'s publish step all adopt `useActionToast`. Follow is genuinely
+optimistic (`useOptimistic`); Save already was (a hand-rolled reducer, left as-is — it
+already had rollback, this pass only added a double-submit guard and routed its error
+through the shared toast helper without losing the server's specific message).
+
+### Not yet built
+Challenges, Tracks, Duets, Search, Notifications, Messages, Settings and Analytics have
+not had a desktop-specific pass — they render whatever their existing mobile-first
+layout produces at desktop width (correct, but not redesigned to Direction A's card/rail
+language). `loading.tsx` skeletons for Flow/Explore/Wave/Profile/Analytics have not been
+reshaped to the new desktop layouts; they still describe the pre-existing mobile shape.
