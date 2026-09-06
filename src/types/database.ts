@@ -392,6 +392,8 @@ export type SubscriptionRow = {
   cancel_at_period_end: boolean;
   created_at: string;
   updated_at: string;
+  /** `occurredAt` of the most recent webhook event actually applied — null until the first webhook lands (migration 20260906160000, review3 finding 7). */
+  last_event_at: string | null;
 };
 
 /** Flow (docs/FLOW.md) — owner-only ledger of what a viewer has been shown, migration 20260906110000. */
@@ -850,9 +852,12 @@ export interface Database {
       subscriptions: {
         Row: SubscriptionRow;
         Insert: Pick<SubscriptionRow, "user_id" | "plan_id" | "provider" | "provider_subscription_id"> &
-          Partial<Pick<SubscriptionRow, "id" | "status" | "current_period_end" | "cancel_at_period_end">>;
+          Partial<Pick<SubscriptionRow, "id" | "status" | "current_period_end" | "cancel_at_period_end" | "last_event_at">>;
         Update: Partial<
-          Pick<SubscriptionRow, "plan_id" | "provider_subscription_id" | "status" | "current_period_end" | "cancel_at_period_end">
+          Pick<
+            SubscriptionRow,
+            "plan_id" | "provider_subscription_id" | "status" | "current_period_end" | "cancel_at_period_end" | "last_event_at"
+          >
         >;
         Relationships: Relationships;
       };

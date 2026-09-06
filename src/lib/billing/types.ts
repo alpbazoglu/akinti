@@ -78,6 +78,18 @@ export interface ParsedBillingEvent {
    * it does for iyzico (see `repository.ts#applyBillingEvent`).
    */
   metadata: { userId: string; planId: string } | null;
+  /**
+   * When the provider says this event actually happened (Paddle's
+   * `occurred_at`; iyzico's `iyziEventTime`, epoch milliseconds, converted
+   * to an ISO string) — NOT when this webhook request arrived. Used by
+   * `repository.ts#applyBillingEvent` to apply state transitions in event
+   * order rather than delivery order: a provider's retry policy does not
+   * guarantee a later event is delivered after an earlier one (review3
+   * finding 7), so `subscriptions.last_event_at` records the most recent
+   * `occurredAt` actually applied and a strictly older event is recorded in
+   * the ledger but never applied over a newer state.
+   */
+  occurredAt: string;
   raw: unknown;
 }
 

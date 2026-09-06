@@ -165,6 +165,7 @@ export class PaddleProvider implements BillingProviderClient {
           currentPeriodEnd: event.data.currentBillingPeriod?.endsAt ?? event.data.nextBilledAt ?? null,
           cancelAtPeriodEnd: event.data.scheduledChange?.action === "cancel",
           metadata: extractMetadata(event.data.customData),
+          occurredAt: event.occurredAt,
           raw: event,
         };
       default:
@@ -180,6 +181,7 @@ export class PaddleProvider implements BillingProviderClient {
           currentPeriodEnd: null,
           cancelAtPeriodEnd: null,
           metadata: null,
+          occurredAt: event.occurredAt,
           raw: event,
         };
     }

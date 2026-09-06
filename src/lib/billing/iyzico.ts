@@ -101,7 +101,12 @@ function mapStatus(status: string | null | undefined): SubscriptionStatus {
       return "active";
     default:
       // Unknown to this codebase: never silently grant Pro for a status we
-      // don't recognise (spec §44 rule 9, "no fake success").
+      // don't recognise (spec §44 rule 9, "no fake success"). Unlike the
+      // webhook path (`mapIyzicoEventTypeToStatus` below), this is a direct
+      // retrieve of a subscription's CURRENT status right after checkout
+      // (`retrieveCheckoutForm`), establishing initial state rather than
+      // overwriting an existing entitlement — defaulting to the
+      // non-entitling status here is the safe read for that call site.
       console.error(`[billing/iyzico] unrecognized subscriptionStatus: ${String(status)}`);
       return "past_due";
   }
@@ -109,6 +114,27 @@ function mapStatus(status: string | null | undefined): SubscriptionStatus {
 
 function epochMsToIso(value: unknown): string | null {
   return typeof value === "number" && Number.isFinite(value) ? new Date(value).toISOString() : null;
+}
+
+/**
+ * Webhook event-type -> subscription state (review3 finding 8). Only the
+ * two event types this codebase has actually confirmed (and tests, see
+ * `iyzico.test.ts`) map to a real transition; every other event type
+ * returns `null` — recorded in `billing_events` for the audit trail, never
+ * applied as a silent downgrade for an event type nobody has verified the
+ * meaning of.
+ */
+function mapIyzicoEventTypeToStatus(eventType: string): SubscriptionStatus | null {
+  switch (eventType) {
+    case "subscription.order.success":
+      return "active";
+    case "subscription.order.failure":
+      // A confirmed, explicit payment failure — a real non-entitling state,
+      // not a guess.
+      return "past_due";
+    default:
+      return null;
+  }
 }
 
 export class IyzicoProvider implements BillingProviderClient {
@@ -275,15 +301,28 @@ export class IyzicoProvider implements BillingProviderClient {
       iyziReferenceCode: string;
       iyziEventType: string;
       subscriptionReferenceCode?: string;
+      iyziEventTime?: number;
     };
     return {
       eventId: parsed.iyziReferenceCode,
       type: parsed.iyziEventType,
       providerSubscriptionId: parsed.subscriptionReferenceCode ?? null,
-      status: parsed.iyziEventType === "subscription.order.success" ? "active" : "past_due",
+      // Only the two confirmed iyzico event types map to a real transition:
+      // a successful order entitles, an explicit failure does not. Every
+      // OTHER event type used to fall through to `past_due` by default,
+      // which revokes Pro from a paying customer the instant this codebase
+      // sees ANY event type it doesn't specifically recognise (review3
+      // finding 8) — `applyBillingEvent` already skips the `subscriptions`
+      // update entirely when `status` is null, so an unrecognised event is
+      // still recorded in `billing_events` for the audit trail but changes
+      // nothing. A newly-confirmed iyzico event type (renewal, cancellation,
+      // ...) gets its own explicit case here, once confirmed from iyzico's
+      // docs — never inferred from this function's default.
+      status: mapIyzicoEventTypeToStatus(parsed.iyziEventType),
       currentPeriodEnd: null,
       cancelAtPeriodEnd: null,
       metadata: null,
+      occurredAt: parsed.iyziEventTime ? new Date(parsed.iyziEventTime).toISOString() : new Date().toISOString(),
       raw: parsed,
     };
   }
