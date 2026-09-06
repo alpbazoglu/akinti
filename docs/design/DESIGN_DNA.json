@@ -503,6 +503,13 @@
       "bar": "a top hairline plus a soft upward shadow on the now-playing bar"
     },
     "radius_card": "18px, the one radius exception where DESIGN.md's card ban is deliberately relaxed for desktop grids (Explore, Challenges, Tracks, Profile) per DESIGN_V3_DESKTOP.md; rows stay rows in feeds and lists",
+    "feedback": {
+      "route_progress": "a 2px fixed top-of-viewport line in the current teal, shown within one frame of an in-app link click (capture-phase click listener, not a router event App Router doesn't expose) and cleared once usePathname() resolves; desktop only (lg:), mobile keeps its existing 700-1200ms silent gap unaddressed by this line specifically because mobile's own affordances are unchanged.",
+      "route_skeletons": "every route under src/app/(app)/** now ships a loading.tsx built from shared shape-true primitives (RouteSkeleton.tsx: SkeletonPageHeader, SkeletonRowList, SkeletonWaveList, SkeletonCardGrid, SkeletonProfileHeader, SkeletonFormRows) — no shimmer, no fake waveform, matching the flat-6px-waterline skeleton rule already in design_system.components.component_notes.",
+      "press_physics": "akinti-press gets a desktop-only (min-width:1024px) :active state: scale(0.97) plus filter: brightness(0.92), replacing the mobile scale(0.975)-only press since desktop has real elevation for a control to press into; Button/IconButton BASE also gained cursor-pointer and primary/secondary hover states (hover:bg-tide-2, hover:bg-elevation-2) they previously lacked entirely.",
+      "command_palette": "Cmd/Ctrl+K opens a combobox-pattern palette (routes, recent searches persisted to localStorage, a Record a Wave action) from the desktop top bar's search field; first-party implementation, no cmdk dependency added.",
+      "now_playing_bar": "88px fixed-bottom bar reading the single global playback store; transport is scoped to what that store can actually do (play/pause, restart-to-0, volume) rather than inventing shuffle/skip-forward/repeat controls the store has no playlist to back."
+    },
     "do_not": "No purple/violet, no AI gradients, no emoji, no Likes, no confetti, no autoplay without gesture, no fake counts — unchanged from design_system."
   }
 }
