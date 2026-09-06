@@ -1,7 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
+import { BRAND } from "@/config/terminology";
 import { Switch, useToast } from "@/components/ui";
 
 import { subscribePush, unsubscribePush } from "./actions";
@@ -63,6 +65,7 @@ function detectPermission(): NotificationPermission {
  */
 export function PushToggle({ initialSubscribed }: PushToggleProps) {
   const { toast } = useToast();
+  const t = useTranslations("PushToggle");
   const [support] = useState<Support>(detectSupport);
   const [permission, setPermission] = useState<NotificationPermission>(detectPermission);
   const [subscribed, setSubscribed] = useState(initialSubscribed);
@@ -81,14 +84,14 @@ export function PushToggle({ initialSubscribed }: PushToggleProps) {
             const result = await unsubscribePush({ endpoint: existing.endpoint });
             await existing.unsubscribe();
             if (!result.ok) {
-              setError(result.formError ?? "Could not turn off push notifications.");
+              setError(result.formError ?? t("couldNotTurnOff"));
               return;
             }
           }
           setSubscribed(false);
-          toast({ title: "Push notifications turned off.", tone: "success" });
+          toast({ title: t("turnedOff"), tone: "success" });
         } catch {
-          setError("Could not turn off push notifications. Try again.");
+          setError(t("couldNotTurnOffRetry"));
         }
       });
       return;
@@ -96,7 +99,7 @@ export function PushToggle({ initialSubscribed }: PushToggleProps) {
 
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!vapidPublicKey) {
-      setError("Push notifications aren't set up for this environment.");
+      setError(t("notSetUp"));
       return;
     }
 
@@ -107,8 +110,8 @@ export function PushToggle({ initialSubscribed }: PushToggleProps) {
         if (permissionResult !== "granted") {
           setError(
             permissionResult === "denied"
-              ? "Notifications are blocked for this site. Enable them in the browser's site settings, then try again."
-              : "Notifications need your permission to turn on.",
+              ? t("blockedRetry")
+              : t("needsPermission"),
           );
           return;
         }
@@ -120,7 +123,7 @@ export function PushToggle({ initialSubscribed }: PushToggleProps) {
         });
         const json = subscription.toJSON();
         if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-          setError("Could not turn on push notifications. Try again.");
+          setError(t("couldNotTurnOnRetry"));
           return;
         }
 
@@ -130,28 +133,27 @@ export function PushToggle({ initialSubscribed }: PushToggleProps) {
           userAgent: navigator.userAgent,
         });
         if (!result.ok) {
-          setError(result.formError ?? "Could not turn on push notifications.");
+          setError(result.formError ?? t("couldNotTurnOn"));
           return;
         }
         setSubscribed(true);
-        toast({ title: "Push notifications turned on.", tone: "success" });
+        toast({ title: t("turnedOn"), tone: "success" });
       } catch {
-        setError("Could not turn on push notifications. Try again.");
+        setError(t("couldNotTurnOnRetry"));
       }
     });
   }
 
   if (support === "unsupported") {
     return (
-      <p className="type-body-sm text-ink-subtle">Push notifications aren&apos;t available in this browser.</p>
+      <p className="type-body-sm text-ink-subtle">{t("unsupported")}</p>
     );
   }
 
   if (support === "ios-not-installed") {
     return (
       <p className="type-body-sm text-ink-subtle">
-        Add AKINTI to your home screen (Share, then &quot;Add to Home Screen&quot;) to turn on push
-        notifications.
+        {t("iosNotInstalled", { brand: BRAND })}
       </p>
     );
   }
@@ -159,16 +161,15 @@ export function PushToggle({ initialSubscribed }: PushToggleProps) {
   return (
     <div className="flex flex-col gap-2">
       <Switch
-        label="Push notifications"
-        description="Get notified about Duet requests, answers, and open-call answers, even when AKINTI isn't open."
+        label={t("label")}
+        description={t("description", { brand: BRAND })}
         checked={subscribed}
         onCheckedChange={handleToggle}
         disabled={isPending || permission === "denied"}
       />
       {permission === "denied" ? (
         <p className="type-caption text-ink-subtle">
-          Notifications are blocked for this site. Enable them in the browser&apos;s site settings to turn
-          this on.
+          {t("blockedHint")}
         </p>
       ) : null}
       {error ? (

@@ -1,7 +1,8 @@
+import { getTranslations } from "next-intl/server";
+
 import { PageHeader } from "@/components/layout";
 import { EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
-import { TERMS } from "@/config/terminology";
 import { requireUser } from "@/lib/auth/server";
 import { getProfileById } from "@/lib/db/profiles";
 import { hasPushSubscription } from "@/lib/push/subscriptions";
@@ -11,7 +12,11 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { NotificationsForm } from "./NotificationsForm";
 import { PushToggle } from "./PushToggle";
 
-export const metadata = { title: `Notifications · ${TERMS.settings}` };
+export async function generateMetadata() {
+  const t = await getTranslations("Terms");
+  const tPage = await getTranslations("NotificationsSettingsPage");
+  return { title: tPage("metaTitle", { settings: t("settings") }) };
+}
 
 /**
  * Settings → Notifications (spec §23, §25). `profiles.notification_preferences`
@@ -21,14 +26,15 @@ export const metadata = { title: `Notifications · ${TERMS.settings}` };
  */
 export default async function NotificationsSettingsPage() {
   const user = await requireUser(routes.settingsNotifications());
+  const t = await getTranslations("NotificationsSettingsPage");
 
   if (!isSupabaseConfigured()) {
     return (
       <>
-        <PageHeader title="Notifications" />
+        <PageHeader title={t("title")} />
         <EmptyState
-          title="Backend not configured"
-          description="Notification preferences are unavailable in this environment."
+          title={t("backendNotConfiguredTitle")}
+          description={t("backendNotConfiguredDescription")}
         />
       </>
     );
@@ -43,7 +49,7 @@ export default async function NotificationsSettingsPage() {
   return (
     <>
       <PageHeader
-        title="Notifications"
+        title={t("title")}
       />
       <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
         <NotificationsForm initialPreferences={profile?.notificationPreferences ?? {}} />

@@ -1,10 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { loadMoreNotifications, markAllNotificationsRead } from "@/app/(app)/notifications/actions";
 import { Button, EmptyState } from "@/components/ui";
-import { TERMS } from "@/config/terminology";
 import { useUnreadNotifications } from "@/lib/notifications";
 import type { NotificationWithActor } from "@/types/domain";
 
@@ -28,6 +28,7 @@ export function NotificationsView({
   initialCursor,
   initialUnreadCount,
 }: NotificationsViewProps) {
+  const t = useTranslations("NotificationsView");
   const [items, setItems] = useState(initialItems);
   const [cursor, setCursor] = useState(initialCursor);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export function NotificationsView({
         setItems((current) => [...current, ...page.items]);
         setCursor(page.nextCursor);
       } else {
-        setLoadMoreError(result.error ?? "Could not load more notifications.");
+        setLoadMoreError(result.error ?? t("couldNotLoadMore"));
       }
     });
   };
@@ -84,8 +85,8 @@ export function NotificationsView({
   if (items.length === 0) {
     return (
       <EmptyState
-        title="No notifications yet"
-        description={`When someone follows you, comments, ${TERMS.saves.toLowerCase()} or ${TERMS.shares.toLowerCase()} one of your ${TERMS.waves.toLowerCase()} — or asks you for a ${TERMS.duet} — you will hear about it here.`}
+        title={t("emptyTitle")}
+        description={t("emptyDescription")}
       />
     );
   }
@@ -94,7 +95,7 @@ export function NotificationsView({
     <div className="flex flex-col">
       <div className="flex items-center justify-between px-4 pb-2 sm:px-5">
         <p className="text-xs text-fg-subtle" aria-live="polite">
-          {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
+          {unreadCount > 0 ? t("unreadCount", { count: unreadCount }) : t("allCaughtUp")}
         </p>
         <Button
           size="sm"
@@ -103,7 +104,7 @@ export function NotificationsView({
           loading={isMarkingAll}
           disabled={isMarkingAll || unreadCount === 0}
         >
-          Mark all as read
+          {t("markAllAsRead")}
         </Button>
       </div>
 
@@ -121,10 +122,10 @@ export function NotificationsView({
         ) : null}
         {cursor ? (
           <Button variant="secondary" size="sm" onClick={handleLoadMore} loading={isLoadingMore}>
-            Load more
+            {t("loadMore")}
           </Button>
         ) : (
-          <p className="text-xs text-fg-subtle">You&apos;re all caught up.</p>
+          <p className="text-xs text-fg-subtle">{t("allCaughtUpFull")}</p>
         )}
       </div>
     </div>

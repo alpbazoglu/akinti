@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
 import { markNotificationRead, respondToCollaboratorInvite } from "@/app/(app)/notifications/actions";
@@ -27,6 +28,7 @@ type ResolutionState = "pending" | "accepted" | "declined";
  * context").
  */
 export function NotificationItem({ notification, onRead, className }: NotificationItemProps) {
+  const t = useTranslations("NotificationItem");
   const formatted = formatNotification(notification);
   const Icon = formatted.icon;
   const isUnread = notification.readAt === null;
@@ -60,7 +62,7 @@ export function NotificationItem({ notification, onRead, className }: Notificati
           setResolution(accept ? "accepted" : "declined");
           markRead();
         } else {
-          setActionError(result.formError ?? "Something went wrong.");
+          setActionError(result.formError ?? t("somethingWrong"));
         }
         return;
       }
@@ -71,12 +73,12 @@ export function NotificationItem({ notification, onRead, className }: Notificati
           setResolution(accept ? "accepted" : "declined");
           markRead();
         } else {
-          setActionError(result.error ?? "Something went wrong.");
+          setActionError(result.error ?? t("somethingWrong"));
         }
         return;
       }
 
-      setActionError("There is nothing to respond to.");
+      setActionError(t("nothingToRespond"));
     });
   };
 
@@ -129,7 +131,7 @@ export function NotificationItem({ notification, onRead, className }: Notificati
         {canRespond && resolution === "pending" ? (
           <div className="mt-2 flex items-center gap-2">
             <Button size="sm" onClick={() => respond(true)} loading={isResponding} disabled={isResponding}>
-              Accept
+              {t("accept")}
             </Button>
             <Button
               size="sm"
@@ -138,12 +140,12 @@ export function NotificationItem({ notification, onRead, className }: Notificati
               loading={isResponding}
               disabled={isResponding}
             >
-              Decline
+              {t("decline")}
             </Button>
           </div>
         ) : resolution !== "pending" ? (
           <p className="mt-2 text-xs font-medium text-fg-muted">
-            {resolution === "accepted" ? "Accepted" : "Declined"}
+            {resolution === "accepted" ? t("accepted") : t("declined")}
           </p>
         ) : null}
 
