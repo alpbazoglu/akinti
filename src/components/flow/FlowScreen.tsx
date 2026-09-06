@@ -77,6 +77,19 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
   // lazy initializer is the one place an impure call like `Math.random` is
   // allowed to run exactly once, unlike a bare `useRef(Math.random())`.
   const [seed] = useState(() => Math.floor(Math.random() * 1_000_000));
+  // Mirrors `items` for `goToIndex`/the `onEnded` handler below (review3
+  // finding 20): both used to read the array via a `setItems` updater
+  // purely to dodge a stale closure, but ran real side effects
+  // (`sendFlowEvent`, `setIndex`) inside that updater — React may invoke a
+  // state updater twice (Strict Mode does, in dev), which fired
+  // `record_flow_event` twice per skip/complete and ran `setIndex` during
+  // another component's update phase. Reading the latest array from a ref
+  // instead means `sendFlowEvent`/`setIndex` run as plain calls, never
+  // inside a updater function.
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
   const loadingMoreRef = useRef(false);
   const urlCacheRef = useRef<Map<string, Promise<string | null>>>(new Map());
   const wheelLockRef = useRef(0);
@@ -187,30 +200,26 @@ export function FlowScreen({ initialItems, initialCursor, initialError = null }:
   // Auto-advance on end (linear, no bounce).
   useEffect(() => {
     return store.onEnded((event) => {
-      setItems((currentItems) => {
-        const currentIndex = currentItems.findIndex((wave) => wave.id === event.waveId);
-        if (currentIndex === -1) return currentItems;
-        void sendFlowEvent(event.waveId, "complete");
-        setIndex((current) => {
-          const next = currentIndex + 1;
-          return next < currentItems.length ? next : current;
-        });
-        return currentItems;
+      const currentItems = itemsRef.current;
+      const currentIndex = currentItems.findIndex((wave) => wave.id === event.waveId);
+      if (currentIndex === -1) return;
+      void sendFlowEvent(event.waveId, "complete");
+      setIndex((current) => {
+        const next = currentIndex + 1;
+        return next < currentItems.length ? next : current;
       });
     });
   }, [store]);
 
   const goToIndex = useCallback(
     (nextIndex: number) => {
-      setItems((currentItems) => {
-        if (nextIndex < 0 || nextIndex >= currentItems.length) return currentItems;
-        const current = currentItems[index];
-        if (current && playback.isActive && playback.status !== "ended") {
-          void sendFlowEvent(current.id, "skip", Math.round(playback.currentTime * 1000));
-        }
-        setIndex(nextIndex);
-        return currentItems;
-      });
+      const currentItems = itemsRef.current;
+      if (nextIndex < 0 || nextIndex >= currentItems.length) return;
+      const current = currentItems[index];
+      if (current && playback.isActive && playback.status !== "ended") {
+        void sendFlowEvent(current.id, "skip", Math.round(playback.currentTime * 1000));
+      }
+      setIndex(nextIndex);
     },
     [index, playback.currentTime, playback.isActive, playback.status],
   );
