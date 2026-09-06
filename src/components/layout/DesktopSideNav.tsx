@@ -259,7 +259,7 @@ export function DesktopSideNav({ badges, className }: DesktopSideNavProps) {
           title={collapsed ? t("newWave") : undefined}
           className={cn(
             "akinti-press inline-flex h-10 items-center justify-center gap-2 rounded-key bg-tide",
-            "type-body-sm font-medium text-on-ink transition-colors",
+            "type-body-sm font-medium text-on-ink transition-colors duration-100 hover:bg-tide-2",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tide",
           )}
         >
