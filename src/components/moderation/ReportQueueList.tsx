@@ -1,33 +1,10 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Badge, EmptyState } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { formatAbsoluteTime } from "@/lib/ui";
 import type { Report, ReportReason, ReportStatus, ReportTargetType } from "@/types/domain";
-
-const REASON_LABELS: Record<ReportReason, string> = {
-  spam: "Spam",
-  harassment: "Harassment",
-  impersonation: "Impersonation",
-  copyright: "Copyright concern",
-  inappropriate: "Inappropriate content",
-  abusive: "Abusive behavior",
-  other: "Other",
-};
-
-const TARGET_LABELS: Record<ReportTargetType, string> = {
-  wave: "Wave",
-  comment: "Comment",
-  profile: "Profile",
-  message: "Message",
-};
-
-const STATUS_LABELS: Record<ReportStatus, string> = {
-  open: "Open",
-  reviewing: "Reviewing",
-  actioned: "Actioned",
-  dismissed: "Dismissed",
-};
 
 export interface ReportQueueListProps {
   reports: Report[];
@@ -37,11 +14,37 @@ export interface ReportQueueListProps {
 
 /** The moderation queue's list (spec §26). Each row links to its detail Sheet via `?report=<id>`. */
 export function ReportQueueList({ reports, selectedReportId, queryString }: ReportQueueListProps) {
+  const t = useTranslations("ReportQueueList");
+  const tReport = useTranslations("Report");
+  const tTerms = useTranslations("Terms");
+
+  const reasonLabels: Record<ReportReason, string> = {
+    spam: tReport("reasonSpam"),
+    harassment: tReport("reasonHarassment"),
+    impersonation: tReport("reasonImpersonation"),
+    copyright: tReport("reasonCopyright"),
+    inappropriate: tReport("reasonInappropriate"),
+    abusive: tReport("reasonAbusive"),
+    other: tReport("reasonOther"),
+  };
+  const targetLabels: Record<ReportTargetType, string> = {
+    wave: tTerms("wave"),
+    comment: tTerms("comment"),
+    profile: tTerms("profile"),
+    message: tTerms("message"),
+  };
+  const statusLabels: Record<ReportStatus, string> = {
+    open: tReport("statusOpen"),
+    reviewing: tReport("statusReviewing"),
+    actioned: tReport("statusActioned"),
+    dismissed: tReport("statusDismissed"),
+  };
+
   if (reports.length === 0) {
     return (
       <EmptyState
-        title="Nothing in the queue"
-        description="No reports match these filters right now."
+        title={t("emptyTitle")}
+        description={t("emptyDescription")}
       />
     );
   }
@@ -63,14 +66,14 @@ export function ReportQueueList({ reports, selectedReportId, queryString }: Repo
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-medium text-fg">
-                  {TARGET_LABELS[report.targetType]} · {REASON_LABELS[report.reason]}
+                  {targetLabels[report.targetType]} · {reasonLabels[report.reason]}
                 </span>
-                <Badge>{STATUS_LABELS[report.status]}</Badge>
+                <Badge>{statusLabels[report.status]}</Badge>
               </div>
               {report.details ? (
                 <p className="line-clamp-2 text-sm text-fg-muted">{report.details}</p>
               ) : null}
-              <p className="text-xs text-fg-subtle">Filed {formatAbsoluteTime(report.createdAt)}</p>
+              <p className="text-xs text-fg-subtle">{t("filedAt", { time: formatAbsoluteTime(report.createdAt) })}</p>
             </Link>
           </li>
         );
