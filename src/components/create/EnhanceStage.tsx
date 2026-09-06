@@ -4,15 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { EnhancementPicker, Waveform } from "@/components/audio";
 import { ProGate } from "@/components/pro/ProGate";
+import { useProStatus } from "@/components/pro/useProStatus";
 import { Button } from "@/components/ui";
 import {
   PRO_ENHANCEMENT_PRESETS,
   REVIEW_PEAK_BUCKETS,
   decodeTake,
+  isProOnlyEnhancementPresetId,
   renderPolishedPeaks,
   type AdvancedEqSettings,
   type EnhancementPresetId,
   type PolishMode,
+  type ProEnhancementPresetId,
 } from "@/lib/audio";
 import { useReducedMotion } from "@/lib/motion";
 import { cn } from "@/lib/ui";
@@ -21,8 +24,8 @@ export interface EnhanceStageProps {
   blob: Blob;
   /** The take's real peaks, from the local decode. */
   peaks: readonly number[];
-  preset: EnhancementPresetId;
-  onPresetChange: (preset: EnhancementPresetId) => void;
+  preset: EnhancementPresetId | ProEnhancementPresetId;
+  onPresetChange: (preset: EnhancementPresetId | ProEnhancementPresetId) => void;
   advancedEq: AdvancedEqSettings | null;
   onAdvancedEqChange: (eq: AdvancedEqSettings | null) => void;
   onContinue: () => void;
@@ -65,10 +68,17 @@ export function EnhanceStage({
   const [morphing, setMorphing] = useState(false);
   // The paywall moment (PRODUCT_V2 §4/§5): which Pro-only sound's row was
   // tapped, so `ProGate`'s opening line can name it — `null` means closed.
+  // Only ever opened for a non-Pro caller now — see the Pro rows below.
   const [proGateFeature, setProGateFeature] = useState<string | null>(null);
+  const { isPro, loading: proStatusLoading } = useProStatus();
+  const proPresetSelected = isProOnlyEnhancementPresetId(preset);
 
   // Decode once, render per preset. Both are cancelled cleanly if the user
-  // moves on before the render finishes.
+  // moves on before the render finishes. `pitch_snap`/`self_harmony` never
+  // get a local render here — there is no honest local approximation of
+  // server-side pitch correction/harmony, and faking one would be exactly
+  // the invented waveform DESIGN.md §12.32 refuses (see the Pro rows' "Preview
+  // after processing" note below instead).
   useEffect(() => {
     let cancelled = false;
 
@@ -76,7 +86,7 @@ export function EnhanceStage({
       const decoded = decodedRef.current ?? (await decodeTake(blob));
       if (cancelled) return;
       decodedRef.current = decoded;
-      if (!decoded) {
+      if (!decoded || isProOnlyEnhancementPresetId(preset)) {
         setPolishedPeaks(null);
         return;
       }
@@ -148,10 +158,13 @@ export function EnhanceStage({
           only the picture of it is missing.
         </p>
       ) : null}
+      {tracePrepared && proPresetSelected ? (
+        <p className="type-body-sm measure text-ink-muted">Preview after processing.</p>
+      ) : null}
 
       <EnhancementPicker
         blob={blob}
-        preset={preset}
+        preset={proPresetSelected ? "natural" : preset}
         onPresetChange={onPresetChange}
         advancedEq={advancedEq}
         onAdvancedEqChange={onAdvancedEqChange}
@@ -159,28 +172,45 @@ export function EnhanceStage({
       />
 
       {/* AKINTI Pro sounds (PRODUCT_V2 §4/§5): the same 56px row as the six
-          free sounds above, marked "Pro". Tapping one never selects it —
-          it opens the paywall moment instead (`ProGate`), the sheet that
-          explains AKINTI Pro and links to the real Pro screen. There is no
-          modal on app open, ever: this only ever opens from this tap. */}
+          free sounds above, marked "Pro". A non-Pro caller tapping one never
+          selects it — it opens the paywall moment instead (`ProGate`), the
+          sheet that explains AKINTI Pro and links to the real Pro screen.
+          There is no modal on app open, ever: this only ever opens from this
+          tap. A Pro caller selects it directly, exactly like the six free
+          sounds above — there is real DSP behind both now (the sidecar's
+          /pitch-snap and /harmony), just no honest local preview for it yet
+          (see "Preview after processing" above). */}
       <div role="group" aria-label="AKINTI Pro sounds" className="flex flex-col">
-        {PRO_ENHANCEMENT_PRESETS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setProGateFeature(item.label)}
-            className={cn(
-              "flex h-14 items-center gap-4 border-t border-hairline px-3 text-left",
-              "transition-colors duration-[--dur-micro] hover:bg-paper-sunk/50",
-              "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
-            )}
-          >
-            <span aria-hidden="true" className="size-3 shrink-0 rounded-full border border-hairline-strong" />
-            <span className="type-subhead min-w-28 text-ink">{item.label}</span>
-            <span className="type-caption truncate text-ink-subtle">{item.description}</span>
-            <span className="type-caption ml-auto shrink-0 text-ink-subtle">Pro</span>
-          </button>
-        ))}
+        {PRO_ENHANCEMENT_PRESETS.map((item) => {
+          const selected = preset === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              disabled={proStatusLoading}
+              onClick={() => (isPro ? onPresetChange(item.id) : setProGateFeature(item.label))}
+              className={cn(
+                "flex h-14 items-center gap-4 border-t border-hairline px-3 text-left",
+                "transition-colors duration-[--dur-micro]",
+                "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink",
+                selected ? "bg-paper-sunk" : "hover:bg-paper-sunk/50",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "size-3 shrink-0 rounded-full border",
+                  selected ? "border-ink bg-ink" : "border-hairline-strong",
+                )}
+              />
+              <span className="type-subhead min-w-28 text-ink">{item.label}</span>
+              <span className="type-caption truncate text-ink-subtle">{item.description}</span>
+              <span className="type-caption ml-auto shrink-0 text-ink-subtle">Pro</span>
+            </button>
+          );
+        })}
       </div>
 
       <ProGate

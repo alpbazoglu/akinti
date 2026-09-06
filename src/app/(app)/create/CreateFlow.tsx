@@ -44,6 +44,7 @@ import {
   type CreatableCreationType,
   type CreateWaveDraft,
   type EnhancementPresetId,
+  type ProEnhancementPresetId,
   type TrimRange,
 } from "@/lib/audio";
 import { markFirstPublish } from "@/lib/pwa/installPrompt";
@@ -119,7 +120,7 @@ export function CreateFlow({ initialBackingTrack, initialChallenge }: CreateFlow
   const [enhancePeaks, setEnhancePeaks] = useState<readonly number[] | null>(null);
   const [stripPeaks, setStripPeaks] = useState<readonly number[] | null>(null);
 
-  const [preset, setPreset] = useState<EnhancementPresetId>("natural");
+  const [preset, setPreset] = useState<EnhancementPresetId | ProEnhancementPresetId>("natural");
   const [advancedEq, setAdvancedEq] = useState<AdvancedEqSettings | null>(null);
 
   const [publishStage, setPublishStage] = useState<PublishStage | null>(null);

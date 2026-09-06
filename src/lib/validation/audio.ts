@@ -10,6 +10,22 @@ import { AUDIO_ENHANCEMENT_PRESETS } from "@/types/domain";
 import { uuidSchema } from "./common";
 
 /**
+ * The six free presets plus the two AKINTI Pro sounds (`pitch_snap`/
+ * `self_harmony` — `PRO_ENHANCEMENT_PRESETS` in `src/lib/audio/enhancement.ts`,
+ * now valid `audio_enhancement_preset` enum values as of migration
+ * `20260906120000_pro_presets_pitch.sql`). Kept as a literal list rather than
+ * importing from `enhancement.ts` to avoid a validation-module ->
+ * client-preview-module dependency; `isProOnlyEnhancementPresetId` (called
+ * from `create/actions.ts` BEFORE this schema runs) is the actual Pro gate —
+ * this list only decides what shape of string is accepted at all.
+ */
+const ALL_AUDIO_ENHANCEMENT_PRESET_IDS = [
+  ...AUDIO_ENHANCEMENT_PRESETS,
+  "pitch_snap",
+  "self_harmony",
+] as const;
+
+/**
  * `MediaRecorder.mimeType` (and therefore `Blob.type` / `RecorderResult.mimeType`
  * — see `getRecordingMimeType` in `src/lib/audio/capabilities.ts`) reports codec
  * parameters, e.g. `"audio/webm;codecs=opus"` — real, live behavior in every
@@ -53,7 +69,7 @@ export const createAudioAssetSchema = z.object({
   duration_ms: z.number().int().positive().max(MAX_AUDIO_DURATION_MS).nullish(),
   sample_rate: z.number().int().positive().max(192_000).nullish(),
   channels: z.number().int().min(1).max(2).nullish(),
-  enhancement_preset: z.enum(AUDIO_ENHANCEMENT_PRESETS).default("natural"),
+  enhancement_preset: z.enum(ALL_AUDIO_ENHANCEMENT_PRESET_IDS).default("natural"),
   checksum_sha256: z
     .string()
     .regex(/^[0-9a-f]{64}$/, "Expected a lowercase hex SHA-256 digest")
@@ -81,7 +97,7 @@ export const createUploadTicketSchema = z.object({
   sizeBytes: z.number().int().positive().max(MAX_AUDIO_BYTES),
   durationMs: z.number().int().positive().max(MAX_AUDIO_DURATION_MS).nullish(),
   creationType: z.enum(["recorded", "uploaded"]),
-  enhancementPreset: z.enum(AUDIO_ENHANCEMENT_PRESETS).default("natural"),
+  enhancementPreset: z.enum(ALL_AUDIO_ENHANCEMENT_PRESET_IDS).default("natural"),
 });
 
 /**

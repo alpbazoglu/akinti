@@ -32,6 +32,7 @@ import {
   applyTrim,
   decodeToPeaks,
   fullRange,
+  isProOnlyEnhancementPresetId,
   REVIEW_PEAK_BUCKETS,
   type AdvancedEqSettings,
   type EnhancementPresetId,
@@ -339,7 +340,16 @@ export function DuetRecorder({
             blob={take.blob}
             peaks={enhancePeaks}
             preset={preset}
-            onPresetChange={setPreset}
+            // The mix_duet worker path (unlike process_audio) does not yet
+            // route pitch_snap/self_harmony through the sidecar's dedicated
+            // endpoints — see docs/AUDIO_ARCHITECTURE.md "Pitch score" and
+            // scripts/worker.ts's runMixDuetJob. Ignore a Pro selection here
+            // rather than silently applying just the EQ/compressor chain
+            // PRESET_FILTERS carries for these ids, which would be a fake
+            // "pitch snap"/"self harmony" for a Duet take.
+            onPresetChange={(next) => {
+              if (!isProOnlyEnhancementPresetId(next)) setPreset(next);
+            }}
             advancedEq={advancedEq}
             onAdvancedEqChange={setAdvancedEq}
             onContinue={handleEnhanceContinue}

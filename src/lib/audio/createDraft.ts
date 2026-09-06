@@ -16,7 +16,7 @@
 
 import type { PermissionAudience, WaveCreationType, WaveVisibility } from "@/types/domain";
 
-import type { AdvancedEqSettings, EnhancementPresetId } from "./enhancement";
+import type { AdvancedEqSettings, EnhancementPresetId, ProEnhancementPresetId } from "./enhancement";
 
 /** Categories offered on the details step. Free-form tags may be added later; this is a fixed v1 set. */
 export const WAVE_CATEGORY_OPTIONS: readonly string[] = [
@@ -41,7 +41,8 @@ export interface CreateWaveDraftAudio {
   readonly durationMs: number;
   /** Client-only preview peaks from `decodeToPeaks()` — the server regenerates the stored waveform. */
   readonly previewPeaks: readonly number[];
-  readonly enhancementPreset: EnhancementPresetId;
+  /** AKINTI Pro (PRODUCT_V2 §4/§5): `pitch_snap`/`self_harmony` are real, gated presets as of migration `20260906120000_pro_presets_pitch.sql` — `requirePro()` in `create/actions.ts` re-checks server-side regardless of what the client sends. */
+  readonly enhancementPreset: EnhancementPresetId | ProEnhancementPresetId;
   /** Set only when the user opted into the advanced EQ; `null` otherwise. */
   readonly advancedEq: AdvancedEqSettings | null;
   /** Original filename for an uploaded file; `null` for a fresh recording. */
