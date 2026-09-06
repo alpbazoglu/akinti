@@ -125,6 +125,21 @@ const nextConfig: NextConfig = {
   // which is exactly what a Node-only server-side SDK like this needs
   // anyway (see `node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/serverExternalPackages.md`).
   serverExternalPackages: ["iyzipay"],
+  // `serverExternalPackages` above stops Turbopack from bundling `iyzipay`,
+  // but Next's own file tracing (what actually decides which files ship in
+  // a Vercel deployment) only follows STATIC requires — it has no way to
+  // see that `_initResources` reads its `lib/resources/` directory at
+  // runtime via `fs.readdirSync` (review3 finding 33). Without this, a
+  // deployment can ship `iyzipay` missing `lib/resources/**` and fail at
+  // the first iyzico call with a runtime error rather than at build time.
+  // Every route that can reach `src/lib/billing/iyzico.ts` needs the entry:
+  // the two iyzico API routes, and `/settings/pro`, whose Server Action
+  // (`settings/pro/actions.ts`) calls `startCheckout`/`cancelPro` for an
+  // iyzico plan.
+  outputFileTracingIncludes: {
+    "/api/billing/iyzico/*": ["./node_modules/iyzipay/lib/resources/**/*"],
+    "/settings/pro": ["./node_modules/iyzipay/lib/resources/**/*"],
+  },
   // Dev-only: Next's own devtools overlay (route info, the pending-transition
   // "Rendering ..." pill — `node_modules/next/dist/next-devtools`) has no
   // corner that is actually free on this layout. `bottom-left` sits on the
