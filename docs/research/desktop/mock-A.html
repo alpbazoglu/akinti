@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AKINTI desktop — Direction A, "Akış"</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&family=Martian+Mono:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* ground — layered elevation, warm-black not #0A0A0A */
+    --paper-0:#0a100e;      /* app chrome floor */
+    --paper-1:#0f1815;      /* main content ground */
+    --paper-2:#152020;      /* card / raised surface */
+    --paper-3:#1c2926;      /* hover / card-2 */
+    --paper-sunk:#070c0a;
+
+    --ink:#eef5f1;
+    --ink-muted:#a9bdb5;
+    --ink-subtle:#748882;
+    --hairline:#243430;
+    --hairline-strong:#324640;
+
+    /* vivid warm-cool accent pair: "the current" (cool) + "the sand" (warm) */
+    --current:#2fe0c9;
+    --current-deep:#12a893;
+    --current-wash:rgba(47,224,201,.12);
+    --sand:#f0a63f;
+    --sand-deep:#c07f1e;
+
+    /* signal — exclusive to live audio, unchanged from the design system */
+    --signal:#ff5c33;
+    --signal-wash:rgba(255,92,51,.14);
+
+    --danger:#f07a62;
+
+    --radius-line:0px; --radius-label:4px; --radius-tag:8px; --radius-field:10px;
+    --radius-key:14px; --radius-card:18px; --radius-sheet:24px;
+
+    --shadow-card: 0 1px 0 0 rgba(255,255,255,.02) inset, 0 12px 32px -16px rgba(0,0,0,.55);
+    --shadow-lift: 0 20px 44px -18px rgba(0,0,0,.65), 0 0 0 1px var(--hairline-strong);
+    --shadow-bar: 0 -1px 0 0 var(--hairline), 0 -24px 48px -24px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper-0);color:var(--ink);}
+  body{
+    font-family:"Archivo",system-ui,sans-serif;
+    font-variation-settings:"wdth" 100;
+    -webkit-font-smoothing:antialiased;
+    width:1440px; height:900px; overflow:hidden; position:relative;
+  }
+  .mono{font-family:"Martian Mono",monospace; font-variant-numeric:tabular-nums; letter-spacing:0;}
+
+  /* faint grain, matches brand rule of a fixed texture layer */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:50; opacity:.05; mix-blend-mode:screen;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .shell{display:grid; grid-template-columns:76px 1fr 300px; grid-template-rows:1fr 88px; height:900px;}
+
+  /* ---------- icon rail ---------- */
+  .rail{
+    grid-row:1/2; background:var(--paper-0); border-right:1px solid var(--hairline);
+    display:flex; flex-direction:column; align-items:center; padding:20px 0 16px;
+  }
+  .rail .word{width:32px;height:32px;border-radius:9px;background:linear-gradient(160deg,var(--current),var(--current-deep));display:flex;align-items:center;justify-content:center;color:#06211c;font-weight:700;font-size:14px;margin-bottom:28px;}
+  .rail nav{display:flex; flex-direction:column; gap:4px; width:100%; align-items:center;}
+  .rail a{
+    position:relative; width:52px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    color:var(--ink-subtle); text-decoration:none; font-size:21px; transition:color .15s ease, background-color .15s ease;
+  }
+  .rail a:hover{ color:var(--ink); background:var(--paper-2); }
+  .rail a.active{ color:var(--current); }
+  .rail a.active::before{
+    content:""; position:absolute; left:-1px; top:50%; transform:translateY(-50%); width:3px; height:20px;
+    background:var(--current); border-radius:0 3px 3px 0; box-shadow:0 0 12px var(--current);
+  }
+  .rail .spacer{flex:1;}
+  .rail .record{
+    width:52px; height:52px; border-radius:16px; background:var(--ink); color:var(--paper-0);
+    display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:14px; position:relative;
+    box-shadow:0 8px 20px -8px rgba(0,0,0,.6);
+  }
+  .record .dot{position:absolute; width:14px; height:14px; border-radius:50%; background:var(--signal); box-shadow:0 0 0 3px var(--paper-0);}
+  .rail .avatar{width:36px;height:36px;border-radius:11px;background:var(--paper-3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--ink-muted); border:1px solid var(--hairline-strong);}
+
+  /* ---------- main column ---------- */
+  .main{ grid-row:1/2; background:var(--paper-1); overflow:hidden; position:relative; display:flex; flex-direction:column; }
+
+  /* top progress bar — route-transition feedback, the founder's #1 gap */
+  .topline{position:absolute; top:0; left:0; height:2px; width:38%; background:linear-gradient(90deg,var(--current),var(--sand)); box-shadow:0 0 12px var(--current); border-radius:0 2px 2px 0;}
+
+  .topbar{ height:64px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; border-bottom:1px solid var(--hairline); flex-shrink:0; }
+  .search{ display:flex; align-items:center; gap:10px; background:var(--paper-2); border:1px solid var(--hairline); border-radius:12px; padding:9px 14px; width:340px; color:var(--ink-subtle); font-size:14px;}
+  .search i{font-size:16px;}
+  .topbar-actions{display:flex; align-items:center; gap:14px;}
+  .icon-btn{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--ink-muted);font-size:18px;background:var(--paper-2);border:1px solid var(--hairline); position:relative;}
+  .icon-btn .badge{position:absolute; top:-4px; right:-4px; background:var(--signal); color:#fff; font-size:10px; font-weight:700; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 3px;}
+
+  .scroll{ flex:1; overflow-y:auto; padding:28px 32px 0; }
+  .scroll::-webkit-scrollbar{width:10px;} .scroll::-webkit-scrollbar-thumb{background:var(--paper-3); border-radius:6px; border:2px solid var(--paper-1);}
+
+  h1.page-title{font-size:30px; font-weight:600; font-variation-settings:"wdth" 108; letter-spacing:-.02em; margin:0 0 4px;}
+  .page-sub{color:var(--ink-subtle); font-size:14.5px; margin:0 0 26px;}
+
+  .section-head{display:flex; align-items:baseline; justify-content:space-between; margin:34px 0 14px;}
+  .section-head h2{font-size:18px; font-weight:600; margin:0; letter-spacing:-.01em;}
+  .section-head a{font-size:12.5px; color:var(--current); text-decoration:none; font-weight:600;}
+
+  /* live-now strip */
+  .live-strip{ display:flex; gap:12px; overflow-x:auto; padding-bottom:6px; }
+  .live-card{
+    flex:0 0 168px; background:var(--paper-2); border:1px solid var(--hairline); border-radius:var(--radius-card);
+    padding:14px; cursor:pointer; transition:transform .16s cubic-bezier(.2,0,0,1), box-shadow .16s, border-color .16s;
+    position:relative; overflow:hidden;
+  }
+  .live-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-lift); border-color:var(--hairline-strong); }
+  .live-card .signature{height:34px; display:flex; align-items:flex-end; gap:2px; margin-bottom:12px;}
+  .live-card .signature span{width:2px; background:var(--current); opacity:.55; border-radius:1px;}
+  .live-card .live-pill{ position:absolute; top:12px; right:12px; display:flex; align-items:center; gap:5px; background:var(--signal-wash); padding:3px 8px 3px 6px; border-radius:20px; }
+  .live-card .live-pill .lamp{width:6px;height:6px;border-radius:50%;background:var(--signal); animation:breathe 1.4s ease-in-out infinite;}
+  .live-card .live-pill span.txt{font-size:10.5px; font-weight:700; color:var(--signal); text-transform:none;}
+  @keyframes breathe{0%,100%{opacity:1;}50%{opacity:.5;}}
+  .live-card .name{font-weight:600; font-size:14px; margin:0 0 2px;}
+  .live-card .meta{font-size:12px; color:var(--ink-subtle);}
+
+  /* trending grid — real cards, real hover, real depth (the founder's ask) */
+  .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .wcard{
+    background:var(--paper-2); border:1px solid var(--hairline); border-radius:var(--radius-card); padding:18px;
+    cursor:pointer; transition:transform .18s cubic-bezier(.2,0,0,1), box-shadow .18s ease, border-color .18s ease, background .18s ease;
+    position:relative;
+  }
+  .wcard:hover{ transform:translateY(-3px); box-shadow:var(--shadow-card); border-color:var(--hairline-strong); background:var(--paper-3); }
+  .wcard .row-top{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .av{width:34px;height:34px;border-radius:11px;background:var(--paper-3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--ink-muted); flex-shrink:0; border:1px solid var(--hairline-strong);}
+  .row-top .who{font-size:13px; color:var(--ink-muted);}
+  .row-top .who b{color:var(--ink); font-weight:600;}
+  .row-top .time{margin-left:auto; font-size:11.5px; color:var(--ink-subtle);}
+  .wcard h3{font-size:16px; margin:0 0 12px; font-weight:600; letter-spacing:-.005em;}
+  .wave{ height:44px; display:flex; align-items:center; gap:2px; margin-bottom:8px; position:relative; }
+  .wave span{ flex:1; background:var(--hairline-strong); border-radius:1px; min-height:2px; }
+  .wave span.played{ background:var(--current); }
+  .wcard .times{display:flex; justify-content:space-between; font-size:11px; color:var(--ink-subtle); margin-bottom:14px;}
+  .actions{display:flex; align-items:center; gap:16px;}
+  .play-btn{
+    width:38px;height:38px;border-radius:50%;background:var(--current); color:#06211c; display:flex; align-items:center; justify-content:center;
+    font-size:16px; flex-shrink:0; transition:transform .1s cubic-bezier(.3,0,.2,1), box-shadow .15s ease; box-shadow:0 0 0 0 var(--current-wash);
+  }
+  .wcard:hover .play-btn{ box-shadow:0 0 0 8px var(--current-wash); }
+  .play-btn:active{ transform:scale(.92); }
+  .ic-action{color:var(--ink-subtle); font-size:17px; transition:color .12s ease, transform .12s ease;}
+  .ic-action:hover{color:var(--ink); transform:scale(1.08);}
+  .counts{margin-left:auto; font-size:11.5px; color:var(--ink-subtle);}
+  .badge{ display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--radius-tag); font-size:10.5px; font-weight:600; border:1px solid var(--hairline-strong); color:var(--ink-muted); margin-left:8px; }
+  .badge.duet{ color:var(--sand); border-color:var(--sand-deep); background:rgba(240,166,63,.08); }
+
+  /* skeleton card, shaped, no shimmer per brand rule but present as a state */
+  .skel{ background:var(--paper-2); border:1px solid var(--hairline); border-radius:var(--radius-card); padding:18px; }
+  .skel .bar{ background:var(--paper-3); border-radius:6px; }
+  .skel .b1{width:60%; height:12px; margin-bottom:10px;}
+  .skel .b2{width:38%; height:12px; margin-bottom:16px;}
+  .skel .wv{height:36px; background:var(--paper-3); border-radius:3px; opacity:.5;}
+
+  /* ---------- right rail ---------- */
+  .rrail{ grid-row:1/2; background:var(--paper-0); border-left:1px solid var(--hairline); padding:24px 20px; overflow-y:auto; }
+  .rrail h4{font-size:11px; text-transform:none; letter-spacing:.02em; color:var(--ink-subtle); margin:0 0 14px; font-weight:600;}
+  .queue-item{ display:flex; gap:10px; align-items:center; padding:9px 8px; border-radius:10px; margin:0 -8px 2px; transition:background .12s ease; }
+  .queue-item:hover{ background:var(--paper-2); }
+  .queue-item .qav{width:30px;height:30px;border-radius:9px;background:var(--paper-2);border:1px solid var(--hairline-strong);flex-shrink:0;}
+  .queue-item .qt{font-size:13px; font-weight:600;}
+  .queue-item .qs{font-size:11px; color:var(--ink-subtle);}
+  .queue-item.now .qav{background:var(--current-wash); border-color:var(--current);}
+  .queue-item.now .qt{color:var(--current);}
+  .divider{height:1px; background:var(--hairline); margin:20px 0;}
+  .duet-callout{ background:linear-gradient(155deg, rgba(240,166,63,.14), rgba(240,166,63,.03)); border:1px solid var(--sand-deep); border-radius:var(--radius-card); padding:16px; }
+  .duet-callout p{font-size:12.5px; color:var(--ink-muted); margin:6px 0 12px; line-height:1.5;}
+  .duet-callout .req{ font-size:12.5px; font-weight:700; color:var(--sand); display:flex; align-items:center; gap:6px; }
+
+  /* ---------- now playing bar ---------- */
+  .nowplaying{
+    grid-column:1/4; grid-row:2/3; background:var(--paper-0); border-top:1px solid var(--hairline);
+    display:grid; grid-template-columns:280px 1fr 280px; align-items:center; padding:0 24px; box-shadow:var(--shadow-bar);
+  }
+  .np-left{display:flex; align-items:center; gap:12px;}
+  .np-left .av{width:48px;height:48px;border-radius:14px;}
+  .np-left .t1{font-size:13.5px; font-weight:600;}
+  .np-left .t2{font-size:11.5px; color:var(--ink-subtle);}
+  .np-left .save{margin-left:6px; color:var(--ink-subtle); font-size:16px;}
+  .np-mid{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .np-controls{display:flex; align-items:center; gap:20px;}
+  .np-controls i{color:var(--ink-muted); font-size:19px; cursor:pointer; transition:color .12s, transform .1s;}
+  .np-controls i:hover{color:var(--ink);}
+  .np-controls .playpause{ width:34px;height:34px;border-radius:50%; background:var(--ink); color:var(--paper-0); display:flex; align-items:center; justify-content:center; font-size:16px;}
+  .np-controls .playpause:active{transform:scale(.92);}
+  .np-track{ display:flex; align-items:center; gap:10px; width:100%; max-width:520px; }
+  .np-time{font-size:11px; color:var(--ink-subtle);}
+  .np-wave{flex:1; height:24px; display:flex; align-items:center; gap:1px;}
+  .np-wave span{flex:1; background:var(--hairline-strong); border-radius:1px; min-height:2px;}
+  .np-wave span.played{background:var(--current);}
+  .np-right{display:flex; align-items:center; justify-content:flex-end; gap:16px;}
+  .np-right i{color:var(--ink-subtle); font-size:17px;}
+  .vol{display:flex; align-items:center; gap:8px; width:96px;}
+  .vol-track{flex:1; height:3px; background:var(--hairline-strong); border-radius:2px; position:relative;}
+  .vol-track::before{content:""; position:absolute; left:0; top:0; bottom:0; width:62%; background:var(--current); border-radius:2px;}
+
+  .cmdk-hint{position:absolute; bottom:110px; right:328px; background:var(--paper-2); border:1px solid var(--hairline-strong); border-radius:10px; padding:8px 12px; font-size:11.5px; color:var(--ink-subtle); display:flex; align-items:center; gap:8px; box-shadow:var(--shadow-card);}
+  .kbd{background:var(--paper-3); border:1px solid var(--hairline-strong); border-radius:4px; padding:1px 5px; font-family:"Martian Mono",monospace; font-size:10px;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="rail">
+    <div class="word">a</div>
+    <nav>
+      <a class="active" title="Home"><i class="ph-fill ph-house"></i></a>
+      <a title="Explore"><i class="ph ph-compass"></i></a>
+      <a title="Messages"><i class="ph ph-chat-circle"></i></a>
+      <a title="You"><i class="ph ph-user"></i></a>
+      <a title="Notifications"><i class="ph ph-bell"></i></a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="record"><i class="ph-fill ph-circle" style="font-size:0;"></i><span class="dot"></span></div>
+    <div class="avatar">AK</div>
+  </aside>
+
+  <main class="main">
+    <div class="topline"></div>
+    <div class="topbar">
+      <div class="search"><i class="ph ph-magnifying-glass"></i>Search Waves, people, sounds</div>
+      <div class="topbar-actions">
+        <div class="icon-btn"><i class="ph ph-bell"></i><span class="badge">6</span></div>
+        <div class="icon-btn"><i class="ph ph-gear"></i></div>
+      </div>
+    </div>
+
+    <div class="scroll">
+      <h1 class="page-title">Home</h1>
+      <p class="page-sub">No one you follow has posted yet — here's what's moving right now.</p>
+
+      <div class="section-head"><h2>Live this hour</h2><a>See all</a></div>
+      <div class="live-strip">
+        <div class="live-card">
+          <div class="live-pill"><span class="lamp"></span><span class="txt">live</span></div>
+          <div class="signature" id="sig1"></div>
+          <p class="name">Ayşe Kaya</p>
+          <p class="meta">Atışma · reply round</p>
+        </div>
+        <div class="live-card">
+          <div class="live-pill"><span class="lamp"></span><span class="txt">live</span></div>
+          <div class="signature" id="sig2"></div>
+          <p class="name">Deniz Aydın</p>
+          <p class="meta">Cypher · verse 3</p>
+        </div>
+        <div class="live-card">
+          <div class="signature" id="sig3"></div>
+          <p class="name">Mert Solak</p>
+          <p class="meta">Open for Duet</p>
+        </div>
+        <div class="live-card">
+          <div class="signature" id="sig4"></div>
+          <p class="name">Elif Toprak</p>
+          <p class="meta">Uploaded · 12m ago</p>
+        </div>
+      </div>
+
+      <div class="section-head"><h2>Trending Waves</h2><a>Show Rising instead</a></div>
+      <div class="grid">
+        <div class="wcard">
+          <div class="row-top"><div class="av">AK</div><span class="who"><b>Ayşe Kaya</b> · @aysek</span><span class="badge">recorded</span><span class="time">2h</span></div>
+          <h3>Sabah provası</h3>
+          <div class="wave" id="w1"></div>
+          <div class="times"><span class="mono">0:14</span><span class="mono">2:07</span></div>
+          <div class="actions">
+            <div class="play-btn"><i class="ph-fill ph-play"></i></div>
+            <i class="ph ph-chat-circle ic-action"></i>
+            <i class="ph ph-bookmark-simple ic-action"></i>
+            <i class="ph ph-share-network ic-action"></i>
+            <span class="counts">312 plays · 41 replays</span>
+          </div>
+        </div>
+        <div class="wcard">
+          <div class="row-top"><div class="av">DA</div><span class="who"><b>Deniz Aydın</b> · @denizA</span><span class="badge duet">duet</span><span class="time">5h</span></div>
+          <h3>Cypher — verse 2</h3>
+          <div class="wave" id="w2"></div>
+          <div class="times"><span class="mono">0:00</span><span class="mono">0:48</span></div>
+          <div class="actions">
+            <div class="play-btn"><i class="ph-fill ph-play"></i></div>
+            <i class="ph ph-chat-circle ic-action"></i>
+            <i class="ph ph-bookmark-simple ic-action"></i>
+            <i class="ph ph-share-network ic-action"></i>
+            <span class="counts">6 duets</span>
+          </div>
+        </div>
+        <div class="wcard">
+          <div class="row-top"><div class="av">MS</div><span class="who"><b>Mert Solak</b> · @mertsolak</span><span class="badge">uploaded</span><span class="time">9h</span></div>
+          <h3>Gece treni</h3>
+          <div class="wave" id="w3"></div>
+          <div class="times"><span class="mono">0:00</span><span class="mono">3:12</span></div>
+          <div class="actions">
+            <div class="play-btn"><i class="ph-fill ph-play"></i></div>
+            <i class="ph ph-chat-circle ic-action"></i>
+            <i class="ph ph-bookmark-simple ic-action"></i>
+            <i class="ph ph-share-network ic-action"></i>
+            <span class="counts">89 plays · 1 save</span>
+          </div>
+        </div>
+        <div class="wcard">
+          <div class="row-top"><div class="av">ET</div><span class="who"><b>Elif Toprak</b> · @eliftoprak</span><span class="badge">recorded</span><span class="time">11h</span></div>
+          <h3>Şişli, gece yarısı</h3>
+          <div class="wave" id="w4"></div>
+          <div class="times"><span class="mono">0:00</span><span class="mono">1:33</span></div>
+          <div class="actions">
+            <div class="play-btn"><i class="ph-fill ph-play"></i></div>
+            <i class="ph ph-chat-circle ic-action"></i>
+            <i class="ph ph-bookmark-simple ic-action"></i>
+            <i class="ph ph-share-network ic-action"></i>
+            <span class="counts">204 plays · 18 saves</span>
+          </div>
+        </div>
+        <div class="skel">
+          <div class="bar b1"></div>
+          <div class="bar b2"></div>
+          <div class="wv"></div>
+        </div>
+        <div class="skel">
+          <div class="bar b1" style="width:44%"></div>
+          <div class="bar b2" style="width:30%"></div>
+          <div class="wv"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="rrail">
+    <h4>up next</h4>
+    <div class="queue-item now"><div class="qav"></div><div><div class="qt">Sabah provası</div><div class="qs">Ayşe Kaya · 0:41 / 2:07</div></div></div>
+    <div class="queue-item"><div class="qav"></div><div><div class="qt">Cypher — verse 2</div><div class="qs">Deniz Aydın</div></div></div>
+    <div class="queue-item"><div class="qav"></div><div><div class="qt">Gece treni</div><div class="qs">Mert Solak</div></div></div>
+    <div class="queue-item"><div class="qav"></div><div><div class="qt">Şişli, gece yarısı</div><div class="qs">Elif Toprak</div></div></div>
+
+    <div class="divider"></div>
+    <h4>open for duet</h4>
+    <div class="duet-callout">
+      <div class="row-top" style="margin-bottom:0;"><div class="av">MS</div><span class="who"><b>Mert Solak</b></span></div>
+      <p>Looking for a second voice on "Gece treni" — open until Friday.</p>
+      <div class="req"><i class="ph ph-arrow-elbow-down-right"></i>Send the request</div>
+    </div>
+  </aside>
+
+  <div class="nowplaying">
+    <div class="np-left">
+      <div class="av" style="width:48px;height:48px;border-radius:14px;background:var(--paper-2);border:1px solid var(--hairline-strong);"></div>
+      <div>
+        <div class="t1">Sabah provası</div>
+        <div class="t2">Ayşe Kaya</div>
+      </div>
+      <i class="ph ph-bookmark-simple save"></i>
+    </div>
+    <div class="np-mid">
+      <div class="np-controls">
+        <i class="ph ph-shuffle"></i>
+        <i class="ph ph-skip-back"></i>
+        <div class="playpause"><i class="ph-fill ph-pause"></i></div>
+        <i class="ph ph-skip-forward"></i>
+        <i class="ph ph-repeat"></i>
+      </div>
+      <div class="np-track">
+        <span class="np-time mono">0:41</span>
+        <div class="np-wave" id="npwave"></div>
+        <span class="np-time mono">2:07</span>
+      </div>
+    </div>
+    <div class="np-right">
+      <i class="ph ph-queue"></i>
+      <i class="ph ph-microphone-stage"></i>
+      <div class="vol"><i class="ph ph-speaker-simple-high" style="font-size:15px;"></i><div class="vol-track"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="cmdk-hint"><span class="kbd">⌘</span><span class="kbd">K</span> to search, jump to a Wave, or start recording</div>
+
+<script>
+  function bars(id, count, playedRatio, seedOffset){
+    const el = document.getElementById(id);
+    if(!el) return;
+    let html = '';
+    for(let i=0;i<count;i++){
+      const h = Math.max(8, Math.abs(Math.sin(i*0.5+seedOffset))*100);
+      const played = i/count < playedRatio ? ' played' : '';
+      html += `<span class="${played.trim()}" style="height:${h}%"></span>`;
+    }
+    el.innerHTML = html;
+  }
+  bars('w1', 130, 0.22, 1);
+  bars('w2', 90, 0.55, 3);
+  bars('w3', 130, 0, 5);
+  bars('w4', 130, 0, 7);
+  bars('npwave', 90, 0.32, 2);
+  function sig(id, seed){
+    const el = document.getElementById(id);
+    let html='';
+    for(let i=0;i<40;i++){ const h = Math.max(10, Math.abs(Math.sin(i*0.6+seed))*100); html += `<span style="height:${h}%"></span>`; }
+    el.innerHTML = html;
+  }
+  sig('sig1',1); sig('sig2',2); sig('sig3',3); sig('sig4',4);
+</script>
+</body>
+</html>

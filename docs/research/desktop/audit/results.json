@@ -1,0 +1,210 @@
+{
+  "routes": {
+    "Home": {
+      "href": "/",
+      "viaNav": true,
+      "clickToDispatchMs": 43,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": 895
+    },
+    "Flow": {
+      "href": "/flow",
+      "viaNav": true,
+      "clickToDispatchMs": 40,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": 837
+    },
+    "Explore": {
+      "href": "/explore",
+      "viaNav": true,
+      "clickToDispatchMs": 41,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": 1009
+    },
+    "Messages": {
+      "href": "/messages",
+      "viaNav": true,
+      "clickToDispatchMs": 36,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": 706
+    },
+    "Notifications": {
+      "href": "/notifications",
+      "viaNav": true,
+      "clickToDispatchMs": 37,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": 689
+    },
+    "Settings": {
+      "href": "/settings",
+      "viaNav": true,
+      "clickToDispatchMs": null,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": null
+    },
+    "Search": {
+      "href": "/search",
+      "viaNav": false,
+      "clickToDispatchMs": null,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": null
+    },
+    "Create": {
+      "href": "/create",
+      "viaNav": false,
+      "clickToDispatchMs": null,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": null
+    },
+    "Duets": {
+      "href": "/duets",
+      "viaNav": false,
+      "clickToDispatchMs": null,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": null
+    },
+    "Challenges": {
+      "href": "/challenges",
+      "viaNav": false,
+      "clickToDispatchMs": null,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": null
+    },
+    "Tracks": {
+      "href": "/tracks",
+      "viaNav": false,
+      "clickToDispatchMs": null,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": null
+    },
+    "Analytics": {
+      "href": "/analytics",
+      "viaNav": false,
+      "clickToDispatchMs": null,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": true,
+      "firstVisibleChangeMs": 289
+    },
+    "Pro": {
+      "href": "/settings/pro",
+      "viaNav": false,
+      "clickToDispatchMs": null,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": null
+    },
+    "Profile": {
+      "href": "/u/e2edeskauditmtpl0q01lmw3",
+      "viaNav": true,
+      "clickToDispatchMs": 45,
+      "ariaCurrentImmediate": null,
+      "hasSkeletonOrBusy": false,
+      "firstVisibleChangeMs": null
+    }
+  },
+  "buttons": {
+    "Button-primary-sample": {
+      "found": true,
+      "before": {
+        "transform": "none",
+        "boxShadow": "none",
+        "bg": "rgba(0, 0, 0, 0)",
+        "cursor": "default"
+      },
+      "hoverChanged": true,
+      "hover": {
+        "bg": "rgba(0, 0, 0, 0)",
+        "textDecoration": "underline",
+        "cursor": "default"
+      },
+      "activeChanged": true,
+      "active": {
+        "transform": "matrix(0.976067, 0, 0, 0.976067, 0, 0)",
+        "boxShadow": "rgba(169, 189, 180, 0.957) 0px 0px 0px 0.957339px inset",
+        "bg": "rgba(0, 0, 0, 0)"
+      },
+      "focusRingVisible": false,
+      "focus": {
+        "outline": "none",
+        "outlineColor": "rgb(15, 26, 24)",
+        "outlineWidth": "3px"
+      },
+      "cursor": "default"
+    },
+    "SideNav-RecordKey": {
+      "found": false
+    },
+    "SideNav-link": {
+      "found": false
+    },
+    "keyboard-focus-first-tabbable": {
+      "tag": "A",
+      "outlineStyle": "solid",
+      "outlineWidth": "2px",
+      "outlineColor": "rgb(15, 26, 24)"
+    }
+  },
+  "async": {
+    "waveCardsFoundOnExplore": 10,
+    "save": {
+      "visibleChangeWithin80ms": false,
+      "beforeSnippet": "<button aria-pressed=\"false\" type=\"button\" title=\"Save\" class=\"akinti-press relative inline-flex shrink-0 select-none items-center justify-center gap-2 transition-[background-color,border-color,color] duration-[--dur-micro] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline",
+      "afterSnippet": "<button aria-pressed=\"false\" type=\"button\" title=\"Save\" class=\"akinti-press relative inline-flex shrink-0 select-none items-center justify-center gap-2 transition-[background-color,border-color,color] duration-[--dur-micro] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline",
+      "ms": 127
+    },
+    "follow": {
+      "ariaBusyWithin60ms": null,
+      "finalLabel": null,
+      "ms": 61604
+    }
+  },
+  "perf": {
+    "density-1440-/explore": {
+      "bodyWidth": 1440,
+      "mainWidth": 600,
+      "mainLeft": 200
+    },
+    "density-1440-/flow": {
+      "bodyWidth": 1440,
+      "mainWidth": 384,
+      "mainLeft": 20
+    },
+    "density-1440-/u/e2edeskauditmtpl0q01lmw3": {
+      "bodyWidth": 1440,
+      "mainWidth": 600,
+      "mainLeft": 200
+    },
+    "density-1920-/explore": {
+      "bodyWidth": 1920,
+      "mainWidth": 600,
+      "mainLeft": 200
+    },
+    "density-1920-/flow": {
+      "bodyWidth": 1920,
+      "mainWidth": 384,
+      "mainLeft": 20
+    },
+    "density-1920-/u/e2edeskauditmtpl0q01lmw3": {
+      "bodyWidth": 1920,
+      "mainWidth": 600,
+      "mainLeft": 200
+    },
+    "routeChangeExploreToHomeMs": 20.19999998807907
+  },
+  "notes": [
+    "test user: e2e+desk-audit-mtpl0q01lmw3@akinti.test",
+    "Settings: no sidenav link found for /settings, falling back to goto",
+    "profile hrefs on Explore: [\"/u/akinti_curated\",\"/u/akin\",\"/u/akin\",\"/u/akin\",\"/u/akin\"]"
+  ]
+}

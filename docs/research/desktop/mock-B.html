@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AKINTI desktop — Direction B, "Yüzey"</title>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,100..900;1,100..900&family=Martian+Mono:wght@400..700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f2f4f1;
+    --paper-raised:#ffffff;
+    --ink:#0e1512;
+    --ink-muted:#4a5952;
+    --ink-subtle:#78877f;
+    --hairline:#0e1512;         /* editorial: hairlines are ink, not grey */
+    --hairline-soft:#c9d2cb;
+
+    /* the two colour-blocks: current (cool) and sand (warm) at full saturation as fields */
+    --current:#0e6b6b;
+    --current-ink:#eafbf7;
+    --current-block:#123f3d;
+    --sand:#c07f1e;
+    --sand-block:#3a2c12;
+    --sand-tint:#f6e6cd;
+
+    --signal:#de3c11;
+    --danger:#9a2e1e;
+
+    --radius-card:0px;   /* editorial: hard corners on colour blocks */
+    --radius-tag:2px;
+    --radius-key:2px;
+    --radius-round:999px; /* transport controls only */
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);}
+  body{
+    font-family:"Archivo",system-ui,sans-serif;
+    font-variation-settings:"wdth" 100;
+    -webkit-font-smoothing:antialiased;
+    width:1440px; height:900px; overflow:hidden; position:relative;
+  }
+  .mono{font-family:"Martian Mono",monospace; font-variant-numeric:tabular-nums;}
+
+  .shell{ display:grid; grid-template-columns:240px 1fr 320px; grid-template-rows:1fr 84px; height:900px; }
+
+  /* ---------- ink sidebar block ---------- */
+  .side{ grid-row:1/2; background:var(--ink); color:var(--paper); padding:28px 20px; display:flex; flex-direction:column; }
+  .side .word{ font-size:19px; font-weight:700; letter-spacing:.06em; margin-bottom:36px; font-variation-settings:"wdth" 118; }
+  .side nav{ display:flex; flex-direction:column; gap:2px; }
+  .side a{
+    display:flex; align-items:center; gap:12px; padding:11px 10px; color:#aebab3; text-decoration:none; font-size:14.5px; font-weight:500;
+    border-left:3px solid transparent; transition:color .12s ease, border-color .12s ease, padding-left .12s ease;
+  }
+  .side a i{font-size:19px; width:20px;}
+  .side a:hover{ color:#fff; padding-left:14px; }
+  .side a.active{ color:#fff; border-left-color:var(--current); }
+  .side .spacer{flex:1;}
+  .side .divider{height:1px;background:#2a352f;margin:18px 0;}
+  .side .record{
+    display:flex; align-items:center; gap:10px; background:var(--paper); color:var(--ink); font-weight:700; font-size:14px;
+    padding:13px 16px; margin-bottom:14px; cursor:pointer;
+  }
+  .side .record .dot{width:9px;height:9px;border-radius:50%;background:var(--signal);}
+  .side .who{display:flex; align-items:center; gap:10px; font-size:13.5px; color:#cfd8d2;}
+  .side .who .av{width:30px;height:30px;background:#2a3530;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+
+  /* ---------- main ---------- */
+  .main{ grid-row:1/2; overflow:hidden; display:flex; flex-direction:column; position:relative; }
+  .topline{ position:absolute; top:0; left:0; height:3px; width:44%; background:var(--current); }
+  .topbar{ height:76px; display:flex; align-items:center; justify-content:space-between; padding:0 40px; border-bottom:2px solid var(--ink); flex-shrink:0; }
+  .search{ display:flex; align-items:center; gap:10px; border-bottom:2px solid var(--ink); padding:8px 2px; width:360px; color:var(--ink-subtle); font-size:14.5px;}
+  .search i{font-size:17px;color:var(--ink);}
+  .topbar-actions{ display:flex; align-items:center; gap:22px; }
+  .icon-btn{ font-size:20px; color:var(--ink); position:relative; cursor:pointer; }
+  .icon-btn .badge{ position:absolute; top:-6px; right:-10px; background:var(--signal); color:#fff; font-size:10px; font-weight:700; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+
+  .scroll{ flex:1; overflow-y:auto; padding:36px 40px 0; }
+  .scroll::-webkit-scrollbar{width:10px;} .scroll::-webkit-scrollbar-thumb{background:var(--hairline-soft);}
+
+  h1.page-title{ font-size:46px; font-weight:600; font-variation-settings:"wdth" 112; letter-spacing:-.028em; margin:0 0 6px; line-height:1; }
+  .page-sub{ color:var(--ink-muted); font-size:15px; margin:0 0 30px; max-width:520px; }
+
+  .section-head{ display:flex; align-items:baseline; justify-content:space-between; margin:44px 0 18px; border-top:2px solid var(--ink); padding-top:14px; }
+  .section-head h2{ font-size:20px; font-weight:600; margin:0; }
+  .section-head a{ font-size:12.5px; color:var(--ink); text-decoration:underline; text-underline-offset:3px; font-weight:600; }
+
+  /* colour-blocked "live now" band — full-bleed inside content column */
+  .live-band{ background:var(--current-block); color:var(--current-ink); display:flex; gap:0; margin:0 -40px; }
+  .live-cell{ flex:1; padding:22px 24px; border-right:1px solid rgba(255,255,255,.14); cursor:pointer; transition:background .12s ease; }
+  .live-cell:last-child{border-right:none;}
+  .live-cell:hover{ background:rgba(255,255,255,.06); }
+  .live-cell .lamp-row{ display:flex; align-items:center; gap:6px; margin-bottom:14px; }
+  .live-cell .lamp{ width:7px;height:7px;border-radius:50%; background:var(--signal); animation:breathe 1.4s ease-in-out infinite; }
+  .live-cell .lamp-txt{ font-size:11px; font-weight:700; letter-spacing:.02em; color:#ffb199; }
+  @keyframes breathe{0%,100%{opacity:1;}50%{opacity:.45;}}
+  .live-cell .sig{ height:30px; display:flex; align-items:flex-end; gap:2px; margin-bottom:14px; }
+  .live-cell .sig span{ flex:1; background:rgba(255,255,255,.55); border-radius:1px; min-height:2px; }
+  .live-cell .name{ font-weight:600; font-size:15px; margin:0 0 2px; }
+  .live-cell .meta{ font-size:12px; color:rgba(255,255,255,.6); }
+
+  /* trending — flat colour-bordered rows, editorial density, no drop shadow */
+  .wrow{ display:grid; grid-template-columns:44px 1fr 340px 120px; align-items:center; gap:20px; padding:20px 0; border-bottom:1px solid var(--hairline-soft); cursor:pointer; transition:background .12s ease; }
+  .wrow:hover{ background:var(--paper-raised); margin:0 -16px; padding:20px 16px; }
+  .wrow .av{ width:44px;height:44px; background:var(--ink); color:var(--paper); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; }
+  .wrow .meta-col .who{ font-size:13px; color:var(--ink-subtle); margin-bottom:3px; }
+  .wrow .meta-col .who b{ color:var(--ink); font-weight:600; }
+  .wrow .meta-col h3{ font-size:18px; font-weight:600; margin:0; letter-spacing:-.01em; }
+  .wrow .wave-col{ display:flex; align-items:center; gap:10px; }
+  .wrow .wave{ flex:1; height:32px; display:flex; align-items:center; gap:2px; }
+  .wrow .wave span{ flex:1; background:var(--hairline-soft); border-radius:1px; min-height:2px; }
+  .wrow .wave span.played{ background:var(--current); }
+  .wrow .time{ font-size:11px; color:var(--ink-subtle); }
+  .wrow .right-col{ display:flex; align-items:center; justify-content:flex-end; gap:14px; }
+  .play-btn{
+    width:38px;height:38px;border-radius:50%; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; font-size:15px; color:var(--ink);
+    transition:background .12s ease, color .12s ease, transform .1s cubic-bezier(.3,0,.2,1);
+  }
+  .wrow:hover .play-btn{ background:var(--ink); color:var(--paper); }
+  .play-btn:active{ transform:scale(.9); }
+  .badge{ display:inline-flex; align-items:center; padding:2px 7px; border:1px solid var(--ink); font-size:10px; font-weight:700; letter-spacing:.01em; margin-left:8px; border-radius:var(--radius-tag); }
+  .badge.duet{ background:var(--sand-tint); border-color:var(--sand-deep, var(--sand)); color:#5c3d0e; }
+
+  /* sand colour-block callout for a Duet request */
+  .sand-block{ background:var(--sand-block); color:#fbe9cf; margin:40px -40px 0; padding:32px 40px; display:flex; align-items:center; gap:40px; }
+  .sand-block .big{ font-size:28px; font-weight:600; letter-spacing:-.01em; flex:1; line-height:1.2; }
+  .sand-block .cta{ display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; border-bottom:2px solid var(--sand); padding-bottom:4px; cursor:pointer; white-space:nowrap; }
+
+  /* ---------- right rail: colour-blocked "trending people" panel ---------- */
+  .rrail{ grid-row:1/2; background:var(--paper-raised); border-left:2px solid var(--ink); padding:32px 24px; overflow-y:auto; }
+  .rrail h4{ font-size:12px; letter-spacing:.02em; margin:0 0 18px; font-weight:700; border-bottom:1px solid var(--ink); padding-bottom:10px; }
+  .person{ display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--hairline-soft); }
+  .person .av{ width:38px;height:38px; background:var(--current); color:var(--current-ink); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+  .person .pn{ font-size:13.5px; font-weight:600; }
+  .person .pm{ font-size:11.5px; color:var(--ink-subtle); }
+  .person .follow{ margin-left:auto; font-size:11.5px; font-weight:700; border:2px solid var(--ink); padding:6px 12px; }
+  .rrail .divider{ height:2px; background:var(--ink); margin:28px 0 20px; }
+  .comp-row{ display:flex; justify-content:space-between; font-size:12.5px; padding:9px 0; border-bottom:1px solid var(--hairline-soft); }
+  .comp-row .n{ font-weight:600; }
+  .comp-row .v{ font-family:"Martian Mono",monospace; color:var(--ink-subtle); }
+
+  /* ---------- bottom transport: bold ink strip ---------- */
+  .nowplaying{
+    grid-column:1/4; grid-row:2/3; background:var(--ink); color:var(--paper);
+    display:grid; grid-template-columns:300px 1fr 260px; align-items:center; padding:0 32px;
+  }
+  .np-left{ display:flex; align-items:center; gap:14px; }
+  .np-left .av{ width:44px;height:44px; background:var(--current); }
+  .np-left .t1{ font-size:14px; font-weight:600; }
+  .np-left .t2{ font-size:11.5px; color:#a9b6b0; }
+  .np-mid{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .np-controls{ display:flex; align-items:center; gap:22px; }
+  .np-controls i{ color:#cfd8d2; font-size:19px; cursor:pointer; }
+  .np-controls i:hover{ color:#fff; }
+  .np-controls .playpause{ width:34px;height:34px;border-radius:50%; background:var(--paper); color:var(--ink); display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .np-controls .playpause:active{ transform:scale(.92); }
+  .np-track{ display:flex; align-items:center; gap:10px; width:100%; max-width:520px; }
+  .np-time{ font-size:11px; color:#a9b6b0; }
+  .np-wave{ flex:1; height:22px; display:flex; align-items:center; gap:1px; }
+  .np-wave span{ flex:1; background:#37453e; border-radius:1px; min-height:2px; }
+  .np-wave span.played{ background:var(--current); filter:brightness(1.6) saturate(1.4); }
+  .np-right{ display:flex; align-items:center; justify-content:flex-end; gap:18px; color:#cfd8d2; font-size:17px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="side">
+    <div class="word">AKINTI</div>
+    <nav>
+      <a class="active"><i class="ph-fill ph-house"></i>Home</a>
+      <a><i class="ph ph-compass"></i>Explore</a>
+      <a><i class="ph ph-chat-circle"></i>Messages</a>
+      <a><i class="ph ph-user"></i>You</a>
+      <a><i class="ph ph-bell"></i>Notifications</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="record"><span class="dot"></span>Record a Wave</div>
+    <div class="divider"></div>
+    <div class="who"><div class="av">AK</div>akın</div>
+  </aside>
+
+  <main class="main">
+    <div class="topline"></div>
+    <div class="topbar">
+      <div class="search"><i class="ph ph-magnifying-glass"></i>Search Waves, people, sounds</div>
+      <div class="topbar-actions">
+        <div class="icon-btn"><i class="ph ph-bell"></i><span class="badge">6</span></div>
+        <div class="icon-btn"><i class="ph ph-gear"></i></div>
+      </div>
+    </div>
+
+    <div class="scroll">
+      <h1 class="page-title">Home</h1>
+      <p class="page-sub">No one you follow has posted yet. Here is what people are listening to right now.</p>
+
+      <div class="live-band">
+        <div class="live-cell">
+          <div class="lamp-row"><span class="lamp"></span><span class="lamp-txt">live</span></div>
+          <div class="sig" id="sig1"></div>
+          <p class="name">Ayşe Kaya</p><p class="meta">Atışma · reply round</p>
+        </div>
+        <div class="live-cell">
+          <div class="lamp-row"><span class="lamp"></span><span class="lamp-txt">live</span></div>
+          <div class="sig" id="sig2"></div>
+          <p class="name">Deniz Aydın</p><p class="meta">Cypher · verse 3</p>
+        </div>
+        <div class="live-cell">
+          <div class="sig" id="sig3"></div>
+          <p class="name">Mert Solak</p><p class="meta">Open for Duet</p>
+        </div>
+      </div>
+
+      <div class="section-head"><h2>Trending Waves</h2><a>Show Rising instead</a></div>
+
+      <div class="wrow">
+        <div class="av">AK</div>
+        <div class="meta-col"><div class="who"><b>Ayşe Kaya</b> · @aysek<span class="badge">recorded</span></div><h3>Sabah provası</h3></div>
+        <div class="wave-col"><span class="time mono">0:14</span><div class="wave" id="w1"></div><span class="time mono">2:07</span></div>
+        <div class="right-col"><div class="play-btn"><i class="ph-fill ph-play"></i></div><i class="ph ph-share-network" style="font-size:17px;"></i></div>
+      </div>
+      <div class="wrow">
+        <div class="av">DA</div>
+        <div class="meta-col"><div class="who"><b>Deniz Aydın</b> · @denizA<span class="badge duet">duet</span></div><h3>Cypher — verse 2</h3></div>
+        <div class="wave-col"><span class="time mono">0:00</span><div class="wave" id="w2"></div><span class="time mono">0:48</span></div>
+        <div class="right-col"><div class="play-btn"><i class="ph-fill ph-play"></i></div><i class="ph ph-share-network" style="font-size:17px;"></i></div>
+      </div>
+      <div class="wrow">
+        <div class="av">MS</div>
+        <div class="meta-col"><div class="who"><b>Mert Solak</b> · @mertsolak<span class="badge">uploaded</span></div><h3>Gece treni</h3></div>
+        <div class="wave-col"><span class="time mono">0:00</span><div class="wave" id="w3"></div><span class="time mono">3:12</span></div>
+        <div class="right-col"><div class="play-btn"><i class="ph-fill ph-play"></i></div><i class="ph ph-share-network" style="font-size:17px;"></i></div>
+      </div>
+      <div class="wrow">
+        <div class="av">ET</div>
+        <div class="meta-col"><div class="who"><b>Elif Toprak</b> · @eliftoprak<span class="badge">recorded</span></div><h3>Şişli, gece yarısı</h3></div>
+        <div class="wave-col"><span class="time mono">0:00</span><div class="wave" id="w4"></div><span class="time mono">1:33</span></div>
+        <div class="right-col"><div class="play-btn"><i class="ph-fill ph-play"></i></div><i class="ph ph-share-network" style="font-size:17px;"></i></div>
+      </div>
+
+      <div class="sand-block">
+        <div class="big">Mert Solak is looking for a second voice on "Gece treni" — open until Friday.</div>
+        <div class="cta"><i class="ph ph-arrow-elbow-down-right"></i>Send the request</div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="rrail">
+    <h4>voices worth following</h4>
+    <div class="person"><div class="av">EK</div><div><div class="pn">Ela Kurt</div><div class="pm">Arabesk · 4.2k plays this week</div></div><div class="follow">Follow</div></div>
+    <div class="person"><div class="av">BY</div><div><div class="pn">Burak Yıldız</div><div class="pm">Rap · new voice</div></div><div class="follow">Follow</div></div>
+    <div class="person"><div class="av">SÇ</div><div><div class="pn">Selin Çetin</div><div class="pm">Türkü · rising</div></div><div class="follow">Follow</div></div>
+
+    <div class="divider"></div>
+    <h4>tracks to sing over</h4>
+    <div class="comp-row"><span class="n">Yol Şarkısı — backing</span><span class="v">0:52</span></div>
+    <div class="comp-row"><span class="n">Gece Vardiyası — backing</span><span class="v">1:14</span></div>
+    <div class="comp-row"><span class="n">Rıhtım — backing</span><span class="v">0:38</span></div>
+  </aside>
+
+  <div class="nowplaying">
+    <div class="np-left">
+      <div class="av" style="width:44px;height:44px;"></div>
+      <div><div class="t1">Sabah provası</div><div class="t2">Ayşe Kaya</div></div>
+    </div>
+    <div class="np-mid">
+      <div class="np-controls">
+        <i class="ph ph-skip-back"></i>
+        <div class="playpause"><i class="ph-fill ph-pause"></i></div>
+        <i class="ph ph-skip-forward"></i>
+      </div>
+      <div class="np-track">
+        <span class="np-time mono">0:41</span>
+        <div class="np-wave" id="npwave"></div>
+        <span class="np-time mono">2:07</span>
+      </div>
+    </div>
+    <div class="np-right">
+      <i class="ph ph-queue"></i>
+      <i class="ph ph-speaker-simple-high"></i>
+    </div>
+  </div>
+</div>
+
+<script>
+  function bars(id, count, playedRatio, seedOffset){
+    const el = document.getElementById(id);
+    if(!el) return;
+    let html = '';
+    for(let i=0;i<count;i++){
+      const h = Math.max(10, Math.abs(Math.sin(i*0.5+seedOffset))*100);
+      const played = i/count < playedRatio ? ' played' : '';
+      html += `<span class="${played.trim()}" style="height:${h}%"></span>`;
+    }
+    el.innerHTML = html;
+  }
+  bars('w1', 90, 0.22, 1);
+  bars('w2', 60, 0.55, 3);
+  bars('w3', 90, 0, 5);
+  bars('w4', 90, 0, 7);
+  bars('npwave', 80, 0.32, 2);
+  function sig(id, seed){
+    const el = document.getElementById(id);
+    let html='';
+    for(let i=0;i<32;i++){ const h = Math.max(12, Math.abs(Math.sin(i*0.6+seed))*100); html += `<span style="height:${h}%"></span>`; }
+    el.innerHTML = html;
+  }
+  sig('sig1',1); sig('sig2',2); sig('sig3',3);
+</script>
+</body>
+</html>
