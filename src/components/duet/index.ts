@@ -1,4 +1,5 @@
 export { DuetLineage, type DuetLineageEntry, type DuetLineageProps } from "./DuetLineage";
+export { DuetChainTree, type DuetChainTreeProps } from "./DuetChainTree";
 export { DuetRequestForm, type DuetRequestFormProps } from "./DuetRequestForm";
 export {
   DuetRequestsView,

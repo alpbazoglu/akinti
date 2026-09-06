@@ -1,16 +1,19 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, Mic, X } from "@/components/ui/icons";
 import { Avatar, Badge, Button, EmptyState, TabPanel, Tabs, tabId, tabPanelId, useActionToast } from "@/components/ui";
 import { routes } from "@/config/routes";
 import { cn, timeAgo, useIsDesktopViewport } from "@/lib/ui";
-import type { DuetRequestStatus } from "@/types/domain";
+import type { DuetRequestStatus, DuetTreeNode } from "@/types/domain";
 
 import { cancelDuetRequest, respondToDuetRequest } from "@/app/(app)/duets/actions";
+
+import { getDuetChainForWave } from "./chainActions";
+import { DuetChainTree } from "./DuetChainTree";
 
 export interface DuetRequestListPerson {
   readonly username: string;
@@ -313,6 +316,26 @@ function RequestDetailPane({ item, variant }: { item: DuetRequestListItem; varia
   const name = item.counterpart.displayName ?? item.counterpart.username;
   const { error, isPending, runAction } = useRequestRunAction();
 
+  // The chain tree (this pass's brief, item 2): a nice-to-have for this pane,
+  // fetched on demand per selection rather than for every row in the list on
+  // the left — most requests are never opened. `resultingWaveId` (once the
+  // request is accepted and recorded) is the more relevant "you are here"
+  // than the original target Wave, since that is the Wave this reader made.
+  // No reset-to-null on `item.waveId` change needed here: this component is
+  // already remounted fresh per selection (`key={selected.id}` on the
+  // `RequestDetailPane` call site below), so `useState(null)`'s initial
+  // value already is the reset.
+  const [chain, setChain] = useState<readonly DuetTreeNode[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void getDuetChainForWave(item.waveId).then((tree) => {
+      if (!cancelled) setChain(tree);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [item.waveId]);
+
   return (
     <div className="flex flex-col gap-4 rounded-card border border-hairline bg-elevation-2 p-6">
       <div className="flex items-center gap-3">
@@ -356,6 +379,14 @@ function RequestDetailPane({ item, variant }: { item: DuetRequestListItem; varia
       <div className="pt-2">
         <RequestActions item={item} variant={variant} isPending={isPending} runAction={runAction} />
       </div>
+
+      {chain && chain.length > 0 ? (
+        <DuetChainTree
+          nodes={chain}
+          currentWaveId={item.resultingWaveId ?? item.waveId}
+          className="border-t border-hairline pt-4"
+        />
+      ) : null}
     </div>
   );
 }

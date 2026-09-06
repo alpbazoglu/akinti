@@ -978,17 +978,34 @@ the right (`RequestDetailPane`, sharing its pending/error logic with the mobile 
 small `useRequestRunAction` hook rather than duplicating it); mobile keeps its original
 single-column list with actions inline on every row.
 
-**Not done in this pass, and why:** the Atışma/Cypher recorders' "two-column stage" (left
-stage, right turn list/verse order) and the Duet chain tree with hover highlighting were
-not attempted. The recorder stage (`DuetRecorder.tsx`, `AtismaTurnRecorder.tsx`) wraps
-`RecordStage`/`ReviewStage`/`EnhanceStage` from `src/components/create/**`, a route owned
-by a concurrently-running agent this pass — reshaping the capture stage safely without
-touching that boundary would need those components to expose turn/verse progress they
-don't today, which is real product surgery on a live audio-capture path, not a layout pass.
-A chain tree has no data layer at all yet: only immediate-parent/root lineage exists
-(`DuetLineage`), not a fetch for a whole Duet chain's descendants — building one from
-scratch was out of scope for a desktop layout pass and risked fabricating a tree the
-database cannot actually produce.
+**Follow-up pass (desktop-duet):** the two items flagged above as not attempted are now
+built.
+
+The Atışma/Cypher recorders' two-column stage is composed around
+`RecordStage`/`ReviewStage`/`EnhanceStage` (`src/components/create/**`) unmodified — that
+boundary still holds — rather than by teaching those components anything about turns or
+verses: `AtismaTurnRecorder.tsx` wraps its own `>= 1024px` two columns around them (left:
+the original's full trace with the current turn's window cut out via `Waveform`'s existing
+`trim` highlight, the listening controls or `RecordStage` itself; right, listening/setup
+only: a turn list with reed-green marks for turns already replied to, the mode's one-line
+explanation reused from `DuetModePicker`, and the headphone tip reused from `RecordStage`).
+During actual recording the right column steps aside entirely — `RecordStage` already draws
+its own trace/settings split there, and a second rail beside it would only crowd it; a slim
+progress row above `RecordStage` stands in for the full list instead. `DuetRecorder.tsx`
+gained the same treatment for Cypher (a real verse-order preview, four fixed hues, computed
+via `computeCypherOrder` — `src/lib/duet/chain.ts` — against the actual chain, never a
+guess) and for its Details step (title form left, a mode recap right, publish progress
+below both). `useStageShortcuts` (`src/components/create/useStageShortcuts.ts`) now also
+covers Atışma's listening phase (space plays/pauses their turn).
+
+The Duet chain tree now has real hover-highlighted, click-to-navigate structure
+(`DuetChainTree.tsx`, extracted from the Server Component this file used to describe as a
+plain indented list) — drawn horizontally, connected by a dashed "trace" rather than a
+solid rule, fanning out only where a Wave actually has more than one Duet. It reuses the
+exact `getDuetTree` (`src/lib/db/duets.ts`) data the Wave page already fetched, and — new
+in this pass — also renders in the `/duets` inbox's desktop detail pane
+(`DuetRequestsView.tsx`), which fetches its own tree on selection via a small colocated
+Server Action (`chainActions.ts`) rather than asking `/duets/page.tsx` to thread one through.
 
 ### Create / Enhance / Publish (`/create`)
 Two-column stage at `>= 1024px`, built inside each stage component itself
@@ -1051,9 +1068,13 @@ and hands off to `WavePlayer`'s existing `compact` variant — nothing is fetche
 reader presses play.
 
 ### Not yet built
-Challenges, Tracks, Duets and Search's desktop passes are tracked elsewhere in this file
-(see above); Analytics has not had a desktop-specific pass and still renders its
-mobile-first layout at desktop width. `loading.tsx` skeletons for Flow/Explore/Wave/
-Profile/Analytics have not been reshaped to the new desktop layouts; they still describe
-the pre-existing mobile shape. (Create, Messages, Settings and Notifications now have
-shape-true desktop `loading.tsx` skeletons — see above.)
+Challenges, Tracks, Search's desktop passes are tracked elsewhere in this file (see above);
+Duets' two-pane inbox and its chain tree are now built (see the Duets and desktop-duet
+sections above) — its mode picker cards were already done. Analytics has not had a
+desktop-specific pass and still renders its mobile-first layout at desktop width.
+`loading.tsx` skeletons for Flow/Explore/Wave/Profile/Analytics have not been reshaped to
+the new desktop layouts; they still describe the pre-existing mobile shape. (Create,
+Messages, Settings, Notifications and `/w/[id]/duet` now have shape-true desktop
+`loading.tsx` skeletons — see above; `/w/[id]/duet/record` does not, since
+`DuetRequestPage`/`DuetRecordPage` render a wave/request-not-found empty state far more
+often than a real loading flash, and this pass's brief only called for the request page's.)

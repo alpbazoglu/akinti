@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { CommentsSection } from "@/components/comments";
+import { DuetChainTree } from "@/components/duet";
 import { PageHeader } from "@/components/layout";
 import { InstallHint } from "@/components/pwa/InstallHint";
 import { Avatar, Badge } from "@/components/ui";
@@ -244,7 +245,7 @@ export default async function WavePage({ params }: WavePageProps) {
 
             <div className="lg:hidden">
               {chain.length > 0 ? (
-                <DuetChain nodes={chain} currentWaveId={wave.id} />
+                <DuetChainTree nodes={chain} currentWaveId={wave.id} className="akinti-page pt-8" />
               ) : directDuets.items.length > 0 ? (
                 <DirectDuets waves={directDuets.items} profileById={profileById} />
               ) : null}
@@ -274,7 +275,7 @@ export default async function WavePage({ params }: WavePageProps) {
           <OwnerInsights isOwner={isCreator} audioAssetId={wave.audioAssetId} />
 
           {chain.length > 0 ? (
-            <DuetChain nodes={chain} currentWaveId={wave.id} />
+            <DuetChainTree nodes={chain} currentWaveId={wave.id} />
           ) : directDuets.items.length > 0 ? (
             <DirectDuets waves={directDuets.items} profileById={profileById} />
           ) : null}
@@ -419,63 +420,6 @@ function LineageRow({
       ) : null}
     </p>
   );
-}
-
-/**
- * The Duet chain: every Wave that grew from this one, in the order it grew.
- * Depth is drawn by indentation on the rail, not by a nested box.
- */
-async function DuetChain({ nodes, currentWaveId }: { nodes: readonly DuetTreeNode[]; currentWaveId: string }) {
-  const t = await getTranslations("WavePage");
-  const tTerms = await getTranslations("Terms");
-  const flat = flattenChain(nodes, 0);
-  return (
-    <section aria-labelledby="duet-chain" className="flex flex-col pt-8">
-      <h2 id="duet-chain" className="akinti-page type-caption-strong pb-2 text-ink-muted">
-        {t("duetChain", { duet: tTerms("duet") })}
-      </h2>
-      <ul className="akinti-page flex flex-col divide-y divide-hairline border-t border-hairline">
-        {flat.map(({ node, depth }) => {
-          const isCurrent = node.wave.id === currentWaveId;
-          const name = node.creator.displayName ?? node.creator.username;
-          return (
-            <li key={node.wave.id} style={{ paddingLeft: `${Math.min(depth, 4) * 16}px` }}>
-              <Link
-                href={routes.wave(node.wave.id)}
-                aria-current={isCurrent ? "page" : undefined}
-                className="akinti-rail items-center py-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
-              >
-                <Avatar name={name} src={node.creator.avatarUrl} size="sm" />
-                <span className="flex min-w-0 flex-col">
-                  <span className="type-subhead truncate text-ink">
-                    {node.wave.title}
-                    {isCurrent ? (
-                      <span className="type-caption text-ink-subtle"> · {t("youAreHere")}</span>
-                    ) : null}
-                  </span>
-                  <span className="type-caption truncate text-ink-subtle">
-                    @{node.creator.username}
-                    <span aria-hidden="true"> · </span>
-                    {timeAgo(node.wave.publishedAt)}
-                  </span>
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-function flattenChain(
-  nodes: readonly DuetTreeNode[],
-  depth: number,
-): { node: DuetTreeNode; depth: number }[] {
-  return nodes.flatMap((node) => [
-    { node, depth },
-    ...flattenChain(node.children, depth + 1),
-  ]);
 }
 
 /** The chain view's fallback: the Duets recorded directly against this Wave. */
