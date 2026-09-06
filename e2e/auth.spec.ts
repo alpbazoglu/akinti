@@ -72,8 +72,21 @@ test.describe("auth", () => {
       await expect(page.getByRole("link", { name: "Create an account" })).toBeVisible();
 
       // --- Sign back in ---------------------------------------------------------
+      // A plain re-login with no `?next=` lands on /flow, not "/" — `signIn`
+      // (`src/app/(auth)/actions.ts`) redirects to `next ?? routes.flow()`,
+      // and Flow has been the default screen after login since
+      // `feat(flow): make Flow the default route` (see docs/TESTING.md's
+      // performance-budget section). This assertion used to expect "/"
+      // before that change and was never updated — closeout e2e pass caught
+      // the drift against the real, live app.
       await logIn(page, user);
-      await expect(page).toHaveURL("/");
+      await expect(page).toHaveURL("/flow");
+      // Flow is a chrome-less full-screen takeover by design (`AppShell.tsx`:
+      // "no top bar, side rail, bottom nav ... the chrome is never rendered
+      // on /flow at all") — the account-menu button this test wants to
+      // confirm genuinely isn't on this page. Navigate to Home, which has
+      // the full shell, to confirm the sign-in itself actually succeeded.
+      await page.goto("/");
       await expect(page.getByRole("button", { name: /account menu/i })).toBeVisible();
     } finally {
       await deleteTestUser(user.id);
