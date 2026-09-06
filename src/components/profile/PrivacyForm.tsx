@@ -99,7 +99,7 @@ export function PrivacyForm({
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-xl border border-border bg-surface p-5">
+      <section className="flex flex-col gap-4 border-t border-hairline pt-5">
         <Switch
           label={t("privateAccountLabel")}
           description={t("privateAccountDescription")}
@@ -114,21 +114,21 @@ export function PrivacyForm({
         {privacy === "private" ? (
           <Link
             href={routes.settingsFollowRequests()}
-            className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5 text-sm hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="flex items-center justify-between gap-3 border-t border-hairline pt-4 type-body text-ink hover:text-ink-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <span className="flex items-center gap-2 text-fg">
+            <span className="flex items-center gap-2">
               {t("pendingFollowRequests")}
               {pendingFollowRequestCount > 0 ? (
                 <Badge>{pendingFollowRequestCount}</Badge>
               ) : null}
             </span>
-            <ChevronRight className="size-4 text-fg-subtle" aria-hidden="true" />
+            <ChevronRight className="size-4 text-ink-subtle" aria-hidden="true" />
           </Link>
         ) : null}
       </section>
 
-      <section className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
-        <h2 className="text-sm font-semibold text-fg">{t("whoCanReachYou")}</h2>
+      <section className="flex flex-col gap-4 border-t border-hairline pt-5">
+        <h2 className="type-caption text-ink-subtle">{t("whoCanReachYou")}</h2>
         <Select
           id="privacy-message-permission"
           label={t("whoCanMessageLabel")}
@@ -168,8 +168,8 @@ export function PrivacyForm({
         />
       </section>
 
-      <section className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
-        <h2 className="text-sm font-semibold text-fg">{t("publishingHeading")}</h2>
+      <section className="flex flex-col gap-4 border-t border-hairline pt-5">
+        <h2 className="type-caption text-ink-subtle">{t("publishingHeading")}</h2>
         <Select
           id="privacy-default-wave-visibility"
           label={t("defaultVisibilityLabel")}

@@ -76,17 +76,25 @@ export interface ProductHealthMetricsProps {
   health: ProductHealth;
 }
 
-/** Spec §28 platform health signals, moderator-only. Every tile carries its own definition. */
+/**
+ * Spec §28 platform health signals, moderator-only. Every row carries its
+ * own definition — DESIGN.md §12 rule 29 names a three-across grid of
+ * identical metric cards (the previous build's analytics screen) as
+ * specifically what not to do here, so this is a single-column, hairline-
+ * separated list rather than a card grid (QA `full2` defect #9).
+ */
 export function ProductHealthMetrics({ health }: ProductHealthMetricsProps) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <dl className="flex flex-col divide-y divide-hairline border-t border-hairline">
       {METRICS.map((metric) => (
-        <div key={metric.key} className="flex flex-col gap-1.5 rounded-xl border border-border bg-surface p-4">
-          <span className="text-xs font-medium text-fg-muted">{metric.label}</span>
-          <span className="text-2xl font-semibold tabular-nums text-fg">{metric.format(health)}</span>
-          <p className="text-xs leading-relaxed text-fg-subtle">{metric.definition}</p>
+        <div key={metric.key} className="flex flex-col gap-1 py-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="type-body text-ink">{metric.label}</dt>
+            <dd className="type-mono-lg tabular-nums text-ink">{metric.format(health)}</dd>
+          </div>
+          <p className="type-caption text-ink-subtle">{metric.definition}</p>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }

@@ -45,9 +45,8 @@ export function DownloadDataButton() {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-5">
-      <h2 className="text-sm font-semibold text-fg">{t("downloadButton")}</h2>
-      <p className="text-sm text-fg-muted">
+    <div className="flex flex-col gap-2 border-t border-hairline pt-5">
+      <p className="type-body-sm text-ink-muted">
         {t("description")}
       </p>
       <div>

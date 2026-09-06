@@ -30,7 +30,7 @@ export function FollowRequestsList({ requests }: FollowRequestsListProps) {
   }
 
   return (
-    <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+    <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
       {entries.map((profile) => (
         <RequestRow
           key={profile.id}

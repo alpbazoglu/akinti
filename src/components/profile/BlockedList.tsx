@@ -30,7 +30,7 @@ export function BlockedList({ blocked }: BlockedListProps) {
   }
 
   return (
-    <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+    <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
       {entries.map((profile) => (
         <BlockedRow
           key={profile.id}

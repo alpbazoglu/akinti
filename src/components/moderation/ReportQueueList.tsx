@@ -50,7 +50,7 @@ export function ReportQueueList({ reports, selectedReportId, queryString }: Repo
   }
 
   return (
-    <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+    <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
       {reports.map((report) => {
         const params = new URLSearchParams(queryString);
         params.set("report", report.id);
@@ -62,7 +62,7 @@ export function ReportQueueList({ reports, selectedReportId, queryString }: Repo
             <Link
               href={href}
               scroll={false}
-              className={`flex flex-col gap-1.5 px-4 py-3 hover:bg-surface-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${isSelected ? "bg-surface-muted" : ""}`}
+              className={`flex flex-col gap-1.5 px-4 py-3 hover:bg-paper-sunk focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${isSelected ? "bg-surface-muted" : ""}`}
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-medium text-fg">

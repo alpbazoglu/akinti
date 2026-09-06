@@ -53,7 +53,7 @@ export default async function NotificationsSettingsPage() {
       />
       <div className="flex flex-col gap-6 px-4 pb-8 sm:px-5">
         <NotificationsForm initialPreferences={profile?.notificationPreferences ?? {}} />
-        <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
+        <div className="flex flex-col gap-4 border-t border-hairline pt-5">
           <PushToggle initialSubscribed={subscribed} />
         </div>
       </div>

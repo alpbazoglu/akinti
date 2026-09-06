@@ -89,12 +89,13 @@ async function HealthContent({ days }: { days: AnalyticsRangeDays }) {
   return <ProductHealthMetrics health={health} />;
 }
 
+/** Mirrors `ProductHealthMetrics`' rail-hung list, not a card grid (QA `full2` defect #9). */
 function HealthSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
-    <div aria-busy="true" aria-live="polite" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div aria-busy="true" aria-live="polite" className="flex flex-col divide-y divide-hairline border-t border-hairline">
       <span className="sr-only">{loadingLabel}</span>
       {Array.from({ length: 10 }, (_, i) => (
-        <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4">
+        <div key={i} className="flex flex-col gap-2 py-4">
           <Skeleton width="70%" />
           <Skeleton shape="block" height="1.75rem" />
           <Skeleton width="90%" />

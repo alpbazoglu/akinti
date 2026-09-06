@@ -51,9 +51,9 @@ export default async function SafetySettingsPage() {
         {isMod ? (
           <Link
             href={routes.moderation()}
-            className="flex items-center gap-2 rounded-xl border border-border bg-surface p-4 text-sm font-medium text-fg hover:bg-surface-muted"
+            className="flex items-center gap-2 border-b border-hairline py-3.5 type-body text-ink hover:text-ink-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink"
           >
-            <ShieldCheck className="size-4 text-accent" aria-hidden="true" />
+            <ShieldCheck className="size-4 text-ink-subtle" aria-hidden="true" />
             {t("moderationQueue")}
           </Link>
         ) : null}

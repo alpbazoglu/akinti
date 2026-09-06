@@ -10,14 +10,19 @@ export interface AnalyticsSkeletonProps {
   loadingLabel: string;
 }
 
-/** Loading placeholder for `/analytics` (spec §38: real loading state, never a blank page). */
+/**
+ * Loading placeholder for `/analytics` (spec §38: real loading state, never
+ * a blank page). Mirrors `ProductHealthMetrics`' rail-hung list, not a card
+ * grid (QA `full2` defect #9) — a skeleton that shapes the real layout it
+ * stands in for, not a decorative one of its own.
+ */
 export function AnalyticsSkeleton({ loadingLabel }: AnalyticsSkeletonProps) {
   return (
     <div aria-busy="true" aria-live="polite" className="flex flex-col gap-4 px-4 pb-8 sm:px-5">
       <span className="sr-only">{loadingLabel}</span>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="flex flex-col divide-y divide-hairline border-t border-hairline">
         {Array.from({ length: 10 }, (_, i) => (
-          <div key={i} className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-4">
+          <div key={i} className="flex flex-col gap-2 py-4">
             <Skeleton width="60%" />
             <Skeleton shape="block" height="1.75rem" />
           </div>

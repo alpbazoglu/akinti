@@ -39,7 +39,7 @@ export function AudioPreferencesForm() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-xl border border-border bg-surface p-5">
+      <section className="border-t border-hairline pt-5">
         <Switch
           label={t("autoplayLabel")}
           description={t("autoplayDescription")}
@@ -48,7 +48,7 @@ export function AudioPreferencesForm() {
         />
       </section>
 
-      <section className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
+      <section className="flex flex-col gap-4 border-t border-hairline pt-5">
         <Select
           id="audio-quality"
           label={t("qualityLabel")}

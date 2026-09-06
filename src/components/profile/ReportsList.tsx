@@ -47,7 +47,7 @@ export function ReportsList({ reports }: ReportsListProps) {
   }
 
   return (
-    <ul className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
+    <ul className="flex flex-col divide-y divide-hairline border-t border-hairline">
       {reports.map((report) => (
         <li key={report.id} className="flex flex-col gap-1.5 px-4 py-3">
           <div className="flex items-center justify-between gap-3">

@@ -49,7 +49,7 @@ export function NotificationsForm({ initialPreferences }: NotificationsFormProps
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-5">
+    <div className="flex flex-col gap-4 border-t border-hairline pt-5">
       {NOTIFICATION_CATEGORIES.map((category, index) => (
         <div key={category}>
           <Switch
@@ -60,7 +60,7 @@ export function NotificationsForm({ initialPreferences }: NotificationsFormProps
             disabled={isPending}
           />
           {index < NOTIFICATION_CATEGORIES.length - 1 ? (
-            <div className="mt-4 border-t border-border" aria-hidden="true" />
+            <div className="mt-4 border-t border-hairline" aria-hidden="true" />
           ) : null}
         </div>
       ))}
